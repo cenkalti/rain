@@ -205,8 +205,8 @@ func (t *Tracker) request(req, res TrackerMessage) (rest []byte, err error) {
 	fmt.Println("--- read", n, "bytes")
 	// fmt.Println(string(t.buf[:n]))
 
+	// Read header from buffer.
 	reader := bytes.NewReader(t.buf)
-
 	err = binary.Read(reader, binary.BigEndian, &header)
 	if err != nil {
 		return nil, err
