@@ -83,7 +83,7 @@ func (t *Tracker) Connect() (*ConnectResponse, error) {
 		},
 	}
 
-	err = t.request(&request, &response)
+	_, err = t.request(&request, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -112,17 +112,25 @@ type AnnounceRequest struct {
 	Extensions uint16
 }
 
-type AnnounceResponse struct {
+type announceResponse struct {
 	TrackerMessageHeader
 	Interval int32
 	Leechers int32
 	Seeders  int32
-	// Peers    [NumWant]Peer
+}
+
+type AnnounceResponse struct {
+	announceResponse
+	Peers []Peer
 }
 
 type Peer struct {
 	IP   int32
 	Port uint16
+}
+
+func (p Peer) Addr() net.Addr {
+	return nil
 }
 
 func (t *Tracker) Announce(d *Download) (*AnnounceResponse, error) {
@@ -140,62 +148,94 @@ func (t *Tracker) Announce(d *Download) (*AnnounceResponse, error) {
 		Event:      None,
 		// IP            :    ,
 		// Key           :    ,
-		NumWant:    5,
+		NumWant:    NumWant,
 		Port:       0,
 		Extensions: 0,
 	}
 	response := new(AnnounceResponse)
-	return response, t.request(request, response)
+	rest, err := t.request(request, &response.announceResponse)
+	if err != nil {
+		return nil, err
+	}
+	if len(rest)%6 != 0 {
+		return nil, errors.New("invalid peer list")
+	}
+
+	reader := bytes.NewReader(rest)
+	count := len(rest) / 6
+	response.Peers = make([]Peer, count)
+	for i := 0; i < count; i++ {
+		if err = binary.Read(reader, binary.BigEndian, &response.Peers[i]); err != nil {
+			fmt.Println("--- HERE 1")
+			return nil, err
+		}
+	}
+
+	return response, nil
 }
 
-func (t *Tracker) request(req, res TrackerMessage) error {
-	err := t.conn.SetDeadline(time.Now().Add(60 * time.Second))
+// request sends req to t and read the response into a buffer,
+// does some checks on the response and copies into res.
+// If the response is larger than res, remaining bytes are returned as rest.
+func (t *Tracker) request(req, res TrackerMessage) (rest []byte, err error) {
+	// A request should not take more that 60 seconds.
+	err = t.conn.SetDeadline(time.Now().Add(60 * time.Second))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	// Send the request.
 	err = binary.Write(t.conn, binary.BigEndian, req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	// Read header first and check for error.
+	// If the response is not an error, copy the bytes in buffer into res.
 	var header TrackerMessageHeader
 
+	// Read response into a buffer.
 	n, err := t.conn.Read(t.buf)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if n < binary.Size(header) {
-		return errors.New("response is too small")
+		return nil, errors.New("response is too small")
 	}
-	fmt.Println("--- read ", n, " bytes")
+	fmt.Println("--- read", n, "bytes")
+	// fmt.Println(string(t.buf[:n]))
 
 	reader := bytes.NewReader(t.buf)
 
 	err = binary.Read(reader, binary.BigEndian, &header)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if header.TransactionID != req.GetTransactionID() {
-		return errors.New("invalid transaction id")
+		return nil, errors.New("invalid transaction id")
 	}
 
-	reader.Seek(0, 0)
-
+	// Tracker has sent and error instead of a response.
 	if header.Action == Error {
-		var te TrackerError
-		err = binary.Read(reader, binary.BigEndian, &te)
-		if err != nil {
-			return err
-		}
-		return &te
+		// The part after the header is the error message.
+		return nil, TrackerError(t.buf[binary.Size(header):])
 	}
 
 	if n < binary.Size(res) {
-		return errors.New("response is smaller than expected")
+		return nil, errors.New("response is smaller than expected")
 	}
 
-	return binary.Read(reader, binary.BigEndian, res)
+	// Copy the bytes into response struct and rest.
+	reader.Seek(0, 0)
+	err = binary.Read(reader, binary.BigEndian, res)
+	if err != nil {
+		fmt.Println("--- HERE 2")
+		return nil, err
+	}
+	if rest != nil {
+		reader.Read(rest)
+	}
+	return rest, nil
 }
 
 // TrackerMessageHeader contains the common fields in all TrackerMessage structs.
@@ -208,13 +248,10 @@ func (r *TrackerMessageHeader) GetAction() Action       { return r.Action }
 func (r *TrackerMessageHeader) GetTransactionID() int32 { return r.TransactionID }
 
 // Requests can return a response or TrackerError.
-type TrackerError struct {
-	TrackerMessageHeader
-	ErrorString []byte
-}
+type TrackerError string
 
-func (e *TrackerError) Error() string {
-	return string(e.ErrorString)
+func (e TrackerError) Error() string {
+	return string(e)
 }
 
 // Close the tracker connection.

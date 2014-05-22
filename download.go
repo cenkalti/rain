@@ -1,5 +1,6 @@
 package main
 
+// Download represents an active download in the program.
 type Download struct {
 	TorrentFile *TorrentFile
 	Downloaded  int64
