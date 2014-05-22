@@ -1,5 +1,8 @@
 package main
 
+// http://www.rasterbar.com/products/libtorrent/udp_tracker_protocol.html
+// http://xbtt.sourceforge.net/udp_tracker_protocol.html
+
 import (
 	"bytes"
 	"encoding/binary"
@@ -8,7 +11,6 @@ import (
 	"math/rand"
 	"net"
 	"net/url"
-	"reflect"
 	"time"
 )
 
@@ -53,13 +55,12 @@ func NewTracker(trackerURL string) (*Tracker, error) {
 }
 
 type ConnectRequest struct {
-	ConnectionID  int64
-	Action        Action
-	TransactionID int32
+	ConnectionID int64
+	TrackerMessageHeader
 }
 
 type ConnectResponse struct {
-	TrackerResponseHeader
+	TrackerMessageHeader
 	ConnectionID int64
 }
 
@@ -75,9 +76,11 @@ func (t *Tracker) Connect() (*ConnectResponse, error) {
 
 	var response ConnectResponse
 	var request = ConnectRequest{
-		ConnectionID:  0x41727101980,
-		Action:        Connect,
-		TransactionID: rand.Int31(),
+		ConnectionID: 0x41727101980,
+		TrackerMessageHeader: TrackerMessageHeader{
+			Action:        Connect,
+			TransactionID: rand.Int31(),
+		},
 	}
 
 	err = t.request(&request, &response)
@@ -94,24 +97,23 @@ func (t *Tracker) Connect() (*ConnectResponse, error) {
 }
 
 type AnnounceRequest struct {
-	ConnectionID  int64
-	Action        Action
-	TransactionID int32
-	InfoHash      [20]byte
-	PeerID        [20]byte
-	Downloaded    int64
-	Left          int64
-	Uploaded      int64
-	Event         Event
-	IP            uint32
-	Key           uint32
-	NumWant       int32
-	Port          uint16
-	Extensions    uint16
+	ConnectionID int64
+	TrackerMessageHeader
+	InfoHash   [20]byte
+	PeerID     [20]byte
+	Downloaded int64
+	Left       int64
+	Uploaded   int64
+	Event      Event
+	IP         uint32
+	Key        uint32
+	NumWant    int32
+	Port       uint16
+	Extensions uint16
 }
 
 type AnnounceResponse struct {
-	TrackerResponseHeader
+	TrackerMessageHeader
 	Interval int32
 	Leechers int32
 	Seeders  int32
@@ -125,9 +127,11 @@ type Peer struct {
 
 func (t *Tracker) Announce(d *Download) (*AnnounceResponse, error) {
 	request := &AnnounceRequest{
-		ConnectionID:  t.ConnectionID,
-		Action:        Announce,
-		TransactionID: rand.Int31(),
+		ConnectionID: t.ConnectionID,
+		TrackerMessageHeader: TrackerMessageHeader{
+			Action:        Announce,
+			TransactionID: rand.Int31(),
+		},
 		// InfoHash[20]:  d.TorrentFile.InfoHash,
 		// PeerID        [20]:    ,
 		Downloaded: d.Downloaded,
@@ -144,7 +148,7 @@ func (t *Tracker) Announce(d *Download) (*AnnounceResponse, error) {
 	return response, t.request(request, response)
 }
 
-func (t *Tracker) request(req interface{}, res interface{}) error {
+func (t *Tracker) request(req, res TrackerMessage) error {
 	err := t.conn.SetDeadline(time.Now().Add(60 * time.Second))
 	if err != nil {
 		return err
@@ -155,22 +159,24 @@ func (t *Tracker) request(req interface{}, res interface{}) error {
 		return err
 	}
 
+	var header TrackerMessageHeader
+
 	n, err := t.conn.Read(t.buf)
 	if err != nil {
 		return err
 	}
-	if n < headerSize {
+	if n < binary.Size(header) {
 		return errors.New("response is too small")
 	}
+	fmt.Println("--- read ", n, " bytes")
 
 	reader := bytes.NewReader(t.buf)
 
-	var header TrackerResponseHeader
 	err = binary.Read(reader, binary.BigEndian, &header)
 	if err != nil {
 		return err
 	}
-	if header.TransactionID != int32(reflect.ValueOf(req).Elem().FieldByName("TransactionID").Int()) {
+	if header.TransactionID != req.GetTransactionID() {
 		return errors.New("invalid transaction id")
 	}
 
@@ -192,15 +198,18 @@ func (t *Tracker) request(req interface{}, res interface{}) error {
 	return binary.Read(reader, binary.BigEndian, res)
 }
 
-type TrackerResponseHeader struct {
+// TrackerMessageHeader contains the common fields in all TrackerMessage structs.
+type TrackerMessageHeader struct {
 	Action        Action
 	TransactionID int32
 }
 
-var headerSize = binary.Size(TrackerResponseHeader{})
+func (r *TrackerMessageHeader) GetAction() Action       { return r.Action }
+func (r *TrackerMessageHeader) GetTransactionID() int32 { return r.TransactionID }
 
+// Requests can return a response or TrackerError.
 type TrackerError struct {
-	TrackerResponseHeader
+	TrackerMessageHeader
 	ErrorString []byte
 }
 
@@ -208,6 +217,12 @@ func (e *TrackerError) Error() string {
 	return string(e.ErrorString)
 }
 
+// Close the tracker connection.
 func (t *Tracker) Close() error {
 	return t.conn.Close()
+}
+
+type TrackerMessage interface {
+	GetAction() Action
+	GetTransactionID() int32
 }
