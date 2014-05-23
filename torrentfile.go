@@ -12,7 +12,7 @@ import (
 
 type TorrentFile struct {
 	Info         InfoDict
-	InfoHash     string
+	InfoHash     [20]byte
 	Announce     string
 	AnnounceList [][]string "announce-list"
 	CreationDate int64      "creation date"
@@ -21,7 +21,25 @@ type TorrentFile struct {
 	Encoding     string
 }
 
-func (m *TorrentFile) Load(path string) error {
+type InfoDict struct {
+	PieceLength int64 "piece length"
+	Pieces      string
+	Private     int64
+	Name        string
+	// Single File Mode
+	Length int64
+	Md5sum string
+	// Multiple File mode
+	Files []FileDict
+}
+
+type FileDict struct {
+	Length int64
+	Path   []string
+	Md5sum string
+}
+
+func (t *TorrentFile) Load(path string) error {
 	file, err := os.Open(path)
 	if err != nil {
 		return err
@@ -58,26 +76,8 @@ func (m *TorrentFile) Load(path string) error {
 
 	hash := sha1.New()
 	hash.Write(infoBytes.Bytes())
-	m.InfoHash = string(hash.Sum(nil))
+	copy(t.InfoHash[:], hash.Sum(nil))
 
 	reader.Seek(0, 0)
-	return bencode.Unmarshal(reader, m)
-}
-
-type InfoDict struct {
-	PieceLength int64 "piece length"
-	Pieces      string
-	Private     int64
-	Name        string
-	// Single File Mode
-	Length int64
-	Md5sum string
-	// Multiple File mode
-	Files []FileDict
-}
-
-type FileDict struct {
-	Length int64
-	Path   []string
-	Md5sum string
+	return bencode.Unmarshal(reader, t)
 }

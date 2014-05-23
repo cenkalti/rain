@@ -15,6 +15,7 @@ import (
 )
 
 const NumWant = 50
+const AnnouncePort = 50000
 
 type Action int32
 type Event int32
@@ -140,16 +141,17 @@ func (t *Tracker) Announce(d *Download) (*AnnounceResponse, error) {
 			Action:        Announce,
 			TransactionID: rand.Int31(),
 		},
-		// InfoHash[20]:  d.TorrentFile.InfoHash,
-		// PeerID        [20]:    ,
+		InfoHash: d.TorrentFile.InfoHash,
+		// TODO make this constant
+		PeerID:     [20]byte{'-', 'R', 'N', '0', '0', '0', '1', '-', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'},
 		Downloaded: d.Downloaded,
-		Left:       d.Left,
+		Left:       11919111, // TODO send real value
 		Uploaded:   d.Uploaded,
 		Event:      None,
-		// IP            :    ,
-		// Key           :    ,
+		IP:         0, // Tracker uses sender of this UDP packet.
+		Key:        0, // TODO set it
 		NumWant:    NumWant,
-		Port:       0,
+		Port:       AnnouncePort,
 		Extensions: 0,
 	}
 	response := new(AnnounceResponse)
@@ -157,16 +159,20 @@ func (t *Tracker) Announce(d *Download) (*AnnounceResponse, error) {
 	if err != nil {
 		return nil, err
 	}
+	if response.Action != Announce {
+		return nil, errors.New("invalid action")
+	}
+	fmt.Printf("--- len(rest): %#v\n", len(rest))
 	if len(rest)%6 != 0 {
 		return nil, errors.New("invalid peer list")
 	}
 
 	reader := bytes.NewReader(rest)
 	count := len(rest) / 6
+	fmt.Printf("--- count: %#v\n", count)
 	response.Peers = make([]Peer, count)
 	for i := 0; i < count; i++ {
 		if err = binary.Read(reader, binary.BigEndian, &response.Peers[i]); err != nil {
-			fmt.Println("--- HERE 1")
 			return nil, err
 		}
 	}
@@ -225,17 +231,14 @@ func (t *Tracker) request(req, res TrackerMessage) (rest []byte, err error) {
 		return nil, errors.New("response is smaller than expected")
 	}
 
-	// Copy the bytes into response struct and rest.
+	// Copy the bytes into response struct.
 	reader.Seek(0, 0)
 	err = binary.Read(reader, binary.BigEndian, res)
 	if err != nil {
-		fmt.Println("--- HERE 2")
 		return nil, err
 	}
-	if rest != nil {
-		reader.Read(rest)
-	}
-	return rest, nil
+
+	return t.buf[binary.Size(res):n], nil
 }
 
 // TrackerMessageHeader contains the common fields in all TrackerMessage structs.
