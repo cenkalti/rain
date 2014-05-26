@@ -1,4 +1,4 @@
-package main
+package rain
 
 // http://bittorrent.org/beps/bep_0015.html
 // http://xbtt.sourceforge.net/udp_tracker_protocol.html

@@ -1,4 +1,4 @@
-package main
+package rain
 
 // Download represents an active download in the program.
 type Download struct {

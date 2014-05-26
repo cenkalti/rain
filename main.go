@@ -7,6 +7,8 @@ import (
 	"math/rand"
 	"os"
 	"time"
+
+	"github.com/cenkalti/rain/rain"
 )
 
 func main() {
@@ -21,17 +23,17 @@ func main() {
 
 	rand.Seed(time.Now().UnixNano())
 
-	mi := new(TorrentFile)
+	mi := new(rain.TorrentFile)
 	if err = mi.Load(args[0]); err != nil {
 		log.Fatal(err)
 	}
 	fmt.Printf("--- mi: %#v\n", mi)
 
-	download := &Download{
+	download := &rain.Download{
 		TorrentFile: mi,
 	}
 
-	tracker, err := NewTracker(mi.Announce)
+	tracker, err := rain.NewTracker(mi.Announce)
 	if err != nil {
 		log.Fatal(err)
 	}
