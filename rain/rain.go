@@ -6,18 +6,20 @@ import (
 )
 
 type Rain struct {
-	peerID []byte
+	peerID [20]byte
 }
 
 func New() *Rain {
-	peerID := make([]byte, 20)
+	r := &Rain{}
 
+	peerID := make([]byte, 20)
 	_, err := rand.Read(peerID)
 	if err != nil {
 		panic(err)
 	}
+	copy(r.peerID[:], peerID)
 
-	return &Rain{peerID: peerID}
+	return r
 }
 
 func (r *Rain) Download(filePath string) error {
