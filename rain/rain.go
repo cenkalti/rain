@@ -9,20 +9,25 @@ type Rain struct {
 	peerID [20]byte
 }
 
-func New() *Rain {
+func New() (*Rain, error) {
 	r := &Rain{}
-
-	peerID := make([]byte, 20)
-	_, err := rand.Read(peerID)
-	if err != nil {
-		panic(err)
+	if err := r.generatePeerID(); err != nil {
+		return nil, err
 	}
-	copy(r.peerID[:], peerID)
-
-	return r
+	return r, nil
 }
 
-func (r *Rain) Download(filePath string) error {
+func (r *Rain) generatePeerID() error {
+	buf := make([]byte, 20)
+	_, err := rand.Read(buf)
+	if err != nil {
+		return err
+	}
+	copy(r.peerID[:], buf)
+	return nil
+}
+
+func (r *Rain) Download(filePath, where string) error {
 	// rand.Seed(time.Now().UnixNano())
 
 	mi := new(TorrentFile)
