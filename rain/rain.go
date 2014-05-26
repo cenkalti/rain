@@ -3,6 +3,8 @@ package rain
 import (
 	"crypto/rand"
 	"fmt"
+
+	"github.com/cenkalti/hub"
 )
 
 type Rain struct {
@@ -27,34 +29,22 @@ func (r *Rain) generatePeerID() error {
 	return nil
 }
 
+// Download starts a download and waits for it to finish.
 func (r *Rain) Download(filePath, where string) error {
-	// rand.Seed(time.Now().UnixNano())
-
-	mi := new(TorrentFile)
-	if err := mi.Load(filePath); err != nil {
-		return err
-	}
-	fmt.Printf("--- mi: %#v\n", mi)
-
-	download := &Download{
-		TorrentFile: mi,
-	}
-
-	tracker, err := NewTracker(mi.Announce)
+	torrent, err := LoadTorrentFile(filePath)
 	if err != nil {
 		return err
 	}
+	fmt.Printf("--- torrent: %#v\n", torrent)
 
-	_, err = tracker.Connect()
-	if err != nil {
-		return err
-	}
+	download := NewDownload(torrent)
 
-	ann, err := tracker.Announce(download)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("--- ann: %#v\n", ann)
+	finished := make(chan bool)
+	download.Events.Subscribe(DownloadFinished, func(e hub.Event) {
+		close(finished)
+	})
 
+	download.Start()
+	<-finished
 	return nil
 }

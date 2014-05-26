@@ -19,6 +19,7 @@ type TorrentFile struct {
 	Comment      string
 	CreatedBy    string "created by"
 	Encoding     string
+	TotalLength  int64
 }
 
 type InfoDict struct {
@@ -39,45 +40,57 @@ type FileDict struct {
 	Md5sum string
 }
 
-func (t *TorrentFile) Load(path string) error {
+func LoadTorrentFile(path string) (*TorrentFile, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	data, err := ioutil.ReadAll(file)
 	file.Close()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	reader := bytes.NewReader(data)
 
 	decoded, err := bencode.Decode(reader)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	torrentMap, ok := decoded.(map[string]interface{})
 	if !ok {
-		return errors.New("invalid torrent file")
+		return nil, errors.New("invalid torrent file")
 	}
 
 	infoMap, ok := torrentMap["info"]
 	if !ok {
-		return errors.New("invalid torrent file")
+		return nil, errors.New("invalid torrent file")
 	}
 
 	var infoBytes bytes.Buffer
 	err = bencode.Marshal(&infoBytes, infoMap)
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	t := &TorrentFile{}
 
 	hash := sha1.New()
 	hash.Write(infoBytes.Bytes())
 	copy(t.InfoHash[:], hash.Sum(nil))
 
 	reader.Seek(0, 0)
-	return bencode.Unmarshal(reader, t)
+	err = bencode.Unmarshal(reader, t)
+	if err != nil {
+		return nil, err
+	}
+
+	t.TotalLength += t.Info.Length
+	for _, f := range t.Info.Files {
+		t.TotalLength += f.Length
+	}
+
+	return t, nil
 }

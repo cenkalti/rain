@@ -9,9 +9,9 @@ import (
 	"github.com/cenkalti/rain/rain"
 )
 
-func main() {
-	where := flag.String("w", ".", "where to download")
+var where = flag.String("w", ".", "where to download")
 
+func main() {
 	flag.Parse()
 
 	args := flag.Args()
