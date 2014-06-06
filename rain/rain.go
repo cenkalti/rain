@@ -7,12 +7,20 @@ import (
 	"github.com/cenkalti/hub"
 )
 
+// http://www.bittorrent.org/beps/bep_0020.html
+var PeerIDPrefix = []byte("-RN0001-")
+
 type Rain struct {
 	peerID [20]byte
+	// downloads map[[20]byte]*Download
+	// trackers  map[string]*Tracker
 }
 
 func New() (*Rain, error) {
-	r := &Rain{}
+	r := &Rain{
+	// downloads: make(map[[20]byte]*Download),
+	// trackers:  make(map[string]*Tracker),
+	}
 	if err := r.generatePeerID(); err != nil {
 		return nil, err
 	}
@@ -20,12 +28,13 @@ func New() (*Rain, error) {
 }
 
 func (r *Rain) generatePeerID() error {
-	buf := make([]byte, 20)
+	buf := make([]byte, len(r.peerID)-len(PeerIDPrefix))
 	_, err := rand.Read(buf)
 	if err != nil {
 		return err
 	}
-	copy(r.peerID[:], buf)
+	copy(r.peerID[:], PeerIDPrefix)
+	copy(r.peerID[len(PeerIDPrefix):], buf)
 	return nil
 }
 
@@ -37,14 +46,17 @@ func (r *Rain) Download(filePath, where string) error {
 	}
 	fmt.Printf("--- torrent: %#v\n", torrent)
 
-	download := NewDownload(torrent)
+	download, err := NewDownload(torrent, r.peerID)
+	if err != nil {
+		return err
+	}
 
 	finished := make(chan bool)
 	download.Events.Subscribe(DownloadFinished, func(e hub.Event) {
 		close(finished)
 	})
 
-	download.Start()
+	download.Run()
 	<-finished
 	return nil
 }

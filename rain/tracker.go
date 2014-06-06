@@ -9,19 +9,24 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"log"
 	"math/rand"
 	"net"
 	"net/url"
+	"sync"
 	"time"
+
+	"github.com/cenkalti/backoff"
 )
 
 const NumWant = 50
 const AnnouncePort = 50000
+const ConnectionIDMagic = 0x41727101980
 
 type Action int32
 type Event int32
 
-// Actions
+// Tracker Actions
 const (
 	Connect Action = iota
 	Announce
@@ -29,7 +34,7 @@ const (
 	Error
 )
 
-// Events
+// Tracker Announce Events
 const (
 	None Event = iota
 	Completed
@@ -38,208 +43,171 @@ const (
 )
 
 type Tracker struct {
-	URL *url.URL
-	// ConnectionID given by the tracker. Set after connect.
-	ConnectionID int64
-	conn         *net.UDPConn
-	buf          []byte
+	URL           *url.URL
+	peerID        [20]byte
+	conn          *net.UDPConn
+	transactions  map[int32]*transaction
+	transactionsM sync.Mutex
+	writeC        chan TrackerRequest
 }
 
-func NewTracker(trackerURL string) (*Tracker, error) {
+type transaction struct {
+	request  TrackerRequest
+	response []byte
+	err      error
+	done     chan struct{}
+}
+
+func newTransaction(req TrackerRequest) *transaction {
+	return &transaction{
+		request: req,
+		done:    make(chan struct{}),
+	}
+}
+
+func (t *transaction) Done() {
+	defer recover()
+	close(t.done)
+}
+
+func NewTracker(trackerURL string, peerID [20]byte) (*Tracker, error) {
 	parsed, err := url.Parse(trackerURL)
 	if err != nil {
 		return nil, err
 	}
 	return &Tracker{
-		URL: parsed,
-		buf: make([]byte, 512),
+		URL:          parsed,
+		peerID:       peerID,
+		transactions: make(map[int32]*transaction),
+		writeC:       make(chan TrackerRequest),
 	}, nil
 }
 
-type ConnectRequest struct {
-	ConnectionID int64
-	TrackerMessageHeader
-}
-
-type ConnectResponse struct {
-	TrackerMessageHeader
-	ConnectionID int64
-}
-
-func (t *Tracker) Connect() (*ConnectResponse, error) {
+func (t *Tracker) Dial() error {
 	serverAddr, err := net.ResolveUDPAddr("udp", t.URL.Host)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	t.conn, err = net.DialUDP("udp", nil, serverAddr)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	var response ConnectResponse
-	var request = ConnectRequest{
-		ConnectionID: 0x41727101980,
-		TrackerMessageHeader: TrackerMessageHeader{
-			Action:        Connect,
-			TransactionID: rand.Int31(),
-		},
-	}
-
-	_, err = t.request(&request, &response)
-	if err != nil {
-		return nil, err
-	}
-	if response.Action != Connect {
-		return nil, errors.New("invalid action")
-	}
-
-	t.ConnectionID = response.ConnectionID
-	fmt.Printf("--- Response: %#v\n", response)
-	return &response, nil
-}
-
-type AnnounceRequest struct {
-	ConnectionID int64
-	TrackerMessageHeader
-	InfoHash   [20]byte
-	PeerID     [20]byte
-	Downloaded int64
-	Left       int64
-	Uploaded   int64
-	Event      Event
-	IP         uint32
-	Key        uint32
-	NumWant    int32
-	Port       uint16
-	Extensions uint16
-}
-
-type announceResponse struct {
-	TrackerMessageHeader
-	Interval int32
-	Leechers int32
-	Seeders  int32
-}
-
-type AnnounceResponse struct {
-	announceResponse
-	Peers []Peer
-}
-
-type Peer struct {
-	IP   int32
-	Port uint16
-}
-
-func (p Peer) Addr() net.Addr {
+	go t.readLoop()
+	go t.writeLoop()
 	return nil
 }
 
-func (t *Tracker) Announce(d *Download) (*AnnounceResponse, error) {
-	request := &AnnounceRequest{
-		ConnectionID: t.ConnectionID,
-		TrackerMessageHeader: TrackerMessageHeader{
-			Action:        Announce,
-			TransactionID: rand.Int31(),
-		},
-		InfoHash: d.TorrentFile.InfoHash,
-		// TODO make this constant
-		PeerID:     [20]byte{'-', 'R', 'N', '0', '0', '0', '1', '-', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'},
-		Downloaded: d.Downloaded,
-		Left:       11919111, // TODO send real value
-		Uploaded:   d.Uploaded,
-		Event:      None,
-		IP:         0, // Tracker uses sender of this UDP packet.
-		Key:        0, // TODO set it
-		NumWant:    NumWant,
-		Port:       AnnouncePort,
-		Extensions: 0,
-	}
-	response := new(AnnounceResponse)
-	rest, err := t.request(request, &response.announceResponse)
-	if err != nil {
-		return nil, err
-	}
-	if response.Action != Announce {
-		return nil, errors.New("invalid action")
-	}
-	fmt.Printf("--- len(rest): %#v\n", len(rest))
-	if len(rest)%6 != 0 {
-		return nil, errors.New("invalid peer list")
-	}
-
-	reader := bytes.NewReader(rest)
-	count := len(rest) / 6
-	fmt.Printf("--- count: %#v\n", count)
-	response.Peers = make([]Peer, count)
-	for i := 0; i < count; i++ {
-		if err = binary.Read(reader, binary.BigEndian, &response.Peers[i]); err != nil {
-			return nil, err
-		}
-	}
-
-	return response, nil
+// Close the tracker connection.
+// TODO end all goroutines.
+func (t *Tracker) Close() error {
+	return t.conn.Close()
 }
 
-// request sends req to t and read the response into a buffer,
-// does some checks on the response and copies into res.
-// If the response is larger than res, remaining bytes are returned as rest.
-func (t *Tracker) request(req, res TrackerMessage) (rest []byte, err error) {
-	// A request should not take more that 60 seconds.
-	err = t.conn.SetDeadline(time.Now().Add(60 * time.Second))
-	if err != nil {
-		return nil, err
-	}
+// readLoop reads datagrams from connection, finds the transaction and
+// sends the bytes to the transaction's response channel.
+func (t *Tracker) readLoop() {
+	// Read buffer must be big enough to hold a UDP packet of maximum expected size.
+	// Current value is: 320 = 20 + 50*6 (AnnounceResponse with 50 peers)
+	buf := make([]byte, 320)
+	for {
+		n, err := t.conn.Read(buf)
+		if err != nil {
+			log.Println(err)
+			if nerr, ok := err.(net.Error); ok && !nerr.Temporary() {
+				log.Println("--- end tracker read loop")
+				return
+			}
+			continue
+		}
+		fmt.Println("--- read", n, "bytes")
 
-	// Send the request.
-	err = binary.Write(t.conn, binary.BigEndian, req)
-	if err != nil {
-		return nil, err
-	}
+		var header TrackerMessageHeader
+		if n < binary.Size(header) {
+			log.Println("response is too small")
+			continue
+		}
 
-	// Read header first and check for error.
-	// If the response is not an error, copy the bytes in buffer into res.
-	var header TrackerMessageHeader
+		err = binary.Read(bytes.NewReader(buf), binary.BigEndian, &header)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
 
-	// Read response into a buffer.
-	n, err := t.conn.Read(t.buf)
-	if err != nil {
-		return nil, err
-	}
-	if n < binary.Size(header) {
-		return nil, errors.New("response is too small")
-	}
-	fmt.Println("--- read", n, "bytes")
-	// fmt.Println(string(t.buf[:n]))
+		t.transactionsM.Lock()
+		trx, ok := t.transactions[header.TransactionID]
+		delete(t.transactions, header.TransactionID)
+		t.transactionsM.Unlock()
+		if !ok {
+			log.Println("unexpected transaction_id")
+			continue
+		}
 
-	// Read header from buffer.
-	reader := bytes.NewReader(t.buf)
-	err = binary.Read(reader, binary.BigEndian, &header)
-	if err != nil {
-		return nil, err
-	}
-	if header.TransactionID != req.GetTransactionID() {
-		return nil, errors.New("invalid transaction id")
-	}
+		// Tracker has sent and error.
+		if header.Action == Error {
+			// The part after the header is the error message.
+			trx.err = TrackerError(buf[binary.Size(header):])
+			trx.Done()
+			continue
+		}
 
-	// Tracker has sent and error instead of a response.
-	if header.Action == Error {
-		// The part after the header is the error message.
-		return nil, TrackerError(t.buf[binary.Size(header):])
+		// Copy data into a new slice because buf will be overwritten at next read.
+		trx.response = make([]byte, n)
+		copy(trx.response, buf)
+		trx.Done()
 	}
+}
 
-	if n < binary.Size(res) {
-		return nil, errors.New("response is smaller than expected")
+// writeLoop receives a request from t.transactionC, sets a random TransactionID
+// and sends it to the tracker.
+func (t *Tracker) writeLoop() {
+	var connectionID int64
+	var connectionIDtime time.Time
+
+	for req := range t.writeC {
+		if time.Now().Sub(connectionIDtime) > 60*time.Second {
+			connectionID = t.connect()
+			connectionIDtime = time.Now()
+		}
+		req.SetConnectionID(connectionID)
+
+		if err := binary.Write(t.conn, binary.BigEndian, req); err != nil {
+			log.Println(err)
+		}
 	}
+}
 
-	// Copy the bytes into response struct.
-	reader.Seek(0, 0)
-	err = binary.Read(reader, binary.BigEndian, res)
-	if err != nil {
-		return nil, err
+func (t *Tracker) request(req TrackerRequest, cancel <-chan struct{}) ([]byte, error) {
+	action := func(req TrackerRequest) { t.writeC <- req }
+	return t.retry(req, action, cancel)
+}
+
+func (t *Tracker) retry(req TrackerRequest, action func(TrackerRequest), cancel <-chan struct{}) ([]byte, error) {
+	id := rand.Int31()
+	req.SetTransactionID(id)
+
+	trx := newTransaction(req)
+	t.transactionsM.Lock()
+	t.transactions[id] = trx
+	t.transactionsM.Unlock()
+
+	ticker := backoff.NewTicker(new(TrackerUDPBackOff))
+	for {
+		select {
+		case <-ticker.C:
+			action(req)
+		case <-trx.done:
+			return trx.response, trx.err
+		case <-cancel:
+			return nil, errors.New("transaction cancelled")
+		}
 	}
+}
 
-	return t.buf[binary.Size(res):n], nil
+type TrackerMessage interface {
+	GetAction() Action
+	SetAction(Action)
+	GetTransactionID() int32
+	SetTransactionID(int32)
 }
 
 // TrackerMessageHeader contains the common fields in all TrackerMessage structs.
@@ -248,8 +216,24 @@ type TrackerMessageHeader struct {
 	TransactionID int32
 }
 
-func (r *TrackerMessageHeader) GetAction() Action       { return r.Action }
-func (r *TrackerMessageHeader) GetTransactionID() int32 { return r.TransactionID }
+func (h *TrackerMessageHeader) GetAction() Action         { return h.Action }
+func (h *TrackerMessageHeader) SetAction(a Action)        { h.Action = a }
+func (h *TrackerMessageHeader) GetTransactionID() int32   { return h.TransactionID }
+func (h *TrackerMessageHeader) SetTransactionID(id int32) { h.TransactionID = id }
+
+type TrackerRequestHeader struct {
+	ConnectionID int64
+	TrackerMessageHeader
+}
+
+type TrackerRequest interface {
+	TrackerMessage
+	GetConnectionID() int64
+	SetConnectionID(int64)
+}
+
+func (h *TrackerRequestHeader) GetConnectionID() int64   { return h.ConnectionID }
+func (h *TrackerRequestHeader) SetConnectionID(id int64) { h.ConnectionID = id }
 
 // Requests can return a response or TrackerError.
 type TrackerError string
@@ -258,12 +242,14 @@ func (e TrackerError) Error() string {
 	return string(e)
 }
 
-// Close the tracker connection.
-func (t *Tracker) Close() error {
-	return t.conn.Close()
+type TrackerUDPBackOff int
+
+func (b *TrackerUDPBackOff) NextBackOff() time.Duration {
+	defer func() { *b++ }()
+	if *b > 8 {
+		*b = 8
+	}
+	return time.Duration(15*(2^*b)) * time.Second
 }
 
-type TrackerMessage interface {
-	GetAction() Action
-	GetTransactionID() int32
-}
+func (b *TrackerUDPBackOff) Reset() { *b = 0 }

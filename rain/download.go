@@ -2,45 +2,61 @@ package rain
 
 import (
 	"fmt"
-
 	"github.com/cenkalti/hub"
+)
+
+// States
+const (
+	DownloadStopped = iota
+	DownloadRunning
+	DownloadSeeding
 )
 
 // Events
 const (
-	DownloadFinished hub.Kind = iota
+	DownloadFinished = iota
 )
 
 // Download represents an active download in the program.
 type Download struct {
 	TorrentFile *TorrentFile
-	Downloaded  int64
-	Left        int64
-	Uploaded    int64
-	Events      *hub.Hub
+	Events      hub.Hub
+	tracker     *Tracker
+	// Stats
+	Downloaded int64
+	Uploaded   int64
+	// Left       int64
 }
 
-func NewDownload(t *TorrentFile) *Download {
+func (d *Download) Left() int64 {
+	return d.TorrentFile.TotalLength - d.Downloaded
+}
+
+func NewDownload(t *TorrentFile, peerID [20]byte) (*Download, error) {
+	tracker, err := NewTracker(t.Announce, peerID)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Download{
 		TorrentFile: t,
-		Events:      hub.New(),
+		tracker:     tracker,
+	}, nil
+}
+
+func (d *Download) Run() {
+	err := d.tracker.Dial()
+	if err != nil {
+		panic(err) // TODO
+	}
+
+	responseC := make(chan *AnnounceResponse)
+	go d.tracker.announce(d, nil, nil, responseC)
+	for r := range responseC {
+		fmt.Printf("--- announce response: %#v\n", r)
 	}
 }
 
-func (d *Download) Start() {
-	tracker, err := NewTracker(d.TorrentFile.Announce)
-	if err != nil {
-		panic(err)
-	}
-
-	_, err = tracker.Connect()
-	if err != nil {
-		panic(err)
-	}
-
-	ann, err := tracker.Announce(d)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("--- ann: %#v\n", ann)
+func (d *Download) run() {
+	// TODO
 }
