@@ -38,13 +38,17 @@ type announceResponse struct {
 }
 
 type Peer struct {
-	IP   int32
+	IP   [4]byte
 	Port uint16
 }
 
 func (p Peer) Addr() net.Addr {
-	panic("not implemented") // TODO
-	return nil
+	ip := make(net.IP, 4)
+	copy(ip, p.IP[:])
+	return &net.TCPAddr{
+		IP:   ip,
+		Port: int(p.Port),
+	}
 }
 
 // announce announces d to t periodically.

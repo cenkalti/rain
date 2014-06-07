@@ -54,6 +54,9 @@ func (d *Download) Run() {
 	go d.tracker.announce(d, nil, nil, responseC)
 	for r := range responseC {
 		fmt.Printf("--- announce response: %#v\n", r)
+		for _, p := range r.Peers {
+			fmt.Printf("--- p: %s\n", p.Addr())
+		}
 	}
 }
 
