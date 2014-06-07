@@ -11,8 +11,6 @@ import (
 	"log"
 	"net"
 	"time"
-
-	"github.com/cenkalti/hub"
 )
 
 const DefaultPeerPort = 6881
@@ -73,7 +71,7 @@ func (r *Rain) acceptor() {
 			log.Println(err)
 			return
 		}
-		go r.handlePeer(conn)
+		go r.servePeerConn(conn)
 	}
 }
 
@@ -81,7 +79,7 @@ const bitTorrent10pstrLen = 19
 
 var bitTorrent10pstr = []byte("BitTorrent protocol")
 
-func (r *Rain) handlePeer(conn net.Conn) {
+func (r *Rain) servePeerConn(conn net.Conn) {
 	defer conn.Close()
 
 	err := conn.SetDeadline(time.Now().Add(time.Minute))
@@ -89,14 +87,15 @@ func (r *Rain) handlePeer(conn net.Conn) {
 		return
 	}
 
-	err = r.readHandShake(conn)
+	notifyInfoHash := make(chan struct{})
+	err = r.readHandShake(conn, notifyInfoHash)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 }
 
-func (r *Rain) readHandShake(conn net.Conn) error {
+func (r *Rain) readHandShake(conn net.Conn, notifyInfoHash chan struct{}) error {
 	buf := make([]byte, 20)
 	_, err := conn.Read(buf[:1]) // pstrlen
 	if err != nil {
@@ -129,7 +128,12 @@ func (r *Rain) readHandShake(conn net.Conn) error {
 
 	// TODO check if we have a torrent with info_hash
 
-	go r.sendHandShake(conn, infoHash)
+	// The recipient must respond as soon as it sees the info_hash part of the handshake
+	// (the peer id will presumably be sent after the recipient sends its own handshake).
+	// The tracker's NAT-checking feature does not send the peer_id field of the handshake.
+	if notifyInfoHash != nil {
+		close(notifyInfoHash)
+	}
 
 	_, err = io.ReadFull(conn, buf) // peer_id
 	return err
@@ -159,17 +163,46 @@ func (r *Rain) Download(filePath, where string) error {
 	}
 	fmt.Printf("--- torrent: %#v\n", torrent)
 
-	download, err := NewDownload(torrent, r.peerID)
+	download := NewDownload(torrent)
+
+	tracker, err := NewTracker(torrent.Announce, r.peerID)
 	if err != nil {
 		return err
 	}
 
-	finished := make(chan bool)
-	download.Events.Subscribe(DownloadFinished, func(e hub.Event) {
-		close(finished)
-	})
+	err = tracker.Dial()
+	if err != nil {
+		return err
+	}
 
-	download.Run()
-	<-finished
+	responseC := make(chan *AnnounceResponse)
+	go tracker.announce(download, nil, nil, responseC)
+
+	for {
+		select {
+		case resp := <-responseC:
+			fmt.Printf("--- announce response: %#v\n", resp)
+			for _, p := range resp.Peers {
+				fmt.Printf("--- p: %s\n", p.TCPAddr())
+				go r.connectToPeer(p)
+			}
+			// case
+		}
+	}
+
 	return nil
+}
+
+func (r *Rain) connectToPeer(p *Peer) {
+	conn, err := net.DialTCP("tcp4", nil, p.TCPAddr())
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	log.Printf("Connected to peer %s", conn.RemoteAddr().String())
+
+	// r.sendHandShake(conn, infoHash)
+	// binary.Write(conn, binary.BigEndian, uint8(19))
+	// binary
 }
