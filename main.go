@@ -10,6 +10,7 @@ import (
 )
 
 var where = flag.String("w", ".", "where to download")
+var port = flag.Int("p", rain.DefaultPeerPort, "listen port")
 
 func main() {
 	flag.Parse()
@@ -21,6 +22,12 @@ func main() {
 	}
 
 	r, err := rain.New()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	r.Port = *port
+	err = r.ListenPeerPort()
 	if err != nil {
 		log.Fatal(err)
 	}

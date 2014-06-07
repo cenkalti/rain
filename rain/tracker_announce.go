@@ -27,7 +27,7 @@ type AnnounceRequest struct {
 
 type AnnounceResponse struct {
 	announceResponse
-	Peers []Peer
+	Peers []*Peer
 }
 
 type announceResponse struct {
@@ -38,12 +38,12 @@ type announceResponse struct {
 }
 
 type Peer struct {
-	IP   [4]byte
+	IP   [net.IPv4len]byte
 	Port uint16
 }
 
-func (p Peer) Addr() net.Addr {
-	ip := make(net.IP, 4)
+func (p Peer) TCPAddr() *net.TCPAddr {
+	ip := make(net.IP, net.IPv4len)
 	copy(ip, p.IP[:])
 	return &net.TCPAddr{
 		IP:   ip,
@@ -138,9 +138,10 @@ func (r *AnnounceResponse) Load(data []byte) error {
 
 	count := reader.Len() / 6
 	fmt.Printf("--- count: %#v\n", count)
-	r.Peers = make([]Peer, count)
+	r.Peers = make([]*Peer, count)
 	for i := 0; i < count; i++ {
-		if err = binary.Read(reader, binary.BigEndian, &r.Peers[i]); err != nil {
+		r.Peers[i] = new(Peer)
+		if err = binary.Read(reader, binary.BigEndian, r.Peers[i]); err != nil {
 			return err
 		}
 	}

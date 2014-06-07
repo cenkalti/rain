@@ -1,8 +1,11 @@
 package rain
 
 import (
+	"encoding/binary"
 	"fmt"
 	"github.com/cenkalti/hub"
+	"log"
+	"net"
 )
 
 // States
@@ -52,12 +55,30 @@ func (d *Download) Run() {
 
 	responseC := make(chan *AnnounceResponse)
 	go d.tracker.announce(d, nil, nil, responseC)
-	for r := range responseC {
-		fmt.Printf("--- announce response: %#v\n", r)
-		for _, p := range r.Peers {
-			fmt.Printf("--- p: %s\n", p.Addr())
+
+	for {
+		select {
+		case r := <-responseC:
+			fmt.Printf("--- announce response: %#v\n", r)
+			for _, p := range r.Peers {
+				fmt.Printf("--- p: %s\n", p.TCPAddr())
+				go connectToPeer(p)
+			}
+			// case
 		}
 	}
+}
+
+func connectToPeer(p *Peer) {
+	conn, err := net.DialTCP("tcp4", nil, p.TCPAddr())
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	log.Printf("connected to %s\n", conn.RemoteAddr().String())
+	binary.Write(conn, binary.BigEndian, uint8(19))
+	// binary
 }
 
 func (d *Download) run() {
