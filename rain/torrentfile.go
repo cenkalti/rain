@@ -11,19 +11,23 @@ import (
 )
 
 type TorrentFile struct {
-	Info         InfoDict
+	Info InfoDict
+	// InfoHash field does not exist in torrent file.
+	// It is calculated when file is loaded from disk.
 	InfoHash     [20]byte
 	Announce     string
-	AnnounceList [][]string "announce-list"
-	CreationDate int64      "creation date"
+	AnnounceList [][]string `bencode:"announce-list"`
+	CreationDate int64      `bencode:"creation date"`
 	Comment      string
-	CreatedBy    string "created by"
+	CreatedBy    string `bencode:"created by"`
 	Encoding     string
-	TotalLength  int64
+	// TotalLength field does not exist in torrent file.
+	// It is calculated when file is loaded from disk.
+	TotalLength int64
 }
 
 type InfoDict struct {
-	PieceLength int64 "piece length"
+	PieceLength int64 `bencode:"piece length"`
 	Pieces      string
 	Private     int64
 	Name        string

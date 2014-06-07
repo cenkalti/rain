@@ -9,8 +9,10 @@ import (
 	"github.com/cenkalti/rain/rain"
 )
 
-var where = flag.String("w", ".", "where to download")
-var port = flag.Int("p", rain.DefaultPeerPort, "listen port")
+var (
+	where = flag.String("w", ".", "where to download")
+	port  = flag.Int("p", rain.DefaultPeerPort, "listen port")
+)
 
 func main() {
 	flag.Parse()
