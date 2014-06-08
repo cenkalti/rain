@@ -25,8 +25,7 @@ func main() {
 	}
 
 	if *debug {
-		log.DefaultLogger.SetLevel(log.DEBUG)
-		log.DefaultHandler.SetLevel(log.DEBUG)
+		log.SetLevel(log.DEBUG)
 	}
 
 	r, err := rain.New()
