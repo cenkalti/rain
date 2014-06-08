@@ -46,11 +46,13 @@ func (r *Rain) servePeerConn(conn net.Conn) {
 		close(errC)
 	}()
 
+	var d *download
 	select {
 	case infoHash := <-infoHashC:
 		// Do not continue if we don't have a torrent with this infoHash.
 		r.downloadsM.Lock()
-		if _, ok := r.downloads[infoHash]; !ok {
+		var ok bool
+		if d, ok = r.downloads[infoHash]; !ok {
 			log.Error("unexpected info_hash")
 			r.downloadsM.Unlock()
 			return
@@ -70,8 +72,7 @@ func (r *Rain) servePeerConn(conn net.Conn) {
 		return
 	}
 
-	// TODO save peer with peerID
-	r.communicateWithPeer(conn)
+	r.communicateWithPeer(conn, d)
 }
 
 func (r *Rain) readHandShake(conn net.Conn, notifyInfoHash chan *infoHash) (*peerID, error) {
@@ -160,16 +161,17 @@ func (r *Rain) connectToPeer(p *Peer, d *download) {
 	}
 
 	log.Debug("handshake completed")
-
-	r.communicateWithPeer(conn)
+	r.communicateWithPeer(conn, d)
 }
 
 // communicateWithPeer is the common method that is called after handshake.
 // Peer connections are symmetrical.
-func (r *Rain) communicateWithPeer(conn net.Conn) {
+func (r *Rain) communicateWithPeer(conn net.Conn, d *download) {
 	// TODO adjust deadline to heartbeat
 	err := conn.SetDeadline(time.Time{})
 	if err != nil {
 		return
 	}
+
+	select {}
 }

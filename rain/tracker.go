@@ -19,7 +19,6 @@ import (
 )
 
 const numWant = 50
-const announcePort = 50000
 const connectionIDMagic = 0x41727101980
 
 type Action int32
@@ -44,6 +43,7 @@ const (
 type Tracker struct {
 	URL           *url.URL
 	peerID        *peerID
+	port          uint16
 	conn          *net.UDPConn
 	transactions  map[int32]*transaction
 	transactionsM sync.Mutex
@@ -69,7 +69,7 @@ func (t *transaction) Done() {
 	close(t.done)
 }
 
-func NewTracker(trackerURL string, peerID *peerID) (*Tracker, error) {
+func NewTracker(trackerURL string, peerID *peerID, port uint16) (*Tracker, error) {
 	parsed, err := url.Parse(trackerURL)
 	if err != nil {
 		return nil, err
@@ -77,6 +77,7 @@ func NewTracker(trackerURL string, peerID *peerID) (*Tracker, error) {
 	return &Tracker{
 		URL:          parsed,
 		peerID:       peerID,
+		port:         port,
 		transactions: make(map[int32]*transaction),
 		writeC:       make(chan TrackerRequest),
 	}, nil

@@ -65,7 +65,7 @@ func (t *Tracker) announce(d *download, cancel <-chan struct{}, event <-chan Eve
 		IP:         0, // Tracker uses sender of this UDP packet.
 		Key:        0, // TODO set it
 		NumWant:    numWant,
-		Port:       announcePort,
+		Port:       t.port,
 		Extensions: 0,
 	}
 	request.SetAction(Announce)

@@ -11,7 +11,7 @@ import (
 
 type Rain struct {
 	peerID     *peerID
-	listener   net.Listener
+	listener   *net.TCPListener
 	downloads  map[*infoHash]*download
 	downloadsM sync.Mutex
 	trackers   map[*url.URL]*Tracker
@@ -77,7 +77,7 @@ func (r *Rain) Download(filePath, where string) error {
 		return err
 	}
 
-	tracker, err := NewTracker(torrent.Announce, r.peerID)
+	tracker, err := NewTracker(torrent.Announce, r.peerID, uint16(r.listener.Addr().(*net.TCPAddr).Port))
 	if err != nil {
 		return err
 	}
