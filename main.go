@@ -33,8 +33,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = r.ListenPeerPort(*port)
-	if err != nil {
+	if err = r.ListenPeerPort(*port); err != nil {
 		log.Fatal(err)
 	}
 
