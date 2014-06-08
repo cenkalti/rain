@@ -19,21 +19,13 @@ var peerIDPrefix = []byte("-RN0001-")
 type Rain struct {
 	peerID   [20]byte
 	listener net.Listener
-	// downloads map[[20]byte]*Download
-	// trackers  map[string]*Tracker
 }
 
 // New returns a pointer to new Rain BitTorrent client.
 // Call ListenPeerPort method before starting Download to accept incoming connections.
 func New() (*Rain, error) {
-	r := &Rain{
-	// downloads: make(map[[20]byte]*Download),
-	// trackers:  make(map[string]*Tracker),
-	}
-	if err := r.generatePeerID(); err != nil {
-		return nil, err
-	}
-	return r, nil
+	r := new(Rain)
+	return r, r.generatePeerID()
 }
 
 func (r *Rain) generatePeerID() error {
@@ -56,7 +48,6 @@ func (r *Rain) ListenPeerPort(port int) error {
 		return err
 	}
 	log.Notice("Listening peers on tcp://" + r.listener.Addr().String())
-	// Update port number if it's been choosen randomly.
 	go r.acceptor()
 	return nil
 }
@@ -184,6 +175,11 @@ func (r *Rain) Download(filePath, where string) error {
 	log.Debugf("Parsed torrent file: %#v", torrent)
 
 	download := NewDownload(torrent)
+
+	err = download.allocate(where)
+	if err != nil {
+		return err
+	}
 
 	tracker, err := NewTracker(torrent.Announce, r.peerID)
 	if err != nil {

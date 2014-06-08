@@ -34,6 +34,7 @@ type infoDict struct {
 	// Single File Mode
 	Length int64
 	Md5sum string
+	file   *os.File
 	// Multiple File mode
 	Files []fileDict
 }
@@ -42,6 +43,7 @@ type fileDict struct {
 	Length int64
 	Path   []string
 	Md5sum string
+	file   *os.File
 }
 
 func NewTorrentFile(path string) (*TorrentFile, error) {
