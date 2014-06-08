@@ -167,7 +167,7 @@ func (r *Rain) sendHandShake(conn net.Conn, infoHash [20]byte) error {
 		InfoHash [20]byte
 		PeerID   [20]byte
 	}{
-		Pstrlen:  19,
+		Pstrlen:  bitTorrent10pstrLen,
 		InfoHash: infoHash,
 		PeerID:   r.peerID,
 	}
