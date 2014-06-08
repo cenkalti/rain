@@ -68,7 +68,9 @@ func (r *Rain) Download(filePath, where string) error {
 	log.Debugf("Parsed torrent file: %#v", torrent)
 
 	download := NewDownload(torrent)
+	r.downloadsM.Lock()
 	r.downloads[&download.TorrentFile.InfoHash] = download
+	r.downloadsM.Unlock()
 
 	err = download.allocate(where)
 	if err != nil {
