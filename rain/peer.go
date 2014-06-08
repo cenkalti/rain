@@ -48,7 +48,15 @@ func (r *Rain) servePeerConn(conn net.Conn) {
 
 	select {
 	case infoHash := <-infoHashC:
-		// TODO check if we have a torrent with info_hash
+		// Do not continue if we don't have a torrent with this infoHash.
+		r.downloadsM.Lock()
+		if _, ok := r.downloads[infoHash]; !ok {
+			log.Error("unexpected info_hash")
+			r.downloadsM.Unlock()
+			return
+		}
+		r.downloadsM.Unlock()
+
 		err = r.sendHandShake(conn, infoHash)
 		if err != nil {
 			return

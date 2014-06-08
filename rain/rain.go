@@ -4,15 +4,18 @@ import (
 	"crypto/rand"
 	"net"
 	"net/url"
+	"sync"
 
 	"github.com/cenkalti/log"
 )
 
 type Rain struct {
-	peerID    *peerID
-	listener  net.Listener
-	downloads map[*infoHash]*download
-	trackers  map[*url.URL]*Tracker
+	peerID     *peerID
+	listener   net.Listener
+	downloads  map[*infoHash]*download
+	downloadsM sync.Mutex
+	trackers   map[*url.URL]*Tracker
+	trackersM  sync.Mutex
 }
 
 // New returns a pointer to new Rain BitTorrent client.
@@ -65,6 +68,7 @@ func (r *Rain) Download(filePath, where string) error {
 	log.Debugf("Parsed torrent file: %#v", torrent)
 
 	download := NewDownload(torrent)
+	r.downloads[&download.TorrentFile.InfoHash] = download
 
 	err = download.allocate(where)
 	if err != nil {
@@ -75,6 +79,7 @@ func (r *Rain) Download(filePath, where string) error {
 	if err != nil {
 		return err
 	}
+	r.trackers[tracker.URL] = tracker
 
 	err = tracker.Dial()
 	if err != nil {
