@@ -48,7 +48,7 @@ func (t *Tracker) connect() int64 {
 			continue
 		}
 
-		log.Debugf("--- connect Response: %#v\n", response)
+		log.Debugf("connect Response: %#v\n", response)
 		return response.ConnectionID
 	}
 }

@@ -113,12 +113,12 @@ func (t *Tracker) readLoop() {
 		if err != nil {
 			log.Error(err)
 			if nerr, ok := err.(net.Error); ok && !nerr.Temporary() {
-				log.Debug("--- end tracker read loop")
+				log.Debug("End of tracker read loop")
 				return
 			}
 			continue
 		}
-		log.Debug("--- read", n, "bytes")
+		log.Debug("Read ", n, " bytes")
 
 		var header TrackerMessageHeader
 		if n < binary.Size(header) {

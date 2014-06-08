@@ -92,7 +92,7 @@ func (r *Rain) Download(filePath, where string) error {
 	for {
 		select {
 		case resp := <-responseC:
-			log.Debug("Announce response: %#v", resp)
+			log.Debugf("Announce response: %#v", resp)
 			for _, p := range resp.Peers {
 				log.Debug("Peer:", p.TCPAddr())
 				go r.connectToPeer(p, download)

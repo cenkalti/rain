@@ -75,7 +75,7 @@ func (t *Tracker) announce(d *download, cancel <-chan struct{}, event <-chan Eve
 		select {
 		// TODO send first without waiting
 		case <-time.After(nextAnnounce):
-			log.Debug("Announce")
+			log.Debug("Time to announce")
 			// TODO update on every try.
 			request.update(d)
 
@@ -125,19 +125,19 @@ func (r *AnnounceResponse) Load(data []byte) error {
 	if err != nil {
 		return err
 	}
-	log.Debugf("--- r.announceResponse: %#v\n", r.announceResponse)
+	log.Debugf("r.announceResponse: %#v", r.announceResponse)
 
 	if r.Action != Announce {
 		return errors.New("invalid action")
 	}
 
-	log.Debugf("--- len(rest): %#v\n", reader.Len())
+	log.Debugf("len(rest): %#v", reader.Len())
 	if reader.Len()%6 != 0 {
 		return errors.New("invalid peer list")
 	}
 
 	count := reader.Len() / 6
-	log.Debugf("--- count: %#v\n", count)
+	log.Debugf("count of peers: %#v", count)
 	r.Peers = make([]*Peer, count)
 	for i := 0; i < count; i++ {
 		r.Peers[i] = new(Peer)
@@ -145,7 +145,7 @@ func (r *AnnounceResponse) Load(data []byte) error {
 			return err
 		}
 	}
-	log.Debugf("--- r.Peers: %#v\n", r.Peers)
+	log.Debugf("r.Peers: %#v\n", r.Peers)
 
 	return nil
 }
