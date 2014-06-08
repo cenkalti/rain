@@ -19,9 +19,9 @@ import (
 	"github.com/cenkalti/backoff"
 )
 
-const NumWant = 50
-const AnnouncePort = 50000
-const ConnectionIDMagic = 0x41727101980
+const numWant = 50
+const announcePort = 50000
+const connectionIDMagic = 0x41727101980
 
 type Action int32
 type Event int32

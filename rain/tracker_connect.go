@@ -21,7 +21,7 @@ type ConnectResponse struct {
 // It does not return until tracker sends a ConnectionID.
 func (t *Tracker) connect() int64 {
 	req := new(ConnectRequest)
-	req.SetConnectionID(ConnectionIDMagic)
+	req.SetConnectionID(connectionIDMagic)
 	req.SetAction(Connect)
 
 	write := func(req TrackerRequest) {

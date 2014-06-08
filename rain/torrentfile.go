@@ -11,7 +11,7 @@ import (
 )
 
 type TorrentFile struct {
-	Info InfoDict
+	Info infoDict
 	// InfoHash field does not exist in torrent file.
 	// It is calculated when file is loaded from disk.
 	InfoHash     [20]byte
@@ -26,7 +26,7 @@ type TorrentFile struct {
 	TotalLength int64
 }
 
-type InfoDict struct {
+type infoDict struct {
 	PieceLength int64 `bencode:"piece length"`
 	Pieces      string
 	Private     int64
@@ -35,16 +35,16 @@ type InfoDict struct {
 	Length int64
 	Md5sum string
 	// Multiple File mode
-	Files []FileDict
+	Files []fileDict
 }
 
-type FileDict struct {
+type fileDict struct {
 	Length int64
 	Path   []string
 	Md5sum string
 }
 
-func LoadTorrentFile(path string) (*TorrentFile, error) {
+func NewTorrentFile(path string) (*TorrentFile, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err

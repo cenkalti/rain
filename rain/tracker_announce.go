@@ -52,7 +52,7 @@ func (p Peer) TCPAddr() *net.TCPAddr {
 }
 
 // announce announces d to t periodically.
-func (t *Tracker) announce(d *Download, cancel <-chan struct{}, event <-chan Event, responseC chan<- *AnnounceResponse) {
+func (t *Tracker) announce(d *download, cancel <-chan struct{}, event <-chan Event, responseC chan<- *AnnounceResponse) {
 	defer func() {
 		if responseC != nil {
 			close(responseC)
@@ -64,8 +64,8 @@ func (t *Tracker) announce(d *Download, cancel <-chan struct{}, event <-chan Eve
 		Event:      None,
 		IP:         0, // Tracker uses sender of this UDP packet.
 		Key:        0, // TODO set it
-		NumWant:    NumWant,
-		Port:       AnnouncePort,
+		NumWant:    numWant,
+		Port:       announcePort,
 		Extensions: 0,
 	}
 	request.SetAction(Announce)
@@ -108,7 +108,7 @@ func (t *Tracker) announce(d *Download, cancel <-chan struct{}, event <-chan Eve
 	}
 }
 
-func (r *AnnounceRequest) update(d *Download) {
+func (r *AnnounceRequest) update(d *download) {
 	r.Downloaded = d.Downloaded
 	r.Uploaded = d.Uploaded
 	r.Left = d.Left()

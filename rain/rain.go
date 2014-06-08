@@ -13,25 +13,22 @@ import (
 	"time"
 )
 
-const DefaultPeerPort = 6881
-
 // http://www.bittorrent.org/beps/bep_0020.html
-var PeerIDPrefix = []byte("-RN0001-")
+var peerIDPrefix = []byte("-RN0001-")
 
 type Rain struct {
 	peerID   [20]byte
 	listener net.Listener
-	// Port to listen for peer connections. Set to 0 for random port.
-	Port int
 	// downloads map[[20]byte]*Download
 	// trackers  map[string]*Tracker
 }
 
+// New returns a pointer to new Rain BitTorrent client.
+// Call ListenPeerPort method before starting Download to accept incoming connections.
 func New() (*Rain, error) {
 	r := &Rain{
-		Port: DefaultPeerPort,
-		// downloads: make(map[[20]byte]*Download),
-		// trackers:  make(map[string]*Tracker),
+	// downloads: make(map[[20]byte]*Download),
+	// trackers:  make(map[string]*Tracker),
 	}
 	if err := r.generatePeerID(); err != nil {
 		return nil, err
@@ -40,26 +37,26 @@ func New() (*Rain, error) {
 }
 
 func (r *Rain) generatePeerID() error {
-	buf := make([]byte, len(r.peerID)-len(PeerIDPrefix))
+	buf := make([]byte, len(r.peerID)-len(peerIDPrefix))
 	_, err := rand.Read(buf)
 	if err != nil {
 		return err
 	}
-	copy(r.peerID[:], PeerIDPrefix)
-	copy(r.peerID[len(PeerIDPrefix):], buf)
+	copy(r.peerID[:], peerIDPrefix)
+	copy(r.peerID[len(peerIDPrefix):], buf)
 	return nil
 }
 
-func (r *Rain) ListenPeerPort() error {
+// ListenPeerPort starts to listen a TCP port to accept incoming peer connections.
+func (r *Rain) ListenPeerPort(port int) error {
 	var err error
-	addr := &net.TCPAddr{Port: r.Port}
+	addr := &net.TCPAddr{Port: port}
 	r.listener, err = net.ListenTCP("tcp4", addr)
 	if err != nil {
 		return err
 	}
 	log.Println("Listening peers on tcp://" + r.listener.Addr().String())
 	// Update port number if it's been choosen randomly.
-	r.Port = r.listener.Addr().(*net.TCPAddr).Port
 	go r.acceptor()
 	return nil
 }
@@ -180,7 +177,7 @@ func (r *Rain) sendHandShake(conn net.Conn, infoHash [20]byte) error {
 
 // Download starts a download and waits for it to finish.
 func (r *Rain) Download(filePath, where string) error {
-	torrent, err := LoadTorrentFile(filePath)
+	torrent, err := NewTorrentFile(filePath)
 	if err != nil {
 		return err
 	}
@@ -216,7 +213,7 @@ func (r *Rain) Download(filePath, where string) error {
 	return nil
 }
 
-func (r *Rain) connectToPeer(p *Peer, d *Download) {
+func (r *Rain) connectToPeer(p *Peer, d *download) {
 	conn, err := net.DialTCP("tcp4", nil, p.TCPAddr())
 	if err != nil {
 		log.Println(err)
