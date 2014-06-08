@@ -220,11 +220,19 @@ func (r *Rain) connectToPeer(p *Peer, d *download) {
 
 	err = r.sendHandShake(conn, d.TorrentFile.InfoHash)
 	if err != nil {
+		log.Error(err)
 		return
 	}
 
-	_, err = r.readHandShake(conn, nil)
+	infoHashC := make(chan [20]byte, 1)
+	_, err = r.readHandShake(conn, infoHashC)
 	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	if <-infoHashC != d.TorrentFile.InfoHash {
+		log.Error("unexpected info_hash")
 		return
 	}
 
