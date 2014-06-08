@@ -5,12 +5,12 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net"
 	"time"
+
+	"github.com/cenkalti/log"
 )
 
 // http://www.bittorrent.org/beps/bep_0020.html
@@ -55,7 +55,7 @@ func (r *Rain) ListenPeerPort(port int) error {
 	if err != nil {
 		return err
 	}
-	log.Println("Listening peers on tcp://" + r.listener.Addr().String())
+	log.Notice("Listening peers on tcp://" + r.listener.Addr().String())
 	// Update port number if it's been choosen randomly.
 	go r.acceptor()
 	return nil
@@ -65,7 +65,7 @@ func (r *Rain) acceptor() {
 	for {
 		conn, err := r.listener.Accept()
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			return
 		}
 		go r.servePeerConn(conn)
@@ -181,7 +181,7 @@ func (r *Rain) Download(filePath, where string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("--- torrent: %#v\n", torrent)
+	log.Debugf("Parsed torrent file: %#v", torrent)
 
 	download := NewDownload(torrent)
 
@@ -201,9 +201,9 @@ func (r *Rain) Download(filePath, where string) error {
 	for {
 		select {
 		case resp := <-responseC:
-			fmt.Printf("--- announce response: %#v\n", resp)
+			log.Debug("Announce response: %#v", resp)
 			for _, p := range resp.Peers {
-				fmt.Printf("--- p: %s\n", p.TCPAddr())
+				log.Debug("Peer:", p.TCPAddr())
 				go r.connectToPeer(p, download)
 			}
 			// case
@@ -216,11 +216,11 @@ func (r *Rain) Download(filePath, where string) error {
 func (r *Rain) connectToPeer(p *Peer, d *download) {
 	conn, err := net.DialTCP("tcp4", nil, p.TCPAddr())
 	if err != nil {
-		log.Println(err)
+		log.Error(err)
 		return
 	}
 
-	log.Printf("Connected to peer %s", conn.RemoteAddr().String())
+	log.Info("Connected to peer", conn.RemoteAddr())
 
 	err = r.sendHandShake(conn, d.TorrentFile.InfoHash)
 	if err != nil {
@@ -232,7 +232,7 @@ func (r *Rain) connectToPeer(p *Peer, d *download) {
 		return
 	}
 
-	fmt.Println("--- handshake completed")
+	log.Debug("handshake completed")
 
 	r.communicateWithPeer(conn)
 }

@@ -8,8 +8,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
-	"log"
 	"math/rand"
 	"net"
 	"net/url"
@@ -17,6 +15,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff"
+	"github.com/cenkalti/log"
 )
 
 const numWant = 50
@@ -112,24 +111,24 @@ func (t *Tracker) readLoop() {
 	for {
 		n, err := t.conn.Read(buf)
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			if nerr, ok := err.(net.Error); ok && !nerr.Temporary() {
-				log.Println("--- end tracker read loop")
+				log.Debug("--- end tracker read loop")
 				return
 			}
 			continue
 		}
-		fmt.Println("--- read", n, "bytes")
+		log.Debug("--- read", n, "bytes")
 
 		var header TrackerMessageHeader
 		if n < binary.Size(header) {
-			log.Println("response is too small")
+			log.Error("response is too small")
 			continue
 		}
 
 		err = binary.Read(bytes.NewReader(buf), binary.BigEndian, &header)
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			continue
 		}
 
@@ -138,7 +137,7 @@ func (t *Tracker) readLoop() {
 		delete(t.transactions, header.TransactionID)
 		t.transactionsM.Unlock()
 		if !ok {
-			log.Println("unexpected transaction_id")
+			log.Error("unexpected transaction_id")
 			continue
 		}
 
@@ -171,7 +170,7 @@ func (t *Tracker) writeLoop() {
 		req.SetConnectionID(connectionID)
 
 		if err := binary.Write(t.conn, binary.BigEndian, req); err != nil {
-			log.Println(err)
+			log.Error(err)
 		}
 	}
 }

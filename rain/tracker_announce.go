@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
-	"log"
 	"net"
 	"time"
+
+	"github.com/cenkalti/log"
 )
 
 type AnnounceRequest struct {
@@ -75,19 +75,19 @@ func (t *Tracker) announce(d *download, cancel <-chan struct{}, event <-chan Eve
 		select {
 		// TODO send first without waiting
 		case <-time.After(nextAnnounce):
-			fmt.Println("--- announce")
+			log.Debug("Announce")
 			// TODO update on every try.
 			request.update(d)
 
 			// t.request may block, that's why we pass cancel as argument.
 			reply, err := t.request(request, cancel)
 			if err != nil {
-				log.Println(err)
+				log.Error(err)
 				continue
 			}
 
 			if err = response.Load(reply); err != nil {
-				log.Println(err)
+				log.Error(err)
 				continue
 			}
 
@@ -125,19 +125,19 @@ func (r *AnnounceResponse) Load(data []byte) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("--- r.announceResponse: %#v\n", r.announceResponse)
+	log.Debugf("--- r.announceResponse: %#v\n", r.announceResponse)
 
 	if r.Action != Announce {
 		return errors.New("invalid action")
 	}
 
-	fmt.Printf("--- len(rest): %#v\n", reader.Len())
+	log.Debugf("--- len(rest): %#v\n", reader.Len())
 	if reader.Len()%6 != 0 {
 		return errors.New("invalid peer list")
 	}
 
 	count := reader.Len() / 6
-	fmt.Printf("--- count: %#v\n", count)
+	log.Debugf("--- count: %#v\n", count)
 	r.Peers = make([]*Peer, count)
 	for i := 0; i < count; i++ {
 		r.Peers[i] = new(Peer)
@@ -145,7 +145,7 @@ func (r *AnnounceResponse) Load(data []byte) error {
 			return err
 		}
 	}
-	fmt.Printf("--- r.Peers: %#v\n", r.Peers)
+	log.Debugf("--- r.Peers: %#v\n", r.Peers)
 
 	return nil
 }

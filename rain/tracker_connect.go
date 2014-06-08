@@ -3,8 +3,8 @@ package rain
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
-	"log"
+
+	"github.com/cenkalti/log"
 )
 
 type ConnectRequest struct {
@@ -32,23 +32,23 @@ func (t *Tracker) connect() int64 {
 	for {
 		data, err := t.retry(req, write, nil)
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			continue
 		}
 
 		var response ConnectResponse
 		err = binary.Read(bytes.NewReader(data), binary.BigEndian, &response)
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			continue
 		}
 
 		if response.Action != Connect {
-			log.Println("invalid action in connect response")
+			log.Error("invalid action in connect response")
 			continue
 		}
 
-		fmt.Printf("--- connect Response: %#v\n", response)
+		log.Debugf("--- connect Response: %#v\n", response)
 		return response.ConnectionID
 	}
 }

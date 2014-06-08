@@ -3,15 +3,16 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 
+	"github.com/cenkalti/log"
 	"github.com/cenkalti/rain/rain"
 )
 
 var (
 	where = flag.String("w", ".", "where to download")
 	port  = flag.Int("p", 0, "listen port")
+	debug = flag.Bool("d", false, "enable debug log")
 )
 
 func main() {
@@ -21,6 +22,11 @@ func main() {
 	if len(args) == 0 {
 		fmt.Fprint(os.Stderr, "give a torrent file")
 		os.Exit(1)
+	}
+
+	if *debug {
+		log.DefaultLogger.SetLevel(log.DEBUG)
+		log.DefaultHandler.SetLevel(log.DEBUG)
 	}
 
 	r, err := rain.New()
