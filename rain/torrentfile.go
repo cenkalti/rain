@@ -14,7 +14,7 @@ type TorrentFile struct {
 	Info infoDict
 	// InfoHash field does not exist in torrent file.
 	// It is calculated when file is loaded from disk.
-	InfoHash     [20]byte
+	InfoHash     infoHash
 	Announce     string
 	AnnounceList [][]string `bencode:"announce-list"`
 	CreationDate int64      `bencode:"creation date"`
@@ -25,6 +25,8 @@ type TorrentFile struct {
 	// It is calculated when file is loaded from disk.
 	TotalLength int64
 }
+
+type infoHash [20]byte
 
 type infoDict struct {
 	PieceLength int64 `bencode:"piece length"`

@@ -13,13 +13,19 @@ import (
 	"github.com/cenkalti/log"
 )
 
+// All current implementations use 2^14 (16 kiB), and close connections which request an amount greater than that.
+const blockSize = 16 * 1024
+
 // http://www.bittorrent.org/beps/bep_0020.html
 var peerIDPrefix = []byte("-RN0001-")
 
 type Rain struct {
-	peerID   [20]byte
-	listener net.Listener
+	peerID    *peerID
+	listener  net.Listener
+	downloads map[*infoHash]*download
 }
+
+type peerID [20]byte
 
 // New returns a pointer to new Rain BitTorrent client.
 // Call ListenPeerPort method before starting Download to accept incoming connections.
@@ -29,14 +35,10 @@ func New() (*Rain, error) {
 }
 
 func (r *Rain) generatePeerID() error {
-	buf := make([]byte, len(r.peerID)-len(peerIDPrefix))
-	_, err := rand.Read(buf)
-	if err != nil {
-		return err
-	}
+	r.peerID = new(peerID)
 	copy(r.peerID[:], peerIDPrefix)
-	copy(r.peerID[len(peerIDPrefix):], buf)
-	return nil
+	_, err := rand.Read(r.peerID[len(peerIDPrefix):])
+	return err
 }
 
 // ListenPeerPort starts to listen a TCP port to accept incoming peer connections.
@@ -77,8 +79,8 @@ func (r *Rain) servePeerConn(conn net.Conn) {
 	}
 
 	// Send handshake as soon as you see info_hash.
-	var peerID [20]byte
-	infoHashC := make(chan [20]byte, 1)
+	var peerID *peerID
+	infoHashC := make(chan *infoHash, 1)
 	errC := make(chan error, 1)
 	go func() {
 		var err error
@@ -109,58 +111,59 @@ func (r *Rain) servePeerConn(conn net.Conn) {
 	r.communicateWithPeer(conn)
 }
 
-func (r *Rain) readHandShake(conn net.Conn, notifyInfoHash chan [20]byte) (peerID [20]byte, err error) {
+func (r *Rain) readHandShake(conn net.Conn, notifyInfoHash chan *infoHash) (*peerID, error) {
 	buf := make([]byte, bitTorrent10pstrLen)
-	_, err = conn.Read(buf[:1]) // pstrlen
+	_, err := conn.Read(buf[:1]) // pstrlen
 	if err != nil {
-		return [20]byte{}, err
+		return nil, err
 	}
 	pstrlen := buf[0]
 	if pstrlen != bitTorrent10pstrLen {
-		return [20]byte{}, errors.New("unexpected pstrlen")
+		return nil, errors.New("unexpected pstrlen")
 	}
 
 	_, err = io.ReadFull(conn, buf) // pstr
 	if err != nil {
-		return [20]byte{}, err
+		return nil, err
 	}
 	if bytes.Compare(buf, bitTorrent10pstr) != 0 {
-		return [20]byte{}, errors.New("unexpected pstr")
+		return nil, errors.New("unexpected pstr")
 	}
 
 	_, err = io.CopyN(ioutil.Discard, conn, 8) // reserved
 	if err != nil {
-		return [20]byte{}, err
+		return nil, err
 	}
 
-	var infoHash [20]byte
+	var infoHash infoHash
 	_, err = io.ReadFull(conn, infoHash[:]) // info_hash
 	if err != nil {
-		return [20]byte{}, err
+		return nil, err
 	}
 
 	// The recipient must respond as soon as it sees the info_hash part of the handshake
 	// (the peer id will presumably be sent after the recipient sends its own handshake).
 	// The tracker's NAT-checking feature does not send the peer_id field of the handshake.
 	if notifyInfoHash != nil {
-		notifyInfoHash <- infoHash
+		notifyInfoHash <- &infoHash
 	}
 
-	_, err = io.ReadFull(conn, peerID[:]) // peer_id
-	return peerID, err
+	var id peerID
+	_, err = io.ReadFull(conn, id[:]) // peer_id
+	return &id, err
 }
 
-func (r *Rain) sendHandShake(conn net.Conn, infoHash [20]byte) error {
+func (r *Rain) sendHandShake(conn net.Conn, ih *infoHash) error {
 	var handShake = struct {
 		Pstrlen  byte
 		Pstr     [bitTorrent10pstrLen]byte
 		Reserved [8]byte
-		InfoHash [20]byte
-		PeerID   [20]byte
+		InfoHash infoHash
+		PeerID   peerID
 	}{
 		Pstrlen:  bitTorrent10pstrLen,
-		InfoHash: infoHash,
-		PeerID:   r.peerID,
+		InfoHash: *ih,
+		PeerID:   *r.peerID,
 	}
 	copy(handShake.Pstr[:], bitTorrent10pstr)
 	return binary.Write(conn, binary.BigEndian, &handShake)
@@ -218,20 +221,20 @@ func (r *Rain) connectToPeer(p *Peer, d *download) {
 
 	log.Info("Connected to peer", conn.RemoteAddr())
 
-	err = r.sendHandShake(conn, d.TorrentFile.InfoHash)
+	err = r.sendHandShake(conn, &d.TorrentFile.InfoHash)
 	if err != nil {
 		log.Error(err)
 		return
 	}
 
-	infoHashC := make(chan [20]byte, 1)
+	infoHashC := make(chan *infoHash, 1)
 	_, err = r.readHandShake(conn, infoHashC)
 	if err != nil {
 		log.Error(err)
 		return
 	}
 
-	if <-infoHashC != d.TorrentFile.InfoHash {
+	if *<-infoHashC != d.TorrentFile.InfoHash {
 		log.Error("unexpected info_hash")
 		return
 	}

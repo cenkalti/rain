@@ -12,8 +12,8 @@ import (
 
 type AnnounceRequest struct {
 	TrackerRequestHeader
-	InfoHash   [20]byte
-	PeerID     [20]byte
+	InfoHash   infoHash
+	PeerID     peerID
 	Downloaded int64
 	Left       int64
 	Uploaded   int64
@@ -60,7 +60,7 @@ func (t *Tracker) announce(d *download, cancel <-chan struct{}, event <-chan Eve
 	}()
 	request := &AnnounceRequest{
 		InfoHash:   d.TorrentFile.InfoHash,
-		PeerID:     t.peerID,
+		PeerID:     *t.peerID,
 		Event:      None,
 		IP:         0, // Tracker uses sender of this UDP packet.
 		Key:        0, // TODO set it
