@@ -3,7 +3,6 @@ package rain
 import (
 	"crypto/rand"
 	"net"
-	"net/url"
 	"sync"
 
 	"github.com/cenkalti/log"
@@ -12,9 +11,9 @@ import (
 type Rain struct {
 	peerID     *peerID
 	listener   *net.TCPListener
-	downloads  map[*infoHash]*download
+	downloads  map[infoHash]*download
 	downloadsM sync.Mutex
-	trackers   map[*url.URL]*Tracker
+	trackers   map[string]*Tracker
 	trackersM  sync.Mutex
 }
 
@@ -22,8 +21,8 @@ type Rain struct {
 // Call ListenPeerPort method before starting Download to accept incoming connections.
 func New() (*Rain, error) {
 	r := &Rain{
-		downloads: make(map[*infoHash]*download),
-		trackers:  make(map[*url.URL]*Tracker),
+		downloads: make(map[infoHash]*download),
+		trackers:  make(map[string]*Tracker),
 	}
 	return r, r.generatePeerID()
 }
@@ -69,7 +68,7 @@ func (r *Rain) Download(filePath, where string) error {
 
 	download := NewDownload(torrent)
 	r.downloadsM.Lock()
-	r.downloads[&download.TorrentFile.InfoHash] = download
+	r.downloads[download.TorrentFile.InfoHash] = download
 	r.downloadsM.Unlock()
 
 	err = download.allocate(where)
@@ -81,7 +80,7 @@ func (r *Rain) Download(filePath, where string) error {
 	if err != nil {
 		return err
 	}
-	r.trackers[tracker.URL] = tracker
+	r.trackers[torrent.Announce] = tracker
 
 	err = tracker.Dial()
 	if err != nil {

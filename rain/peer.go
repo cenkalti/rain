@@ -3,7 +3,6 @@ package rain
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"io"
 	"io/ioutil"
 	"net"
@@ -26,6 +25,7 @@ var bitTorrent10pstr = []byte("BitTorrent protocol")
 
 func (r *Rain) servePeerConn(conn net.Conn) {
 	defer conn.Close()
+	log.Debugln("Serving peer", conn.RemoteAddr())
 
 	// Give a minute for completing handshake.
 	err := conn.SetDeadline(time.Now().Add(time.Minute))
@@ -33,88 +33,140 @@ func (r *Rain) servePeerConn(conn net.Conn) {
 		return
 	}
 
-	// Send handshake as soon as you see info_hash.
-	var peerID *peerID
-	infoHashC := make(chan *infoHash, 1)
-	errC := make(chan error, 1)
-	go func() {
-		var err error
-		peerID, err = r.readHandShake(conn, infoHashC)
-		if err != nil {
-			errC <- err
-		}
-		close(errC)
-	}()
-
 	var d *download
-	select {
-	case infoHash := <-infoHashC:
+
+	resultC := make(chan interface{}, 2)
+	go r.readHandShake(conn, resultC)
+
+	// Send handshake as soon as you see info_hash.
+	i := <-resultC
+	switch res := i.(type) {
+	case *infoHash:
 		// Do not continue if we don't have a torrent with this infoHash.
 		r.downloadsM.Lock()
 		var ok bool
-		if d, ok = r.downloads[infoHash]; !ok {
+		if d, ok = r.downloads[*res]; !ok {
 			log.Error("unexpected info_hash")
 			r.downloadsM.Unlock()
 			return
 		}
 		r.downloadsM.Unlock()
 
-		err = r.sendHandShake(conn, infoHash)
+		err = r.sendHandShake(conn, res)
 		if err != nil {
+			log.Error(err)
 			return
 		}
-	case <-errC:
+	case error:
+		log.Error(res)
 		return
 	}
 
-	err = <-errC
-	if err != nil {
+	i = <-resultC
+	switch res := i.(type) {
+	case *peerID:
+		// TODO save peer_id
+	case error:
+		log.Error(res)
 		return
 	}
 
+	log.Debugln("servePeerConn: Handshake completed", conn.RemoteAddr())
 	r.communicateWithPeer(conn, d)
 }
 
-func (r *Rain) readHandShake(conn net.Conn, notifyInfoHash chan *infoHash) (*peerID, error) {
+// readHandShake reads handshake from conn and send the result to resultC.
+// Results are sent in following order then, resultC is closed:
+//     1. error
+//     2. *infoHash, error
+//     3. *infoHash, *peerID
+func (r *Rain) readHandShake(conn net.Conn, resultC chan interface{}) {
+	log.Debugln("Reading handshake from", conn.RemoteAddr())
+	defer log.Debugln("Handshake is read from", conn.RemoteAddr())
+
+	if resultC == nil {
+		resultC = make(chan interface{}, 2)
+	}
+	defer close(resultC)
+
+	if cap(resultC) < 2 {
+		panic("not enough chan capacity")
+	}
+
 	buf := make([]byte, bitTorrent10pstrLen)
 	_, err := conn.Read(buf[:1]) // pstrlen
 	if err != nil {
-		return nil, err
+		resultC <- err
+		return
 	}
 	pstrlen := buf[0]
 	if pstrlen != bitTorrent10pstrLen {
-		return nil, errors.New("unexpected pstrlen")
+		resultC <- err
+		return
 	}
 
 	_, err = io.ReadFull(conn, buf) // pstr
 	if err != nil {
-		return nil, err
+		resultC <- err
+		return
 	}
 	if bytes.Compare(buf, bitTorrent10pstr) != 0 {
-		return nil, errors.New("unexpected pstr")
+		resultC <- err
+		return
 	}
 
 	_, err = io.CopyN(ioutil.Discard, conn, 8) // reserved
 	if err != nil {
-		return nil, err
+		resultC <- err
+		return
 	}
 
 	var infoHash infoHash
 	_, err = io.ReadFull(conn, infoHash[:]) // info_hash
 	if err != nil {
-		return nil, err
+		resultC <- err
+		return
 	}
 
 	// The recipient must respond as soon as it sees the info_hash part of the handshake
 	// (the peer id will presumably be sent after the recipient sends its own handshake).
 	// The tracker's NAT-checking feature does not send the peer_id field of the handshake.
-	if notifyInfoHash != nil {
-		notifyInfoHash <- &infoHash
-	}
+	resultC <- &infoHash
 
 	var id peerID
 	_, err = io.ReadFull(conn, id[:]) // peer_id
-	return &id, err
+	if err != nil {
+		resultC <- err
+		return
+	}
+
+	resultC <- &id
+}
+
+func (r *Rain) readHandShakeBlocking(conn net.Conn) (*infoHash, *peerID, error) {
+	var ih *infoHash
+	var id *peerID
+
+	resultC := make(chan interface{}, 2)
+	go r.readHandShake(conn, resultC)
+
+	i := <-resultC
+	switch res := i.(type) {
+	case *infoHash:
+		ih = res
+	case error:
+		return nil, nil, res
+	}
+
+	i = <-resultC
+	switch res := i.(type) {
+	case *peerID:
+		id = res
+	case error:
+		return nil, nil, res
+	}
+
+	return ih, id, nil
 }
 
 func (r *Rain) sendHandShake(conn net.Conn, ih *infoHash) error {
@@ -134,13 +186,22 @@ func (r *Rain) sendHandShake(conn net.Conn, ih *infoHash) error {
 }
 
 func (r *Rain) connectToPeer(p *Peer, d *download) {
+	log.Debugln("Connecting to peer", p.TCPAddr())
+
 	conn, err := net.DialTCP("tcp4", nil, p.TCPAddr())
 	if err != nil {
 		log.Error(err)
 		return
 	}
+	defer conn.Close()
 
-	log.Info("Connected to peer", conn.RemoteAddr())
+	log.Infoln("Connected to peer", conn.RemoteAddr())
+
+	// Give a minute for completing handshake.
+	err = conn.SetDeadline(time.Now().Add(time.Minute))
+	if err != nil {
+		return
+	}
 
 	err = r.sendHandShake(conn, &d.TorrentFile.InfoHash)
 	if err != nil {
@@ -148,25 +209,24 @@ func (r *Rain) connectToPeer(p *Peer, d *download) {
 		return
 	}
 
-	infoHashC := make(chan *infoHash, 1)
-	_, err = r.readHandShake(conn, infoHashC)
+	ih, _, err := r.readHandShakeBlocking(conn)
 	if err != nil {
 		log.Error(err)
 		return
 	}
-
-	if *<-infoHashC != d.TorrentFile.InfoHash {
+	if *ih != d.TorrentFile.InfoHash {
 		log.Error("unexpected info_hash")
 		return
 	}
 
-	log.Debug("handshake completed")
+	log.Debugln("connectToPeer: Handshake completed", conn.RemoteAddr())
 	r.communicateWithPeer(conn, d)
 }
 
 // communicateWithPeer is the common method that is called after handshake.
 // Peer connections are symmetrical.
 func (r *Rain) communicateWithPeer(conn net.Conn, d *download) {
+	log.Debugln("Communicating peer", conn.RemoteAddr())
 	// TODO adjust deadline to heartbeat
 	err := conn.SetDeadline(time.Time{})
 	if err != nil {
