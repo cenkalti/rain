@@ -52,8 +52,7 @@ func (r *Rain) servePeerConn(conn net.Conn) {
 		}
 		r.downloadsM.Unlock()
 
-		err = r.sendHandShake(conn, res)
-		if err != nil {
+		if err = r.sendHandShake(conn, res); err != nil {
 			log.Error(err)
 			return
 		}
@@ -65,6 +64,10 @@ func (r *Rain) servePeerConn(conn net.Conn) {
 	i = <-resultC
 	switch res := i.(type) {
 	case *peerID:
+		if *res == *r.peerID {
+			log.Warning("Rejected own connection: server")
+			return
+		}
 		// TODO save peer_id
 	case error:
 		log.Error(res)
@@ -209,13 +212,17 @@ func (r *Rain) connectToPeer(p *Peer, d *download) {
 		return
 	}
 
-	ih, _, err := r.readHandShakeBlocking(conn)
+	ih, id, err := r.readHandShakeBlocking(conn)
 	if err != nil {
 		log.Error(err)
 		return
 	}
 	if *ih != d.TorrentFile.InfoHash {
 		log.Error("unexpected info_hash")
+		return
+	}
+	if *id == *r.peerID {
+		log.Warning("Rejected own connection: client")
 		return
 	}
 
@@ -230,6 +237,13 @@ func (r *Rain) communicateWithPeer(conn net.Conn, d *download) {
 	// TODO adjust deadline to heartbeat
 	err := conn.SetDeadline(time.Time{})
 	if err != nil {
+		return
+	}
+
+	b := make([]byte, 1)
+	_, err = conn.Read(b)
+	if err != nil {
+		log.Error(err)
 		return
 	}
 
