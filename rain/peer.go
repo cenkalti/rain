@@ -1,10 +1,12 @@
 package rain
 
 import (
+	"encoding/binary"
 	"net"
 	"time"
 
 	"github.com/cenkalti/log"
+	"github.com/willf/bitset"
 )
 
 // All current implementations use 2^14 (16 kiB), and close connections which request an amount greater than that.
@@ -116,6 +118,18 @@ func (r *Rain) connectToPeer(p *Peer, d *download) {
 	r.communicateWithPeer(conn, d)
 }
 
+const (
+	choke = iota
+	unchoke
+	interested
+	notInterested
+	have
+	bitfield
+	request
+	piece
+	cancel
+)
+
 // communicateWithPeer is the common method that is called after handshake.
 // Peer connections are symmetrical.
 func (r *Rain) communicateWithPeer(conn net.Conn, d *download) {
@@ -126,12 +140,40 @@ func (r *Rain) communicateWithPeer(conn net.Conn, d *download) {
 		return
 	}
 
-	b := make([]byte, 1)
-	_, err = conn.Read(b)
-	if err != nil {
-		log.Error(err)
-		return
-	}
+	for {
+		var length uint32
+		err = binary.Read(conn, binary.BigEndian, &length)
+		if err != nil {
+			log.Error(err)
+			return
+		}
 
-	select {}
+		if length == 0 { // heartbeat
+			log.Debug("came heartbeat")
+			continue
+		}
+
+		var msgType byte
+		err = binary.Read(conn, binary.BigEndian, &msgType)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+		length--
+		log.Debug("Received message of type ", msgType)
+
+		switch msgType {
+		case choke:
+		case unchoke:
+		case interested:
+		case notInterested:
+		case have:
+		case bitfield:
+
+		case request:
+		case piece:
+		case cancel:
+		}
+
+	}
 }
