@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/cenkalti/log"
-	"github.com/willf/bitset"
 )
 
 // All current implementations use 2^14 (16 kiB), and close connections which request an amount greater than that.
