@@ -141,7 +141,7 @@ type peerConn struct {
 // readLoop processes incoming messages after handshake.
 func (p *peerConn) readLoop() {
 	log.Debugln("Communicating peer", p.conn.RemoteAddr())
-	// TODO adjust deadline to heartbeat
+	// TODO adjust deadline to keepAlive
 	err := p.conn.SetDeadline(time.Time{})
 	if err != nil {
 		return
@@ -157,9 +157,9 @@ func (p *peerConn) readLoop() {
 			return
 		}
 
-		if length == 0 { // heartbeat
-			log.Debug("came heartbeat")
-			// TODO handle heartbeat messages
+		if length == 0 { // keepAlive
+			log.Debug("came keep-alive")
+			// TODO handle keepAlive messages
 			continue
 		}
 
