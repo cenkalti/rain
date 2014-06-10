@@ -2,6 +2,7 @@ package rain
 
 import (
 	"encoding/binary"
+	"io"
 	"net"
 	"time"
 
@@ -72,7 +73,8 @@ func (r *Rain) servePeerConn(conn net.Conn) {
 	}
 
 	log.Debugln("servePeerConn: Handshake completed", conn.RemoteAddr())
-	r.communicateWithPeer(conn, d)
+	p := peerConn{conn: conn, dl: d}
+	p.readLoop()
 }
 
 func (r *Rain) connectToPeer(p *Peer, d *download) {
@@ -114,7 +116,8 @@ func (r *Rain) connectToPeer(p *Peer, d *download) {
 	}
 
 	log.Debugln("connectToPeer: Handshake completed", conn.RemoteAddr())
-	r.communicateWithPeer(conn, d)
+	pc := peerConn{conn: conn, dl: d}
+	pc.readLoop()
 }
 
 const (
@@ -129,19 +132,26 @@ const (
 	cancel
 )
 
-// communicateWithPeer is the common method that is called after handshake.
-// Peer connections are symmetrical.
-func (r *Rain) communicateWithPeer(conn net.Conn, d *download) {
-	log.Debugln("Communicating peer", conn.RemoteAddr())
+type peerConn struct {
+	conn     net.Conn
+	dl       *download
+	bitfield *BitField
+}
+
+// readLoop processes incoming messages after handshake.
+func (p *peerConn) readLoop() {
+	log.Debugln("Communicating peer", p.conn.RemoteAddr())
 	// TODO adjust deadline to heartbeat
-	err := conn.SetDeadline(time.Time{})
+	err := p.conn.SetDeadline(time.Time{})
 	if err != nil {
 		return
 	}
 
+	first := true
+	buf := make([]byte, blockSize)
 	for {
 		var length uint32
-		err = binary.Read(conn, binary.BigEndian, &length)
+		err = binary.Read(p.conn, binary.BigEndian, &length)
 		if err != nil {
 			log.Error(err)
 			return
@@ -149,11 +159,12 @@ func (r *Rain) communicateWithPeer(conn net.Conn, d *download) {
 
 		if length == 0 { // heartbeat
 			log.Debug("came heartbeat")
+			// TODO handle heartbeat messages
 			continue
 		}
 
 		var msgType byte
-		err = binary.Read(conn, binary.BigEndian, &msgType)
+		err = binary.Read(p.conn, binary.BigEndian, &msgType)
 		if err != nil {
 			log.Error(err)
 			return
@@ -167,12 +178,40 @@ func (r *Rain) communicateWithPeer(conn net.Conn, d *download) {
 		case interested:
 		case notInterested:
 		case have:
+			var i int32
+			err = binary.Read(p.conn, binary.BigEndian, &i)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			p.bitfield.Set(int64(i))
+			log.Debugln("Peer", p.conn.RemoteAddr(), "has piece", i)
+			log.Debugln("new bitfield:", p.bitfield.Hex())
 		case bitfield:
+			if !first {
+				log.Error("bitfield can only be sent after handshake")
+				return
+			}
 
+			_, err = io.LimitReader(p.conn, int64(length)).Read(buf)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+
+			div, mod := divMod(p.dl.TorrentFile.TotalLength, p.dl.TorrentFile.Info.PieceLength)
+			if mod != 0 {
+				div++
+			}
+			log.Debugln("Torrent contains", div, "pieces")
+			b := NewBitField(buf, div)
+			log.Debugln("Received bitfield:", b.Hex())
+			p.bitfield = &b
 		case request:
 		case piece:
 		case cancel:
 		}
 
+		first = false
 	}
 }
