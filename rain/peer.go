@@ -77,7 +77,7 @@ func (r *Rain) servePeerConn(conn net.Conn) {
 	p.readLoop()
 }
 
-func (r *Rain) connectToPeer(p *Peer, d *download) {
+func (r *Rain) connectToPeerAndServeDownload(p *Peer, d *download) {
 	log.Debugln("Connecting to peer", p.TCPAddr())
 
 	conn, err := net.DialTCP("tcp4", nil, p.TCPAddr())

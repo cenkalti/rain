@@ -99,10 +99,8 @@ func (r *Rain) announcer(t *Tracker, d *download) {
 			log.Debugf("Announce response: %#v", resp)
 			for _, p := range resp.Peers {
 				log.Debug("Peer:", p.TCPAddr())
-
-				go r.connectToPeer(p, d)
+				go r.connectToPeerAndServeDownload(p, d)
 			}
-			// case
 		}
 	}
 }
