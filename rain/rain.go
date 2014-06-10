@@ -13,8 +13,6 @@ type Rain struct {
 	listener   *net.TCPListener
 	downloads  map[infoHash]*download
 	downloadsM sync.Mutex
-	trackers   map[string]*Tracker
-	trackersM  sync.Mutex
 }
 
 // New returns a pointer to new Rain BitTorrent client.
@@ -22,7 +20,6 @@ type Rain struct {
 func New() (*Rain, error) {
 	r := &Rain{
 		downloads: make(map[infoHash]*download),
-		trackers:  make(map[string]*Tracker),
 	}
 	return r, r.generatePeerID()
 }
@@ -80,15 +77,21 @@ func (r *Rain) Download(filePath, where string) error {
 	if err != nil {
 		return err
 	}
-	r.trackers[torrent.Announce] = tracker
 
-	err = tracker.Dial()
+	go r.announcer(tracker, download)
+
+	select {}
+	return nil
+}
+
+func (r *Rain) announcer(t *Tracker, d *download) {
+	err := t.Dial()
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
 
 	responseC := make(chan *AnnounceResponse)
-	go tracker.announce(download, nil, nil, responseC)
+	go t.announce(d, nil, nil, responseC)
 
 	for {
 		select {
@@ -96,11 +99,10 @@ func (r *Rain) Download(filePath, where string) error {
 			log.Debugf("Announce response: %#v", resp)
 			for _, p := range resp.Peers {
 				log.Debug("Peer:", p.TCPAddr())
-				go r.connectToPeer(p, download)
+
+				go r.connectToPeer(p, d)
 			}
 			// case
 		}
 	}
-
-	return nil
 }

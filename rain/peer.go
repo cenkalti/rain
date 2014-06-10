@@ -212,7 +212,7 @@ func (p *peerConn) readLoop() {
 				return
 			}
 			p.bitfield.Set(int64(i))
-			log.Debugln("Peer", p.conn.RemoteAddr(), "has piece", i)
+			log.Debug("Peer ", p.conn.RemoteAddr(), " has piece #", i)
 			log.Debugln("new bitfield:", p.bitfield.Hex())
 		case bitfield:
 			if !first {
