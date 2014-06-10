@@ -181,7 +181,7 @@ func (p *peerConn) readLoop() {
 			return
 		}
 
-		if length == 0 { // keepAlive
+		if length == 0 { // keep-alive message
 			log.Debug("received keep-alive")
 			continue
 		}
