@@ -141,15 +141,16 @@ type peerConn struct {
 // readLoop processes incoming messages after handshake.
 func (p *peerConn) readLoop() {
 	log.Debugln("Communicating peer", p.conn.RemoteAddr())
-	// TODO adjust deadline to keepAlive
-	err := p.conn.SetDeadline(time.Time{})
-	if err != nil {
-		return
-	}
 
 	first := true
 	buf := make([]byte, blockSize)
 	for {
+		err := p.conn.SetDeadline(time.Now().Add(3 * time.Minute))
+		if err != nil {
+			log.Error(err)
+			return
+		}
+
 		var length uint32
 		err = binary.Read(p.conn, binary.BigEndian, &length)
 		if err != nil {
@@ -158,8 +159,12 @@ func (p *peerConn) readLoop() {
 		}
 
 		if length == 0 { // keepAlive
-			log.Debug("came keep-alive")
-			// TODO handle keepAlive messages
+			log.Debug("received keep-alive")
+			err = p.conn.SetDeadline(time.Now().Add(3 * time.Minute))
+			if err != nil {
+				log.Error(err)
+				return
+			}
 			continue
 		}
 
