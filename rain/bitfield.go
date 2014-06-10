@@ -37,19 +37,13 @@ func NewBitField(buf []byte, length int) BitField {
 }
 
 // Bytes returns bytes in b.
-func (b BitField) Bytes() []byte {
-	return b.b
-}
+func (b BitField) Bytes() []byte { return b.b }
 
 // Len returns bit length.
-func (b BitField) Len() int {
-	return b.length
-}
+func (b BitField) Len() int { return b.length }
 
 // Hex returns bytes as string.
-func (b BitField) Hex() string {
-	return hex.EncodeToString(b.b)
-}
+func (b BitField) Hex() string { return hex.EncodeToString(b.b) }
 
 // Set bit i. 0 is the most significant bit. Panics if i >= b.Len().
 func (b BitField) Set(i int) {
