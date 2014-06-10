@@ -63,7 +63,7 @@ func (r *Rain) servePeerConn(conn net.Conn) {
 	switch res := i.(type) {
 	case *peerID:
 		if *res == *r.peerID {
-			log.Warning("Rejected own connection: server")
+			log.Debug("Rejected own connection: server")
 			return
 		}
 		// TODO save peer_id
@@ -73,7 +73,7 @@ func (r *Rain) servePeerConn(conn net.Conn) {
 	}
 
 	log.Debugln("servePeerConn: Handshake completed", conn.RemoteAddr())
-	p := peerConn{conn: conn, dl: d}
+	p := newPeerConn(conn, d)
 	p.readLoop()
 }
 
@@ -111,12 +111,12 @@ func (r *Rain) connectToPeer(p *Peer, d *download) {
 		return
 	}
 	if *id == *r.peerID {
-		log.Warning("Rejected own connection: client")
+		log.Debug("Rejected own connection: client")
 		return
 	}
 
 	log.Debugln("connectToPeer: Handshake completed", conn.RemoteAddr())
-	pc := peerConn{conn: conn, dl: d}
+	pc := newPeerConn(conn, d)
 	pc.readLoop()
 }
 
@@ -133,10 +133,33 @@ const (
 )
 
 type peerConn struct {
-	conn     net.Conn
-	dl       *download
-	bitfield *BitField
+	conn           net.Conn
+	dl             *download
+	bitfield       BitField             // on remote
+	amChoking      bool                 // this client is choking the peer
+	amInterested   bool                 // this client is interested in the peer
+	peerChoking    bool                 // peer is choking this client
+	peerInterested bool                 // peer is interested in this client
+	peerRequests   map[uint64]bool      // What remote peer requested
+	ourRequests    map[uint64]time.Time // What we requested, when we requested it
 }
+
+func newPeerConn(conn net.Conn, d *download) *peerConn {
+	div, mod := divMod(d.TorrentFile.TotalLength, d.TorrentFile.Info.PieceLength)
+	if mod != 0 {
+		div++
+	}
+	log.Debugln("Torrent contains", div, "pieces")
+	return &peerConn{
+		conn:        conn,
+		dl:          d,
+		bitfield:    NewBitField(nil, div),
+		amChoking:   true,
+		peerChoking: true,
+	}
+}
+
+const connReadTimeout = 3 * time.Minute
 
 // readLoop processes incoming messages after handshake.
 func (p *peerConn) readLoop() {
@@ -145,7 +168,7 @@ func (p *peerConn) readLoop() {
 	first := true
 	buf := make([]byte, blockSize)
 	for {
-		err := p.conn.SetDeadline(time.Now().Add(3 * time.Minute))
+		err := p.conn.SetReadDeadline(time.Now().Add(connReadTimeout))
 		if err != nil {
 			log.Error(err)
 			return
@@ -160,11 +183,6 @@ func (p *peerConn) readLoop() {
 
 		if length == 0 { // keepAlive
 			log.Debug("received keep-alive")
-			err = p.conn.SetDeadline(time.Now().Add(3 * time.Minute))
-			if err != nil {
-				log.Error(err)
-				return
-			}
 			continue
 		}
 
@@ -179,9 +197,13 @@ func (p *peerConn) readLoop() {
 
 		switch msgType {
 		case choke:
+			p.peerChoking = true
 		case unchoke:
+			p.peerChoking = false
 		case interested:
+			p.peerInterested = true
 		case notInterested:
+			p.peerInterested = false
 		case have:
 			var i int32
 			err = binary.Read(p.conn, binary.BigEndian, &i)
@@ -198,20 +220,19 @@ func (p *peerConn) readLoop() {
 				return
 			}
 
+			if int64(length) != int64(len(p.bitfield.Bytes())) {
+				log.Error("invalid bitfield length")
+				return
+			}
+
 			_, err = io.LimitReader(p.conn, int64(length)).Read(buf)
 			if err != nil {
 				log.Error(err)
 				return
 			}
 
-			div, mod := divMod(p.dl.TorrentFile.TotalLength, p.dl.TorrentFile.Info.PieceLength)
-			if mod != 0 {
-				div++
-			}
-			log.Debugln("Torrent contains", div, "pieces")
-			b := NewBitField(buf, div)
-			log.Debugln("Received bitfield:", b.Hex())
-			p.bitfield = &b
+			p.bitfield = NewBitField(buf, p.bitfield.Len())
+			log.Debugln("Received bitfield:", p.bitfield.Hex())
 		case request:
 		case piece:
 		case cancel:
