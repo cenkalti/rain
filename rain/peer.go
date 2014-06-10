@@ -120,6 +120,7 @@ func (r *Rain) connectToPeerAndServeDownload(p *Peer, d *download) {
 	pc.readLoop()
 }
 
+// Peer message types
 const (
 	choke = iota
 	unchoke
@@ -131,6 +132,18 @@ const (
 	piece
 	cancel
 )
+
+var peerMessageTypes = [...]string{
+	"choke",
+	"unchoke",
+	"interested",
+	"not interested",
+	"have",
+	"bitfield",
+	"request",
+	"piece",
+	"cancel",
+}
 
 type peerConn struct {
 	conn           net.Conn
@@ -182,7 +195,7 @@ func (p *peerConn) readLoop() {
 		}
 
 		if length == 0 { // keep-alive message
-			log.Debug("received keep-alive")
+			log.Debug("Received message of type \"keep alive\"")
 			continue
 		}
 
@@ -193,7 +206,7 @@ func (p *peerConn) readLoop() {
 			return
 		}
 		length--
-		log.Debug("Received message of type ", msgType)
+		log.Debugf("Received message of type %q", peerMessageTypes[msgType])
 
 		switch msgType {
 		case choke:
