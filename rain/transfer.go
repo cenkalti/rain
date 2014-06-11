@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 )
 
-// download represents an active download in the program.
-type download struct {
+// transfer represents an active transfer in the program.
+type transfer struct {
 	TorrentFile *TorrentFile
 	// Stats
 	Downloaded int64
@@ -14,15 +14,15 @@ type download struct {
 	// Left       int64
 }
 
-func NewDownload(t *TorrentFile) *download {
-	return &download{TorrentFile: t}
+func NewDownload(t *TorrentFile) *transfer {
+	return &transfer{TorrentFile: t}
 }
 
-func (d *download) Left() int64 {
+func (d *transfer) Left() int64 {
 	return d.TorrentFile.TotalLength - d.Downloaded
 }
 
-func (d *download) allocate(where string) error {
+func (d *transfer) allocate(where string) error {
 	var err error
 	info := &d.TorrentFile.Info
 

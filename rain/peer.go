@@ -31,7 +31,7 @@ func (r *Rain) servePeerConn(conn net.Conn) {
 		return
 	}
 
-	var d *download
+	var d *transfer
 
 	resultC := make(chan interface{}, 2)
 	go r.readHandShake(conn, resultC)
@@ -77,7 +77,7 @@ func (r *Rain) servePeerConn(conn net.Conn) {
 	p.readLoop()
 }
 
-func (r *Rain) connectToPeerAndServeDownload(p *Peer, d *download) {
+func (r *Rain) connectToPeerAndServeDownload(p *Peer, d *transfer) {
 	log.Debugln("Connecting to peer", p.TCPAddr())
 
 	conn, err := net.DialTCP("tcp4", nil, p.TCPAddr())
@@ -147,7 +147,7 @@ var peerMessageTypes = [...]string{
 
 type peerConn struct {
 	conn           net.Conn
-	dl             *download
+	dl             *transfer
 	bitfield       BitField             // on remote
 	amChoking      bool                 // this client is choking the peer
 	amInterested   bool                 // this client is interested in the peer
@@ -157,7 +157,7 @@ type peerConn struct {
 	ourRequests    map[uint64]time.Time // What we requested, when we requested it
 }
 
-func newPeerConn(conn net.Conn, d *download) *peerConn {
+func newPeerConn(conn net.Conn, d *transfer) *peerConn {
 	div, mod := divMod(d.TorrentFile.TotalLength, d.TorrentFile.Info.PieceLength)
 	if mod != 0 {
 		div++

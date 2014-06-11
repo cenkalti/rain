@@ -52,7 +52,7 @@ func (p Peer) TCPAddr() *net.TCPAddr {
 }
 
 // announce announces d to t periodically.
-func (t *Tracker) announce(d *download, cancel <-chan struct{}, event <-chan Event, responseC chan<- *AnnounceResponse) {
+func (t *Tracker) announce(d *transfer, cancel <-chan struct{}, event <-chan Event, responseC chan<- *AnnounceResponse) {
 	defer func() {
 		if responseC != nil {
 			close(responseC)
@@ -108,7 +108,7 @@ func (t *Tracker) announce(d *download, cancel <-chan struct{}, event <-chan Eve
 	}
 }
 
-func (r *AnnounceRequest) update(d *download) {
+func (r *AnnounceRequest) update(d *transfer) {
 	r.Downloaded = d.Downloaded
 	r.Uploaded = d.Uploaded
 	r.Left = d.Left()

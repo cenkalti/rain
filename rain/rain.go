@@ -11,7 +11,7 @@ import (
 type Rain struct {
 	peerID     *peerID
 	listener   *net.TCPListener
-	downloads  map[infoHash]*download
+	downloads  map[infoHash]*transfer
 	downloadsM sync.Mutex
 }
 
@@ -19,7 +19,7 @@ type Rain struct {
 // Call ListenPeerPort method before starting Download to accept incoming connections.
 func New() (*Rain, error) {
 	r := &Rain{
-		downloads: make(map[infoHash]*download),
+		downloads: make(map[infoHash]*transfer),
 	}
 	return r, r.generatePeerID()
 }
@@ -63,12 +63,12 @@ func (r *Rain) Download(filePath, where string) error {
 	}
 	log.Debugf("Parsed torrent file: %#v", torrent)
 
-	download := NewDownload(torrent)
+	transfer := NewDownload(torrent)
 	r.downloadsM.Lock()
-	r.downloads[download.TorrentFile.InfoHash] = download
+	r.downloads[transfer.TorrentFile.InfoHash] = transfer
 	r.downloadsM.Unlock()
 
-	err = download.allocate(where)
+	err = transfer.allocate(where)
 	if err != nil {
 		return err
 	}
@@ -78,13 +78,13 @@ func (r *Rain) Download(filePath, where string) error {
 		return err
 	}
 
-	go r.announcer(tracker, download)
+	go r.announcer(tracker, transfer)
 
 	select {}
 	return nil
 }
 
-func (r *Rain) announcer(t *Tracker, d *download) {
+func (r *Rain) announcer(t *Tracker, d *transfer) {
 	err := t.Dial()
 	if err != nil {
 		log.Fatal(err)
