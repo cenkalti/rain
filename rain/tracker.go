@@ -42,7 +42,7 @@ const (
 
 type Tracker struct {
 	URL           *url.URL
-	peerID        *peerID
+	peerID        peerID
 	port          uint16
 	conn          *net.UDPConn
 	transactions  map[int32]*transaction
@@ -69,7 +69,7 @@ func (t *transaction) Done() {
 	close(t.done)
 }
 
-func NewTracker(trackerURL string, peerID *peerID, port uint16) (*Tracker, error) {
+func NewTracker(trackerURL string, peerID peerID, port uint16) (*Tracker, error) {
 	parsed, err := url.Parse(trackerURL)
 	if err != nil {
 		return nil, err

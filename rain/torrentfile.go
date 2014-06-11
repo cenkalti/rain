@@ -11,19 +11,19 @@ import (
 )
 
 type TorrentFile struct {
-	Info infoDict
-	// InfoHash field does not exist in torrent file.
-	// It is calculated when file is loaded from disk.
-	InfoHash     infoHash
+	Info         infoDict
 	Announce     string
 	AnnounceList [][]string `bencode:"announce-list"`
 	CreationDate int64      `bencode:"creation date"`
 	Comment      string
 	CreatedBy    string `bencode:"created by"`
 	Encoding     string
-	// TotalLength field does not exist in torrent file.
-	// It is calculated when file is loaded from disk.
+
+	// These fields do not exist in torrent file.
+	// They are calculated when a TorrentFile is created with NewTorrentFile func.
+	InfoHash    infoHash
 	TotalLength int64
+	NumPieces   int
 }
 
 type infoHash [20]byte
@@ -85,6 +85,7 @@ func NewTorrentFile(path string) (*TorrentFile, error) {
 
 	t := &TorrentFile{}
 
+	// Calculate InfoHash
 	hash := sha1.New()
 	hash.Write(infoBytes.Bytes())
 	copy(t.InfoHash[:], hash.Sum(nil))
@@ -95,10 +96,14 @@ func NewTorrentFile(path string) (*TorrentFile, error) {
 		return nil, err
 	}
 
+	// Calculate TotalLength
 	t.TotalLength += t.Info.Length
 	for _, f := range t.Info.Files {
 		t.TotalLength += f.Length
 	}
+
+	// Calculate NumPieces
+	t.NumPieces = len(t.Info.Pieces) / sha1.Size
 
 	return t, nil
 }

@@ -13,9 +13,9 @@ import (
 // readHandShake reads handshake from conn and send the result to resultC.
 // Results are sent in following order then, resultC is closed:
 //     1. error
-//     2. *infoHash, error
-//     3. *infoHash, *peerID
-func (r *Rain) readHandShake(conn net.Conn, resultC chan interface{}) {
+//     2. infoHash, error
+//     3. infoHash, peerID
+func readHandShake(conn net.Conn, resultC chan interface{}) {
 	log.Debugln("Reading handshake from", conn.RemoteAddr())
 	defer log.Debugln("Handshake is read from", conn.RemoteAddr())
 
@@ -66,7 +66,7 @@ func (r *Rain) readHandShake(conn net.Conn, resultC chan interface{}) {
 	// The recipient must respond as soon as it sees the info_hash part of the handshake
 	// (the peer id will presumably be sent after the recipient sends its own handshake).
 	// The tracker's NAT-checking feature does not send the peer_id field of the handshake.
-	resultC <- &infoHash
+	resultC <- infoHash
 
 	var id peerID
 	_, err = io.ReadFull(conn, id[:]) // peer_id
@@ -75,28 +75,28 @@ func (r *Rain) readHandShake(conn net.Conn, resultC chan interface{}) {
 		return
 	}
 
-	resultC <- &id
+	resultC <- id
 }
 
-func (r *Rain) readHandShakeBlocking(conn net.Conn) (*infoHash, *peerID, error) {
+func readHandShakeBlocking(conn net.Conn) (*infoHash, *peerID, error) {
 	var ih *infoHash
 	var id *peerID
 
 	resultC := make(chan interface{}, 2)
-	go r.readHandShake(conn, resultC)
+	go readHandShake(conn, resultC)
 
 	i := <-resultC
 	switch res := i.(type) {
-	case *infoHash:
-		ih = res
+	case infoHash:
+		ih = &res
 	case error:
 		return nil, nil, res
 	}
 
 	i = <-resultC
 	switch res := i.(type) {
-	case *peerID:
-		id = res
+	case peerID:
+		id = &res
 	case error:
 		return nil, nil, res
 	}
@@ -104,7 +104,7 @@ func (r *Rain) readHandShakeBlocking(conn net.Conn) (*infoHash, *peerID, error) 
 	return ih, id, nil
 }
 
-func (r *Rain) sendHandShake(conn net.Conn, ih *infoHash) error {
+func sendHandShake(conn net.Conn, ih infoHash, id peerID) error {
 	var handShake = struct {
 		Pstrlen  byte
 		Pstr     [bitTorrent10pstrLen]byte
@@ -113,8 +113,8 @@ func (r *Rain) sendHandShake(conn net.Conn, ih *infoHash) error {
 		PeerID   peerID
 	}{
 		Pstrlen:  bitTorrent10pstrLen,
-		InfoHash: *ih,
-		PeerID:   *r.peerID,
+		InfoHash: ih,
+		PeerID:   id,
 	}
 	copy(handShake.Pstr[:], bitTorrent10pstr)
 	return binary.Write(conn, binary.BigEndian, &handShake)

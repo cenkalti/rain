@@ -34,23 +34,23 @@ func (r *Rain) servePeerConn(conn net.Conn) {
 	var d *transfer
 
 	resultC := make(chan interface{}, 2)
-	go r.readHandShake(conn, resultC)
+	go readHandShake(conn, resultC)
 
 	// Send handshake as soon as you see info_hash.
 	i := <-resultC
 	switch res := i.(type) {
-	case *infoHash:
+	case infoHash:
 		// Do not continue if we don't have a torrent with this infoHash.
-		r.downloadsM.Lock()
+		r.transfersM.Lock()
 		var ok bool
-		if d, ok = r.downloads[*res]; !ok {
+		if d, ok = r.transfers[res]; !ok {
 			log.Error("unexpected info_hash")
-			r.downloadsM.Unlock()
+			r.transfersM.Unlock()
 			return
 		}
-		r.downloadsM.Unlock()
+		r.transfersM.Unlock()
 
-		if err = r.sendHandShake(conn, res); err != nil {
+		if err = sendHandShake(conn, res, d.peerID); err != nil {
 			log.Error(err)
 			return
 		}
@@ -61,8 +61,8 @@ func (r *Rain) servePeerConn(conn net.Conn) {
 
 	i = <-resultC
 	switch res := i.(type) {
-	case *peerID:
-		if *res == *r.peerID {
+	case peerID:
+		if res == r.peerID {
 			log.Debug("Rejected own connection: server")
 			return
 		}
@@ -77,7 +77,7 @@ func (r *Rain) servePeerConn(conn net.Conn) {
 	p.readLoop()
 }
 
-func (r *Rain) connectToPeerAndServeDownload(p *Peer, d *transfer) {
+func connectToPeerAndServeDownload(p *Peer, d *transfer) {
 	log.Debugln("Connecting to peer", p.TCPAddr())
 
 	conn, err := net.DialTCP("tcp4", nil, p.TCPAddr())
@@ -95,22 +95,22 @@ func (r *Rain) connectToPeerAndServeDownload(p *Peer, d *transfer) {
 		return
 	}
 
-	err = r.sendHandShake(conn, &d.TorrentFile.InfoHash)
+	err = sendHandShake(conn, d.torrentFile.InfoHash, d.peerID)
 	if err != nil {
 		log.Error(err)
 		return
 	}
 
-	ih, id, err := r.readHandShakeBlocking(conn)
+	ih, id, err := readHandShakeBlocking(conn)
 	if err != nil {
 		log.Error(err)
 		return
 	}
-	if *ih != d.TorrentFile.InfoHash {
+	if *ih != d.torrentFile.InfoHash {
 		log.Error("unexpected info_hash")
 		return
 	}
-	if *id == *r.peerID {
+	if *id == d.peerID {
 		log.Debug("Rejected own connection: client")
 		return
 	}
@@ -122,15 +122,15 @@ func (r *Rain) connectToPeerAndServeDownload(p *Peer, d *transfer) {
 
 // Peer message types
 const (
-	choke = iota
-	unchoke
-	interested
-	notInterested
-	have
-	bitfield
-	request
-	piece
-	cancel
+	msgChoke = iota
+	msgUnchoke
+	msgInterested
+	msgNotInterested
+	msgHave
+	msgBitfield
+	msgRequest
+	msgPiece
+	msgCancel
 )
 
 var peerMessageTypes = [...]string{
@@ -147,7 +147,7 @@ var peerMessageTypes = [...]string{
 
 type peerConn struct {
 	conn           net.Conn
-	dl             *transfer
+	transfer       *transfer
 	bitfield       BitField             // on remote
 	amChoking      bool                 // this client is choking the peer
 	amInterested   bool                 // this client is interested in the peer
@@ -158,14 +158,14 @@ type peerConn struct {
 }
 
 func newPeerConn(conn net.Conn, d *transfer) *peerConn {
-	div, mod := divMod(d.TorrentFile.TotalLength, d.TorrentFile.Info.PieceLength)
+	div, mod := divMod(d.torrentFile.TotalLength, d.torrentFile.Info.PieceLength)
 	if mod != 0 {
 		div++
 	}
 	log.Debugln("Torrent contains", div, "pieces")
 	return &peerConn{
 		conn:        conn,
-		dl:          d,
+		transfer:    d,
 		bitfield:    NewBitField(nil, div),
 		amChoking:   true,
 		peerChoking: true,
@@ -209,15 +209,15 @@ func (p *peerConn) readLoop() {
 		log.Debugf("Received message of type %q", peerMessageTypes[msgType])
 
 		switch msgType {
-		case choke:
+		case msgChoke:
 			p.peerChoking = true
-		case unchoke:
+		case msgUnchoke:
 			p.peerChoking = false
-		case interested:
+		case msgInterested:
 			p.peerInterested = true
-		case notInterested:
+		case msgNotInterested:
 			p.peerInterested = false
-		case have:
+		case msgHave:
 			var i int32
 			err = binary.Read(p.conn, binary.BigEndian, &i)
 			if err != nil {
@@ -227,7 +227,9 @@ func (p *peerConn) readLoop() {
 			p.bitfield.Set(int64(i))
 			log.Debug("Peer ", p.conn.RemoteAddr(), " has piece #", i)
 			log.Debugln("new bitfield:", p.bitfield.Hex())
-		case bitfield:
+
+			p.transfer.haveMessage <- p
+		case msgBitfield:
 			if !first {
 				log.Error("bitfield can only be sent after handshake")
 				return
@@ -246,9 +248,15 @@ func (p *peerConn) readLoop() {
 
 			p.bitfield = NewBitField(buf, p.bitfield.Len())
 			log.Debugln("Received bitfield:", p.bitfield.Hex())
-		case request:
-		case piece:
-		case cancel:
+
+			for i := int64(0); i < p.bitfield.Len(); i++ {
+				if p.bitfield.Test(i) {
+					p.transfer.haveMessage <- p
+				}
+			}
+		case msgRequest:
+		case msgPiece:
+		case msgCancel:
 		}
 
 		first = false

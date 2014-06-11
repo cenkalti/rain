@@ -9,26 +9,30 @@ import (
 )
 
 type Rain struct {
-	peerID     *peerID
+	peerID     peerID
 	listener   *net.TCPListener
-	downloads  map[infoHash]*transfer
-	downloadsM sync.Mutex
+	transfers  map[infoHash]*transfer
+	transfersM sync.Mutex
 }
 
 // New returns a pointer to new Rain BitTorrent client.
 // Call ListenPeerPort method before starting Download to accept incoming connections.
 func New() (*Rain, error) {
-	r := &Rain{
-		downloads: make(map[infoHash]*transfer),
+	peerID, err := generatePeerID()
+	if err != nil {
+		return nil, err
 	}
-	return r, r.generatePeerID()
+	return &Rain{
+		peerID:    peerID,
+		transfers: make(map[infoHash]*transfer),
+	}, nil
 }
 
-func (r *Rain) generatePeerID() error {
-	r.peerID = new(peerID)
-	copy(r.peerID[:], peerIDPrefix)
-	_, err := rand.Read(r.peerID[len(peerIDPrefix):])
-	return err
+func generatePeerID() (peerID, error) {
+	var id peerID
+	copy(id[:], peerIDPrefix)
+	_, err := rand.Read(id[len(peerIDPrefix):])
+	return id, err
 }
 
 // ListenPeerPort starts to listen a TCP port to accept incoming peer connections.
@@ -56,51 +60,18 @@ func (r *Rain) acceptor() {
 }
 
 // Download starts a download and waits for it to finish.
-func (r *Rain) Download(filePath, where string) error {
-	torrent, err := NewTorrentFile(filePath)
+func (r *Rain) Download(torrentPath, where string) error {
+	torrent, err := NewTorrentFile(torrentPath)
 	if err != nil {
 		return err
 	}
 	log.Debugf("Parsed torrent file: %#v", torrent)
 
-	transfer := NewDownload(torrent)
-	r.downloadsM.Lock()
-	r.downloads[transfer.TorrentFile.InfoHash] = transfer
-	r.downloadsM.Unlock()
+	t := newTransfer(torrent, where, r.peerID)
+	r.transfersM.Lock()
+	r.transfers[t.torrentFile.InfoHash] = t
+	r.transfersM.Unlock()
 
-	err = transfer.allocate(where)
-	if err != nil {
-		return err
-	}
-
-	tracker, err := NewTracker(torrent.Announce, r.peerID, uint16(r.listener.Addr().(*net.TCPAddr).Port))
-	if err != nil {
-		return err
-	}
-
-	go r.announcer(tracker, transfer)
-
-	select {}
-	return nil
-}
-
-func (r *Rain) announcer(t *Tracker, d *transfer) {
-	err := t.Dial()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	responseC := make(chan *AnnounceResponse)
-	go t.announce(d, nil, nil, responseC)
-
-	for {
-		select {
-		case resp := <-responseC:
-			log.Debugf("Announce response: %#v", resp)
-			for _, p := range resp.Peers {
-				log.Debug("Peer:", p.TCPAddr())
-				go r.connectToPeerAndServeDownload(p, d)
-			}
-		}
-	}
+	// TODO do not pass port after implementing tracker manager
+	return t.run(uint16(r.listener.Addr().(*net.TCPAddr).Port))
 }

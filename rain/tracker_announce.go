@@ -59,8 +59,8 @@ func (t *Tracker) announce(d *transfer, cancel <-chan struct{}, event <-chan Eve
 		}
 	}()
 	request := &AnnounceRequest{
-		InfoHash:   d.TorrentFile.InfoHash,
-		PeerID:     *t.peerID,
+		InfoHash:   d.torrentFile.InfoHash,
+		PeerID:     t.peerID,
 		Event:      None,
 		IP:         0, // Tracker uses sender of this UDP packet.
 		Key:        0, // TODO set it

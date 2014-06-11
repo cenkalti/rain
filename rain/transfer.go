@@ -1,30 +1,52 @@
 package rain
 
 import (
+	"container/list"
 	"os"
 	"path/filepath"
+
+	"github.com/cenkalti/log"
 )
 
 // transfer represents an active transfer in the program.
 type transfer struct {
-	TorrentFile *TorrentFile
+	torrentFile *TorrentFile
+	where       string
+	peerID      peerID
+
 	// Stats
 	Downloaded int64
 	Uploaded   int64
 	// Left       int64
+
+	pieces []*piece
+
+	// piece index -> peers that have the piece
+	have        map[int32]*list.List
+	haveMessage chan *peerConn
 }
 
-func NewDownload(t *TorrentFile) *transfer {
-	return &transfer{TorrentFile: t}
+func newTransfer(tor *TorrentFile, where string, id peerID) *transfer {
+	t := &transfer{
+		torrentFile: tor,
+		where:       where,
+		peerID:      id,
+		pieces:      make([]*piece, tor.NumPieces),
+	}
+	for i := 0; i < tor.NumPieces; i++ {
+		t.pieces[i] = newPiece(i)
+	}
+	return t
 }
 
-func (d *transfer) Left() int64 {
-	return d.TorrentFile.TotalLength - d.Downloaded
+func (t *transfer) Left() int64 {
+	// TODO return correct "left bytes"
+	return t.torrentFile.TotalLength - t.Downloaded
 }
 
-func (d *transfer) allocate(where string) error {
+func (t *transfer) allocate(where string) error {
 	var err error
-	info := &d.TorrentFile.Info
+	info := &t.torrentFile.Info
 
 	// Single file
 	if info.Length != 0 {
@@ -65,4 +87,49 @@ func createTruncateSync(path string, length int64) (*os.File, error) {
 	}
 
 	return f, nil
+}
+
+func (t *transfer) run(port uint16) error {
+	err := t.allocate(t.where)
+	if err != nil {
+		return err
+	}
+
+	tracker, err := NewTracker(t.torrentFile.Announce, t.peerID, port)
+	if err != nil {
+		return err
+	}
+
+	go t.announcer(tracker)
+	go t.haveLoop()
+
+	select {}
+	return nil
+}
+
+func (t *transfer) announcer(tracker *Tracker) {
+	err := tracker.Dial()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	responseC := make(chan *AnnounceResponse)
+	go tracker.announce(t, nil, nil, responseC)
+
+	for {
+		select {
+		case resp := <-responseC:
+			log.Debugf("Announce response: %#v", resp)
+			for _, p := range resp.Peers {
+				log.Debug("Peer:", p.TCPAddr())
+				go connectToPeerAndServeDownload(p, t)
+			}
+		}
+	}
+}
+
+func (t *transfer) haveLoop() {
+	// for p := range t.haveMessage {
+
+	// }
 }
