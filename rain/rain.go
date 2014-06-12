@@ -67,11 +67,10 @@ func (r *Rain) Download(torrentPath, where string) error {
 	}
 	log.Debugf("Parsed torrent file: %#v", torrent)
 
-	t := r.newTransfer(torrent, where)
+	t := newTransfer(torrent, where)
 	r.transfersM.Lock()
 	r.transfers[t.torrentFile.InfoHash] = t
 	r.transfersM.Unlock()
 
-	// TODO do not pass port after implementing tracker manager
-	return t.run(uint16(r.listener.Addr().(*net.TCPAddr).Port))
+	return r.run(t)
 }

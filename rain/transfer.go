@@ -2,6 +2,7 @@ package rain
 
 import (
 	"container/list"
+	"net"
 	"os"
 	"path/filepath"
 	"sync"
@@ -13,7 +14,6 @@ import (
 type transfer struct {
 	torrentFile *TorrentFile
 	where       string
-	peerID      peerID
 
 	// Stats
 	Downloaded int64
@@ -27,11 +27,10 @@ type transfer struct {
 	haveMessage chan *peerConn
 }
 
-func (r *Rain) newTransfer(tor *TorrentFile, where string) *transfer {
+func newTransfer(tor *TorrentFile, where string) *transfer {
 	return &transfer{
 		torrentFile: tor,
 		where:       where,
-		peerID:      r.peerID,
 		pieces:      newPieces(tor),
 	}
 }
@@ -140,18 +139,18 @@ func createTruncateSync(path string, length int64) (*os.File, error) {
 	return f, nil
 }
 
-func (t *transfer) run(port uint16) error {
+func (r *Rain) run(t *transfer) error {
 	err := t.allocate(t.where)
 	if err != nil {
 		return err
 	}
 
-	tracker, err := NewTracker(t.torrentFile.Announce, t.peerID, port)
+	tracker, err := NewTracker(t.torrentFile.Announce, r.peerID, uint16(r.listener.Addr().(*net.TCPAddr).Port))
 	if err != nil {
 		return err
 	}
 
-	go t.announcer(tracker)
+	go r.announcer(tracker, t)
 	go t.haveLoop()
 
 	var wg sync.WaitGroup
@@ -166,7 +165,7 @@ func (t *transfer) run(port uint16) error {
 	return nil
 }
 
-func (t *transfer) announcer(tracker *Tracker) {
+func (r *Rain) announcer(tracker *Tracker, t *transfer) {
 	err := tracker.Dial()
 	if err != nil {
 		log.Fatal(err)
@@ -181,7 +180,7 @@ func (t *transfer) announcer(tracker *Tracker) {
 			log.Debugf("Announce response: %#v", resp)
 			for _, p := range resp.Peers {
 				log.Debug("Peer:", p.TCPAddr())
-				go connectToPeerAndServeDownload(p, t)
+				go r.connectToPeerAndServeDownload(p, t)
 			}
 		}
 	}

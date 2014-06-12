@@ -50,7 +50,7 @@ func (r *Rain) servePeerConn(conn net.Conn) {
 		}
 		r.transfersM.Unlock()
 
-		if err = sendHandShake(conn, res, d.peerID); err != nil {
+		if err = sendHandShake(conn, res, r.peerID); err != nil {
 			log.Error(err)
 			return
 		}
@@ -77,7 +77,7 @@ func (r *Rain) servePeerConn(conn net.Conn) {
 	p.readLoop()
 }
 
-func connectToPeerAndServeDownload(p *Peer, d *transfer) {
+func (r *Rain) connectToPeerAndServeDownload(p *Peer, d *transfer) {
 	log.Debugln("Connecting to peer", p.TCPAddr())
 
 	conn, err := net.DialTCP("tcp4", nil, p.TCPAddr())
@@ -95,7 +95,7 @@ func connectToPeerAndServeDownload(p *Peer, d *transfer) {
 		return
 	}
 
-	err = sendHandShake(conn, d.torrentFile.InfoHash, d.peerID)
+	err = sendHandShake(conn, d.torrentFile.InfoHash, r.peerID)
 	if err != nil {
 		log.Error(err)
 		return
@@ -110,7 +110,7 @@ func connectToPeerAndServeDownload(p *Peer, d *transfer) {
 		log.Error("unexpected info_hash")
 		return
 	}
-	if *id == d.peerID {
+	if *id == r.peerID {
 		log.Debug("Rejected own connection: client")
 		return
 	}
