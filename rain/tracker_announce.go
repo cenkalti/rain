@@ -91,6 +91,14 @@ func (t *Tracker) announce(d *transfer, cancel <-chan struct{}, event <-chan Eve
 				continue
 			}
 
+			// Filter out own IP address.
+			for i, p := range response.Peers {
+				if net.IP(p.IP[:]).Equal(t.addr.IP) {
+					response.Peers[i], response.Peers = response.Peers[len(response.Peers)-1], response.Peers[:len(response.Peers)-1]
+					break
+				}
+			}
+
 			// TODO calculate time and adjust.
 			nextAnnounce = time.Duration(response.Interval) * time.Second
 

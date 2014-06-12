@@ -72,10 +72,10 @@ func (r *Rain) Download(torrentPath, where string) error {
 	r.transfers[t.torrentFile.InfoHash] = t
 	r.transfersM.Unlock()
 
-	return r.run(t)
+	return r.download(t)
 }
 
-func (r *Rain) run(t *transfer) error {
+func (r *Rain) download(t *transfer) error {
 	err := t.allocate(t.where)
 	if err != nil {
 		return err
