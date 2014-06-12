@@ -44,11 +44,11 @@ func (r *Rain) ListenPeerPort(port int) error {
 		return err
 	}
 	log.Notice("Listening peers on tcp://" + r.listener.Addr().String())
-	go r.acceptor()
+	go r.accepter()
 	return nil
 }
 
-func (r *Rain) acceptor() {
+func (r *Rain) accepter() {
 	for {
 		conn, err := r.listener.Accept()
 		if err != nil {
@@ -67,7 +67,7 @@ func (r *Rain) Download(torrentPath, where string) error {
 	}
 	log.Debugf("Parsed torrent file: %#v", torrent)
 
-	t := newTransfer(torrent, where, r.peerID)
+	t := r.newTransfer(torrent, where)
 	r.transfersM.Lock()
 	r.transfers[t.torrentFile.InfoHash] = t
 	r.transfersM.Unlock()

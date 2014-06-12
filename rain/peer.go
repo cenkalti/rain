@@ -148,13 +148,13 @@ var peerMessageTypes = [...]string{
 type peerConn struct {
 	conn           net.Conn
 	transfer       *transfer
-	bitfield       BitField             // on remote
-	amChoking      bool                 // this client is choking the peer
-	amInterested   bool                 // this client is interested in the peer
-	peerChoking    bool                 // peer is choking this client
-	peerInterested bool                 // peer is interested in this client
-	peerRequests   map[uint64]bool      // What remote peer requested
-	ourRequests    map[uint64]time.Time // What we requested, when we requested it
+	bitfield       BitField // on remote
+	amChoking      bool     // this client is choking the peer
+	amInterested   bool     // this client is interested in the peer
+	peerChoking    bool     // peer is choking this client
+	peerInterested bool     // peer is interested in this client
+	// peerRequests   map[uint64]bool      // What remote peer requested
+	// ourRequests    map[uint64]time.Time // What we requested, when we requested it
 }
 
 func newPeerConn(conn net.Conn, d *transfer) *peerConn {

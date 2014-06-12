@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/cenkalti/log"
 )
@@ -22,21 +23,71 @@ type transfer struct {
 	pieces []*piece
 
 	// piece index -> peers that have the piece
-	have        map[int32]*list.List
+	have        map[int]*list.List
 	haveMessage chan *peerConn
 }
 
-func newTransfer(tor *TorrentFile, where string, id peerID) *transfer {
-	t := &transfer{
+func (r *Rain) newTransfer(tor *TorrentFile, where string) *transfer {
+	return &transfer{
 		torrentFile: tor,
 		where:       where,
-		peerID:      id,
-		pieces:      make([]*piece, tor.NumPieces),
+		peerID:      r.peerID,
+		pieces:      newPieces(tor),
 	}
-	for i := 0; i < tor.NumPieces; i++ {
-		t.pieces[i] = newPiece(i)
+}
+
+func minInt64(a, b int64) int64 {
+	if a < b {
+		return a
 	}
-	return t
+	return b
+}
+
+func newPieces(tor *TorrentFile) []*piece {
+	var (
+		fileIndex  int   // index of the current file in torrent
+		fileLength int64 = tor.Info.Files[0].Length
+		fileEnd    int64 = fileLength // absolute position of end of the file among all pieces
+		fileOffset int64              // offset in file: [0, fileLength)
+	)
+
+	nextFile := func() {
+		fileIndex++
+		fileLength = tor.Info.Files[fileIndex].Length
+		fileEnd += fileLength
+		fileOffset = 0
+	}
+
+	var total int64
+	pieces := make([]*piece, tor.NumPieces)
+	for i := int64(0); i < tor.NumPieces; i++ {
+		p := &piece{
+			index: i,
+			sha1:  tor.HashOfPiece(i),
+		}
+
+		var pieceOffset int64 = 0
+		fileLeft := func() int64 { return fileLength - fileOffset }
+		pieceLeft := func() int64 { return tor.Info.PieceLength - pieceOffset }
+		for left := pieceLeft(); left > 0; nextFile() {
+			n := minInt64(left, fileLeft()) // number of bytes to write
+			target := &pieceTarget{tor.Info.Files[fileIndex].file, fileOffset, n}
+			p.targets = append(p.targets, target)
+
+			left -= n
+
+			p.length += n
+			pieceOffset += n
+			fileOffset += n
+
+			total += n
+			if total == tor.TotalLength {
+				break
+			}
+		}
+		pieces[i] = p
+	}
+	return pieces
 }
 
 func (t *transfer) Left() int64 {
@@ -103,6 +154,14 @@ func (t *transfer) run(port uint16) error {
 	go t.announcer(tracker)
 	go t.haveLoop()
 
+	var wg sync.WaitGroup
+	wg.Add(len(t.pieces))
+	for _, p := range t.pieces {
+		go p.download(&wg)
+	}
+
+	wg.Wait()
+	log.Notice("Download finished.")
 	select {}
 	return nil
 }
