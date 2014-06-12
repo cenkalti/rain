@@ -8,10 +8,9 @@ import (
 )
 
 type piece struct {
-	index  int64
-	sha1   [sha1.Size]byte
-	length int64 // last piece may not be full
-	// blocks []*block
+	index   int64
+	sha1    [sha1.Size]byte
+	length  int64 // last piece may not be full
 	targets []*pieceTarget
 }
 
@@ -21,18 +20,11 @@ type pieceTarget struct {
 }
 
 func (p *piece) download(wg *sync.WaitGroup) {
-	var wgBlock sync.WaitGroup
-	// wgBlock.Add(len(p.blocks))
-	// for _, p := range p.blocks {
-	// 	go p.download(&wgBlock)
-	// }
-
-	wgBlock.Wait()
-	// All blocks in the piece have been downloaded.
+	// TODO download blocks
 
 	// TODO hash check
 
-	// TODO pass bytes
+	// TODO write downloaded piece
 	// _, err := p.write(nil)
 	// if err != nil {
 	// 	panic(err)

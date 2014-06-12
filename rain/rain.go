@@ -74,3 +74,50 @@ func (r *Rain) Download(torrentPath, where string) error {
 
 	return r.run(t)
 }
+
+func (r *Rain) run(t *transfer) error {
+	err := t.allocate(t.where)
+	if err != nil {
+		return err
+	}
+
+	tracker, err := NewTracker(t.torrentFile.Announce, r.peerID, uint16(r.listener.Addr().(*net.TCPAddr).Port))
+	if err != nil {
+		return err
+	}
+
+	go r.announcer(tracker, t)
+	go t.haveLoop()
+
+	var wg sync.WaitGroup
+	wg.Add(len(t.pieces))
+	for _, p := range t.pieces {
+		go p.download(&wg)
+	}
+
+	wg.Wait()
+	log.Notice("Download finished.")
+	select {}
+	return nil
+}
+
+func (r *Rain) announcer(tracker *Tracker, t *transfer) {
+	err := tracker.Dial()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	responseC := make(chan *AnnounceResponse)
+	go tracker.announce(t, nil, nil, responseC)
+
+	for {
+		select {
+		case resp := <-responseC:
+			log.Debugf("Announce response: %#v", resp)
+			for _, p := range resp.Peers {
+				log.Debug("Peer:", p.TCPAddr())
+				go r.connectToPeerAndServeDownload(p, t)
+			}
+		}
+	}
+}

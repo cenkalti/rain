@@ -2,12 +2,8 @@ package rain
 
 import (
 	"container/list"
-	"net"
 	"os"
 	"path/filepath"
-	"sync"
-
-	"github.com/cenkalti/log"
 )
 
 // transfer represents an active transfer in the program.
@@ -33,13 +29,6 @@ func newTransfer(tor *TorrentFile, where string) *transfer {
 		where:       where,
 		pieces:      newPieces(tor),
 	}
-}
-
-func minInt64(a, b int64) int64 {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 func newPieces(tor *TorrentFile) []*piece {
@@ -139,55 +128,15 @@ func createTruncateSync(path string, length int64) (*os.File, error) {
 	return f, nil
 }
 
-func (r *Rain) run(t *transfer) error {
-	err := t.allocate(t.where)
-	if err != nil {
-		return err
-	}
-
-	tracker, err := NewTracker(t.torrentFile.Announce, r.peerID, uint16(r.listener.Addr().(*net.TCPAddr).Port))
-	if err != nil {
-		return err
-	}
-
-	go r.announcer(tracker, t)
-	go t.haveLoop()
-
-	var wg sync.WaitGroup
-	wg.Add(len(t.pieces))
-	for _, p := range t.pieces {
-		go p.download(&wg)
-	}
-
-	wg.Wait()
-	log.Notice("Download finished.")
-	select {}
-	return nil
-}
-
-func (r *Rain) announcer(tracker *Tracker, t *transfer) {
-	err := tracker.Dial()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	responseC := make(chan *AnnounceResponse)
-	go tracker.announce(t, nil, nil, responseC)
-
-	for {
-		select {
-		case resp := <-responseC:
-			log.Debugf("Announce response: %#v", resp)
-			for _, p := range resp.Peers {
-				log.Debug("Peer:", p.TCPAddr())
-				go r.connectToPeerAndServeDownload(p, t)
-			}
-		}
-	}
-}
-
 func (t *transfer) haveLoop() {
 	// for p := range t.haveMessage {
 
 	// }
+}
+
+func minInt64(a, b int64) int64 {
+	if a < b {
+		return a
+	}
+	return b
 }
