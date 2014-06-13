@@ -48,7 +48,7 @@ var peerMessageTypes = [...]string{
 type peerConn struct {
 	conn     net.Conn
 	transfer *transfer
-	bitfield BitField // which pieces does remote peer have?
+	bitField BitField // which pieces does remote peer have?
 
 	unchokeM       sync.Mutex    // protects unchokeC
 	unchokeC       chan struct{} // will be closed when and "unchoke" message is received
@@ -66,7 +66,7 @@ func newPeerConn(conn net.Conn, d *transfer) *peerConn {
 	return &peerConn{
 		conn:        conn,
 		transfer:    d,
-		bitfield:    NewBitField(nil, d.bitfield.Len()),
+		bitField:    NewBitField(nil, d.bitField.Len()),
 		unchokeC:    make(chan struct{}),
 		amChoking:   true,
 		peerChoking: true,
@@ -135,9 +135,9 @@ func (p *peerConn) readLoop() {
 				log.Error(err)
 				return
 			}
-			p.bitfield.Set(i)
+			p.bitField.Set(i)
 			log.Debug("Peer ", p.conn.RemoteAddr(), " has piece #", i)
-			log.Debugln("new bitfield:", p.bitfield.Hex())
+			log.Debugln("new bitfield:", p.bitField.Hex())
 
 			// TODO goroutine may leak
 			go func() { p.transfer.pieces[i].haveC <- p }()
@@ -147,7 +147,7 @@ func (p *peerConn) readLoop() {
 				return
 			}
 
-			if int64(length) != int64(len(p.bitfield.Bytes())) {
+			if int64(length) != int64(len(p.bitField.Bytes())) {
 				log.Error("invalid bitfield length")
 				return
 			}
@@ -158,11 +158,11 @@ func (p *peerConn) readLoop() {
 				return
 			}
 
-			p.bitfield = NewBitField(buf, p.bitfield.Len())
-			log.Debugln("Received bitfield:", p.bitfield.Hex())
+			p.bitField = NewBitField(buf, p.bitField.Len())
+			log.Debugln("Received bitfield:", p.bitField.Hex())
 
-			for i := int32(0); i < p.bitfield.Len(); i++ {
-				if p.bitfield.Test(i) {
+			for i := int32(0); i < p.bitField.Len(); i++ {
+				if p.bitField.Test(i) {
 					// TODO goroutine may leak
 					go func(i int32) { p.transfer.pieces[i].haveC <- p }(i)
 				}
@@ -208,16 +208,16 @@ func (p *peerConn) readLoop() {
 
 func (p *peerConn) sendBitField() error {
 	var buf bytes.Buffer
-	length := int(1 + p.transfer.bitfield.Len())
+	length := int(1 + p.transfer.bitField.Len())
 	buf.Grow(length)
-	err := binary.Write(&buf, binary.BigEndian, int32(1+p.transfer.bitfield.Len()))
+	err := binary.Write(&buf, binary.BigEndian, int32(1+p.transfer.bitField.Len()))
 	if err != nil {
 		return err
 	}
 	if err = buf.WriteByte(msgBitfield); err != nil {
 		return err
 	}
-	if _, err = buf.Write(p.transfer.bitfield.Bytes()); err != nil {
+	if _, err = buf.Write(p.transfer.bitField.Bytes()); err != nil {
 		return err
 	}
 	_, err = io.Copy(p.conn, &buf)
