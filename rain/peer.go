@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"io"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/cenkalti/log"
@@ -131,6 +132,7 @@ const (
 	msgRequest
 	msgPiece
 	msgCancel
+	msgPort
 )
 
 var peerMessageTypes = [...]string{
@@ -143,22 +145,28 @@ var peerMessageTypes = [...]string{
 	"request",
 	"piece",
 	"cancel",
+	"port",
 }
 
 type peerConn struct {
-	conn           net.Conn
-	transfer       *transfer
-	bitfield       BitField // on remote
-	amChoking      bool     // this client is choking the peer
-	amInterested   bool     // this client is interested in the peer
-	peerChoking    bool     // peer is choking this client
-	peerInterested bool     // peer is interested in this client
+	conn     net.Conn
+	transfer *transfer
+	bitfield BitField // which pieces does remote peer have?
+
+	unchokeM       sync.Mutex    // protects unchokeC
+	unchokeC       chan struct{} // will be closed when and "unchoke" message is received
+	onceInterested sync.Once     // for sending "interested" message only once
+
+	amChoking      bool // this client is choking the peer
+	amInterested   bool // this client is interested in the peer
+	peerChoking    bool // peer is choking this client
+	peerInterested bool // peer is interested in this client
 	// peerRequests   map[uint64]bool      // What remote peer requested
 	// ourRequests    map[uint64]time.Time // What we requested, when we requested it
 }
 
 func newPeerConn(conn net.Conn, d *transfer) *peerConn {
-	div, mod := divMod(d.torrentFile.TotalLength, d.torrentFile.Info.PieceLength)
+	div, mod := divMod(d.torrentFile.TotalLength, int64(d.torrentFile.Info.PieceLength))
 	if mod != 0 {
 		div++
 	}
@@ -167,6 +175,7 @@ func newPeerConn(conn net.Conn, d *transfer) *peerConn {
 		conn:        conn,
 		transfer:    d,
 		bitfield:    NewBitField(nil, div),
+		unchokeC:    make(chan struct{}),
 		amChoking:   true,
 		peerChoking: true,
 	}
@@ -187,7 +196,7 @@ func (p *peerConn) readLoop() {
 			return
 		}
 
-		var length uint32
+		var length int32
 		err = binary.Read(p.conn, binary.BigEndian, &length)
 		if err != nil {
 			log.Error(err)
@@ -212,7 +221,11 @@ func (p *peerConn) readLoop() {
 		case msgChoke:
 			p.peerChoking = true
 		case msgUnchoke:
+			p.unchokeM.Lock()
 			p.peerChoking = false
+			close(p.unchokeC)
+			p.unchokeC = make(chan struct{})
+			p.unchokeM.Unlock()
 		case msgInterested:
 			p.peerInterested = true
 		case msgNotInterested:
@@ -228,7 +241,8 @@ func (p *peerConn) readLoop() {
 			log.Debug("Peer ", p.conn.RemoteAddr(), " has piece #", i)
 			log.Debugln("new bitfield:", p.bitfield.Hex())
 
-			p.transfer.haveMessage <- p
+			// TODO goroutine may leak
+			go func() { p.transfer.pieces[i].haveC <- p }()
 		case msgBitfield:
 			if !first {
 				log.Error("bitfield can only be sent after handshake")
@@ -251,14 +265,89 @@ func (p *peerConn) readLoop() {
 
 			for i := int64(0); i < p.bitfield.Len(); i++ {
 				if p.bitfield.Test(i) {
-					p.transfer.haveMessage <- p
+					// TODO goroutine may leak
+					go func(i int64) { p.transfer.pieces[i].haveC <- p }(i)
 				}
 			}
 		case msgRequest:
 		case msgPiece:
+			msg := &peerPieceMessage{ID: msgPiece}
+			err = binary.Read(p.conn, binary.BigEndian, &msg.Index)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			err = binary.Read(p.conn, binary.BigEndian, &msg.Begin)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			if msg.Begin%blockSize != 0 {
+				log.Error("unexpected piece offset")
+				return
+			}
+			length -= 8
+			if length != p.transfer.pieces[msg.Index].blocks[msg.Begin/blockSize].length {
+				log.Error("unexpected block size")
+				return
+			}
+			msg.Block = make([]byte, length)
+			_, err = io.LimitReader(p.conn, int64(length)).Read(msg.Block)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			p.transfer.pieces[msg.Index].pieceC <- msg
 		case msgCancel:
+		case msgPort:
+		default:
+			log.Debugf("Unknown message type: %d", msgType)
 		}
 
 		first = false
 	}
+}
+
+// beInterested sends "interested" message to peer (once) and
+// returns a channel that will be closed when an "unchoke" message is received.
+func (p *peerConn) beInterested() (unchokeC chan struct{}, err error) {
+	p.unchokeM.Lock()
+	defer p.unchokeM.Unlock()
+
+	unchokeC = p.unchokeC
+
+	if !p.peerChoking {
+		return
+	}
+
+	p.onceInterested.Do(func() { err = p.sendMessage(msgInterested) })
+	return
+}
+
+func (p *peerConn) sendMessage(msgType byte) error {
+	var msg = struct {
+		Length      int32
+		MessageType byte
+	}{1, msgType}
+	log.Debugf("Sending message: %q", peerMessageTypes[msgType])
+	return binary.Write(p.conn, binary.BigEndian, msg)
+}
+
+type peerRequestMessage struct {
+	ID                   byte
+	Index, Begin, Length int32
+}
+
+func newPeerRequestMessage(index, length int32) *peerRequestMessage {
+	return &peerRequestMessage{msgRequest, index, index * blockSize, length}
+}
+
+func (m *peerRequestMessage) send(w io.Writer) error {
+	return binary.Write(w, binary.BigEndian, m)
+}
+
+type peerPieceMessage struct {
+	ID           byte
+	Index, Begin int32
+	Block        []byte
 }

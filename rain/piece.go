@@ -4,23 +4,72 @@ import (
 	"crypto/sha1"
 	"errors"
 	"os"
-	"sync"
+	"time"
+
+	"github.com/cenkalti/log"
 )
 
 type piece struct {
-	index   int64
-	sha1    [sha1.Size]byte
-	length  int64 // last piece may not be full
-	targets []*pieceTarget
+	index      int32 // piece index in whole torrent
+	sha1       [sha1.Size]byte
+	length     int32          // last piece may not be complete
+	targets    []*writeTarget // the place to write downloaded bytes
+	blocks     []*block
+	haveC      chan *peerConn
+	pieceC     chan *peerPieceMessage
+	downloaded bool
+	have       BitField // blocks we have
 }
 
-type pieceTarget struct {
-	file           *os.File
-	offset, length int64
+type writeTarget struct {
+	file   *os.File
+	offset int64
+	length int32
 }
 
-func (p *piece) download(wg *sync.WaitGroup) {
+type block struct {
+	index  int32 // block index in piece
+	length int32
+	data   []byte
+}
+
+func (b *block) requestFrom(p *peerConn) error {
+	r := newPeerRequestMessage(b.index, b.length)
+	return r.send(p.conn)
+}
+
+func (p *piece) run() {
 	// TODO download blocks
+	for {
+		select {
+		case peer := <-p.haveC:
+			if p.downloaded {
+				log.Debug("Piece is already downloaded")
+				break
+			}
+
+			unchokeC, err := peer.beInterested()
+			if err != nil {
+				break
+			}
+
+			select {
+			case <-unchokeC:
+				for _, b := range p.blocks {
+					if err := b.requestFrom(peer); err != nil {
+						log.Error(err)
+						break
+					}
+				}
+			case <-time.After(time.Minute):
+				log.Info("Peer did not unchoke")
+			}
+		case piece := <-p.pieceC:
+			log.Noticeln("received piece", len(piece.Block))
+			// TODO write block to disk
+			// piece.
+		}
+	}
 
 	// TODO hash check
 
@@ -29,12 +78,10 @@ func (p *piece) download(wg *sync.WaitGroup) {
 	// if err != nil {
 	// 	panic(err)
 	// }
-
-	wg.Done()
 }
 
-func (p *piece) write(b []byte) (n int, err error) {
-	if int64(len(b)) != p.length {
+func (p *piece) Write(b []byte) (n int, err error) {
+	if int32(len(b)) != p.length {
 		err = errors.New("invalid piece length")
 		return
 	}

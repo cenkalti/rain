@@ -86,10 +86,43 @@ func (b BitField) Test(i int64) bool {
 	return (b.b[div] & (1 << (8 - 1 - mod))) > 0
 }
 
+// Count returns the count of set bits.
+func (b BitField) Count() int64 {
+	var countCache = [256]byte{
+		0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
+		1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+		1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+		2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+		1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+		2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+		2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+		3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+		1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+		2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+		2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+		3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+		2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+		3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+		3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+		4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8,
+	}
+	var total int64
+	for _, v := range b.b {
+		total += int64(countCache[v])
+	}
+	return total
+}
+
+// All returns true if all bits are set, false otherwise.
+func (b BitField) All() bool {
+	return b.Count() == b.length
+}
+
 func (b BitField) checkIndex(i int64) {
 	if i < 0 || i >= b.Len() {
 		panic("index out of bound")
 	}
 }
 
-func divMod(a, b int64) (int64, uint64) { return a / b, uint64(a % b) }
+func divMod(a, b int64) (int64, uint64)  { return a / b, uint64(a % b) }
+func divMod32(a, b int32) (int32, int32) { return a / b, a % b }

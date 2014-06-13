@@ -1,7 +1,6 @@
 package rain
 
 import (
-	"container/list"
 	"os"
 	"path/filepath"
 )
@@ -10,17 +9,10 @@ import (
 type transfer struct {
 	torrentFile *TorrentFile
 	where       string
-
+	pieces      []*piece
 	// Stats
 	Downloaded int64
 	Uploaded   int64
-	// Left       int64
-
-	pieces []*piece
-
-	// piece index -> peers that have the piece
-	have        map[int]*list.List
-	haveMessage chan *peerConn
 }
 
 func newTransfer(tor *TorrentFile, where string) *transfer {
@@ -46,33 +38,60 @@ func newPieces(tor *TorrentFile) []*piece {
 		fileOffset = 0
 	}
 
+	// Construct pieces
 	var total int64
 	pieces := make([]*piece, tor.NumPieces)
-	for i := int64(0); i < tor.NumPieces; i++ {
+	for i := int32(0); i < tor.NumPieces; i++ {
 		p := &piece{
-			index: i,
-			sha1:  tor.HashOfPiece(i),
+			index:  i,
+			sha1:   tor.HashOfPiece(i),
+			haveC:  make(chan *peerConn),
+			pieceC: make(chan *peerPieceMessage),
 		}
 
-		var pieceOffset int64 = 0
+		// Construct p.targets
+		var pieceOffset int32 = 0
 		fileLeft := func() int64 { return fileLength - fileOffset }
-		pieceLeft := func() int64 { return tor.Info.PieceLength - pieceOffset }
+		pieceLeft := func() int32 { return tor.Info.PieceLength - pieceOffset }
 		for left := pieceLeft(); left > 0; nextFile() {
-			n := minInt64(left, fileLeft()) // number of bytes to write
-			target := &pieceTarget{tor.Info.Files[fileIndex].file, fileOffset, n}
+			n := int32(minInt64(int64(left), fileLeft())) // number of bytes to write
+
+			target := &writeTarget{tor.Info.Files[fileIndex].file, fileOffset, n}
 			p.targets = append(p.targets, target)
 
 			left -= n
 
 			p.length += n
 			pieceOffset += n
-			fileOffset += n
+			fileOffset += int64(n)
 
-			total += n
+			total += int64(n)
 			if total == tor.TotalLength {
 				break
 			}
 		}
+
+		// Construct p.blocks
+		div, mod := divMod32(p.length, blockSize)
+		numBlocks := div
+		if mod != 0 {
+			numBlocks++
+		}
+		p.have = NewBitField(nil, int64(numBlocks))
+		p.blocks = make([]*block, numBlocks)
+		for j := int32(0); j < div; j++ {
+			p.blocks[j] = &block{
+				index:  j,
+				length: blockSize,
+			}
+		}
+		if mod != 0 {
+			p.blocks[numBlocks-1] = &block{
+				index:  numBlocks - 1,
+				length: mod,
+			}
+		}
+
 		pieces[i] = p
 	}
 	return pieces
@@ -126,12 +145,6 @@ func createTruncateSync(path string, length int64) (*os.File, error) {
 	}
 
 	return f, nil
-}
-
-func (t *transfer) haveLoop() {
-	// for p := range t.haveMessage {
-
-	// }
 }
 
 func minInt64(a, b int64) int64 {

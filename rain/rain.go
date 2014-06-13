@@ -87,18 +87,12 @@ func (r *Rain) run(t *transfer) error {
 	}
 
 	go r.announcer(tracker, t)
-	go t.haveLoop()
 
-	var wg sync.WaitGroup
-	wg.Add(len(t.pieces))
 	for _, p := range t.pieces {
-		go p.download(&wg)
+		go p.run()
 	}
 
-	wg.Wait()
-	log.Notice("Download finished.")
 	select {}
-	return nil
 }
 
 func (r *Rain) announcer(tracker *Tracker, t *transfer) {

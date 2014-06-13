@@ -11,7 +11,7 @@ import (
 
 var (
 	where = flag.String("w", ".", "where to download")
-	port  = flag.Int("p", 0, "listen port")
+	port  = flag.Int("p", 0, "listen port for incoming peer connections")
 	debug = flag.Bool("d", false, "enable debug log")
 )
 
@@ -34,7 +34,7 @@ func main() {
 	}
 
 	if err = r.ListenPeerPort(*port); err != nil {
-		log.Fatal(err)
+		log.Errorf("Cannot listen peer port: %d", *port)
 	}
 
 	if err := r.Download(args[0], *where); err != nil {

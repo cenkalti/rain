@@ -23,15 +23,15 @@ type TorrentFile struct {
 	// They are calculated when a TorrentFile is created with NewTorrentFile func.
 	InfoHash    infoHash
 	TotalLength int64
-	NumPieces   int64
+	NumPieces   int32
 }
 
 type infoHash [sha1.Size]byte
 
 type infoDict struct {
-	PieceLength int64 `bencode:"piece length"`
+	PieceLength int32 `bencode:"piece length"`
 	Pieces      string
-	Private     int64
+	Private     byte
 	Name        string
 	// Single File Mode
 	Length int64
@@ -98,12 +98,12 @@ func NewTorrentFile(path string) (*TorrentFile, error) {
 	}
 
 	// Calculate NumPieces
-	t.NumPieces = int64(len(t.Info.Pieces)) / sha1.Size
+	t.NumPieces = int32(len(t.Info.Pieces)) / sha1.Size
 
 	return t, nil
 }
 
-func (t *TorrentFile) HashOfPiece(i int64) [sha1.Size]byte {
+func (t *TorrentFile) HashOfPiece(i int32) [sha1.Size]byte {
 	var hash [sha1.Size]byte
 	start := i * sha1.Size
 	end := start + sha1.Size
