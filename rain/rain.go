@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/cenkalti/log"
 )
@@ -14,6 +15,11 @@ type Rain struct {
 	transfers  map[infoHash]*transfer
 	transfersM sync.Mutex
 }
+
+// http://www.bittorrent.org/beps/bep_0020.html
+var peerIDPrefix = []byte("-RN0001-")
+
+type peerID [20]byte
 
 // New returns a pointer to new Rain BitTorrent client.
 // Call ListenPeerPort method before starting Download to accept incoming connections.
@@ -57,6 +63,105 @@ func (r *Rain) accepter() {
 		}
 		go r.servePeerConn(conn)
 	}
+}
+
+func (r *Rain) servePeerConn(conn net.Conn) {
+	defer conn.Close()
+	log.Debugln("Serving peer", conn.RemoteAddr())
+
+	// Give a minute for completing handshake.
+	err := conn.SetDeadline(time.Now().Add(time.Minute))
+	if err != nil {
+		return
+	}
+
+	var d *transfer
+
+	resultC := make(chan interface{}, 2)
+	go readHandShake(conn, resultC)
+
+	// Send handshake as soon as you see info_hash.
+	i := <-resultC
+	switch res := i.(type) {
+	case infoHash:
+		// Do not continue if we don't have a torrent with this infoHash.
+		r.transfersM.Lock()
+		var ok bool
+		if d, ok = r.transfers[res]; !ok {
+			log.Error("unexpected info_hash")
+			r.transfersM.Unlock()
+			return
+		}
+		r.transfersM.Unlock()
+
+		if err = sendHandShake(conn, res, r.peerID); err != nil {
+			log.Error(err)
+			return
+		}
+	case error:
+		log.Error(res)
+		return
+	}
+
+	i = <-resultC
+	switch res := i.(type) {
+	case peerID:
+		if res == r.peerID {
+			log.Debug("Rejected own connection: server")
+			return
+		}
+		// TODO save peer_id
+	case error:
+		log.Error(res)
+		return
+	}
+
+	log.Debugln("servePeerConn: Handshake completed", conn.RemoteAddr())
+	p := newPeerConn(conn, d)
+	p.readLoop()
+}
+
+func (r *Rain) connectToPeerAndServeDownload(p *Peer, d *transfer) {
+	log.Debugln("Connecting to peer", p.TCPAddr())
+
+	conn, err := net.DialTCP("tcp4", nil, p.TCPAddr())
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	defer conn.Close()
+
+	log.Infoln("Connected to peer", conn.RemoteAddr())
+
+	// Give a minute for completing handshake.
+	err = conn.SetDeadline(time.Now().Add(time.Minute))
+	if err != nil {
+		return
+	}
+
+	err = sendHandShake(conn, d.torrentFile.InfoHash, r.peerID)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	ih, id, err := readHandShakeBlocking(conn)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	if *ih != d.torrentFile.InfoHash {
+		log.Error("unexpected info_hash")
+		return
+	}
+	if *id == r.peerID {
+		log.Debug("Rejected own connection: client")
+		return
+	}
+
+	log.Debugln("connectToPeer: Handshake completed", conn.RemoteAddr())
+	pc := newPeerConn(conn, d)
+	pc.readLoop()
 }
 
 // Download starts a download and waits for it to finish.
