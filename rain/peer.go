@@ -63,15 +63,10 @@ type peerConn struct {
 }
 
 func newPeerConn(conn net.Conn, d *transfer) *peerConn {
-	div, mod := divMod(d.torrentFile.TotalLength, int64(d.torrentFile.Info.PieceLength))
-	if mod != 0 {
-		div++
-	}
-	log.Debugln("Torrent contains", div, "pieces")
 	return &peerConn{
 		conn:        conn,
 		transfer:    d,
-		bitfield:    NewBitField(nil, div),
+		bitfield:    NewBitField(nil, d.bitfield.Len()),
 		unchokeC:    make(chan struct{}),
 		amChoking:   true,
 		peerChoking: true,
@@ -140,7 +135,7 @@ func (p *peerConn) readLoop() {
 				log.Error(err)
 				return
 			}
-			p.bitfield.Set(int64(i))
+			p.bitfield.Set(i)
 			log.Debug("Peer ", p.conn.RemoteAddr(), " has piece #", i)
 			log.Debugln("new bitfield:", p.bitfield.Hex())
 
@@ -166,10 +161,10 @@ func (p *peerConn) readLoop() {
 			p.bitfield = NewBitField(buf, p.bitfield.Len())
 			log.Debugln("Received bitfield:", p.bitfield.Hex())
 
-			for i := int64(0); i < p.bitfield.Len(); i++ {
+			for i := int32(0); i < p.bitfield.Len(); i++ {
 				if p.bitfield.Test(i) {
 					// TODO goroutine may leak
-					go func(i int64) { p.transfer.pieces[i].haveC <- p }(i)
+					go func(i int32) { p.transfer.pieces[i].haveC <- p }(i)
 				}
 			}
 		case msgRequest:
