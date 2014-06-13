@@ -7,8 +7,6 @@ import (
 	"net"
 	"sync"
 	"time"
-
-	"github.com/cenkalti/log"
 )
 
 // All current implementations use 2^14 (16 kiB), and close connections which request an amount greater than that.
@@ -60,6 +58,8 @@ type peerConn struct {
 	peerInterested bool // peer is interested in this client
 	// peerRequests   map[uint64]bool      // What remote peer requested
 	// ourRequests    map[uint64]time.Time // What we requested, when we requested it
+
+	log logger
 }
 
 func newPeerConn(conn net.Conn, d *transfer) *peerConn {
@@ -70,6 +70,7 @@ func newPeerConn(conn net.Conn, d *transfer) *peerConn {
 		unchokeC:    make(chan struct{}),
 		amChoking:   true,
 		peerChoking: true,
+		log:         newLogger("peer " + conn.RemoteAddr().String()),
 	}
 }
 
@@ -77,11 +78,11 @@ const connReadTimeout = 3 * time.Minute
 
 // readLoop processes incoming messages after handshake.
 func (p *peerConn) readLoop() {
-	log.Debugln("Communicating peer", p.conn.RemoteAddr())
+	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 
 	err := p.sendBitField()
 	if err != nil {
-		log.Error(err)
+		p.log.Error(err)
 		return
 	}
 
@@ -90,30 +91,30 @@ func (p *peerConn) readLoop() {
 	for {
 		err = p.conn.SetReadDeadline(time.Now().Add(connReadTimeout))
 		if err != nil {
-			log.Error(err)
+			p.log.Error(err)
 			return
 		}
 
 		var length int32
 		err = binary.Read(p.conn, binary.BigEndian, &length)
 		if err != nil {
-			log.Error(err)
+			p.log.Error(err)
 			return
 		}
 
 		if length == 0 { // keep-alive message
-			log.Debug("Received message of type \"keep alive\"")
+			p.log.Debug("Received message of type \"keep alive\"")
 			continue
 		}
 
 		var msgType byte
 		err = binary.Read(p.conn, binary.BigEndian, &msgType)
 		if err != nil {
-			log.Error(err)
+			p.log.Error(err)
 			return
 		}
 		length--
-		log.Debugf("Received message of type %q", peerMessageTypes[msgType])
+		p.log.Debugf("Received message of type %q", peerMessageTypes[msgType])
 
 		switch msgType {
 		case msgChoke:
@@ -132,34 +133,34 @@ func (p *peerConn) readLoop() {
 			var i int32
 			err = binary.Read(p.conn, binary.BigEndian, &i)
 			if err != nil {
-				log.Error(err)
+				p.log.Error(err)
 				return
 			}
 			p.bitField.Set(i)
-			log.Debug("Peer ", p.conn.RemoteAddr(), " has piece #", i)
-			log.Debugln("new bitfield:", p.bitField.Hex())
+			p.log.Debug("Peer ", p.conn.RemoteAddr(), " has piece #", i)
+			p.log.Debugln("new bitfield:", p.bitField.Hex())
 
 			// TODO goroutine may leak
 			go func() { p.transfer.pieces[i].haveC <- p }()
 		case msgBitfield:
 			if !first {
-				log.Error("bitfield can only be sent after handshake")
+				p.log.Error("bitfield can only be sent after handshake")
 				return
 			}
 
 			if int64(length) != int64(len(p.bitField.Bytes())) {
-				log.Error("invalid bitfield length")
+				p.log.Error("invalid bitfield length")
 				return
 			}
 
 			_, err = io.LimitReader(p.conn, int64(length)).Read(buf)
 			if err != nil {
-				log.Error(err)
+				p.log.Error(err)
 				return
 			}
 
 			p.bitField = NewBitField(buf, p.bitField.Len())
-			log.Debugln("Received bitfield:", p.bitField.Hex())
+			p.log.Debugln("Received bitfield:", p.bitField.Hex())
 
 			for i := int32(0); i < p.bitField.Len(); i++ {
 				if p.bitField.Test(i) {
@@ -172,34 +173,34 @@ func (p *peerConn) readLoop() {
 			msg := &peerPieceMessage{ID: msgPiece}
 			err = binary.Read(p.conn, binary.BigEndian, &msg.Index)
 			if err != nil {
-				log.Error(err)
+				p.log.Error(err)
 				return
 			}
 			err = binary.Read(p.conn, binary.BigEndian, &msg.Begin)
 			if err != nil {
-				log.Error(err)
+				p.log.Error(err)
 				return
 			}
 			if msg.Begin%blockSize != 0 {
-				log.Error("unexpected piece offset")
+				p.log.Error("unexpected piece offset")
 				return
 			}
 			length -= 8
 			if length != p.transfer.pieces[msg.Index].blocks[msg.Begin/blockSize].length {
-				log.Error("unexpected block size")
+				p.log.Error("unexpected block size")
 				return
 			}
 			msg.Block = make([]byte, length)
 			_, err = io.LimitReader(p.conn, int64(length)).Read(msg.Block)
 			if err != nil {
-				log.Error(err)
+				p.log.Error(err)
 				return
 			}
 			p.transfer.pieces[msg.Index].pieceC <- msg
 		case msgCancel:
 		case msgPort:
 		default:
-			log.Debugf("Unknown message type: %d", msgType)
+			p.log.Debugf("Unknown message type: %d", msgType)
 		}
 
 		first = false
@@ -245,7 +246,7 @@ func (p *peerConn) sendMessage(msgType byte) error {
 		Length      int32
 		MessageType byte
 	}{1, msgType}
-	log.Debugf("Sending message: %q", peerMessageTypes[msgType])
+	p.log.Debugf("Sending message: %q", peerMessageTypes[msgType])
 	return binary.Write(p.conn, binary.BigEndian, msg)
 }
 

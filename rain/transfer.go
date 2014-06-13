@@ -3,6 +3,7 @@ package rain
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 )
 
 // transfer represents an active transfer in the program.
@@ -14,14 +15,20 @@ type transfer struct {
 	// Stats
 	Downloaded int64
 	Uploaded   int64
+	log        logger
 }
 
 func newTransfer(tor *TorrentFile, where string) *transfer {
+	name := tor.Info.Name
+	if len(name) > 8 {
+		name = name[:8]
+	}
 	return &transfer{
 		torrentFile: tor,
 		where:       where,
 		pieces:      newPieces(tor),
 		bitField:    NewBitField(nil, tor.NumPieces),
+		log:         newLogger("download " + name),
 	}
 }
 
@@ -49,6 +56,7 @@ func newPieces(tor *TorrentFile) []*piece {
 			sha1:   tor.HashOfPiece(i),
 			haveC:  make(chan *peerConn),
 			pieceC: make(chan *peerPieceMessage),
+			log:    newLogger("piece #" + strconv.Itoa(int(i))),
 		}
 
 		// Construct p.targets

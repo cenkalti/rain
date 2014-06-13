@@ -5,8 +5,6 @@ import (
 	"net"
 	"sync"
 	"time"
-
-	"github.com/cenkalti/log"
 )
 
 type Rain struct {
@@ -14,6 +12,7 @@ type Rain struct {
 	listener   *net.TCPListener
 	transfers  map[infoHash]*transfer
 	transfersM sync.Mutex
+	log        logger
 }
 
 // http://www.bittorrent.org/beps/bep_0020.html
@@ -31,6 +30,7 @@ func New() (*Rain, error) {
 	return &Rain{
 		peerID:    peerID,
 		transfers: make(map[infoHash]*transfer),
+		log:       newLogger("rain"),
 	}, nil
 }
 
@@ -49,7 +49,7 @@ func (r *Rain) ListenPeerPort(port int) error {
 	if err != nil {
 		return err
 	}
-	log.Notice("Listening peers on tcp://" + r.listener.Addr().String())
+	// r.log.Notice("Listening peers on tcp://" + r.listener.Addr().String())
 	go r.accepter()
 	return nil
 }
@@ -58,7 +58,7 @@ func (r *Rain) accepter() {
 	for {
 		conn, err := r.listener.Accept()
 		if err != nil {
-			log.Error(err)
+			// r.log.Error(err)
 			return
 		}
 		go r.servePeerConn(conn)
@@ -67,7 +67,7 @@ func (r *Rain) accepter() {
 
 func (r *Rain) servePeerConn(conn net.Conn) {
 	defer conn.Close()
-	log.Debugln("Serving peer", conn.RemoteAddr())
+	// log.Debugln("Serving peer", conn.RemoteAddr())
 
 	// Give a minute for completing handshake.
 	err := conn.SetDeadline(time.Now().Add(time.Minute))
@@ -88,18 +88,18 @@ func (r *Rain) servePeerConn(conn net.Conn) {
 		r.transfersM.Lock()
 		var ok bool
 		if d, ok = r.transfers[res]; !ok {
-			log.Error("unexpected info_hash")
+			// log.Error("unexpected info_hash")
 			r.transfersM.Unlock()
 			return
 		}
 		r.transfersM.Unlock()
 
 		if err = sendHandShake(conn, res, r.peerID); err != nil {
-			log.Error(err)
+			// log.Error(err)
 			return
 		}
 	case error:
-		log.Error(res)
+		// log.Error(res)
 		return
 	}
 
@@ -107,31 +107,31 @@ func (r *Rain) servePeerConn(conn net.Conn) {
 	switch res := i.(type) {
 	case peerID:
 		if res == r.peerID {
-			log.Debug("Rejected own connection: server")
+			// log.Debug("Rejected own connection: server")
 			return
 		}
 		// TODO save peer_id
 	case error:
-		log.Error(res)
+		// log.Error(res)
 		return
 	}
 
-	log.Debugln("servePeerConn: Handshake completed", conn.RemoteAddr())
+	// log.Debugln("servePeerConn: Handshake completed", conn.RemoteAddr())
 	p := newPeerConn(conn, d)
 	p.readLoop()
 }
 
 func (r *Rain) connectToPeerAndServeDownload(p *Peer, d *transfer) {
-	log.Debugln("Connecting to peer", p.TCPAddr())
+	// log.Debugln("Connecting to peer", p.TCPAddr())
 
 	conn, err := net.DialTCP("tcp4", nil, p.TCPAddr())
 	if err != nil {
-		log.Error(err)
+		// log.Error(err)
 		return
 	}
 	defer conn.Close()
 
-	log.Infoln("Connected to peer", conn.RemoteAddr())
+	// log.Infoln("Connected to peer", conn.RemoteAddr())
 
 	// Give a minute for completing handshake.
 	err = conn.SetDeadline(time.Now().Add(time.Minute))
@@ -141,25 +141,25 @@ func (r *Rain) connectToPeerAndServeDownload(p *Peer, d *transfer) {
 
 	err = sendHandShake(conn, d.torrentFile.InfoHash, r.peerID)
 	if err != nil {
-		log.Error(err)
+		// log.Error(err)
 		return
 	}
 
 	ih, id, err := readHandShakeBlocking(conn)
 	if err != nil {
-		log.Error(err)
+		// log.Error(err)
 		return
 	}
 	if *ih != d.torrentFile.InfoHash {
-		log.Error("unexpected info_hash")
+		// log.Error("unexpected info_hash")
 		return
 	}
 	if *id == r.peerID {
-		log.Debug("Rejected own connection: client")
+		// log.Debug("Rejected own connection: client")
 		return
 	}
 
-	log.Debugln("connectToPeer: Handshake completed", conn.RemoteAddr())
+	// log.Debugln("connectToPeer: Handshake completed", conn.RemoteAddr())
 	pc := newPeerConn(conn, d)
 	pc.readLoop()
 }
@@ -170,7 +170,7 @@ func (r *Rain) Download(torrentPath, where string) error {
 	if err != nil {
 		return err
 	}
-	log.Debugf("Parsed torrent file: %#v", torrent)
+	// log.Debugf("Parsed torrent file: %#v", torrent)
 
 	t := newTransfer(torrent, where)
 	r.transfersM.Lock()
@@ -203,7 +203,7 @@ func (r *Rain) run(t *transfer) error {
 func (r *Rain) announcer(tracker *Tracker, t *transfer) {
 	err := tracker.Dial()
 	if err != nil {
-		log.Fatal(err)
+		// log.Fatal(err)
 	}
 
 	responseC := make(chan *AnnounceResponse)
@@ -212,9 +212,9 @@ func (r *Rain) announcer(tracker *Tracker, t *transfer) {
 	for {
 		select {
 		case resp := <-responseC:
-			log.Debugf("Announce response: %#v", resp)
+			// log.Debugf("Announce response: %#v", resp)
 			for _, p := range resp.Peers {
-				log.Debug("Peer:", p.TCPAddr())
+				// log.Debug("Peer:", p.TCPAddr())
 				go r.connectToPeerAndServeDownload(p, t)
 			}
 		}

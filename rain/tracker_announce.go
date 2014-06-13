@@ -6,8 +6,6 @@ import (
 	"errors"
 	"net"
 	"time"
-
-	"github.com/cenkalti/log"
 )
 
 type AnnounceRequest struct {
@@ -75,19 +73,19 @@ func (t *Tracker) announce(d *transfer, cancel <-chan struct{}, event <-chan Eve
 		select {
 		// TODO send first without waiting
 		case <-time.After(nextAnnounce):
-			log.Debug("Time to announce")
+			t.log.Debug("Time to announce")
 			// TODO update on every try.
 			request.update(d)
 
 			// t.request may block, that's why we pass cancel as argument.
 			reply, err := t.request(request, cancel)
 			if err != nil {
-				log.Error(err)
+				t.log.Error(err)
 				continue
 			}
 
-			if err = response.Load(reply); err != nil {
-				log.Error(err)
+			if err = t.Load(response, reply); err != nil {
+				t.log.Error(err)
 				continue
 			}
 
@@ -114,7 +112,7 @@ func (r *AnnounceRequest) update(d *transfer) {
 	r.Left = d.Left()
 }
 
-func (r *AnnounceResponse) Load(data []byte) error {
+func (t *Tracker) Load(r *AnnounceResponse, data []byte) error {
 	if len(data) < binary.Size(r) {
 		return errors.New("response is too small")
 	}
@@ -125,19 +123,19 @@ func (r *AnnounceResponse) Load(data []byte) error {
 	if err != nil {
 		return err
 	}
-	log.Debugf("r.announceResponse: %#v", r.announceResponse)
+	t.log.Debugf("r.announceResponse: %#v", r.announceResponse)
 
 	if r.Action != Announce {
 		return errors.New("invalid action")
 	}
 
-	log.Debugf("len(rest): %#v", reader.Len())
+	t.log.Debugf("len(rest): %#v", reader.Len())
 	if reader.Len()%6 != 0 {
 		return errors.New("invalid peer list")
 	}
 
 	count := reader.Len() / 6
-	log.Debugf("count of peers: %#v", count)
+	t.log.Debugf("count of peers: %#v", count)
 	r.Peers = make([]*Peer, count)
 	for i := 0; i < count; i++ {
 		r.Peers[i] = new(Peer)
@@ -145,7 +143,7 @@ func (r *AnnounceResponse) Load(data []byte) error {
 			return err
 		}
 	}
-	log.Debugf("r.Peers: %#v\n", r.Peers)
+	t.log.Debugf("r.Peers: %#v\n", r.Peers)
 
 	return nil
 }

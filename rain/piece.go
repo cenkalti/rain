@@ -5,8 +5,6 @@ import (
 	"errors"
 	"os"
 	"time"
-
-	"github.com/cenkalti/log"
 )
 
 type piece struct {
@@ -19,6 +17,7 @@ type piece struct {
 	haveC      chan *peerConn
 	pieceC     chan *peerPieceMessage
 	downloaded bool
+	log        logger
 }
 
 type writeTarget struct {
@@ -44,7 +43,7 @@ func (p *piece) run() {
 		select {
 		case peer := <-p.haveC:
 			if p.downloaded {
-				log.Debug("Piece is already downloaded")
+				p.log.Debug("Piece is already downloaded")
 				break
 			}
 
@@ -57,15 +56,15 @@ func (p *piece) run() {
 			case <-unchokeC:
 				for _, b := range p.blocks {
 					if err := b.requestFrom(peer); err != nil {
-						log.Error(err)
+						p.log.Error(err)
 						break
 					}
 				}
 			case <-time.After(time.Minute):
-				log.Info("Peer did not unchoke")
+				p.log.Info("Peer did not unchoke")
 			}
 		case piece := <-p.pieceC:
-			log.Noticeln("received piece", len(piece.Block))
+			p.log.Noticeln("received piece", len(piece.Block))
 			// TODO write block to disk
 			// piece.
 		}

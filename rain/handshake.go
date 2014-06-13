@@ -6,8 +6,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
-
-	"github.com/cenkalti/log"
 )
 
 // readHandShake reads handshake from conn and send the result to resultC.
@@ -16,8 +14,8 @@ import (
 //     2. infoHash, error
 //     3. infoHash, peerID
 func readHandShake(conn net.Conn, resultC chan interface{}) {
-	log.Debugln("Reading handshake from", conn.RemoteAddr())
-	defer log.Debugln("Handshake is read from", conn.RemoteAddr())
+	// log.Debugln("Reading handshake from", conn.RemoteAddr())
+	// defer log.Debugln("Handshake is read from", conn.RemoteAddr())
 
 	if resultC == nil {
 		resultC = make(chan interface{}, 2)

@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff"
-	"github.com/cenkalti/log"
 )
 
 const numWant = 50
@@ -48,6 +47,7 @@ type Tracker struct {
 	transactions  map[int32]*transaction
 	transactionsM sync.Mutex
 	writeC        chan TrackerRequest
+	log           logger
 }
 
 type transaction struct {
@@ -80,6 +80,7 @@ func NewTracker(trackerURL string, peerID peerID, port uint16) (*Tracker, error)
 		port:         port,
 		transactions: make(map[int32]*transaction),
 		writeC:       make(chan TrackerRequest),
+		log:          newLogger("tracker " + trackerURL),
 	}, nil
 }
 
@@ -112,24 +113,24 @@ func (t *Tracker) readLoop() {
 	for {
 		n, err := t.conn.Read(buf)
 		if err != nil {
-			log.Error(err)
+			t.log.Error(err)
 			if nerr, ok := err.(net.Error); ok && !nerr.Temporary() {
-				log.Debug("End of tracker read loop")
+				t.log.Debug("End of tracker read loop")
 				return
 			}
 			continue
 		}
-		log.Debug("Read ", n, " bytes")
+		t.log.Debug("Read ", n, " bytes")
 
 		var header TrackerMessageHeader
 		if n < binary.Size(header) {
-			log.Error("response is too small")
+			t.log.Error("response is too small")
 			continue
 		}
 
 		err = binary.Read(bytes.NewReader(buf), binary.BigEndian, &header)
 		if err != nil {
-			log.Error(err)
+			t.log.Error(err)
 			continue
 		}
 
@@ -138,7 +139,7 @@ func (t *Tracker) readLoop() {
 		delete(t.transactions, header.TransactionID)
 		t.transactionsM.Unlock()
 		if !ok {
-			log.Error("unexpected transaction_id")
+			t.log.Error("unexpected transaction_id")
 			continue
 		}
 
@@ -171,7 +172,7 @@ func (t *Tracker) writeLoop() {
 		req.SetConnectionID(connectionID)
 
 		if err := binary.Write(t.conn, binary.BigEndian, req); err != nil {
-			log.Error(err)
+			t.log.Error(err)
 		}
 	}
 }
