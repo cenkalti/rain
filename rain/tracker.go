@@ -45,7 +45,6 @@ type Tracker struct {
 	peerID        peerID
 	port          uint16
 	conn          *net.UDPConn
-	addr          *net.UDPAddr
 	transactions  map[int32]*transaction
 	transactionsM sync.Mutex
 	writeC        chan TrackerRequest
@@ -111,7 +110,7 @@ func (t *Tracker) readLoop() {
 	// Current value is: 320 = 20 + 50*6 (AnnounceResponse with 50 peers)
 	buf := make([]byte, 320)
 	for {
-		n, addr, err := t.conn.ReadFromUDP(buf)
+		n, err := t.conn.Read(buf)
 		if err != nil {
 			log.Error(err)
 			if nerr, ok := err.(net.Error); ok && !nerr.Temporary() {
@@ -121,7 +120,6 @@ func (t *Tracker) readLoop() {
 			continue
 		}
 		log.Debug("Read ", n, " bytes")
-		t.addr = addr
 
 		var header TrackerMessageHeader
 		if n < binary.Size(header) {
