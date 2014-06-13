@@ -10,6 +10,7 @@ type transfer struct {
 	torrentFile *TorrentFile
 	where       string
 	pieces      []*piece
+	bitfield    BitField // pieces we have
 	// Stats
 	Downloaded int64
 	Uploaded   int64
@@ -20,6 +21,7 @@ func newTransfer(tor *TorrentFile, where string) *transfer {
 		torrentFile: tor,
 		where:       where,
 		pieces:      newPieces(tor),
+		bitfield:    NewBitField(nil, int64(tor.NumPieces)),
 	}
 }
 
@@ -77,7 +79,7 @@ func newPieces(tor *TorrentFile) []*piece {
 		if mod != 0 {
 			numBlocks++
 		}
-		p.have = NewBitField(nil, int64(numBlocks))
+		p.bitfield = NewBitField(nil, int64(numBlocks))
 		p.blocks = make([]*block, numBlocks)
 		for j := int32(0); j < div; j++ {
 			p.blocks[j] = &block{

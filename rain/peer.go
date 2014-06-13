@@ -1,6 +1,7 @@
 package rain
 
 import (
+	"bytes"
 	"encoding/binary"
 	"io"
 	"net"
@@ -83,10 +84,16 @@ const connReadTimeout = 3 * time.Minute
 func (p *peerConn) readLoop() {
 	log.Debugln("Communicating peer", p.conn.RemoteAddr())
 
+	err := p.sendBitField()
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
 	first := true
 	buf := make([]byte, blockSize)
 	for {
-		err := p.conn.SetReadDeadline(time.Now().Add(connReadTimeout))
+		err = p.conn.SetReadDeadline(time.Now().Add(connReadTimeout))
 		if err != nil {
 			log.Error(err)
 			return
@@ -202,6 +209,24 @@ func (p *peerConn) readLoop() {
 
 		first = false
 	}
+}
+
+func (p *peerConn) sendBitField() error {
+	var buf bytes.Buffer
+	length := int(1 + p.transfer.bitfield.Len())
+	buf.Grow(length)
+	err := binary.Write(&buf, binary.BigEndian, int32(1+p.transfer.bitfield.Len()))
+	if err != nil {
+		return err
+	}
+	if err = buf.WriteByte(msgBitfield); err != nil {
+		return err
+	}
+	if _, err = buf.Write(p.transfer.bitfield.Bytes()); err != nil {
+		return err
+	}
+	_, err = io.Copy(p.conn, &buf)
+	return err
 }
 
 // beInterested sends "interested" message to peer (once) and

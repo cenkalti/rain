@@ -15,10 +15,10 @@ type piece struct {
 	length     int32          // last piece may not be complete
 	targets    []*writeTarget // the place to write downloaded bytes
 	blocks     []*block
+	bitfield   BitField // blocks we have
 	haveC      chan *peerConn
 	pieceC     chan *peerPieceMessage
 	downloaded bool
-	have       BitField // blocks we have
 }
 
 type writeTarget struct {
