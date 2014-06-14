@@ -44,9 +44,7 @@ var peerMessageTypes = [...]string{
 }
 
 type peerConn struct {
-	conn     net.Conn
-	transfer *transfer
-	bitField BitField // which pieces does remote peer have?
+	conn net.Conn
 
 	unchokeM       sync.Mutex    // protects unchokeC
 	unchokeC       chan struct{} // will be closed when and "unchoke" message is received
@@ -62,11 +60,9 @@ type peerConn struct {
 	log logger
 }
 
-func newPeerConn(conn net.Conn, d *transfer) *peerConn {
+func newPeerConn(conn net.Conn) *peerConn {
 	return &peerConn{
 		conn:        conn,
-		transfer:    d,
-		bitField:    NewBitField(nil, d.bitField.Len()),
 		unchokeC:    make(chan struct{}),
 		amChoking:   true,
 		peerChoking: true,
@@ -76,11 +72,13 @@ func newPeerConn(conn net.Conn, d *transfer) *peerConn {
 
 const connReadTimeout = 3 * time.Minute
 
-// readLoop processes incoming messages after handshake.
-func (p *peerConn) readLoop() {
+// run processes incoming messages after handshake.
+func (p *peerConn) run(t *transfer) {
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 
-	err := p.sendBitField()
+	bitField := NewBitField(nil, t.bitField.Len())
+
+	err := p.sendBitField(t.bitField)
 	if err != nil {
 		p.log.Error(err)
 		return
@@ -136,19 +134,19 @@ func (p *peerConn) readLoop() {
 				p.log.Error(err)
 				return
 			}
-			p.bitField.Set(i)
+			bitField.Set(i)
 			p.log.Debug("Peer ", p.conn.RemoteAddr(), " has piece #", i)
-			p.log.Debugln("new bitfield:", p.bitField.Hex())
+			p.log.Debugln("new bitfield:", bitField.Hex())
 
 			// TODO goroutine may leak
-			go func() { p.transfer.pieces[i].haveC <- p }()
+			go func() { t.pieces[i].haveC <- p }()
 		case msgBitfield:
 			if !first {
 				p.log.Error("bitfield can only be sent after handshake")
 				return
 			}
 
-			if int64(length) != int64(len(p.bitField.Bytes())) {
+			if int64(length) != int64(len(bitField.Bytes())) {
 				p.log.Error("invalid bitfield length")
 				return
 			}
@@ -158,14 +156,12 @@ func (p *peerConn) readLoop() {
 				p.log.Error(err)
 				return
 			}
+			p.log.Debugln("Received bitfield:", bitField.Hex())
 
-			p.bitField = NewBitField(buf, p.bitField.Len())
-			p.log.Debugln("Received bitfield:", p.bitField.Hex())
-
-			for i := int32(0); i < p.bitField.Len(); i++ {
-				if p.bitField.Test(i) {
+			for i := int32(0); i < bitField.Len(); i++ {
+				if bitField.Test(i) {
 					// TODO goroutine may leak
-					go func(i int32) { p.transfer.pieces[i].haveC <- p }(i)
+					go func(i int32) { t.pieces[i].haveC <- p }(i)
 				}
 			}
 		case msgRequest:
@@ -186,7 +182,7 @@ func (p *peerConn) readLoop() {
 				return
 			}
 			length -= 8
-			if length != p.transfer.pieces[msg.Index].blocks[msg.Begin/blockSize].length {
+			if length != t.pieces[msg.Index].blocks[msg.Begin/blockSize].length {
 				p.log.Error("unexpected block size")
 				return
 			}
@@ -196,7 +192,7 @@ func (p *peerConn) readLoop() {
 				p.log.Error(err)
 				return
 			}
-			p.transfer.pieces[msg.Index].pieceC <- msg
+			t.pieces[msg.Index].pieceC <- msg
 		case msgCancel:
 		case msgPort:
 		default:
@@ -207,18 +203,18 @@ func (p *peerConn) readLoop() {
 	}
 }
 
-func (p *peerConn) sendBitField() error {
+func (p *peerConn) sendBitField(b BitField) error {
 	var buf bytes.Buffer
-	length := int(1 + p.transfer.bitField.Len())
+	length := int(1 + b.Len())
 	buf.Grow(length)
-	err := binary.Write(&buf, binary.BigEndian, int32(1+p.transfer.bitField.Len()))
+	err := binary.Write(&buf, binary.BigEndian, int32(1+b.Len()))
 	if err != nil {
 		return err
 	}
 	if err = buf.WriteByte(msgBitfield); err != nil {
 		return err
 	}
-	if _, err = buf.Write(p.transfer.bitField.Bytes()); err != nil {
+	if _, err = buf.Write(b.Bytes()); err != nil {
 		return err
 	}
 	_, err = io.Copy(p.conn, &buf)

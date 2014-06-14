@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"io"
 	"io/ioutil"
-	"net"
 )
 
 // readHandShake reads handshake from conn and send the result to resultC.
@@ -13,7 +12,7 @@ import (
 //     1. error
 //     2. infoHash, error
 //     3. infoHash, peerID
-func readHandShake(conn net.Conn, resultC chan interface{}) {
+func (p *peerConn) readHandShake(resultC chan interface{}) {
 	// log.Debugln("Reading handshake from", conn.RemoteAddr())
 	// defer log.Debugln("Handshake is read from", conn.RemoteAddr())
 
@@ -27,7 +26,7 @@ func readHandShake(conn net.Conn, resultC chan interface{}) {
 	}
 
 	buf := make([]byte, bitTorrent10pstrLen)
-	_, err := conn.Read(buf[:1]) // pstrlen
+	_, err := p.conn.Read(buf[:1]) // pstrlen
 	if err != nil {
 		resultC <- err
 		return
@@ -38,7 +37,7 @@ func readHandShake(conn net.Conn, resultC chan interface{}) {
 		return
 	}
 
-	_, err = io.ReadFull(conn, buf) // pstr
+	_, err = io.ReadFull(p.conn, buf) // pstr
 	if err != nil {
 		resultC <- err
 		return
@@ -48,14 +47,14 @@ func readHandShake(conn net.Conn, resultC chan interface{}) {
 		return
 	}
 
-	_, err = io.CopyN(ioutil.Discard, conn, 8) // reserved
+	_, err = io.CopyN(ioutil.Discard, p.conn, 8) // reserved
 	if err != nil {
 		resultC <- err
 		return
 	}
 
 	var infoHash infoHash
-	_, err = io.ReadFull(conn, infoHash[:]) // info_hash
+	_, err = io.ReadFull(p.conn, infoHash[:]) // info_hash
 	if err != nil {
 		resultC <- err
 		return
@@ -67,7 +66,7 @@ func readHandShake(conn net.Conn, resultC chan interface{}) {
 	resultC <- infoHash
 
 	var id peerID
-	_, err = io.ReadFull(conn, id[:]) // peer_id
+	_, err = io.ReadFull(p.conn, id[:]) // peer_id
 	if err != nil {
 		resultC <- err
 		return
@@ -76,12 +75,12 @@ func readHandShake(conn net.Conn, resultC chan interface{}) {
 	resultC <- id
 }
 
-func readHandShakeBlocking(conn net.Conn) (*infoHash, *peerID, error) {
+func (p *peerConn) readHandShakeBlocking() (*infoHash, *peerID, error) {
 	var ih *infoHash
 	var id *peerID
 
 	resultC := make(chan interface{}, 2)
-	go readHandShake(conn, resultC)
+	go p.readHandShake(resultC)
 
 	i := <-resultC
 	switch res := i.(type) {
@@ -102,7 +101,7 @@ func readHandShakeBlocking(conn net.Conn) (*infoHash, *peerID, error) {
 	return ih, id, nil
 }
 
-func sendHandShake(conn net.Conn, ih infoHash, id peerID) error {
+func (p *peerConn) sendHandShake(ih infoHash, id peerID) error {
 	var handShake = struct {
 		Pstrlen  byte
 		Pstr     [bitTorrent10pstrLen]byte
@@ -115,5 +114,5 @@ func sendHandShake(conn net.Conn, ih infoHash, id peerID) error {
 		PeerID:   id,
 	}
 	copy(handShake.Pstr[:], bitTorrent10pstr)
-	return binary.Write(conn, binary.BigEndian, &handShake)
+	return binary.Write(p.conn, binary.BigEndian, &handShake)
 }
