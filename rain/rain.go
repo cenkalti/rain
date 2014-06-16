@@ -179,7 +179,7 @@ func (r *Rain) Download(torrentPath, where string) error {
 		r.transfersM.Unlock()
 		return err
 	}
-	r.transfers[t.torrentFile.InfoHash] = t
+	r.transfers[torrent.InfoHash] = t
 	r.transfersM.Unlock()
 
 	return r.run(t)

@@ -217,7 +217,7 @@ func (p *peerConn) sendBitField(b bitField) error {
 	if _, err = buf.Write(b.Bytes()); err != nil {
 		return err
 	}
-	p.log.Debugf("Sending message: \"bitfield\"")
+	p.log.Debugf("Sending message: \"bitfield\" %#v", buf.Bytes())
 	_, err = io.Copy(p.conn, &buf)
 	return err
 }
@@ -252,8 +252,8 @@ type peerRequestMessage struct {
 	Index, Begin, Length int32
 }
 
-func newPeerRequestMessage(index, length int32) *peerRequestMessage {
-	return &peerRequestMessage{msgRequest, index, index * blockSize, length}
+func newPeerRequestMessage(index, begin, length int32) *peerRequestMessage {
+	return &peerRequestMessage{msgRequest, index, begin, length}
 }
 
 func (p *peerConn) sendRequest(m *peerRequestMessage) error {
@@ -261,7 +261,7 @@ func (p *peerConn) sendRequest(m *peerRequestMessage) error {
 		Length  int32
 		Message peerRequestMessage
 	}{13, *m}
-	p.log.Debugf("Sending message: %q", "request")
+	p.log.Debugf("Sending message: %q %#v", "request", msg)
 	return binary.Write(p.conn, binary.BigEndian, &msg)
 }
 

@@ -50,7 +50,7 @@ func (p *piece) run() {
 			select {
 			case <-unchokeC:
 				for _, b := range p.blocks {
-					if err := peer.sendRequest(newPeerRequestMessage(b.index, b.length)); err != nil {
+					if err := peer.sendRequest(newPeerRequestMessage(p.index, b.index*blockSize, b.length)); err != nil {
 						p.log.Error(err)
 						break
 					}
@@ -58,7 +58,6 @@ func (p *piece) run() {
 					case piece := <-p.pieceC:
 						p.log.Noticeln("received piece", len(piece.Block))
 
-						time.Sleep(time.Second)
 						// TODO write block to disk
 					case <-time.After(time.Minute):
 						p.log.Infof("Peer did not send piece #%d block #%d", p.index, b.index)
