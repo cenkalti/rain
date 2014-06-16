@@ -28,16 +28,12 @@ func main() {
 		rain.LogLevel = log.DEBUG
 	}
 
-	r, err := rain.New()
+	r, err := rain.New(*port)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if err = r.ListenPeerPort(*port); err != nil {
-		log.Errorf("Cannot listen peer port: %d", *port)
-	}
-
-	if err := r.Download(args[0], *where); err != nil {
+	if err = r.Download(args[0], *where); err != nil {
 		log.Fatal(err)
 	}
 }

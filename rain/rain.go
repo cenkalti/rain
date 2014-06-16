@@ -21,17 +21,20 @@ var peerIDPrefix = []byte("-RN0001-")
 type peerID [20]byte
 
 // New returns a pointer to new Rain BitTorrent client.
-// Call ListenPeerPort method before starting Download to accept incoming connections.
-func New() (*Rain, error) {
+func New(port int) (*Rain, error) {
 	peerID, err := generatePeerID()
 	if err != nil {
 		return nil, err
 	}
-	return &Rain{
+	r := &Rain{
 		peerID:    peerID,
 		transfers: make(map[infoHash]*transfer),
 		log:       newLogger("rain"),
-	}, nil
+	}
+	if err := r.listenPeerPort(port); err != nil {
+		return nil, err
+	}
+	return r, nil
 }
 
 func generatePeerID() (peerID, error) {
@@ -41,8 +44,8 @@ func generatePeerID() (peerID, error) {
 	return id, err
 }
 
-// ListenPeerPort starts to listen a TCP port to accept incoming peer connections.
-func (r *Rain) ListenPeerPort(port int) error {
+// listenPeerPort starts to listen a TCP port to accept incoming peer connections.
+func (r *Rain) listenPeerPort(port int) error {
 	var err error
 	addr := &net.TCPAddr{Port: port}
 	r.listener, err = net.ListenTCP("tcp4", addr)
