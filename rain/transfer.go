@@ -8,41 +8,46 @@ import (
 
 // transfer represents an active transfer in the program.
 type transfer struct {
-	torrentFile *TorrentFile
-	where       string
+	torrentFile *torrentFile
+	files       []*os.File
 	pieces      []*piece
-	bitField    BitField // pieces we have
+	bitField    bitField // pieces we have
 	// Stats
 	Downloaded int64
 	Uploaded   int64
 	log        logger
 }
 
-func newTransfer(tor *TorrentFile, where string) *transfer {
+func newTransfer(tor *torrentFile, where string) (*transfer, error) {
+	files, err := allocate(&tor.Info, where)
+	if err != nil {
+		return nil, err
+	}
 	name := tor.Info.Name
 	if len(name) > 8 {
 		name = name[:8]
 	}
-	return &transfer{
+	t := &transfer{
 		torrentFile: tor,
-		where:       where,
-		pieces:      newPieces(tor),
-		bitField:    NewBitField(nil, tor.NumPieces),
+		files:       files,
+		pieces:      newPieces(tor, files),
+		bitField:    newBitField(nil, tor.NumPieces),
 		log:         newLogger("download " + name),
 	}
+	return t, nil
 }
 
-func newPieces(tor *TorrentFile) []*piece {
+func newPieces(tor *torrentFile, files []*os.File) []*piece {
 	var (
 		fileIndex  int   // index of the current file in torrent
-		fileLength int64 = tor.Info.Files[0].Length
+		fileLength int64 = tor.Info.GetFiles()[0].Length
 		fileEnd    int64 = fileLength // absolute position of end of the file among all pieces
 		fileOffset int64              // offset in file: [0, fileLength)
 	)
 
 	nextFile := func() {
 		fileIndex++
-		fileLength = tor.Info.Files[fileIndex].Length
+		fileLength = tor.Info.GetFiles()[fileIndex].Length
 		fileEnd += fileLength
 		fileOffset = 0
 	}
@@ -66,16 +71,15 @@ func newPieces(tor *TorrentFile) []*piece {
 		for left := pieceLeft(); left > 0; nextFile() {
 			n := int32(minInt64(int64(left), fileLeft())) // number of bytes to write
 
-			target := &writeTarget{tor.Info.Files[fileIndex].file, fileOffset, n}
+			target := &writeTarget{files[fileIndex], fileOffset, n}
 			p.targets = append(p.targets, target)
 
 			left -= n
-
 			p.length += n
 			pieceOffset += n
 			fileOffset += int64(n)
-
 			total += int64(n)
+
 			if total == tor.TotalLength {
 				break
 			}
@@ -87,7 +91,7 @@ func newPieces(tor *TorrentFile) []*piece {
 		if mod != 0 {
 			numBlocks++
 		}
-		p.bitField = NewBitField(nil, numBlocks)
+		p.bitField = newBitField(nil, numBlocks)
 		p.blocks = make([]*block, numBlocks)
 		for j := int32(0); j < div; j++ {
 			p.blocks[j] = &block{
@@ -112,30 +116,30 @@ func (t *transfer) Left() int64 {
 	return t.torrentFile.TotalLength - t.Downloaded
 }
 
-func (t *transfer) allocate(where string) error {
-	var err error
-	info := &t.torrentFile.Info
-
-	// Single file
-	if info.Length != 0 {
-		info.file, err = createTruncateSync(filepath.Join(where, info.Name), info.Length)
-		return err
+func allocate(info *infoDict, where string) ([]*os.File, error) {
+	if !info.MultiFile() {
+		f, err := createTruncateSync(filepath.Join(where, info.Name), info.Length)
+		if err != nil {
+			return nil, err
+		}
+		return []*os.File{f}, nil
 	}
 
 	// Multiple files
-	for _, f := range info.Files {
+	files := make([]*os.File, len(info.Files))
+	for i, f := range info.Files {
 		parts := append([]string{where, info.Name}, f.Path...)
 		path := filepath.Join(parts...)
-		err = os.MkdirAll(filepath.Dir(path), os.ModeDir|0755)
+		err := os.MkdirAll(filepath.Dir(path), os.ModeDir|0755)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		f.file, err = createTruncateSync(path, f.Length)
+		files[i], err = createTruncateSync(path, f.Length)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return files, nil
 }
 
 func createTruncateSync(path string, length int64) (*os.File, error) {

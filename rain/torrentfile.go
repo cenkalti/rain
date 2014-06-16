@@ -10,17 +10,17 @@ import (
 	"code.google.com/p/bencode-go"
 )
 
-type TorrentFile struct {
-	Info         infoDict
-	Announce     string
+type torrentFile struct {
+	Info         infoDict   `bencode:"info"`
+	Announce     string     `bencode:"announce"`
 	AnnounceList [][]string `bencode:"announce-list"`
 	CreationDate int64      `bencode:"creation date"`
-	Comment      string
-	CreatedBy    string `bencode:"created by"`
-	Encoding     string
+	Comment      string     `bencode:"comment"`
+	CreatedBy    string     `bencode:"created by"`
+	Encoding     string     `bencode:"encoding"`
 
 	// These fields do not exist in torrent file.
-	// They are calculated when a TorrentFile is created with NewTorrentFile func.
+	// They are calculated when a torrentFile is created with NewtorrentFile func.
 	InfoHash    infoHash
 	TotalLength int64
 	NumPieces   int32
@@ -29,26 +29,24 @@ type TorrentFile struct {
 type infoHash [sha1.Size]byte
 
 type infoDict struct {
-	PieceLength int32 `bencode:"piece length"`
-	Pieces      string
-	Private     byte
-	Name        string
+	PieceLength int32  `bencode:"piece length"`
+	Pieces      string `bencode:"pieces"`
+	Private     byte   `bencode:"private"`
+	Name        string `bencode:"name"`
 	// Single File Mode
-	Length int64
-	Md5sum string
-	file   *os.File
+	Length int64  `bencode:"length"`
+	Md5sum string `bencode:"md5sum"`
 	// Multiple File mode
-	Files []fileDict
+	Files []fileDict `bencode:"files"`
 }
 
 type fileDict struct {
-	Length int64
-	Path   []string
-	Md5sum string
-	file   *os.File
+	Length int64    `bencode:"length"`
+	Path   []string `bencode:"path"`
+	Md5sum string   `bencode:"md5sum"`
 }
 
-func NewTorrentFile(path string) (*TorrentFile, error) {
+func newTorrentFile(path string) (*torrentFile, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -77,7 +75,7 @@ func NewTorrentFile(path string) (*TorrentFile, error) {
 		return nil, errors.New("invalid torrent file")
 	}
 
-	t := new(TorrentFile)
+	t := new(torrentFile)
 
 	// Unmarshal bencoded bytes into the struct
 	reader.Seek(0, 0)
@@ -92,9 +90,12 @@ func NewTorrentFile(path string) (*TorrentFile, error) {
 	copy(t.InfoHash[:], hash.Sum(nil))
 
 	// Calculate TotalLength
-	t.TotalLength += t.Info.Length
-	for _, f := range t.Info.Files {
-		t.TotalLength += f.Length
+	if !t.Info.MultiFile() {
+		t.TotalLength = t.Info.Length
+	} else {
+		for _, f := range t.Info.Files {
+			t.TotalLength += f.Length
+		}
 	}
 
 	// Calculate NumPieces
@@ -103,10 +104,25 @@ func NewTorrentFile(path string) (*TorrentFile, error) {
 	return t, nil
 }
 
-func (t *TorrentFile) HashOfPiece(i int32) [sha1.Size]byte {
+func (t *torrentFile) HashOfPiece(i int32) [sha1.Size]byte {
+	if i < 0 || i >= t.NumPieces {
+		panic("piece index out of range")
+	}
 	var hash [sha1.Size]byte
 	start := i * sha1.Size
 	end := start + sha1.Size
 	copy(hash[:], []byte(t.Info.Pieces[start:end]))
 	return hash
+}
+
+func (i *infoDict) GetFiles() []fileDict {
+	if i.MultiFile() {
+		return i.Files
+	} else {
+		return []fileDict{fileDict{i.Length, []string{i.Name}, i.Md5sum}}
+	}
+}
+
+func (i *infoDict) MultiFile() bool {
+	return len(i.Files) != 0
 }

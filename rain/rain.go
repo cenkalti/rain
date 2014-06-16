@@ -167,14 +167,18 @@ func (r *Rain) connectToPeerAndServeDownload(addr *net.TCPAddr, t *transfer) {
 
 // Download starts a download and waits for it to finish.
 func (r *Rain) Download(torrentPath, where string) error {
-	torrent, err := NewTorrentFile(torrentPath)
+	torrent, err := newTorrentFile(torrentPath)
 	if err != nil {
 		return err
 	}
 	r.log.Debugf("Parsed torrent file: %#v", torrent)
 
-	t := newTransfer(torrent, where)
 	r.transfersM.Lock()
+	t, err := newTransfer(torrent, where)
+	if err != nil {
+		r.transfersM.Unlock()
+		return err
+	}
 	r.transfers[t.torrentFile.InfoHash] = t
 	r.transfersM.Unlock()
 
@@ -182,11 +186,6 @@ func (r *Rain) Download(torrentPath, where string) error {
 }
 
 func (r *Rain) run(t *transfer) error {
-	err := t.allocate(t.where)
-	if err != nil {
-		return err
-	}
-
 	tracker, err := NewTracker(t.torrentFile.Announce, r.peerID, uint16(r.listener.Addr().(*net.TCPAddr).Port))
 	if err != nil {
 		return err

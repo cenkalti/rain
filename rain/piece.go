@@ -13,7 +13,7 @@ type piece struct {
 	length     int32          // last piece may not be complete
 	targets    []*writeTarget // the place to write downloaded bytes
 	blocks     []*block
-	bitField   BitField // blocks we have
+	bitField   bitField // blocks we have
 	haveC      chan *peerConn
 	pieceC     chan *peerPieceMessage
 	downloaded bool
@@ -33,6 +33,7 @@ type block struct {
 }
 
 func (b *block) requestFrom(p *peerConn) error {
+	p.log.Debugf("Requsting block #%d from peer %s", b.index, p.conn.RemoteAddr())
 	r := newPeerRequestMessage(b.index, b.length)
 	return r.send(p.conn)
 }
@@ -49,6 +50,7 @@ func (p *piece) run() {
 
 			unchokeC, err := peer.beInterested()
 			if err != nil {
+				p.log.Error(err)
 				break
 			}
 

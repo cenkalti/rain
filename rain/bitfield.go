@@ -5,14 +5,14 @@ import (
 	"math"
 )
 
-type BitField struct {
+type bitField struct {
 	b      []byte
 	length int32
 }
 
-// NewBitField returns a new BitField value. Bytes in buf are copied.
+// newBitField returns a new bitField value. Bytes in buf are copied.
 // If buf is nil, a new buffer is created to store "length" bits.
-func NewBitField(buf []byte, length int32) BitField {
+func newBitField(buf []byte, length int32) bitField {
 	if length < 0 {
 		panic("length < 0")
 	}
@@ -43,27 +43,27 @@ func NewBitField(buf []byte, length int32) BitField {
 		}
 	}
 
-	return BitField{b, length}
+	return bitField{b, length}
 }
 
 // Bytes returns bytes in b.
-func (b BitField) Bytes() []byte { return b.b }
+func (b bitField) Bytes() []byte { return b.b }
 
 // Len returns bit length.
-func (b BitField) Len() int32 { return b.length }
+func (b bitField) Len() int32 { return b.length }
 
 // Hex returns bytes as string.
-func (b BitField) Hex() string { return hex.EncodeToString(b.b) }
+func (b bitField) Hex() string { return hex.EncodeToString(b.b) }
 
 // Set bit i. 0 is the most significant bit. Panics if i >= b.Len().
-func (b BitField) Set(i int32) {
+func (b bitField) Set(i int32) {
 	b.checkIndex(i)
 	div, mod := divMod32(i, 8)
 	b.b[div] |= 1 << (7 - uint32(mod))
 }
 
 // SetTo sets bit i to value. Panics if i >= b.Len().
-func (b BitField) SetTo(i int32, value bool) {
+func (b bitField) SetTo(i int32, value bool) {
 	b.checkIndex(i)
 	if value {
 		b.Set(i)
@@ -72,28 +72,28 @@ func (b BitField) SetTo(i int32, value bool) {
 }
 
 // Clear bit i. 0 is the most significant bit. Panics if i >= b.Len().
-func (b BitField) Clear(i int32) {
+func (b bitField) Clear(i int32) {
 	b.checkIndex(i)
 	div, mod := divMod32(i, 8)
 	b.b[div] &= ^(1 << (7 - uint32(mod)))
 }
 
 // ClearAll clears all bits.
-func (b BitField) ClearAll() {
+func (b bitField) ClearAll() {
 	for i := range b.b {
 		b.b[i] = 0
 	}
 }
 
 // Test bit i. 0 is the most significant bit. Panics if i >= b.Len().
-func (b BitField) Test(i int32) bool {
+func (b bitField) Test(i int32) bool {
 	b.checkIndex(i)
 	div, mod := divMod32(i, 8)
 	return (b.b[div] & (1 << (7 - uint32(mod)))) > 0
 }
 
 // Count returns the count of set bits.
-func (b BitField) Count() int32 {
+func (b bitField) Count() int32 {
 	var countCache = [256]byte{
 		0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
 		1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
@@ -120,11 +120,11 @@ func (b BitField) Count() int32 {
 }
 
 // All returns true if all bits are set, false otherwise.
-func (b BitField) All() bool {
+func (b bitField) All() bool {
 	return b.Count() == b.length
 }
 
-func (b BitField) checkIndex(i int32) {
+func (b bitField) checkIndex(i int32) {
 	if i < 0 || i >= b.Len() {
 		panic("index out of bound")
 	}

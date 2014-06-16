@@ -76,7 +76,7 @@ const connReadTimeout = 3 * time.Minute
 func (p *peerConn) run(t *transfer) {
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 
-	bitField := NewBitField(nil, t.bitField.Len())
+	bitField := newBitField(nil, t.bitField.Len())
 
 	err := p.sendBitField(t.bitField)
 	if err != nil {
@@ -203,7 +203,7 @@ func (p *peerConn) run(t *transfer) {
 	}
 }
 
-func (p *peerConn) sendBitField(b BitField) error {
+func (p *peerConn) sendBitField(b bitField) error {
 	var buf bytes.Buffer
 	length := int(1 + b.Len())
 	buf.Grow(length)
