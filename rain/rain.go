@@ -186,7 +186,7 @@ func (r *Rain) Download(torrentPath, where string) error {
 }
 
 func (r *Rain) run(t *transfer) error {
-	tracker, err := NewTracker(t.torrentFile.Announce, r.peerID, uint16(r.listener.Addr().(*net.TCPAddr).Port))
+	tracker, err := newTracker(t.torrentFile.Announce, r.peerID, uint16(r.listener.Addr().(*net.TCPAddr).Port))
 	if err != nil {
 		return err
 	}
@@ -200,13 +200,13 @@ func (r *Rain) run(t *transfer) error {
 	select {}
 }
 
-func (r *Rain) announcer(tracker *Tracker, t *transfer) {
+func (r *Rain) announcer(tracker *tracker, t *transfer) {
 	err := tracker.Dial()
 	if err != nil {
 		t.log.Fatal(err)
 	}
 
-	responseC := make(chan *AnnounceResponse)
+	responseC := make(chan *announceResponse)
 	go tracker.announce(t, nil, nil, responseC)
 
 	for {

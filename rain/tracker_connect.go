@@ -5,24 +5,24 @@ import (
 	"encoding/binary"
 )
 
-type ConnectRequest struct {
-	TrackerRequestHeader
+type connectRequest struct {
+	trackerRequestHeader
 }
 
-type ConnectResponse struct {
-	TrackerMessageHeader
+type connectResponse struct {
+	trackerMessageHeader
 	ConnectionID int64
 }
 
-// connect sends a ConnectRequest and returns a ConnectionID given by the tracker.
+// connect sends a connectRequest and returns a ConnectionID given by the tracker.
 // On error, it backs off with the algorithm described in BEP15 and retries.
 // It does not return until tracker sends a ConnectionID.
-func (t *Tracker) connect() int64 {
-	req := new(ConnectRequest)
+func (t *tracker) connect() int64 {
+	req := new(connectRequest)
 	req.SetConnectionID(connectionIDMagic)
 	req.SetAction(Connect)
 
-	write := func(req TrackerRequest) {
+	write := func(req trackerRequest) {
 		binary.Write(t.conn, binary.BigEndian, req)
 	}
 
@@ -34,7 +34,7 @@ func (t *Tracker) connect() int64 {
 			continue
 		}
 
-		var response ConnectResponse
+		var response connectResponse
 		err = binary.Read(bytes.NewReader(data), binary.BigEndian, &response)
 		if err != nil {
 			t.log.Error(err)

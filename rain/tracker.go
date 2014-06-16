@@ -20,12 +20,12 @@ import (
 const numWant = 50
 const connectionIDMagic = 0x41727101980
 
-type Action int32
-type Event int32
+type trackerAction int32
+type trackerEvent int32
 
 // Tracker Actions
 const (
-	Connect Action = iota
+	Connect trackerAction = iota
 	Announce
 	Scrape
 	Error
@@ -33,31 +33,31 @@ const (
 
 // Tracker Announce Events
 const (
-	None Event = iota
+	None trackerEvent = iota
 	Completed
 	Started
 	Stopped
 )
 
-type Tracker struct {
+type tracker struct {
 	URL           *url.URL
 	peerID        peerID
 	port          uint16
 	conn          *net.UDPConn
 	transactions  map[int32]*transaction
 	transactionsM sync.Mutex
-	writeC        chan TrackerRequest
+	writeC        chan trackerRequest
 	log           logger
 }
 
 type transaction struct {
-	request  TrackerRequest
+	request  trackerRequest
 	response []byte
 	err      error
 	done     chan struct{}
 }
 
-func newTransaction(req TrackerRequest) *transaction {
+func newTransaction(req trackerRequest) *transaction {
 	return &transaction{
 		request: req,
 		done:    make(chan struct{}),
@@ -69,22 +69,22 @@ func (t *transaction) Done() {
 	close(t.done)
 }
 
-func NewTracker(trackerURL string, peerID peerID, port uint16) (*Tracker, error) {
+func newTracker(trackerURL string, peerID peerID, port uint16) (*tracker, error) {
 	parsed, err := url.Parse(trackerURL)
 	if err != nil {
 		return nil, err
 	}
-	return &Tracker{
+	return &tracker{
 		URL:          parsed,
 		peerID:       peerID,
 		port:         port,
 		transactions: make(map[int32]*transaction),
-		writeC:       make(chan TrackerRequest),
+		writeC:       make(chan trackerRequest),
 		log:          newLogger("tracker " + trackerURL),
 	}, nil
 }
 
-func (t *Tracker) Dial() error {
+func (t *tracker) Dial() error {
 	serverAddr, err := net.ResolveUDPAddr("udp", t.URL.Host)
 	if err != nil {
 		return err
@@ -100,13 +100,13 @@ func (t *Tracker) Dial() error {
 
 // Close the tracker connection.
 // TODO end all goroutines.
-func (t *Tracker) Close() error {
+func (t *tracker) Close() error {
 	return t.conn.Close()
 }
 
 // readLoop reads datagrams from connection, finds the transaction and
 // sends the bytes to the transaction's response channel.
-func (t *Tracker) readLoop() {
+func (t *tracker) readLoop() {
 	// Read buffer must be big enough to hold a UDP packet of maximum expected size.
 	// Current value is: 320 = 20 + 50*6 (AnnounceResponse with 50 peers)
 	buf := make([]byte, 320)
@@ -122,7 +122,7 @@ func (t *Tracker) readLoop() {
 		}
 		t.log.Debug("Read ", n, " bytes")
 
-		var header TrackerMessageHeader
+		var header trackerMessageHeader
 		if n < binary.Size(header) {
 			t.log.Error("response is too small")
 			continue
@@ -146,7 +146,7 @@ func (t *Tracker) readLoop() {
 		// Tracker has sent and error.
 		if header.Action == Error {
 			// The part after the header is the error message.
-			trx.err = TrackerError(buf[binary.Size(header):])
+			trx.err = trackerError(buf[binary.Size(header):])
 			trx.Done()
 			continue
 		}
@@ -160,7 +160,7 @@ func (t *Tracker) readLoop() {
 
 // writeLoop receives a request from t.transactionC, sets a random TransactionID
 // and sends it to the tracker.
-func (t *Tracker) writeLoop() {
+func (t *tracker) writeLoop() {
 	var connectionID int64
 	var connectionIDtime time.Time
 
@@ -177,12 +177,12 @@ func (t *Tracker) writeLoop() {
 	}
 }
 
-func (t *Tracker) request(req TrackerRequest, cancel <-chan struct{}) ([]byte, error) {
-	action := func(req TrackerRequest) { t.writeC <- req }
+func (t *tracker) request(req trackerRequest, cancel <-chan struct{}) ([]byte, error) {
+	action := func(req trackerRequest) { t.writeC <- req }
 	return t.retry(req, action, cancel)
 }
 
-func (t *Tracker) retry(req TrackerRequest, action func(TrackerRequest), cancel <-chan struct{}) ([]byte, error) {
+func (t *tracker) retry(req trackerRequest, action func(trackerRequest), cancel <-chan struct{}) ([]byte, error) {
 	id := rand.Int31()
 	req.SetTransactionID(id)
 
@@ -191,7 +191,7 @@ func (t *Tracker) retry(req TrackerRequest, action func(TrackerRequest), cancel 
 	t.transactions[id] = trx
 	t.transactionsM.Unlock()
 
-	ticker := backoff.NewTicker(new(TrackerUDPBackOff))
+	ticker := backoff.NewTicker(new(trackerUDPBackOff))
 	for {
 		select {
 		case <-ticker.C:
@@ -204,48 +204,48 @@ func (t *Tracker) retry(req TrackerRequest, action func(TrackerRequest), cancel 
 	}
 }
 
-type TrackerMessage interface {
-	GetAction() Action
-	SetAction(Action)
+type trackerMessage interface {
+	GetAction() trackerAction
+	SetAction(trackerAction)
 	GetTransactionID() int32
 	SetTransactionID(int32)
 }
 
-// TrackerMessageHeader contains the common fields in all TrackerMessage structs.
-type TrackerMessageHeader struct {
-	Action        Action
+// trackerMessageHeader contains the common fields in all trackerMessage structs.
+type trackerMessageHeader struct {
+	Action        trackerAction
 	TransactionID int32
 }
 
-func (h *TrackerMessageHeader) GetAction() Action         { return h.Action }
-func (h *TrackerMessageHeader) SetAction(a Action)        { h.Action = a }
-func (h *TrackerMessageHeader) GetTransactionID() int32   { return h.TransactionID }
-func (h *TrackerMessageHeader) SetTransactionID(id int32) { h.TransactionID = id }
+func (h *trackerMessageHeader) GetAction() trackerAction  { return h.Action }
+func (h *trackerMessageHeader) SetAction(a trackerAction) { h.Action = a }
+func (h *trackerMessageHeader) GetTransactionID() int32   { return h.TransactionID }
+func (h *trackerMessageHeader) SetTransactionID(id int32) { h.TransactionID = id }
 
-type TrackerRequestHeader struct {
+type trackerRequestHeader struct {
 	ConnectionID int64
-	TrackerMessageHeader
+	trackerMessageHeader
 }
 
-type TrackerRequest interface {
-	TrackerMessage
+type trackerRequest interface {
+	trackerMessage
 	GetConnectionID() int64
 	SetConnectionID(int64)
 }
 
-func (h *TrackerRequestHeader) GetConnectionID() int64   { return h.ConnectionID }
-func (h *TrackerRequestHeader) SetConnectionID(id int64) { h.ConnectionID = id }
+func (h *trackerRequestHeader) GetConnectionID() int64   { return h.ConnectionID }
+func (h *trackerRequestHeader) SetConnectionID(id int64) { h.ConnectionID = id }
 
-// Requests can return a response or TrackerError.
-type TrackerError string
+// Requests can return a response or trackerError.
+type trackerError string
 
-func (e TrackerError) Error() string {
+func (e trackerError) Error() string {
 	return string(e)
 }
 
-type TrackerUDPBackOff int
+type trackerUDPBackOff int
 
-func (b *TrackerUDPBackOff) NextBackOff() time.Duration {
+func (b *trackerUDPBackOff) NextBackOff() time.Duration {
 	defer func() { *b++ }()
 	if *b > 8 {
 		*b = 8
@@ -253,4 +253,4 @@ func (b *TrackerUDPBackOff) NextBackOff() time.Duration {
 	return time.Duration(15*(2^*b)) * time.Second
 }
 
-func (b *TrackerUDPBackOff) Reset() { *b = 0 }
+func (b *trackerUDPBackOff) Reset() { *b = 0 }
