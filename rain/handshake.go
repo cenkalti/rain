@@ -105,7 +105,7 @@ func (p *peerConn) sendHandShake(ih infoHash, id peerID) error {
 	var handShake = struct {
 		Pstrlen  byte
 		Pstr     [bitTorrent10pstrLen]byte
-		Reserved [8]byte
+		_        [8]byte
 		InfoHash infoHash
 		PeerID   peerID
 	}{

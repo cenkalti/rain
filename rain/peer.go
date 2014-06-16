@@ -205,9 +205,9 @@ func (p *peerConn) run(t *transfer) {
 
 func (p *peerConn) sendBitField(b bitField) error {
 	var buf bytes.Buffer
-	length := int(1 + b.Len())
-	buf.Grow(length)
-	err := binary.Write(&buf, binary.BigEndian, int32(1+b.Len()))
+	length := int32(1 + len(b.Bytes()))
+	buf.Grow(4 + int(length))
+	err := binary.Write(&buf, binary.BigEndian, length)
 	if err != nil {
 		return err
 	}
@@ -217,6 +217,7 @@ func (p *peerConn) sendBitField(b bitField) error {
 	if _, err = buf.Write(b.Bytes()); err != nil {
 		return err
 	}
+	p.log.Debugf("Sending message: \"bitfield\"")
 	_, err = io.Copy(p.conn, &buf)
 	return err
 }
@@ -243,7 +244,7 @@ func (p *peerConn) sendMessage(msgType byte) error {
 		MessageType byte
 	}{1, msgType}
 	p.log.Debugf("Sending message: %q", peerMessageTypes[msgType])
-	return binary.Write(p.conn, binary.BigEndian, msg)
+	return binary.Write(p.conn, binary.BigEndian, &msg)
 }
 
 type peerRequestMessage struct {
@@ -255,8 +256,13 @@ func newPeerRequestMessage(index, length int32) *peerRequestMessage {
 	return &peerRequestMessage{msgRequest, index, index * blockSize, length}
 }
 
-func (m *peerRequestMessage) send(w io.Writer) error {
-	return binary.Write(w, binary.BigEndian, m)
+func (p *peerConn) sendRequest(m *peerRequestMessage) error {
+	var msg = struct {
+		Length  int32
+		Message peerRequestMessage
+	}{13, *m}
+	p.log.Debugf("Sending message: %q", "request")
+	return binary.Write(p.conn, binary.BigEndian, &msg)
 }
 
 type peerPieceMessage struct {

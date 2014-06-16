@@ -32,14 +32,7 @@ type block struct {
 	data   []byte
 }
 
-func (b *block) requestFrom(p *peerConn) error {
-	p.log.Debugf("Requsting block #%d from peer %s", b.index, p.conn.RemoteAddr())
-	r := newPeerRequestMessage(b.index, b.length)
-	return r.send(p.conn)
-}
-
 func (p *piece) run() {
-	// TODO download blocks
 	for {
 		select {
 		case peer := <-p.haveC:
@@ -57,28 +50,32 @@ func (p *piece) run() {
 			select {
 			case <-unchokeC:
 				for _, b := range p.blocks {
-					if err := b.requestFrom(peer); err != nil {
+					if err := peer.sendRequest(newPeerRequestMessage(b.index, b.length)); err != nil {
 						p.log.Error(err)
 						break
 					}
+					select {
+					case piece := <-p.pieceC:
+						p.log.Noticeln("received piece", len(piece.Block))
+
+						time.Sleep(time.Second)
+						// TODO write block to disk
+					case <-time.After(time.Minute):
+						p.log.Infof("Peer did not send piece #%d block #%d", p.index, b.index)
+					}
 				}
+				// TODO hash check
+
+				// TODO write downloaded piece
+				// _, err := p.write(nil)
+				// if err != nil {
+				// 	panic(err)
+				// }
 			case <-time.After(time.Minute):
 				p.log.Info("Peer did not unchoke")
 			}
-		case piece := <-p.pieceC:
-			p.log.Noticeln("received piece", len(piece.Block))
-			// TODO write block to disk
-			// piece.
 		}
 	}
-
-	// TODO hash check
-
-	// TODO write downloaded piece
-	// _, err := p.write(nil)
-	// if err != nil {
-	// 	panic(err)
-	// }
 }
 
 func (p *piece) Write(b []byte) (n int, err error) {
