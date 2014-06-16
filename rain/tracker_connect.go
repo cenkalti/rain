@@ -20,7 +20,7 @@ type connectResponse struct {
 func (t *tracker) connect() int64 {
 	req := new(connectRequest)
 	req.SetConnectionID(connectionIDMagic)
-	req.SetAction(Connect)
+	req.SetAction(trackerActionConnect)
 
 	write := func(req trackerRequest) {
 		binary.Write(t.conn, binary.BigEndian, req)
@@ -41,7 +41,7 @@ func (t *tracker) connect() int64 {
 			continue
 		}
 
-		if response.Action != Connect {
+		if response.Action != trackerActionConnect {
 			t.log.Error("invalid action in connect response")
 			continue
 		}

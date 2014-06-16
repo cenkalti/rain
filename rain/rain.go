@@ -31,7 +31,7 @@ func New(port int) (*Rain, error) {
 		transfers: make(map[infoHash]*transfer),
 		log:       newLogger("rain"),
 	}
-	if err := r.listenPeerPort(port); err != nil {
+	if err = r.listenPeerPort(port); err != nil {
 		return nil, err
 	}
 	return r, nil

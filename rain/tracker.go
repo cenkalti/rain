@@ -25,18 +25,18 @@ type trackerEvent int32
 
 // Tracker Actions
 const (
-	Connect trackerAction = iota
-	Announce
-	Scrape
-	Error
+	trackerActionConnect trackerAction = iota
+	trackerActionAnnounce
+	trackerActionScrape
+	trackerActionError
 )
 
 // Tracker Announce Events
 const (
-	None trackerEvent = iota
-	Completed
-	Started
-	Stopped
+	trackerEventNone trackerEvent = iota
+	trackerEventCompleted
+	trackerEventStarted
+	trackerEventStopped
 )
 
 type tracker struct {
@@ -144,7 +144,7 @@ func (t *tracker) readLoop() {
 		}
 
 		// Tracker has sent and error.
-		if header.Action == Error {
+		if header.Action == trackerActionError {
 			// The part after the header is the error message.
 			trx.err = trackerError(buf[binary.Size(header):])
 			trx.Done()

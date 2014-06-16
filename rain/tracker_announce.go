@@ -59,14 +59,14 @@ func (t *tracker) announce(d *transfer, cancel <-chan struct{}, event <-chan tra
 	request := &announceRequest{
 		InfoHash:   d.torrentFile.InfoHash,
 		PeerID:     t.peerID,
-		Event:      None,
+		Event:      trackerEventNone,
 		IP:         0, // Tracker uses sender of this UDP packet.
 		Key:        0, // TODO set it
 		NumWant:    numWant,
 		Port:       t.port,
 		Extensions: 0,
 	}
-	request.SetAction(Announce)
+	request.SetAction(trackerActionAnnounce)
 	response := new(announceResponse)
 	var nextAnnounce time.Duration = time.Nanosecond // Start immediately.
 	for {
@@ -125,7 +125,7 @@ func (t *tracker) Load(r *announceResponse, data []byte) error {
 	}
 	t.log.Debugf("r.announceResponseBase: %#v", r.announceResponseBase)
 
-	if r.Action != Announce {
+	if r.Action != trackerActionAnnounce {
 		return errors.New("invalid action")
 	}
 
