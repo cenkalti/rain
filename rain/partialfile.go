@@ -44,7 +44,7 @@ func (f partialFiles) Read(b []byte) (n int, err error) {
 			break
 		}
 		n += m
-		b = b[:m]
+		b = b[m:]
 	}
 	return
 }
@@ -64,7 +64,7 @@ func (f partialFiles) Write(b []byte) (n int, err error) {
 			break
 		}
 		n += m
-		b = b[:m]
+		b = b[m:]
 	}
 	return
 }
