@@ -78,7 +78,7 @@ func newTorrentFile(path string) (*torrentFile, error) {
 	t := new(torrentFile)
 
 	// Unmarshal bencoded bytes into the struct
-	reader.Seek(0, 0)
+	reader.Seek(0, os.SEEK_SET)
 	err = bencode.Unmarshal(reader, t)
 	if err != nil {
 		return nil, err
@@ -115,6 +115,7 @@ func (i *infoDict) HashOfPiece(index int32) [sha1.Size]byte {
 	return hash
 }
 
+// GetFiles returns the files in torrent as a slice, even if there is a single file.
 func (i *infoDict) GetFiles() []fileDict {
 	if i.MultiFile() {
 		return i.Files
@@ -123,6 +124,7 @@ func (i *infoDict) GetFiles() []fileDict {
 	}
 }
 
+// MultiFile returns true if the torrent contains more than one file.
 func (i *infoDict) MultiFile() bool {
 	return len(i.Files) != 0
 }

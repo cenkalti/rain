@@ -11,8 +11,8 @@ import (
 type piece struct {
 	index      int32 // piece index in whole torrent
 	sha1       [sha1.Size]byte
-	length     int32          // last piece may not be complete
-	targets    []*writeTarget // the place to write downloaded bytes
+	length     int32         // last piece may not be complete
+	targets    []*fileTarget // the place to write downloaded bytes
 	blocks     []*block
 	bitField   bitField // blocks we have
 	haveC      chan *peerConn
@@ -21,16 +21,17 @@ type piece struct {
 	log        logger
 }
 
-type writeTarget struct {
+type fileTarget struct {
 	file   *os.File
 	offset int64
 	length int32
 }
 
 type block struct {
-	index  int32 // block index in piece
-	length int32
-	data   []byte
+	index   int32 // block index in piece
+	length  int32
+	data    []byte
+	targets []*fileTarget // the place to write downloaded bytes
 }
 
 func (p *piece) run() {

@@ -22,17 +22,17 @@ func newTransfer(tor *torrentFile, where string) (*transfer, error) {
 	if err != nil {
 		return nil, err
 	}
+	pieces := newPieces(&tor.Info, files)
 	name := tor.Info.Name
 	if len(name) > 8 {
 		name = name[:8]
 	}
-	t := &transfer{
+	return &transfer{
 		torrentFile: tor,
-		pieces:      newPieces(&tor.Info, files),
-		bitField:    newBitField(nil, tor.Info.NumPieces),
+		pieces:      pieces,
+		bitField:    newBitField(nil, int32(len(pieces))),
 		log:         newLogger("download " + name),
-	}
-	return t, nil
+	}, nil
 }
 
 func newPieces(info *infoDict, files []*os.File) []*piece {
@@ -49,6 +49,7 @@ func newPieces(info *infoDict, files []*os.File) []*piece {
 		fileEnd += fileLength
 		fileOffset = 0
 	}
+	fileLeft := func() int64 { return fileLength - fileOffset }
 
 	// Construct pieces
 	var total int64
@@ -63,13 +64,13 @@ func newPieces(info *infoDict, files []*os.File) []*piece {
 		}
 
 		// Construct p.targets
-		var pieceOffset int32 = 0
-		fileLeft := func() int64 { return fileLength - fileOffset }
+		var pieceOffset int32
 		pieceLeft := func() int32 { return info.PieceLength - pieceOffset }
 		for left := pieceLeft(); left > 0; nextFile() {
 			n := int32(minInt64(int64(left), fileLeft())) // number of bytes to write
 
-			target := &writeTarget{files[fileIndex], fileOffset, n}
+			target := &fileTarget{files[fileIndex], fileOffset, n}
+			p.log.Debugf("target: %#v", target)
 			p.targets = append(p.targets, target)
 
 			left -= n
@@ -82,14 +83,15 @@ func newPieces(info *infoDict, files []*os.File) []*piece {
 				break
 			}
 		}
-		p.blocks = newBlocks(p.length)
+
+		p.blocks = newBlocks(p.length, p.targets)
 		p.bitField = newBitField(nil, int32(len(p.blocks)))
 		pieces[i] = p
 	}
 	return pieces
 }
 
-func newBlocks(pieceLength int32) []*block {
+func newBlocks(pieceLength int32, targets []*fileTarget) []*block {
 	div, mod := divMod32(pieceLength, blockSize)
 	numBlocks := div
 	if mod != 0 {
@@ -106,6 +108,25 @@ func newBlocks(pieceLength int32) []*block {
 		blocks[numBlocks-1] = &block{
 			index:  numBlocks - 1,
 			length: int32(mod),
+		}
+	}
+	var targetIndex int
+	var targetOffset int32
+	nextTarget := func() {
+		targetIndex++
+		targetOffset = 0
+	}
+	targetLeft := func() int32 { return targets[targetIndex].length - targetOffset }
+	for _, b := range blocks {
+		var blockOffset int32 = 0
+		blockLeft := func() int32 { return b.length - blockOffset }
+		for left := blockLeft(); left > 0 && targetIndex < len(targets); nextTarget() {
+			n := minInt32(left, targetLeft())
+			target := &fileTarget{targets[targetIndex].file, targets[targetIndex].offset + int64(targetOffset), n}
+			b.targets = append(b.targets, target)
+			targetOffset += n
+			blockOffset += n
+			left -= n
 		}
 	}
 	return blocks
@@ -162,6 +183,13 @@ func createTruncateSync(path string, length int64) (*os.File, error) {
 }
 
 func minInt64(a, b int64) int64 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func minInt32(a, b int32) int32 {
 	if a < b {
 		return a
 	}
