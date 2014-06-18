@@ -30,35 +30,37 @@ func newTransfer(tor *torrentFile, where string) (*transfer, error) {
 	t := &transfer{
 		torrentFile: tor,
 		files:       files,
-		pieces:      newPieces(tor, files),
-		bitField:    newBitField(nil, tor.NumPieces),
+		pieces:      newPieces(&tor.Info, files),
+		bitField:    newBitField(nil, tor.Info.NumPieces),
 		log:         newLogger("download " + name),
 	}
 	return t, nil
 }
 
-func newPieces(tor *torrentFile, files []*os.File) []*piece {
+func newPieces(info *infoDict, files []*os.File) []*piece {
+	infoFiles := info.GetFiles()
+
 	var (
 		fileIndex  int   // index of the current file in torrent
-		fileLength int64 = tor.Info.GetFiles()[0].Length
+		fileLength int64 = infoFiles[0].Length
 		fileEnd    int64 = fileLength // absolute position of end of the file among all pieces
 		fileOffset int64              // offset in file: [0, fileLength)
 	)
 
 	nextFile := func() {
 		fileIndex++
-		fileLength = tor.Info.GetFiles()[fileIndex].Length
+		fileLength = infoFiles[fileIndex].Length
 		fileEnd += fileLength
 		fileOffset = 0
 	}
 
 	// Construct pieces
 	var total int64
-	pieces := make([]*piece, tor.NumPieces)
-	for i := int32(0); i < tor.NumPieces; i++ {
+	pieces := make([]*piece, info.NumPieces)
+	for i := int32(0); i < info.NumPieces; i++ {
 		p := &piece{
 			index:  i,
-			sha1:   tor.HashOfPiece(i),
+			sha1:   info.HashOfPiece(i),
 			haveC:  make(chan *peerConn),
 			pieceC: make(chan *peerPieceMessage),
 			log:    newLogger("piece #" + strconv.Itoa(int(i))),
@@ -67,7 +69,7 @@ func newPieces(tor *torrentFile, files []*os.File) []*piece {
 		// Construct p.targets
 		var pieceOffset int32 = 0
 		fileLeft := func() int64 { return fileLength - fileOffset }
-		pieceLeft := func() int32 { return tor.Info.PieceLength - pieceOffset }
+		pieceLeft := func() int32 { return info.PieceLength - pieceOffset }
 		for left := pieceLeft(); left > 0; nextFile() {
 			n := int32(minInt64(int64(left), fileLeft())) // number of bytes to write
 
@@ -80,7 +82,7 @@ func newPieces(tor *torrentFile, files []*os.File) []*piece {
 			fileOffset += int64(n)
 			total += int64(n)
 
-			if total == tor.TotalLength {
+			if total == info.TotalLength {
 				break
 			}
 		}
@@ -113,7 +115,7 @@ func newPieces(tor *torrentFile, files []*os.File) []*piece {
 
 func (t *transfer) Left() int64 {
 	// TODO return correct "left bytes"
-	return t.torrentFile.TotalLength - t.Downloaded
+	return t.torrentFile.Info.TotalLength - t.Downloaded
 }
 
 func allocate(info *infoDict, where string) ([]*os.File, error) {

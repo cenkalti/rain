@@ -18,12 +18,6 @@ type torrentFile struct {
 	Comment      string     `bencode:"comment"`
 	CreatedBy    string     `bencode:"created by"`
 	Encoding     string     `bencode:"encoding"`
-
-	// These fields do not exist in torrent file.
-	// They are calculated when a torrentFile is created with NewtorrentFile func.
-	InfoHash    infoHash
-	TotalLength int64
-	NumPieces   int32
 }
 
 type infoHash [sha1.Size]byte
@@ -38,6 +32,12 @@ type infoDict struct {
 	Md5sum string `bencode:"md5sum"`
 	// Multiple File mode
 	Files []fileDict `bencode:"files"`
+
+	// These fields do not exist in torrent file.
+	// They are calculated when a torrentFile is created with NewtorrentFile func.
+	Hash        infoHash
+	TotalLength int64
+	NumPieces   int32
 }
 
 type fileDict struct {
@@ -87,31 +87,31 @@ func newTorrentFile(path string) (*torrentFile, error) {
 	// Calculate InfoHash
 	hash := sha1.New()
 	bencode.Marshal(hash, infoMap)
-	copy(t.InfoHash[:], hash.Sum(nil))
+	copy(t.Info.Hash[:], hash.Sum(nil))
 
 	// Calculate TotalLength
 	if !t.Info.MultiFile() {
-		t.TotalLength = t.Info.Length
+		t.Info.TotalLength = t.Info.Length
 	} else {
 		for _, f := range t.Info.Files {
-			t.TotalLength += f.Length
+			t.Info.TotalLength += f.Length
 		}
 	}
 
 	// Calculate NumPieces
-	t.NumPieces = int32(len(t.Info.Pieces)) / sha1.Size
+	t.Info.NumPieces = int32(len(t.Info.Pieces)) / sha1.Size
 
 	return t, nil
 }
 
-func (t *torrentFile) HashOfPiece(i int32) [sha1.Size]byte {
-	if i < 0 || i >= t.NumPieces {
+func (i *infoDict) HashOfPiece(index int32) [sha1.Size]byte {
+	if index < 0 || index >= i.NumPieces {
 		panic("piece index out of range")
 	}
 	var hash [sha1.Size]byte
-	start := i * sha1.Size
+	start := index * sha1.Size
 	end := start + sha1.Size
-	copy(hash[:], []byte(t.Info.Pieces[start:end]))
+	copy(hash[:], []byte(i.Pieces[start:end]))
 	return hash
 }
 

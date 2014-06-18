@@ -143,7 +143,7 @@ func (r *Rain) connectToPeerAndServeDownload(addr *net.TCPAddr, t *transfer) {
 		return
 	}
 
-	err = p.sendHandShake(t.torrentFile.InfoHash, r.peerID)
+	err = p.sendHandShake(t.torrentFile.Info.Hash, r.peerID)
 	if err != nil {
 		p.log.Error(err)
 		return
@@ -154,7 +154,7 @@ func (r *Rain) connectToPeerAndServeDownload(addr *net.TCPAddr, t *transfer) {
 		p.log.Error(err)
 		return
 	}
-	if *ih != t.torrentFile.InfoHash {
+	if *ih != t.torrentFile.Info.Hash {
 		p.log.Error("unexpected info_hash")
 		return
 	}
@@ -182,7 +182,7 @@ func (r *Rain) Download(torrentPath, where string) error {
 		r.transfersM.Unlock()
 		return err
 	}
-	r.transfers[torrent.InfoHash] = t
+	r.transfers[torrent.Info.Hash] = t
 	r.transfersM.Unlock()
 
 	return r.run(t)
