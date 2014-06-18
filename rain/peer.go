@@ -85,7 +85,6 @@ func (p *peerConn) run(t *transfer) {
 	}
 
 	first := true
-	buf := make([]byte, blockSize)
 	for {
 		err = p.conn.SetReadDeadline(time.Now().Add(connReadTimeout))
 		if err != nil {
@@ -151,7 +150,7 @@ func (p *peerConn) run(t *transfer) {
 				return
 			}
 
-			_, err = io.LimitReader(p.conn, int64(length)).Read(buf)
+			_, err = p.conn.Read(bitField.Bytes())
 			if err != nil {
 				p.log.Error(err)
 				return

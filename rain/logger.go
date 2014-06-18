@@ -11,6 +11,7 @@ import (
 
 type logger log.Logger
 
+// If you want to change the logging level, you must do it before calling New.
 var LogLevel = log.INFO
 
 func newLogger(name string) logger {
