@@ -9,7 +9,6 @@ import (
 // transfer represents an active transfer in the program.
 type transfer struct {
 	torrentFile *torrentFile
-	files       []*os.File
 	pieces      []*piece
 	bitField    bitField // pieces we have
 	// Stats
@@ -29,7 +28,6 @@ func newTransfer(tor *torrentFile, where string) (*transfer, error) {
 	}
 	t := &transfer{
 		torrentFile: tor,
-		files:       files,
 		pieces:      newPieces(&tor.Info, files),
 		bitField:    newBitField(nil, tor.Info.NumPieces),
 		log:         newLogger("download " + name),
