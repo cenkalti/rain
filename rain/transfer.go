@@ -38,18 +38,16 @@ func newTransfer(tor *torrentFile, where string) (*transfer, error) {
 }
 
 func newPieces(info *infoDict, files []*os.File) []*piece {
-	infoFiles := info.GetFiles()
-
 	var (
 		fileIndex  int   // index of the current file in torrent
-		fileLength int64 = infoFiles[0].Length
+		fileLength int64 = info.GetFiles()[0].Length
 		fileEnd    int64 = fileLength // absolute position of end of the file among all pieces
 		fileOffset int64              // offset in file: [0, fileLength)
 	)
 
 	nextFile := func() {
 		fileIndex++
-		fileLength = infoFiles[fileIndex].Length
+		fileLength = info.GetFiles()[fileIndex].Length
 		fileEnd += fileLength
 		fileOffset = 0
 	}
@@ -86,31 +84,33 @@ func newPieces(info *infoDict, files []*os.File) []*piece {
 				break
 			}
 		}
-
-		// Construct p.blocks
-		div, mod := divMod32(p.length, blockSize)
-		numBlocks := div
-		if mod != 0 {
-			numBlocks++
-		}
-		p.bitField = newBitField(nil, numBlocks)
-		p.blocks = make([]*block, numBlocks)
-		for j := int32(0); j < div; j++ {
-			p.blocks[j] = &block{
-				index:  j,
-				length: blockSize,
-			}
-		}
-		if mod != 0 {
-			p.blocks[numBlocks-1] = &block{
-				index:  numBlocks - 1,
-				length: int32(mod),
-			}
-		}
-
+		p.blocks = newBlocks(p.length)
+		p.bitField = newBitField(nil, int32(len(p.blocks)))
 		pieces[i] = p
 	}
 	return pieces
+}
+
+func newBlocks(pieceLength int32) []*block {
+	div, mod := divMod32(pieceLength, blockSize)
+	numBlocks := div
+	if mod != 0 {
+		numBlocks++
+	}
+	blocks := make([]*block, numBlocks)
+	for j := int32(0); j < div; j++ {
+		blocks[j] = &block{
+			index:  j,
+			length: blockSize,
+		}
+	}
+	if mod != 0 {
+		blocks[numBlocks-1] = &block{
+			index:  numBlocks - 1,
+			length: int32(mod),
+		}
+	}
+	return blocks
 }
 
 func (t *transfer) Left() int64 {
