@@ -35,7 +35,7 @@ func newTransfer(tor *torrentFile, where string) (*transfer, error) {
 	}, nil
 }
 
-func newPieces(info *infoDict, files []*os.File) []*piece {
+func newPieces(info *infoDict, osFiles []*os.File) []*piece {
 	var (
 		fileIndex  int   // index of the current file in torrent
 		fileLength int64 = info.GetFiles()[0].Length
@@ -63,15 +63,15 @@ func newPieces(info *infoDict, files []*os.File) []*piece {
 			log:    newLogger("piece #" + strconv.Itoa(int(i))),
 		}
 
-		// Construct p.targets
+		// Construct p.files
 		var pieceOffset int32
 		pieceLeft := func() int32 { return info.PieceLength - pieceOffset }
 		for left := pieceLeft(); left > 0; nextFile() {
 			n := int32(minInt64(int64(left), fileLeft())) // number of bytes to write
 
-			target := &fileTarget{files[fileIndex], fileOffset, n}
-			p.log.Debugf("target: %#v", target)
-			p.targets = append(p.targets, target)
+			file := partialFile{osFiles[fileIndex], fileOffset, n}
+			p.log.Debugf("file: %#v", file)
+			p.files = append(p.files, file)
 
 			left -= n
 			p.length += n
@@ -84,47 +84,47 @@ func newPieces(info *infoDict, files []*os.File) []*piece {
 			}
 		}
 
-		p.blocks = newBlocks(p.length, p.targets)
+		p.blocks = newBlocks(p.length, p.files)
 		p.bitField = newBitField(nil, int32(len(p.blocks)))
 		pieces[i] = p
 	}
 	return pieces
 }
 
-func newBlocks(pieceLength int32, targets []*fileTarget) []*block {
+func newBlocks(pieceLength int32, files []partialFile) []block {
 	div, mod := divMod32(pieceLength, blockSize)
 	numBlocks := div
 	if mod != 0 {
 		numBlocks++
 	}
-	blocks := make([]*block, numBlocks)
+	blocks := make([]block, numBlocks)
 	for j := int32(0); j < div; j++ {
-		blocks[j] = &block{
+		blocks[j] = block{
 			index:  j,
 			length: blockSize,
 		}
 	}
 	if mod != 0 {
-		blocks[numBlocks-1] = &block{
+		blocks[numBlocks-1] = block{
 			index:  numBlocks - 1,
 			length: int32(mod),
 		}
 	}
-	var targetIndex int
-	var targetOffset int32
+	var fileIndex int
+	var fileOffset int32
 	nextTarget := func() {
-		targetIndex++
-		targetOffset = 0
+		fileIndex++
+		fileOffset = 0
 	}
-	targetLeft := func() int32 { return targets[targetIndex].length - targetOffset }
+	fileLeft := func() int32 { return files[fileIndex].length - fileOffset }
 	for _, b := range blocks {
 		var blockOffset int32 = 0
 		blockLeft := func() int32 { return b.length - blockOffset }
-		for left := blockLeft(); left > 0 && targetIndex < len(targets); nextTarget() {
-			n := minInt32(left, targetLeft())
-			target := &fileTarget{targets[targetIndex].file, targets[targetIndex].offset + int64(targetOffset), n}
-			b.targets = append(b.targets, target)
-			targetOffset += n
+		for left := blockLeft(); left > 0 && fileIndex < len(files); nextTarget() {
+			n := minInt32(left, fileLeft())
+			file := partialFile{files[fileIndex].file, files[fileIndex].offset + int64(fileOffset), n}
+			b.files = append(b.files, file)
+			fileOffset += n
 			blockOffset += n
 			left -= n
 		}

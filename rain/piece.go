@@ -4,34 +4,20 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"errors"
-	"os"
 	"time"
 )
 
 type piece struct {
 	index      int32 // piece index in whole torrent
 	sha1       [sha1.Size]byte
-	length     int32         // last piece may not be complete
-	targets    []*fileTarget // the place to write downloaded bytes
-	blocks     []*block
+	length     int32        // last piece may not be complete
+	files      partialFiles // the place to write downloaded bytes
+	blocks     []block
 	bitField   bitField // blocks we have
 	haveC      chan *peerConn
 	pieceC     chan *peerPieceMessage
 	downloaded bool
 	log        logger
-}
-
-type fileTarget struct {
-	file   *os.File
-	offset int64
-	length int32
-}
-
-type block struct {
-	index   int32 // block index in piece
-	length  int32
-	data    []byte
-	targets []*fileTarget // the place to write downloaded bytes
 }
 
 func (p *piece) run() {
@@ -94,7 +80,7 @@ func (p *piece) Write(b []byte) (n int, err error) {
 		return
 	}
 	var m int
-	for _, t := range p.targets {
+	for _, t := range p.files {
 		m, err = t.file.WriteAt(b[n:t.length], t.offset)
 		n += m
 		if err != nil {
