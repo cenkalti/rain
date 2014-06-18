@@ -48,3 +48,23 @@ func (f partialFiles) Read(b []byte) (n int, err error) {
 	}
 	return
 }
+
+func (f partialFiles) Write(b []byte) (n int, err error) {
+	var total int32
+	for _, p := range f {
+		total += p.length
+	}
+	if len(b) != int(total) {
+		return 0, errInvalidLength
+	}
+	for _, p := range f {
+		m, e := p.Write(b[:p.length])
+		if e != nil {
+			err = e
+			break
+		}
+		n += m
+		b = b[:m]
+	}
+	return
+}

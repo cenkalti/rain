@@ -112,18 +112,18 @@ func newBlocks(pieceLength int32, files []partialFile) []block {
 	}
 	var fileIndex int
 	var fileOffset int32
-	nextTarget := func() {
+	nextPartialFile := func() {
 		fileIndex++
 		fileOffset = 0
 	}
 	fileLeft := func() int32 { return files[fileIndex].length - fileOffset }
-	for _, b := range blocks {
+	for i := range blocks {
 		var blockOffset int32 = 0
-		blockLeft := func() int32 { return b.length - blockOffset }
-		for left := blockLeft(); left > 0 && fileIndex < len(files); nextTarget() {
+		blockLeft := func() int32 { return blocks[i].length - blockOffset }
+		for left := blockLeft(); left > 0 && fileIndex < len(files); nextPartialFile() {
 			n := minInt32(left, fileLeft())
 			file := partialFile{files[fileIndex].file, files[fileIndex].offset + int64(fileOffset), n}
-			b.files = append(b.files, file)
+			blocks[i].files = append(blocks[i].files, file)
 			fileOffset += n
 			blockOffset += n
 			left -= n
