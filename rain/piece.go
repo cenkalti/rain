@@ -3,7 +3,6 @@ package rain
 import (
 	"bytes"
 	"crypto/sha1"
-	"errors"
 	"time"
 )
 
@@ -77,20 +76,4 @@ func (p *piece) run() {
 			}
 		}
 	}
-}
-
-func (p *piece) Write(b []byte) (n int, err error) {
-	if int32(len(b)) != p.length {
-		err = errors.New("invalid piece length")
-		return
-	}
-	var m int
-	for _, t := range p.files {
-		m, err = t.file.WriteAt(b[n:t.length], t.offset)
-		n += m
-		if err != nil {
-			return
-		}
-	}
-	return
 }
