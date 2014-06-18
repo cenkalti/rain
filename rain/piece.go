@@ -50,7 +50,7 @@ func (p *piece) run() {
 					}
 					select {
 					case piece := <-p.pieceC:
-						p.log.Noticeln("received piece of length", len(piece.Block))
+						peer.log.Noticeln("received block of length", len(piece.Block))
 						copy(pieceData[piece.Begin:], piece.Block)
 						if _, err = b.files.Write(piece.Block); err != nil {
 							p.log.Error(err)
