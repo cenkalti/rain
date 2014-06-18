@@ -66,7 +66,7 @@ func newPieces(info *infoDict, osFiles []*os.File) []*piece {
 		// Construct p.files
 		var pieceOffset int32
 		pieceLeft := func() int32 { return info.PieceLength - pieceOffset }
-		for left := pieceLeft(); left > 0; nextFile() {
+		for left := pieceLeft(); left > 0; {
 			n := int32(minInt64(int64(left), fileLeft())) // number of bytes to write
 
 			file := partialFile{osFiles[fileIndex], fileOffset, n}
@@ -81,6 +81,9 @@ func newPieces(info *infoDict, osFiles []*os.File) []*piece {
 
 			if total == info.TotalLength {
 				break
+			}
+			if fileLeft() == 0 {
+				nextFile()
 			}
 		}
 
@@ -112,7 +115,7 @@ func newBlocks(pieceLength int32, files []partialFile) []block {
 	}
 	var fileIndex int
 	var fileOffset int32
-	nextPartialFile := func() {
+	nextFile := func() {
 		fileIndex++
 		fileOffset = 0
 	}
@@ -120,13 +123,16 @@ func newBlocks(pieceLength int32, files []partialFile) []block {
 	for i := range blocks {
 		var blockOffset int32 = 0
 		blockLeft := func() int32 { return blocks[i].length - blockOffset }
-		for left := blockLeft(); left > 0 && fileIndex < len(files); nextPartialFile() {
+		for left := blockLeft(); left > 0 && fileIndex < len(files); {
 			n := minInt32(left, fileLeft())
 			file := partialFile{files[fileIndex].file, files[fileIndex].offset + int64(fileOffset), n}
 			blocks[i].files = append(blocks[i].files, file)
 			fileOffset += n
 			blockOffset += n
 			left -= n
+			if fileLeft() == 0 {
+				nextFile()
+			}
 		}
 	}
 	return blocks
