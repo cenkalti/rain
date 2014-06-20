@@ -1,23 +1,29 @@
 package rain
 
 import (
+	"math/rand"
+	"net"
 	"os"
 	"path/filepath"
-	"strconv"
+	"time"
 )
 
 // transfer represents an active transfer in the program.
 type transfer struct {
+	rain        *Rain
+	tracker     *tracker
 	torrentFile *torrentFile
 	pieces      []*piece
-	bitField    bitField // pieces we have
-	// Stats
-	Downloaded int64
-	Uploaded   int64
-	log        logger
+	bitField    bitField // pieces that we have
+	requestC    chan *piece
+	log         logger
 }
 
-func newTransfer(tor *torrentFile, where string) (*transfer, error) {
+func (r *Rain) newTransfer(tor *torrentFile, where string) (*transfer, error) {
+	tracker, err := newTracker(tor.Announce, r.peerID, r.port())
+	if err != nil {
+		return nil, err
+	}
 	files, err := allocate(&tor.Info, where)
 	if err != nil {
 		return nil, err
@@ -28,119 +34,125 @@ func newTransfer(tor *torrentFile, where string) (*transfer, error) {
 		name = name[:8]
 	}
 	return &transfer{
+		rain:        r,
+		tracker:     tracker,
 		torrentFile: tor,
 		pieces:      pieces,
 		bitField:    newBitField(nil, int32(len(pieces))),
+		requestC:    make(chan *piece),
 		log:         newLogger("download " + name),
 	}, nil
 }
 
-func newPieces(info *infoDict, osFiles []*os.File) []*piece {
-	var (
-		fileIndex  int   // index of the current file in torrent
-		fileLength int64 = info.GetFiles()[0].Length
-		fileEnd    int64 = fileLength // absolute position of end of the file among all pieces
-		fileOffset int64              // offset in file: [0, fileLength)
-	)
+func (t *transfer) Downloaded() int64 { return 0 } // TODO
+func (t *transfer) Uploaded() int64   { return 0 } // TODO
+func (t *transfer) Left() int64       { return t.torrentFile.Info.TotalLength - t.Downloaded() }
 
-	nextFile := func() {
-		fileIndex++
-		fileLength = info.GetFiles()[fileIndex].Length
-		fileEnd += fileLength
-		fileOffset = 0
-	}
-	fileLeft := func() int64 { return fileLength - fileOffset }
+// pieceManager decides which piece should we download.
+func (t *transfer) pieceManager() {
+	// Request pieces in random order.
+	for _, v := range rand.Perm(len(t.pieces)) {
+		piece := t.pieces[v]
 
-	// Construct pieces
-	var total int64
-	pieces := make([]*piece, info.NumPieces)
-	for i := int32(0); i < info.NumPieces; i++ {
-		p := &piece{
-			index:  i,
-			sha1:   info.HashOfPiece(i),
-			haveC:  make(chan *peerConn),
-			pieceC: make(chan *peerPieceMessage),
-			log:    newLogger("piece #" + strconv.Itoa(int(i))),
+		// Skip downloaded pieces.
+		select {
+		case <-piece.downloaded:
+			continue
+		default:
 		}
 
-		// Construct p.files
-		var pieceOffset int32
-		pieceLeft := func() int32 { return info.PieceLength - pieceOffset }
-		for left := pieceLeft(); left > 0; {
-			n := int32(minInt64(int64(left), fileLeft())) // number of bytes to write
+		// Send a request to peerManager.
+		// TODO limit max simultaneous piece request.
+		t.requestC <- piece
 
-			file := partialFile{osFiles[fileIndex], fileOffset, n}
-			p.log.Debugf("file: %#v", file)
-			p.files = append(p.files, file)
-
-			left -= n
-			p.length += n
-			pieceOffset += n
-			fileOffset += int64(n)
-			total += int64(n)
-
-			if total == info.TotalLength {
-				break
-			}
-			if fileLeft() == 0 {
-				nextFile()
-			}
+		// If the piece is not downloaded in a minute, start downloading next piece.
+		select {
+		case <-piece.downloaded:
+			piece.log.Debug("downloaded successfully")
+		case <-time.After(time.Minute):
+			continue
 		}
-
-		p.blocks = newBlocks(p.length, p.files)
-		p.bitField = newBitField(nil, int32(len(p.blocks)))
-		pieces[i] = p
 	}
-	return pieces
 }
 
-func newBlocks(pieceLength int32, files []partialFile) []block {
-	div, mod := divMod32(pieceLength, blockSize)
-	numBlocks := div
-	if mod != 0 {
-		numBlocks++
+// peerManager decides which peer should we download from.
+func (t *transfer) peerManager() {
+	for piece := range t.requestC {
+		// Pick any connected peer randomly.
+		peer := piece.peers[rand.Intn(len(piece.peers))]
+		go peer.downloadPiece(piece) // TODO handle returned error
 	}
-	blocks := make([]block, numBlocks)
-	for j := int32(0); j < div; j++ {
-		blocks[j] = block{
-			index:  j,
-			length: blockSize,
-		}
+}
+
+func (t *transfer) run() {
+	err := t.tracker.Dial()
+	if err != nil {
+		// TODO retry connecting to tracker
+		t.log.Fatal(err)
 	}
-	if mod != 0 {
-		blocks[numBlocks-1] = block{
-			index:  numBlocks - 1,
-			length: int32(mod),
-		}
+
+	announceC := make(chan *announceResponse)
+	go t.tracker.announce(t, nil, nil, announceC)
+	go t.pieceManager()
+	go t.peerManager()
+	for _, p := range t.pieces {
+		go p.run()
 	}
-	var fileIndex int
-	var fileOffset int32
-	nextFile := func() {
-		fileIndex++
-		fileOffset = 0
-	}
-	fileLeft := func() int32 { return files[fileIndex].length - fileOffset }
-	for i := range blocks {
-		var blockOffset int32 = 0
-		blockLeft := func() int32 { return blocks[i].length - blockOffset }
-		for left := blockLeft(); left > 0 && fileIndex < len(files); {
-			n := minInt32(left, fileLeft())
-			file := partialFile{files[fileIndex].file, files[fileIndex].offset + int64(fileOffset), n}
-			blocks[i].files = append(blocks[i].files, file)
-			fileOffset += n
-			blockOffset += n
-			left -= n
-			if fileLeft() == 0 {
-				nextFile()
+
+	for {
+		select {
+		case resp := <-announceC:
+			t.tracker.log.Debugf("Announce response: %#v", resp)
+			for _, p := range resp.Peers {
+				t.tracker.log.Debug("Peer:", p.TCPAddr())
+				go t.connectToPeer(p.TCPAddr())
 			}
 		}
 	}
-	return blocks
 }
 
-func (t *transfer) Left() int64 {
-	// TODO return correct "left bytes"
-	return t.torrentFile.Info.TotalLength - t.Downloaded
+func (t *transfer) connectToPeer(addr *net.TCPAddr) {
+	t.log.Debugln("Connecting to peer", addr)
+
+	conn, err := net.DialTCP("tcp4", nil, addr)
+	if err != nil {
+		t.log.Error(err)
+		return
+	}
+	defer conn.Close()
+
+	p := newPeerConn(conn)
+	p.log.Infoln("Connected to peer")
+
+	// Give a minute for completing handshake.
+	err = conn.SetDeadline(time.Now().Add(time.Minute))
+	if err != nil {
+		return
+	}
+
+	err = p.sendHandShake(t.torrentFile.Info.Hash, t.rain.peerID)
+	if err != nil {
+		p.log.Error(err)
+		return
+	}
+
+	ih, id, err := p.readHandShakeBlocking()
+	if err != nil {
+		p.log.Error(err)
+		return
+	}
+	if *ih != t.torrentFile.Info.Hash {
+		p.log.Error("unexpected info_hash")
+		return
+	}
+	if *id == t.rain.peerID {
+		p.log.Debug("Rejected own connection: client")
+		return
+	}
+
+	p.log.Debugln("connectToPeer: Handshake completed", conn.RemoteAddr())
+	pc := newPeerConn(conn)
+	pc.run(t)
 }
 
 func allocate(info *infoDict, where string) ([]*os.File, error) {

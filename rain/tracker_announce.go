@@ -107,8 +107,8 @@ func (t *tracker) announce(d *transfer, cancel <-chan struct{}, event <-chan tra
 }
 
 func (r *announceRequest) update(d *transfer) {
-	r.Downloaded = d.Downloaded
-	r.Uploaded = d.Uploaded
+	r.Downloaded = d.Downloaded()
+	r.Uploaded = d.Uploaded()
 	r.Left = d.Left()
 }
 

@@ -7,6 +7,15 @@ import (
 	"time"
 )
 
+// Limits
+var (
+	peerLimitGlobal     = make(chan struct{}, 200)
+	peerLimitPerTorrent = make(chan struct{}, 50)
+)
+
+// http://www.bittorrent.org/beps/bep_0020.html
+var peerIDPrefix = []byte("-RN0001-")
+
 type Rain struct {
 	peerID     peerID
 	listener   *net.TCPListener
@@ -14,9 +23,6 @@ type Rain struct {
 	transfersM sync.Mutex
 	log        logger
 }
-
-// http://www.bittorrent.org/beps/bep_0020.html
-var peerIDPrefix = []byte("-RN0001-")
 
 type peerID [20]byte
 
@@ -68,6 +74,8 @@ func (r *Rain) accepter() {
 		go r.servePeerConn(p)
 	}
 }
+
+func (r *Rain) port() uint16 { return uint16(r.listener.Addr().(*net.TCPAddr).Port) }
 
 func (r *Rain) servePeerConn(p *peerConn) {
 	defer p.conn.Close()
@@ -124,50 +132,6 @@ func (r *Rain) servePeerConn(p *peerConn) {
 	p.run(t)
 }
 
-func (r *Rain) connectToPeerAndServeDownload(addr *net.TCPAddr, t *transfer) {
-	r.log.Debugln("Connecting to peer", addr)
-
-	conn, err := net.DialTCP("tcp4", nil, addr)
-	if err != nil {
-		r.log.Error(err)
-		return
-	}
-	defer conn.Close()
-
-	p := newPeerConn(conn)
-	p.log.Infoln("Connected to peer", conn.RemoteAddr())
-
-	// Give a minute for completing handshake.
-	err = conn.SetDeadline(time.Now().Add(time.Minute))
-	if err != nil {
-		return
-	}
-
-	err = p.sendHandShake(t.torrentFile.Info.Hash, r.peerID)
-	if err != nil {
-		p.log.Error(err)
-		return
-	}
-
-	ih, id, err := p.readHandShakeBlocking()
-	if err != nil {
-		p.log.Error(err)
-		return
-	}
-	if *ih != t.torrentFile.Info.Hash {
-		p.log.Error("unexpected info_hash")
-		return
-	}
-	if *id == r.peerID {
-		p.log.Debug("Rejected own connection: client")
-		return
-	}
-
-	p.log.Debugln("connectToPeer: Handshake completed", conn.RemoteAddr())
-	pc := newPeerConn(conn)
-	pc.run(t)
-}
-
 // Download starts a download and waits for it to finish.
 func (r *Rain) Download(torrentPath, where string) error {
 	torrent, err := newTorrentFile(torrentPath)
@@ -176,50 +140,20 @@ func (r *Rain) Download(torrentPath, where string) error {
 	}
 	r.log.Debugf("Parsed torrent file: %#v", torrent)
 
-	r.transfersM.Lock()
-	t, err := newTransfer(torrent, where)
+	t, err := r.newTransfer(torrent, where)
 	if err != nil {
-		r.transfersM.Unlock()
 		return err
 	}
+
+	r.transfersM.Lock()
 	r.transfers[torrent.Info.Hash] = t
 	r.transfersM.Unlock()
 
-	return r.run(t)
+	// TODO wait for finish signal
+	t.run()
+	return nil
 }
 
-func (r *Rain) run(t *transfer) error {
-	tracker, err := newTracker(t.torrentFile.Announce, r.peerID, uint16(r.listener.Addr().(*net.TCPAddr).Port))
-	if err != nil {
-		return err
-	}
-
-	go r.announcer(tracker, t)
-
-	for _, p := range t.pieces {
-		go p.run()
-	}
-
-	select {}
-}
-
-func (r *Rain) announcer(tracker *tracker, t *transfer) {
-	err := tracker.Dial()
-	if err != nil {
-		t.log.Fatal(err)
-	}
-
-	responseC := make(chan *announceResponse)
-	go tracker.announce(t, nil, nil, responseC)
-
-	for {
-		select {
-		case resp := <-responseC:
-			tracker.log.Debugf("Announce response: %#v", resp)
-			for _, p := range resp.Peers {
-				tracker.log.Debug("Peer:", p.TCPAddr())
-				go r.connectToPeerAndServeDownload(p.TCPAddr(), t)
-			}
-		}
-	}
+func (r *Rain) DownloadMagnet(url, where string) error {
+	panic("not implemented")
 }

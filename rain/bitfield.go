@@ -132,4 +132,3 @@ func (b bitField) checkIndex(i int32) {
 }
 
 func divMod32(a, b int32) (int32, int32) { return a / b, a % b }
-func divMod64(a, b int64) (int64, int64) { return a / b, a % b }

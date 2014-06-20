@@ -2,7 +2,9 @@ package rain
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"encoding/binary"
+	"errors"
 	"io"
 	"net"
 	"sync"
@@ -44,7 +46,8 @@ var peerMessageTypes = [...]string{
 }
 
 type peerConn struct {
-	conn net.Conn
+	conn       net.Conn
+	disconnect chan struct{} // will be closed when peer disconnects
 
 	unchokeM       sync.Mutex    // protects unchokeC
 	unchokeC       chan struct{} // will be closed when and "unchoke" message is received
@@ -63,6 +66,7 @@ type peerConn struct {
 func newPeerConn(conn net.Conn) *peerConn {
 	return &peerConn{
 		conn:        conn,
+		disconnect:  make(chan struct{}),
 		unchokeC:    make(chan struct{}),
 		amChoking:   true,
 		peerChoking: true,
@@ -74,6 +78,7 @@ const connReadTimeout = 3 * time.Minute
 
 // run processes incoming messages after handshake.
 func (p *peerConn) run(t *transfer) {
+	defer close(p.disconnect)
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 
 	bitField := newBitField(nil, t.bitField.Len())
@@ -83,6 +88,14 @@ func (p *peerConn) run(t *transfer) {
 		p.log.Error(err)
 		return
 	}
+
+	// go func() {
+	// 	for {
+	// 		select {
+	// 		case req := <-t.requestC:
+	// 		}
+	// 	}
+	// }()
 
 	first := true
 	for {
@@ -137,8 +150,7 @@ func (p *peerConn) run(t *transfer) {
 			p.log.Debug("Peer ", p.conn.RemoteAddr(), " has piece #", i)
 			p.log.Debugln("new bitfield:", bitField.Hex())
 
-			// TODO goroutine may leak
-			go func() { t.pieces[i].haveC <- p }()
+			t.pieces[i].haveC <- p
 		case msgBitfield:
 			if !first {
 				p.log.Error("bitfield can only be sent after handshake")
@@ -159,39 +171,39 @@ func (p *peerConn) run(t *transfer) {
 
 			for i := int32(0); i < bitField.Len(); i++ {
 				if bitField.Test(i) {
-					// TODO goroutine may leak
-					go func(i int32) { t.pieces[i].haveC <- p }(i)
+					t.pieces[i].haveC <- p
 				}
 			}
 		case msgRequest:
 		case msgPiece:
-			msg := &peerPieceMessage{ID: msgPiece}
-			err = binary.Read(p.conn, binary.BigEndian, &msg.Index)
+			var index int32
+			err = binary.Read(p.conn, binary.BigEndian, &index)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
-			err = binary.Read(p.conn, binary.BigEndian, &msg.Begin)
+			var begin int32
+			err = binary.Read(p.conn, binary.BigEndian, &begin)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
-			if msg.Begin%blockSize != 0 {
+			if begin%blockSize != 0 {
 				p.log.Error("unexpected piece offset")
 				return
 			}
 			length -= 8
-			if length != t.pieces[msg.Index].blocks[msg.Begin/blockSize].length {
+			if length != t.pieces[index].blocks[begin/blockSize].length {
 				p.log.Error("unexpected block size")
 				return
 			}
-			msg.Block = make([]byte, length)
-			_, err = io.LimitReader(p.conn, int64(length)).Read(msg.Block)
+			data := make([]byte, length)
+			_, err = io.LimitReader(p.conn, int64(length)).Read(data)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
-			t.pieces[msg.Index].pieceC <- msg
+			t.pieces[index].pieceC <- data
 		case msgCancel:
 		case msgPort:
 		default:
@@ -264,8 +276,48 @@ func (p *peerConn) sendRequest(m *peerRequestMessage) error {
 	return binary.Write(p.conn, binary.BigEndian, &msg)
 }
 
-type peerPieceMessage struct {
-	ID           byte
-	Index, Begin int32
-	Block        []byte
+func (p *peerConn) downloadPiece(piece *piece) error {
+	unchokeC, err := p.beInterested()
+	if err != nil {
+		return err
+	}
+
+	select {
+	case <-unchokeC:
+		pieceData := make([]byte, piece.length)
+		for i, b := range piece.blocks {
+			if err := p.sendRequest(newPeerRequestMessage(piece.index, b.index*blockSize, b.length)); err != nil {
+				return err
+			}
+			select {
+			case data := <-piece.pieceC:
+				p.log.Noticeln("received block of length", len(data))
+				if int32(len(data)) != b.length {
+					return errors.New("unexpected block length")
+				}
+				copy(pieceData[b.index*blockSize:], data)
+				if _, err = b.files.Write(data); err != nil {
+					return err
+				}
+				piece.bitField.Set(int32(i))
+			case <-time.After(time.Minute):
+				piece.log.Infof("Peer did not send piece #%d block #%d", piece.index, b.index)
+			}
+		}
+
+		// Verify piece hash
+		hash := sha1.New()
+		hash.Write(pieceData)
+		if bytes.Compare(hash.Sum(nil), piece.sha1[:]) != 0 {
+			return errors.New("received corrupt piece")
+		}
+
+		piece.log.Debug("piece written successfully")
+	case <-time.After(time.Minute):
+		p.conn.Close()
+		return errors.New("Peer did not unchoke")
+	}
+
+	close(piece.downloaded)
+	return nil
 }
