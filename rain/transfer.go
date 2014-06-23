@@ -80,7 +80,6 @@ func (t *transfer) run() {
 		// case peerConnected TODO
 		// case peerDisconnected TODO
 		case peerHave := <-t.haveC:
-			t.log.Debugf("received have message: %v", peerHave)
 			peer := peerHave.peer
 			piece := peerHave.piece
 			piece.peers = append(piece.peers, peer)

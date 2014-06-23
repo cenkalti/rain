@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"io/ioutil"
 	"net"
 	"sync"
 	"time"
@@ -116,7 +117,8 @@ func (p *peerConn) run(t *transfer) {
 			return
 		}
 		length--
-		p.log.Debugf("Received message of type %q", peerMessageTypes[msgType])
+
+		p.log.Debugf("Received message of type %d", msgType)
 
 		switch msgType {
 		case msgChoke:
@@ -216,6 +218,8 @@ func (p *peerConn) run(t *transfer) {
 		case msgPort:
 		default:
 			p.log.Debugf("Unknown message type: %d", msgType)
+			// Discard remaining bytes.
+			io.CopyN(ioutil.Discard, p.conn, int64(length))
 		}
 
 		first = false
@@ -244,6 +248,7 @@ func (p *peerConn) sendBitField(b bitField) error {
 // beInterested sends "interested" message to peer (once) and
 // returns a channel that will be closed when an "unchoke" message is received.
 func (p *peerConn) beInterested() (unchokeC chan struct{}, err error) {
+	p.log.Debug("beInterested")
 	p.unchokeM.Lock()
 	defer p.unchokeM.Unlock()
 
