@@ -30,14 +30,11 @@ const (
 )
 
 type udpTracker struct {
-	URL           *url.URL
-	peerID        peerID
-	port          uint16
+	*trackerBase
 	conn          *net.UDPConn
 	transactions  map[int32]*transaction
 	transactionsM sync.Mutex
 	writeC        chan trackerRequest
-	log           logger
 }
 
 type transaction struct {
@@ -61,12 +58,9 @@ func (t *transaction) Done() {
 
 func (r *Rain) newUDPTracker(u *url.URL) *udpTracker {
 	return &udpTracker{
-		URL:          u,
-		peerID:       r.peerID,
-		port:         r.port(),
+		trackerBase:  r.newTrackerBase(u),
 		transactions: make(map[int32]*transaction),
 		writeC:       make(chan trackerRequest),
-		log:          newLogger("tracker " + u.String()),
 	}
 }
 
@@ -295,7 +289,7 @@ type announceRequest struct {
 	Extensions uint16
 }
 
-type announceResponseBase struct {
+type announceResponse struct {
 	trackerMessageHeader
 	Interval int32
 	Leechers int32
@@ -316,14 +310,8 @@ func (p peerAddr) TCPAddr() *net.TCPAddr {
 	}
 }
 
-// Announce announces d to t periodically.
-func (t *udpTracker) Announce(d *transfer, cancel <-chan struct{}, event <-chan trackerEvent, responseC chan<- *announceResponse) {
-	defer func() {
-		if responseC != nil {
-			close(responseC)
-		}
-	}()
-
+// Announce announces transfer to t periodically.
+func (t *udpTracker) Announce(transfer *transfer, cancel <-chan struct{}, event <-chan trackerEvent, peersC chan<- []peerAddr) {
 	err := t.Dial()
 	if err != nil {
 		// TODO retry connecting to tracker
@@ -331,7 +319,7 @@ func (t *udpTracker) Announce(d *transfer, cancel <-chan struct{}, event <-chan 
 	}
 
 	request := &announceRequest{
-		InfoHash:   d.torrentFile.Info.Hash,
+		InfoHash:   transfer.torrentFile.Info.Hash,
 		PeerID:     t.peerID,
 		Event:      trackerEventNone,
 		IP:         0, // Tracker uses sender of this UDP packet.
@@ -341,7 +329,6 @@ func (t *udpTracker) Announce(d *transfer, cancel <-chan struct{}, event <-chan 
 		Extensions: 0,
 	}
 	request.SetAction(trackerActionAnnounce)
-	response := new(announceResponse)
 	var nextAnnounce time.Duration = time.Nanosecond // Start immediately.
 	for {
 		select {
@@ -349,7 +336,7 @@ func (t *udpTracker) Announce(d *transfer, cancel <-chan struct{}, event <-chan 
 		case <-time.After(nextAnnounce):
 			t.log.Debug("Time to announce")
 			// TODO update on every try.
-			request.update(d)
+			request.update(transfer)
 
 			// t.request may block, that's why we pass cancel as argument.
 			reply, err := t.request(request, cancel)
@@ -358,7 +345,8 @@ func (t *udpTracker) Announce(d *transfer, cancel <-chan struct{}, event <-chan 
 				continue
 			}
 
-			if err = t.Load(response, reply); err != nil {
+			response, peers, err := t.parseAnnounceResponse(reply)
+			if err != nil {
 				t.log.Error(err)
 				continue
 			}
@@ -369,7 +357,7 @@ func (t *udpTracker) Announce(d *transfer, cancel <-chan struct{}, event <-chan 
 
 			// may block if caller does not receive from it.
 			select {
-			case responseC <- response:
+			case peersC <- peers:
 			case <-cancel:
 				return
 			}
@@ -387,37 +375,28 @@ func (r *announceRequest) update(d *transfer) {
 	r.Left = d.Left()
 }
 
-func (t *udpTracker) Load(r *announceResponse, data []byte) error {
-	if len(data) < binary.Size(r) {
-		return errors.New("response is too small")
+func (t *udpTracker) parseAnnounceResponse(data []byte) (*announceResponse, []peerAddr, error) {
+	response := new(announceResponse)
+	if len(data) < binary.Size(response) {
+		return nil, nil, errors.New("response is too small")
 	}
 
 	reader := bytes.NewReader(data)
 
-	err := binary.Read(reader, binary.BigEndian, &r.announceResponseBase)
+	err := binary.Read(reader, binary.BigEndian, response)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
-	t.log.Debugf("r.announceResponseBase: %#v", r.announceResponseBase)
+	t.log.Debugf("annouceResponse: %#v", response)
 
-	if r.Action != trackerActionAnnounce {
-		return errors.New("invalid action")
-	}
-
-	t.log.Debugf("len(rest): %#v", reader.Len())
-	if reader.Len()%6 != 0 {
-		return errors.New("invalid peer list")
+	if response.Action != trackerActionAnnounce {
+		return nil, nil, errors.New("invalid action")
 	}
 
-	count := reader.Len() / 6
-	t.log.Debugf("count of peers: %#v", count)
-	r.Peers = make([]peerAddr, count)
-	for i := 0; i < count; i++ {
-		if err = binary.Read(reader, binary.BigEndian, &r.Peers[i]); err != nil {
-			return err
-		}
+	peers, err := t.parsePeers(reader)
+	if err != nil {
+		return nil, nil, err
 	}
-	t.log.Debugf("r.Peers: %#v\n", r.Peers)
 
-	return nil
+	return response, peers, nil
 }

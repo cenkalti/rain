@@ -2,6 +2,7 @@ package rain
 
 import (
 	"crypto/rand"
+	"encoding/hex"
 	"net"
 	"sync"
 	"time"
@@ -25,6 +26,8 @@ type Rain struct {
 }
 
 type peerID [20]byte
+
+func (p peerID) String() string { return hex.EncodeToString(p[:]) }
 
 // New returns a pointer to new Rain BitTorrent client.
 func New(port int) (*Rain, error) {

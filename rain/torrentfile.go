@@ -3,6 +3,7 @@ package rain
 import (
 	"bytes"
 	"crypto/sha1"
+	"encoding/hex"
 	"errors"
 	"io/ioutil"
 	"os"
@@ -21,6 +22,8 @@ type torrentFile struct {
 }
 
 type infoHash [sha1.Size]byte
+
+func (i infoHash) String() string { return hex.EncodeToString(i[:]) }
 
 type infoDict struct {
 	PieceLength uint32 `bencode:"piece length"`

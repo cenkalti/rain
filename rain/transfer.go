@@ -58,7 +58,7 @@ func (t *transfer) run() {
 	peers := make(chan peerAddr, numWant)
 	go t.connecter(peers)
 
-	announceC := make(chan *announceResponse)
+	announceC := make(chan []peerAddr)
 	go t.tracker.Announce(t, nil, nil, announceC)
 
 	var receivedHaveMessage bool
@@ -67,15 +67,15 @@ func (t *transfer) run() {
 
 	for {
 		select {
-		case resp := <-announceC:
-			for _, peer := range resp.Peers {
-				t.log.Debug("Peer:", peer.TCPAddr())
+		case peerAddrs := <-announceC:
+			for _, pa := range peerAddrs {
+				t.log.Debug("Peer:", pa.TCPAddr())
 
 				select {
 				case <-peers:
 				default:
 				}
-				peers <- peer
+				peers <- pa
 			}
 		// case peerConnected TODO
 		// case peerDisconnected TODO
