@@ -2,11 +2,13 @@ package rain
 
 import (
 	"bytes"
-	"code.google.com/p/bencode-go"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
+
+	"code.google.com/p/bencode-go"
 )
 
 type httpTracker struct {
@@ -27,8 +29,8 @@ func (t *httpTracker) Announce(transfer *transfer, cancel <-chan struct{}, event
 		select {
 		case <-time.After(nextAnnounce):
 			q := url.Values{}
-			q.Set("info_hash", url.QueryEscape(string(transfer.torrentFile.Info.Hash[:])))
-			q.Set("peer_id", url.QueryEscape(string(t.peerID[:])))
+			q.Set("info_hash", string(transfer.torrentFile.Info.Hash[:]))
+			q.Set("peer_id", string(t.peerID[:]))
 			q.Set("port", strconv.FormatUint(uint64(t.port), 10))
 			q.Set("uploaded", strconv.FormatInt(transfer.Uploaded(), 10))
 			q.Set("downloaded", strconv.FormatInt(transfer.Downloaded(), 10))
@@ -41,10 +43,18 @@ func (t *httpTracker) Announce(transfer *transfer, cancel <-chan struct{}, event
 			}
 			u := t.URL
 			u.RawQuery = q.Encode()
+			t.log.Debugf("u.String(): %q", u.String())
 
 			resp, err := t.client.Get(u.String())
 			if err != nil {
 				t.log.Error(err)
+				continue
+			}
+
+			if resp.StatusCode >= 400 {
+				data, _ := ioutil.ReadAll(resp.Body)
+				t.log.Errorf("Status: %d Body: %s", resp.StatusCode, string(data))
+				resp.Body.Close()
 				continue
 			}
 

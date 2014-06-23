@@ -32,7 +32,7 @@ func (r *Rain) newTracker(trackerURL string) (tracker, error) {
 	}
 
 	switch u.Scheme {
-	case "http":
+	case "http", "https":
 		return r.newHTTPTracker(u), nil
 	case "udp":
 		return r.newUDPTracker(u), nil
