@@ -23,7 +23,7 @@ type torrentFile struct {
 type infoHash [sha1.Size]byte
 
 type infoDict struct {
-	PieceLength int32  `bencode:"piece length"`
+	PieceLength uint32 `bencode:"piece length"`
 	Pieces      string `bencode:"pieces"`
 	Private     byte   `bencode:"private"`
 	Name        string `bencode:"name"`
@@ -37,7 +37,7 @@ type infoDict struct {
 	// They are calculated when a torrentFile is created with NewtorrentFile func.
 	Hash        infoHash
 	TotalLength int64
-	NumPieces   int32
+	NumPieces   uint32
 }
 
 type fileDict struct {
@@ -99,12 +99,12 @@ func newTorrentFile(path string) (*torrentFile, error) {
 	}
 
 	// Calculate NumPieces
-	t.Info.NumPieces = int32(len(t.Info.Pieces)) / sha1.Size
+	t.Info.NumPieces = uint32(len(t.Info.Pieces)) / sha1.Size
 
 	return t, nil
 }
 
-func (i *infoDict) HashOfPiece(index int32) [sha1.Size]byte {
+func (i *infoDict) HashOfPiece(index uint32) [sha1.Size]byte {
 	if index < 0 || index >= i.NumPieces {
 		panic("piece index out of range")
 	}

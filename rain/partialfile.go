@@ -10,7 +10,7 @@ var errInvalidLength = errors.New("invalid slice length")
 type partialFile struct {
 	file   *os.File
 	offset int64
-	length int32
+	length uint32
 }
 
 func (f partialFile) Read(b []byte) (n int, err error) {
@@ -30,7 +30,7 @@ func (f partialFile) Write(b []byte) (n int, err error) {
 type partialFiles []partialFile
 
 func (f partialFiles) Read(b []byte) (n int, err error) {
-	var total int32
+	var total uint32
 	for _, p := range f {
 		total += p.length
 	}
@@ -50,7 +50,7 @@ func (f partialFiles) Read(b []byte) (n int, err error) {
 }
 
 func (f partialFiles) Write(b []byte) (n int, err error) {
-	var total int32
+	var total uint32
 	for _, p := range f {
 		total += p.length
 	}

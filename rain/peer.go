@@ -46,8 +46,8 @@ var peerMessageTypes = [...]string{
 }
 
 type peerConn struct {
-	conn       net.Conn
-	disconnect chan struct{} // will be closed when peer disconnects
+	conn         net.Conn
+	disconnected chan struct{} // will be closed when peer disconnects
 
 	unchokeM       sync.Mutex    // protects unchokeC
 	unchokeC       chan struct{} // will be closed when and "unchoke" message is received
@@ -65,12 +65,12 @@ type peerConn struct {
 
 func newPeerConn(conn net.Conn) *peerConn {
 	return &peerConn{
-		conn:        conn,
-		disconnect:  make(chan struct{}),
-		unchokeC:    make(chan struct{}),
-		amChoking:   true,
-		peerChoking: true,
-		log:         newLogger("peer " + conn.RemoteAddr().String()),
+		conn:         conn,
+		disconnected: make(chan struct{}),
+		unchokeC:     make(chan struct{}),
+		amChoking:    true,
+		peerChoking:  true,
+		log:          newLogger("peer " + conn.RemoteAddr().String()),
 	}
 }
 
@@ -78,7 +78,7 @@ const connReadTimeout = 3 * time.Minute
 
 // run processes incoming messages after handshake.
 func (p *peerConn) run(t *transfer) {
-	defer close(p.disconnect)
+	defer close(p.disconnected)
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 
 	bitField := newBitField(nil, t.bitField.Len())
@@ -89,14 +89,6 @@ func (p *peerConn) run(t *transfer) {
 		return
 	}
 
-	// go func() {
-	// 	for {
-	// 		select {
-	// 		case req := <-t.requestC:
-	// 		}
-	// 	}
-	// }()
-
 	first := true
 	for {
 		err = p.conn.SetReadDeadline(time.Now().Add(connReadTimeout))
@@ -105,7 +97,7 @@ func (p *peerConn) run(t *transfer) {
 			return
 		}
 
-		var length int32
+		var length uint32
 		err = binary.Read(p.conn, binary.BigEndian, &length)
 		if err != nil {
 			p.log.Error(err)
@@ -140,17 +132,22 @@ func (p *peerConn) run(t *transfer) {
 		case msgNotInterested:
 			p.peerInterested = false
 		case msgHave:
-			var i int32
+			var i uint32
 			err = binary.Read(p.conn, binary.BigEndian, &i)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
+			if i >= uint32(len(t.pieces)) {
+				p.log.Error("unexpected piece index")
+				return
+			}
+			piece := t.pieces[i]
 			bitField.Set(i)
 			p.log.Debug("Peer ", p.conn.RemoteAddr(), " has piece #", i)
 			p.log.Debugln("new bitfield:", bitField.Hex())
 
-			t.pieces[i].haveC <- p
+			t.haveC <- peerHave{p, piece}
 		case msgBitfield:
 			if !first {
 				p.log.Error("bitfield can only be sent after handshake")
@@ -169,20 +166,25 @@ func (p *peerConn) run(t *transfer) {
 			}
 			p.log.Debugln("Received bitfield:", bitField.Hex())
 
-			for i := int32(0); i < bitField.Len(); i++ {
+			for i := uint32(0); i < bitField.Len(); i++ {
 				if bitField.Test(i) {
-					t.pieces[i].haveC <- p
+					t.haveC <- peerHave{p, t.pieces[i]}
 				}
 			}
 		case msgRequest:
 		case msgPiece:
-			var index int32
+			var index uint32
 			err = binary.Read(p.conn, binary.BigEndian, &index)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
-			var begin int32
+			if index >= uint32(len(t.pieces)) {
+				p.log.Error("unexpected piece index")
+				return
+			}
+			piece := t.pieces[index]
+			var begin uint32
 			err = binary.Read(p.conn, binary.BigEndian, &begin)
 			if err != nil {
 				p.log.Error(err)
@@ -192,8 +194,14 @@ func (p *peerConn) run(t *transfer) {
 				p.log.Error("unexpected piece offset")
 				return
 			}
+			blockIndex := begin / blockSize
+			if blockIndex >= uint32(len(piece.blocks)) {
+				p.log.Error("unexpected piece offset")
+				return
+			}
+			block := &piece.blocks[blockIndex]
 			length -= 8
-			if length != t.pieces[index].blocks[begin/blockSize].length {
+			if length != block.length {
 				p.log.Error("unexpected block size")
 				return
 			}
@@ -203,7 +211,7 @@ func (p *peerConn) run(t *transfer) {
 				p.log.Error(err)
 				return
 			}
-			t.pieces[index].pieceC <- data
+			piece.blockC <- peerBlock{p, block, data}
 		case msgCancel:
 		case msgPort:
 		default:
@@ -251,7 +259,7 @@ func (p *peerConn) beInterested() (unchokeC chan struct{}, err error) {
 
 func (p *peerConn) sendMessage(msgType byte) error {
 	var msg = struct {
-		Length      int32
+		Length      uint32
 		MessageType byte
 	}{1, msgType}
 	p.log.Debugf("Sending message: %q", peerMessageTypes[msgType])
@@ -260,16 +268,16 @@ func (p *peerConn) sendMessage(msgType byte) error {
 
 type peerRequestMessage struct {
 	ID                   byte
-	Index, Begin, Length int32
+	Index, Begin, Length uint32
 }
 
-func newPeerRequestMessage(index, begin, length int32) *peerRequestMessage {
+func newPeerRequestMessage(index, begin, length uint32) *peerRequestMessage {
 	return &peerRequestMessage{msgRequest, index, begin, length}
 }
 
 func (p *peerConn) sendRequest(m *peerRequestMessage) error {
 	var msg = struct {
-		Length  int32
+		Length  uint32
 		Message peerRequestMessage
 	}{13, *m}
 	p.log.Debugf("Sending message: %q %#v", "request", msg)
@@ -277,6 +285,8 @@ func (p *peerConn) sendRequest(m *peerRequestMessage) error {
 }
 
 func (p *peerConn) downloadPiece(piece *piece) error {
+	p.log.Debugf("downloading piece #%d", piece.index)
+
 	unchokeC, err := p.beInterested()
 	if err != nil {
 		return err
@@ -290,16 +300,17 @@ func (p *peerConn) downloadPiece(piece *piece) error {
 				return err
 			}
 			select {
-			case data := <-piece.pieceC:
+			case peerBlock := <-piece.blockC:
+				data := peerBlock.data
 				p.log.Noticeln("received block of length", len(data))
-				if int32(len(data)) != b.length {
+				if uint32(len(data)) != b.length {
 					return errors.New("unexpected block length")
 				}
 				copy(pieceData[b.index*blockSize:], data)
 				if _, err = b.files.Write(data); err != nil {
 					return err
 				}
-				piece.bitField.Set(int32(i))
+				piece.bitField.Set(uint32(i))
 			case <-time.After(time.Minute):
 				piece.log.Infof("Peer did not send piece #%d block #%d", piece.index, b.index)
 			}
@@ -318,6 +329,17 @@ func (p *peerConn) downloadPiece(piece *piece) error {
 		return errors.New("Peer did not unchoke")
 	}
 
-	close(piece.downloaded)
+	piece.downloaded = true
 	return nil
+}
+
+type peerHave struct {
+	peer  *peerConn
+	piece *piece
+}
+
+type peerBlock struct {
+	peer  *peerConn
+	block *block
+	data  []byte
 }

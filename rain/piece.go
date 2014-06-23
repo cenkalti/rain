@@ -2,28 +2,30 @@ package rain
 
 import (
 	"crypto/sha1"
+	"errors"
+	"math/rand"
 	"os"
 	"strconv"
+	"sync"
 )
 
 type piece struct {
-	index             int32 // piece index in whole torrent
-	sha1              [sha1.Size]byte
-	length            int32        // last piece may not be complete
-	files             partialFiles // the place to write downloaded bytes
-	blocks            []block
-	bitField          bitField       // blocks we have
-	haveC             chan *peerConn // message sent to here when a peer has this piece
-	peerDisconnectedC chan *peerConn // message sent to here when a peer disconnects
-	pieceC            chan []byte
-	peers             []*peerConn // contains peers that have this piece
-	downloaded        chan struct{}
-	log               logger
+	index      uint32 // piece index in whole torrent
+	sha1       [sha1.Size]byte
+	length     uint32       // last piece may not be complete
+	files      partialFiles // the place to write downloaded bytes
+	blocks     []block
+	bitField   bitField    // blocks we have
+	peers      []*peerConn // contains peers that have this piece
+	peersM     sync.Mutex
+	downloaded bool
+	blockC     chan peerBlock
+	log        logger
 }
 
 type block struct {
-	index  int32 // block index in piece
-	length int32
+	index  uint32 // block index in piece
+	length uint32
 	files  partialFiles // the place to write downloaded bytes
 }
 
@@ -46,22 +48,19 @@ func newPieces(info *infoDict, osFiles []*os.File) []*piece {
 	// Construct pieces
 	var total int64
 	pieces := make([]*piece, info.NumPieces)
-	for i := int32(0); i < info.NumPieces; i++ {
+	for i := uint32(0); i < info.NumPieces; i++ {
 		p := &piece{
-			index:             i,
-			sha1:              info.HashOfPiece(i),
-			haveC:             make(chan *peerConn),
-			peerDisconnectedC: make(chan *peerConn),
-			pieceC:            make(chan []byte),
-			downloaded:        make(chan struct{}),
-			log:               newLogger("piece #" + strconv.Itoa(int(i))),
+			index:  i,
+			sha1:   info.HashOfPiece(i),
+			blockC: make(chan peerBlock),
+			log:    newLogger("piece #" + strconv.Itoa(int(i))),
 		}
 
 		// Construct p.files
-		var pieceOffset int32
-		pieceLeft := func() int32 { return info.PieceLength - pieceOffset }
+		var pieceOffset uint32
+		pieceLeft := func() uint32 { return info.PieceLength - pieceOffset }
 		for left := pieceLeft(); left > 0; {
-			n := int32(minInt64(int64(left), fileLeft())) // number of bytes to write
+			n := uint32(minInt64(int64(left), fileLeft())) // number of bytes to write
 
 			file := partialFile{osFiles[fileIndex], fileOffset, n}
 			p.log.Debugf("file: %#v", file)
@@ -82,20 +81,20 @@ func newPieces(info *infoDict, osFiles []*os.File) []*piece {
 		}
 
 		p.blocks = newBlocks(p.length, p.files)
-		p.bitField = newBitField(nil, int32(len(p.blocks)))
+		p.bitField = newBitField(nil, uint32(len(p.blocks)))
 		pieces[i] = p
 	}
 	return pieces
 }
 
-func newBlocks(pieceLength int32, files []partialFile) []block {
+func newBlocks(pieceLength uint32, files []partialFile) []block {
 	div, mod := divMod32(pieceLength, blockSize)
 	numBlocks := div
 	if mod != 0 {
 		numBlocks++
 	}
 	blocks := make([]block, numBlocks)
-	for j := int32(0); j < div; j++ {
+	for j := uint32(0); j < div; j++ {
 		blocks[j] = block{
 			index:  j,
 			length: blockSize,
@@ -104,21 +103,21 @@ func newBlocks(pieceLength int32, files []partialFile) []block {
 	if mod != 0 {
 		blocks[numBlocks-1] = block{
 			index:  numBlocks - 1,
-			length: int32(mod),
+			length: uint32(mod),
 		}
 	}
 	var fileIndex int
-	var fileOffset int32
+	var fileOffset uint32
 	nextFile := func() {
 		fileIndex++
 		fileOffset = 0
 	}
-	fileLeft := func() int32 { return files[fileIndex].length - fileOffset }
+	fileLeft := func() uint32 { return files[fileIndex].length - fileOffset }
 	for i := range blocks {
-		var blockOffset int32 = 0
-		blockLeft := func() int32 { return blocks[i].length - blockOffset }
+		var blockOffset uint32 = 0
+		blockLeft := func() uint32 { return blocks[i].length - blockOffset }
 		for left := blockLeft(); left > 0 && fileIndex < len(files); {
-			n := minInt32(left, fileLeft())
+			n := minUint32(left, fileLeft())
 			file := partialFile{files[fileIndex].file, files[fileIndex].offset + int64(fileOffset), n}
 			blocks[i].files = append(blocks[i].files, file)
 			fileOffset += n
@@ -132,17 +131,29 @@ func newBlocks(pieceLength int32, files []partialFile) []block {
 	return blocks
 }
 
-func (p *piece) run() {
-	for {
-		select {
-		case peer := <-p.haveC:
-			p.peers = append(p.peers, peer)
-			go func(peer *peerConn) {
-				<-peer.disconnect
-				p.peerDisconnectedC <- peer
-			}(peer)
-			// case peer := <-p.peerDisconnectedC:
-			// TODO remove from p.peers
-		}
+// Implements sort.Interface based on availability of piece.
+type rarestFirst []*piece
+
+func (r rarestFirst) Len() int           { return len(r) }
+func (r rarestFirst) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
+func (r rarestFirst) Less(i, j int) bool { return len(r[i].peers) < len(r[j].peers) }
+
+func (p *piece) download() error {
+	p.log.Debug("downloading")
+
+	peer, err := p.selectPeer()
+	if err != nil {
+		return err
 	}
+
+	p.log.Debugln("selected peer:", peer.conn.RemoteAddr())
+
+	return peer.downloadPiece(p)
+}
+
+func (p *piece) selectPeer() (*peerConn, error) {
+	if len(p.peers) == 0 {
+		return nil, errors.New("no peers")
+	}
+	return p.peers[rand.Intn(len(p.peers))], nil
 }

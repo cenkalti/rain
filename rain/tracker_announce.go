@@ -25,7 +25,7 @@ type announceRequest struct {
 
 type announceResponse struct {
 	announceResponseBase
-	Peers []*peerAddr
+	Peers []peerAddr
 }
 
 type announceResponseBase struct {
@@ -136,10 +136,9 @@ func (t *tracker) Load(r *announceResponse, data []byte) error {
 
 	count := reader.Len() / 6
 	t.log.Debugf("count of peers: %#v", count)
-	r.Peers = make([]*peerAddr, count)
+	r.Peers = make([]peerAddr, count)
 	for i := 0; i < count; i++ {
-		r.Peers[i] = new(peerAddr)
-		if err = binary.Read(reader, binary.BigEndian, r.Peers[i]); err != nil {
+		if err = binary.Read(reader, binary.BigEndian, &r.Peers[i]); err != nil {
 			return err
 		}
 	}
