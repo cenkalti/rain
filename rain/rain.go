@@ -89,42 +89,35 @@ func (r *Rain) servePeerConn(p *peerConn) {
 
 	var t *transfer
 
-	resultC := make(chan interface{}, 2)
-	go p.readHandShake(resultC)
-
-	// Send handshake as soon as you see info_hash.
-	i := <-resultC
-	switch res := i.(type) {
-	case infoHash:
-		// Do not continue if we don't have a torrent with this infoHash.
-		r.transfersM.Lock()
-		var ok bool
-		if t, ok = r.transfers[res]; !ok {
-			p.log.Error("unexpected info_hash")
-			r.transfersM.Unlock()
-			return
-		}
-		r.transfersM.Unlock()
-
-		if err = p.sendHandShake(res, r.peerID); err != nil {
-			p.log.Error(err)
-			return
-		}
-	case error:
-		p.log.Error(res)
+	ih, err := p.readHandShake1()
+	if err != nil {
+		p.log.Error(err)
 		return
 	}
 
-	i = <-resultC
-	switch res := i.(type) {
-	case peerID:
-		if res == r.peerID {
-			p.log.Debug("Rejected own connection: server")
-			return
-		}
-		// TODO save peer_id
-	case error:
-		p.log.Error(res)
+	// Do not continue if we don't have a torrent with this infoHash.
+	r.transfersM.Lock()
+	var ok bool
+	if t, ok = r.transfers[*ih]; !ok {
+		p.log.Error("unexpected info_hash")
+		r.transfersM.Unlock()
+		return
+	}
+	r.transfersM.Unlock()
+
+	if err = p.sendHandShake(*ih, r.peerID); err != nil {
+		p.log.Error(err)
+		return
+	}
+
+	id, err := p.readHandShake2()
+	if err != nil {
+		p.log.Error(err)
+		return
+	}
+
+	if *id == r.peerID {
+		p.log.Debug("Rejected own connection: server")
 		return
 	}
 

@@ -196,13 +196,19 @@ func (t *transfer) connectToPeer(addr *net.TCPAddr) {
 		return
 	}
 
-	ih, id, err := p.readHandShakeBlocking()
+	ih, err := p.readHandShake1()
 	if err != nil {
 		p.log.Error(err)
 		return
 	}
 	if *ih != t.torrentFile.Info.Hash {
 		p.log.Error("unexpected info_hash")
+		return
+	}
+
+	id, err := p.readHandShake2()
+	if err != nil {
+		p.log.Error(err)
 		return
 	}
 	if *id == t.rain.peerID {
