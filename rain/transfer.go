@@ -124,7 +124,6 @@ func (t *transfer) downloader(start chan struct{}) {
 		// TODO download pieces in parallel
 		// TODO limit max simultaneous piece request.
 		// TODO If the piece is not downloaded in a minute, start downloading next piece.
-		time.Sleep(2 * time.Second)
 		err = piece.download()
 		if err != nil {
 			// TODO handle error case
