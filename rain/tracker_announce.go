@@ -49,13 +49,20 @@ func (p peerAddr) TCPAddr() *net.TCPAddr {
 	}
 }
 
-// announce announces d to t periodically.
-func (t *tracker) announce(d *transfer, cancel <-chan struct{}, event <-chan trackerEvent, responseC chan<- *announceResponse) {
+// Announce announces d to t periodically.
+func (t *udpTracker) Announce(d *transfer, cancel <-chan struct{}, event <-chan trackerEvent, responseC chan<- *announceResponse) {
 	defer func() {
 		if responseC != nil {
 			close(responseC)
 		}
 	}()
+
+	err := t.Dial()
+	if err != nil {
+		// TODO retry connecting to tracker
+		t.log.Fatal(err)
+	}
+
 	request := &announceRequest{
 		InfoHash:   d.torrentFile.Info.Hash,
 		PeerID:     t.peerID,
@@ -88,6 +95,7 @@ func (t *tracker) announce(d *transfer, cancel <-chan struct{}, event <-chan tra
 				t.log.Error(err)
 				continue
 			}
+			t.log.Debugf("Announce response: %#v", response)
 
 			// TODO calculate time and adjust.
 			nextAnnounce = time.Duration(response.Interval) * time.Second
@@ -112,7 +120,7 @@ func (r *announceRequest) update(d *transfer) {
 	r.Left = d.Left()
 }
 
-func (t *tracker) Load(r *announceResponse, data []byte) error {
+func (t *udpTracker) Load(r *announceResponse, data []byte) error {
 	if len(data) < binary.Size(r) {
 		return errors.New("response is too small")
 	}

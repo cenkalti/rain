@@ -14,7 +14,7 @@ import (
 // transfer represents an active transfer in the program.
 type transfer struct {
 	rain        *Rain
-	tracker     *tracker
+	tracker     tracker
 	torrentFile *torrentFile
 	pieces      []*piece
 	bitField    bitField // pieces that we have
@@ -25,7 +25,7 @@ type transfer struct {
 }
 
 func (r *Rain) newTransfer(tor *torrentFile, where string) (*transfer, error) {
-	tracker, err := newTracker(tor.Announce, r.peerID, r.port())
+	tracker, err := r.newTracker(tor.Announce)
 	if err != nil {
 		return nil, err
 	}
@@ -55,17 +55,11 @@ func (t *transfer) Uploaded() int64   { return 0 } // TODO
 func (t *transfer) Left() int64       { return t.torrentFile.Info.TotalLength - t.Downloaded() }
 
 func (t *transfer) run() {
-	err := t.tracker.Dial()
-	if err != nil {
-		// TODO retry connecting to tracker
-		t.log.Fatal(err)
-	}
-
 	peers := make(chan peerAddr, numWant)
 	go t.connecter(peers)
 
 	announceC := make(chan *announceResponse)
-	go t.tracker.announce(t, nil, nil, announceC)
+	go t.tracker.Announce(t, nil, nil, announceC)
 
 	var receivedHaveMessage bool
 	startDownloader := make(chan struct{})
@@ -74,9 +68,8 @@ func (t *transfer) run() {
 	for {
 		select {
 		case resp := <-announceC:
-			t.tracker.log.Debugf("Announce response: %#v", resp)
 			for _, peer := range resp.Peers {
-				t.tracker.log.Debug("Peer:", peer.TCPAddr())
+				t.log.Debug("Peer:", peer.TCPAddr())
 
 				select {
 				case <-peers:

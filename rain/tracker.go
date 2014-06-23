@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math/rand"
 	"net"
 	"net/url"
@@ -39,7 +40,11 @@ const (
 	trackerEventStopped
 )
 
-type tracker struct {
+type tracker interface {
+	Announce(t *transfer, cancel <-chan struct{}, event <-chan trackerEvent, responseC chan<- *announceResponse)
+}
+
+type udpTracker struct {
 	URL           *url.URL
 	peerID        peerID
 	port          uint16
@@ -69,22 +74,32 @@ func (t *transaction) Done() {
 	close(t.done)
 }
 
-func newTracker(trackerURL string, peerID peerID, port uint16) (*tracker, error) {
-	parsed, err := url.Parse(trackerURL)
+func (r *Rain) newTracker(trackerURL string) (tracker, error) {
+	u, err := url.Parse(trackerURL)
 	if err != nil {
 		return nil, err
 	}
-	return &tracker{
-		URL:          parsed,
-		peerID:       peerID,
-		port:         port,
-		transactions: make(map[int32]*transaction),
-		writeC:       make(chan trackerRequest),
-		log:          newLogger("tracker " + trackerURL),
-	}, nil
+
+	switch u.Scheme {
+	case "udp":
+		return r.newUDPTracker(u), nil
+	default:
+		return nil, fmt.Errorf("unsupported tracker scheme: %s", u.Scheme)
+	}
 }
 
-func (t *tracker) Dial() error {
+func (r *Rain) newUDPTracker(u *url.URL) *udpTracker {
+	return &udpTracker{
+		URL:          u,
+		peerID:       r.peerID,
+		port:         r.port(),
+		transactions: make(map[int32]*transaction),
+		writeC:       make(chan trackerRequest),
+		log:          newLogger("tracker " + u.String()),
+	}
+}
+
+func (t *udpTracker) Dial() error {
 	serverAddr, err := net.ResolveUDPAddr("udp", t.URL.Host)
 	if err != nil {
 		return err
@@ -100,13 +115,13 @@ func (t *tracker) Dial() error {
 
 // Close the tracker connection.
 // TODO end all goroutines.
-func (t *tracker) Close() error {
+func (t *udpTracker) Close() error {
 	return t.conn.Close()
 }
 
 // readLoop reads datagrams from connection, finds the transaction and
 // sends the bytes to the transaction's response channel.
-func (t *tracker) readLoop() {
+func (t *udpTracker) readLoop() {
 	// Read buffer must be big enough to hold a UDP packet of maximum expected size.
 	// Current value is: 320 = 20 + 50*6 (AnnounceResponse with 50 peers)
 	buf := make([]byte, 320)
@@ -160,7 +175,7 @@ func (t *tracker) readLoop() {
 
 // writeLoop receives a request from t.transactionC, sets a random TransactionID
 // and sends it to the tracker.
-func (t *tracker) writeLoop() {
+func (t *udpTracker) writeLoop() {
 	var connectionID int64
 	var connectionIDtime time.Time
 
@@ -177,12 +192,12 @@ func (t *tracker) writeLoop() {
 	}
 }
 
-func (t *tracker) request(req trackerRequest, cancel <-chan struct{}) ([]byte, error) {
+func (t *udpTracker) request(req trackerRequest, cancel <-chan struct{}) ([]byte, error) {
 	action := func(req trackerRequest) { t.writeC <- req }
 	return t.retry(req, action, cancel)
 }
 
-func (t *tracker) retry(req trackerRequest, action func(trackerRequest), cancel <-chan struct{}) ([]byte, error) {
+func (t *udpTracker) retry(req trackerRequest, action func(trackerRequest), cancel <-chan struct{}) ([]byte, error) {
 	id := rand.Int31()
 	req.SetTransactionID(id)
 

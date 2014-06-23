@@ -17,7 +17,7 @@ type connectResponse struct {
 // connect sends a connectRequest and returns a ConnectionID given by the tracker.
 // On error, it backs off with the algorithm described in BEP15 and retries.
 // It does not return until tracker sends a ConnectionID.
-func (t *tracker) connect() int64 {
+func (t *udpTracker) connect() int64 {
 	req := new(connectRequest)
 	req.SetConnectionID(connectionIDMagic)
 	req.SetAction(trackerActionConnect)
