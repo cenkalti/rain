@@ -109,7 +109,6 @@ func (t *transfer) downloader(start chan struct{}) {
 	missing := t.bitField.Len() - t.bitField.Count()
 	for missing > 0 {
 		if t.bitField.All() {
-			close(t.downloaded)
 			break
 		}
 
@@ -136,6 +135,7 @@ func (t *transfer) downloader(start chan struct{}) {
 	}
 
 	t.log.Notice("Finished")
+	close(t.downloaded)
 }
 
 var errNoPiece = errors.New("no piece")
