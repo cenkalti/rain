@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"sync"
 	"time"
 )
 
@@ -20,7 +19,6 @@ type transfer struct {
 	bitField    bitField // pieces that we have
 	downloaded  chan struct{}
 	haveC       chan peerHave
-	m           sync.Mutex
 	log         logger
 }
 
@@ -100,14 +98,10 @@ func (t *transfer) downloader(start chan struct{}) {
 
 	missing := t.bitField.Len() - t.bitField.Count()
 	for missing > 0 {
-		if t.bitField.All() {
-			break
-		}
-
 		piece, err := t.selectPiece()
 		if err != nil {
 			t.log.Debug(err)
-			// TODO wait for signal
+			// TODO do not sleep, block until we have next "have" message
 			time.Sleep(4 * time.Second)
 			continue
 		}
@@ -119,7 +113,8 @@ func (t *transfer) downloader(start chan struct{}) {
 		err = piece.download()
 		if err != nil {
 			// TODO handle error case
-			t.log.Fatal(err)
+			t.log.Critical(err)
+			return
 		}
 
 		missing--
@@ -152,12 +147,17 @@ func (t *transfer) selectPiece() (*piece, error) {
 }
 
 func (t *transfer) connecter(peers chan peerAddr) {
-	limit := make(chan struct{}, 25)
+	limit := make(chan struct{}, maxPeerPerTorrent)
 	for p := range peers {
 		limit <- struct{}{}
 		go func(peer peerAddr) {
+			defer func() {
+				if err := recover(); err != nil {
+					t.log.Critical(err)
+				}
+				<-limit
+			}()
 			t.connectToPeer(peer.TCPAddr())
-			<-limit
 		}(p)
 	}
 }

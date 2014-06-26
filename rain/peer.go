@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -101,9 +102,14 @@ func (p *peerConn) run(t *transfer) {
 		var length uint32
 		err = binary.Read(p.conn, binary.BigEndian, &length)
 		if err != nil {
+			if err == io.EOF {
+				p.log.Warning("Remote peer has closed the connection")
+				return
+			}
 			p.log.Error(err)
 			return
 		}
+		p.log.Debugf("Received message of length: %d", length)
 
 		if length == 0 { // keep-alive message
 			p.log.Debug("Received message of type \"keep alive\"")
@@ -127,7 +133,7 @@ func (p *peerConn) run(t *transfer) {
 			p.unchokeM.Lock()
 			p.peerChoking = false
 			close(p.unchokeC)
-			p.unchokeC = make(chan struct{})
+			// p.unchokeC = make(chan struct{})
 			p.unchokeM.Unlock()
 		case msgInterested:
 			p.peerInterested = true
@@ -208,7 +214,7 @@ func (p *peerConn) run(t *transfer) {
 				return
 			}
 			data := make([]byte, length)
-			_, err = io.LimitReader(p.conn, int64(length)).Read(data)
+			_, err = io.ReadFull(p.conn, data)
 			if err != nil {
 				p.log.Error(err)
 				return
@@ -299,41 +305,40 @@ func (p *peerConn) downloadPiece(piece *piece) error {
 
 	select {
 	case <-unchokeC:
-		pieceData := make([]byte, piece.length)
-		for i, b := range piece.blocks {
-			if err := p.sendRequest(newPeerRequestMessage(piece.index, b.index*blockSize, b.length)); err != nil {
-				return err
-			}
-			select {
-			case peerBlock := <-piece.blockC:
-				data := peerBlock.data
-				p.log.Noticeln("received block of length", len(data))
-				if uint32(len(data)) != b.length {
-					return errors.New("unexpected block length")
-				}
-				copy(pieceData[b.index*blockSize:], data)
-				if _, err = b.files.Write(data); err != nil {
-					return err
-				}
-				piece.bitField.Set(uint32(i))
-			case <-time.After(time.Minute):
-				piece.log.Infof("Peer did not send piece #%d block #%d", piece.index, b.index)
-			}
-		}
-
-		// Verify piece hash
-		hash := sha1.New()
-		hash.Write(pieceData)
-		if bytes.Compare(hash.Sum(nil), piece.sha1[:]) != 0 {
-			return errors.New("received corrupt piece")
-		}
-
-		piece.log.Debug("piece written successfully")
 	case <-time.After(time.Minute):
 		p.conn.Close()
 		return errors.New("Peer did not unchoke")
 	}
 
+	for _, b := range piece.blocks {
+		if err := p.sendRequest(newPeerRequestMessage(piece.index, b.index*blockSize, b.length)); err != nil {
+			return err
+		}
+	}
+
+	pieceData := make([]byte, piece.length)
+	for _ = range piece.blocks {
+		select {
+		case peerBlock := <-piece.blockC:
+			p.log.Infoln("received block of length", len(peerBlock.data))
+			copy(pieceData[peerBlock.block.index*blockSize:], peerBlock.data)
+			if _, err = peerBlock.block.files.Write(peerBlock.data); err != nil {
+				return err
+			}
+			piece.bitField.Set(uint32(peerBlock.block.index))
+		case <-time.After(time.Minute):
+			return fmt.Errorf("peer did not send piece #%d completely", piece.index)
+		}
+	}
+
+	// Verify piece hash
+	hash := sha1.New()
+	hash.Write(pieceData)
+	if bytes.Compare(hash.Sum(nil), piece.sha1[:]) != 0 {
+		return errors.New("received corrupt piece")
+	}
+
+	piece.log.Debug("piece written successfully")
 	piece.downloaded = true
 	return nil
 }

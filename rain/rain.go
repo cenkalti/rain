@@ -9,9 +9,10 @@ import (
 )
 
 // Limits
-var (
-	peerLimitGlobal     = make(chan struct{}, 200)
-	peerLimitPerTorrent = make(chan struct{}, 50)
+const (
+	maxSimultaneousPieceDownload = 5
+	maxPeerServe                 = 200
+	maxPeerPerTorrent            = 50
 )
 
 // http://www.bittorrent.org/beps/bep_0020.html
@@ -67,21 +68,30 @@ func (r *Rain) listenPeerPort(port int) error {
 }
 
 func (r *Rain) accepter() {
+	limit := make(chan struct{}, maxPeerServe)
 	for {
 		conn, err := r.listener.Accept()
 		if err != nil {
 			r.log.Error(err)
 			return
 		}
-		p := newPeerConn(conn)
-		go r.servePeerConn(p)
+		limit <- struct{}{}
+		go func(conn net.Conn) {
+			defer func() {
+				if err := recover(); err != nil {
+					r.log.Critical(err)
+				}
+				conn.Close()
+				<-limit
+			}()
+			r.servePeerConn(newPeerConn(conn))
+		}(conn)
 	}
 }
 
 func (r *Rain) port() uint16 { return uint16(r.listener.Addr().(*net.TCPAddr).Port) }
 
 func (r *Rain) servePeerConn(p *peerConn) {
-	defer p.conn.Close()
 	p.log.Debugln("Serving peer", p.conn.RemoteAddr())
 
 	// Give a minute for completing handshake.
@@ -89,8 +99,6 @@ func (r *Rain) servePeerConn(p *peerConn) {
 	if err != nil {
 		return
 	}
-
-	var t *transfer
 
 	ih, err := p.readHandShake1()
 	if err != nil {
@@ -100,15 +108,16 @@ func (r *Rain) servePeerConn(p *peerConn) {
 
 	// Do not continue if we don't have a torrent with this infoHash.
 	r.transfersM.Lock()
-	var ok bool
-	if t, ok = r.transfers[*ih]; !ok {
+	t, ok := r.transfers[*ih]
+	if !ok {
 		p.log.Error("unexpected info_hash")
 		r.transfersM.Unlock()
 		return
 	}
 	r.transfersM.Unlock()
 
-	if err = p.sendHandShake(*ih, r.peerID); err != nil {
+	err = p.sendHandShake(*ih, r.peerID)
+	if err != nil {
 		p.log.Error(err)
 		return
 	}
@@ -118,7 +127,6 @@ func (r *Rain) servePeerConn(p *peerConn) {
 		p.log.Error(err)
 		return
 	}
-
 	if *id == r.peerID {
 		p.log.Debug("Rejected own connection: server")
 		return

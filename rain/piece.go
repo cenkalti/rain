@@ -145,7 +145,6 @@ func (p *piece) download() error {
 	if err != nil {
 		return err
 	}
-
 	p.log.Debugln("selected peer:", peer.conn.RemoteAddr())
 
 	return peer.downloadPiece(p)
