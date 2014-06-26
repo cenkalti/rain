@@ -68,12 +68,15 @@ func (t *transfer) run() {
 		case peerAddrs := <-announceC:
 			for _, pa := range peerAddrs {
 				t.log.Debug("Peer:", pa.TCPAddr())
-
 				select {
-				case <-peers:
+				case peers <- pa:
 				default:
+					select {
+					case <-peers:
+					default:
+					}
+					peers <- pa
 				}
-				peers <- pa
 			}
 		// case peerConnected TODO
 		// case peerDisconnected TODO
