@@ -71,10 +71,7 @@ func (t *transfer) run() {
 				select {
 				case peers <- pa:
 				default:
-					select {
-					case <-peers:
-					default:
-					}
+					<-peers
 					peers <- pa
 				}
 			}
