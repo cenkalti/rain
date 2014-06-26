@@ -93,7 +93,7 @@ func (t *transfer) downloader(start chan struct{}) {
 	// Wait for a while to get enough "have" messages before starting to download pieces.
 	t.log.Debug("starting downloader")
 	<-start
-	time.Sleep(4 * time.Second)
+	time.Sleep(2 * time.Second)
 	t.log.Debug("started downloader")
 
 	missing := t.bitField.Len() - t.bitField.Count()
