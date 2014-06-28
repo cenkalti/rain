@@ -319,13 +319,6 @@ func minInt64(a, b int64) int64 {
 	return b
 }
 
-func minInt32(a, b int32) int32 {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 func minUint32(a, b uint32) uint32 {
 	if a < b {
 		return a
