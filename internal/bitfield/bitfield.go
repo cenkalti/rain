@@ -16,7 +16,7 @@ func New(buf []byte, length uint32) BitField {
 	if length < 0 {
 		panic("length < 0")
 	}
-	if len(buf) > math.MaxInt32 {
+	if len(buf) > math.MaxUint32/8 {
 		panic("buffer is too big")
 	}
 
@@ -126,7 +126,7 @@ func (b BitField) All() bool {
 }
 
 func (b BitField) checkIndex(i uint32) {
-	if i < 0 || i >= b.Len() {
+	if i >= b.Len() {
 		panic("index out of bound")
 	}
 }
