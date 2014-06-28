@@ -1,4 +1,4 @@
-package rain
+package librain
 
 import (
 	"bytes"
