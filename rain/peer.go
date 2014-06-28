@@ -325,7 +325,7 @@ func (p *peerConn) downloadPiece(piece *piece) error {
 			if _, err = peerBlock.block.files.Write(peerBlock.data); err != nil {
 				return err
 			}
-			piece.bitField.Set(uint32(peerBlock.block.index))
+			piece.bitField.Set(peerBlock.block.index)
 		case <-time.After(time.Minute):
 			return fmt.Errorf("peer did not send piece #%d completely", piece.index)
 		}
@@ -339,7 +339,7 @@ func (p *peerConn) downloadPiece(piece *piece) error {
 	}
 
 	piece.log.Debug("piece written successfully")
-	piece.downloaded = true
+	piece.ok = true
 	return nil
 }
 

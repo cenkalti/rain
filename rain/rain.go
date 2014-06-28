@@ -10,9 +10,11 @@ import (
 
 // Limits
 const (
-	maxSimultaneousPieceDownload = 5
-	maxPeerServe                 = 200
-	maxPeerPerTorrent            = 50
+	maxPeerServe                      = 200
+	maxPeerPerTorrent                 = 50
+	maxSimultaneoutPieceDownloadStart = 4
+	maxSimultaneoutPieceDownloadEnd   = maxPeerPerTorrent
+	minSpeedPerTorrent                = 5 * 1024 // KBps
 )
 
 // http://www.bittorrent.org/beps/bep_0020.html

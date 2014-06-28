@@ -10,17 +10,17 @@ import (
 )
 
 type piece struct {
-	index      uint32 // piece index in whole torrent
-	sha1       [sha1.Size]byte
-	length     uint32       // last piece may not be complete
-	files      partialFiles // the place to write downloaded bytes
-	blocks     []block
-	bitField   bitField    // blocks we have
-	peers      []*peerConn // contains peers that have this piece
-	peersM     sync.Mutex
-	downloaded bool
-	blockC     chan peerBlock
-	log        logger
+	index    uint32 // piece index in whole torrent
+	sha1     [sha1.Size]byte
+	length   uint32       // last piece may not be complete
+	files    partialFiles // the place to write downloaded bytes
+	blocks   []block
+	bitField bitField    // blocks we have
+	peers    []*peerConn // contains peers that have this piece
+	peersM   sync.Mutex
+	ok       bool // we have the piece and hash check is ok
+	blockC   chan peerBlock
+	log      logger
 }
 
 type block struct {
@@ -151,8 +151,12 @@ func (p *piece) download() error {
 }
 
 func (p *piece) selectPeer() (*peerConn, error) {
+	p.peersM.Lock()
+	defer p.peersM.Unlock()
 	if len(p.peers) == 0 {
-		return nil, errors.New("no peers")
+		return nil, errPieceNotAvailable
 	}
 	return p.peers[rand.Intn(len(p.peers))], nil
 }
+
+var errPieceNotAvailable = errors.New("piece not available for download")

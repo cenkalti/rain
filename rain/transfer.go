@@ -1,7 +1,6 @@
 package rain
 
 import (
-	"errors"
 	"math/rand"
 	"net"
 	"os"
@@ -78,9 +77,8 @@ func (t *transfer) run() {
 		// case peerConnected TODO
 		// case peerDisconnected TODO
 		case peerHave := <-t.haveC:
-			peer := peerHave.peer
 			piece := peerHave.piece
-			piece.peers = append(piece.peers, peer)
+			piece.peers = append(piece.peers, peerHave.peer)
 			if !receivedHaveMessage {
 				receivedHaveMessage = true
 				close(startDownloader)
@@ -96,47 +94,97 @@ func (t *transfer) downloader(start chan struct{}) {
 	time.Sleep(2 * time.Second)
 	t.log.Debug("started downloader")
 
+	requestC := make(chan chan *piece)
+	responseC := make(chan *piece)
+
 	missing := t.bitField.Len() - t.bitField.Count()
-	for missing > 0 {
-		piece, err := t.selectPiece()
-		if err != nil {
-			t.log.Debug(err)
-			// TODO do not sleep, block until we have next "have" message
-			time.Sleep(4 * time.Second)
-			continue
-		}
-		piece.log.Debug("selected")
 
-		// TODO download pieces in parallel
-		// TODO limit max simultaneous piece request.
-		// TODO If the piece is not downloaded in a minute, start downloading next piece.
-		err = piece.download()
-		if err != nil {
-			// TODO handle error case
-			t.log.Critical(err)
-			return
-		}
+	go t.pieceRequester(requestC)
 
-		missing--
+	// Download pieces in parallel.
+	numPieceDownload := maxSimultaneoutPieceDownloadStart
+	for i := 0; i < maxSimultaneoutPieceDownloadStart; i++ {
+		go pieceDownloader(requestC, responseC)
+	}
+
+L:
+	for {
+		// Start another pieceDownloader if download speed is below the treshold.
+		// But, limit max simultaneous piece downloads.
+		var timeout <-chan time.Time
+		if numPieceDownload < maxSimultaneoutPieceDownloadEnd {
+			timeout = time.After(time.Duration(t.torrentFile.Info.PieceLength/minSpeedPerTorrent) * time.Second)
+		}
+		select {
+		case piece, ok := <-responseC:
+			if !ok {
+				panic("cannot download piece")
+			}
+			t.bitField.Set(piece.index)
+			missing--
+			if missing == 0 {
+				break L
+			}
+		case <-timeout:
+			go pieceDownloader(requestC, responseC)
+			numPieceDownload++
+		}
 	}
 
 	t.log.Notice("Finished")
 	close(t.downloaded)
 }
 
-var errNoPiece = errors.New("no piece")
-var errNoPeer = errors.New("no peer")
+func (t *transfer) pieceRequester(requestC chan chan *piece) {
+	requested := newBitField(nil, t.bitField.Len())
+	missing := t.bitField.Len() - t.bitField.Count()
+	for missing > 0 {
+		req := make(chan *piece)
+		requestC <- req
 
-// TODO refactor and return error
-func (t *transfer) selectPiece() (*piece, error) {
+		piece, err := t.selectPiece(&requested)
+		if err != nil {
+			t.log.Debug(err)
+			// TODO do not sleep, block until we have next "have" message
+			time.Sleep(4 * time.Second)
+			continue
+		}
+
+		piece.log.Debug("selected")
+		requested.Set(piece.index)
+		req <- piece
+		missing--
+	}
+	close(requestC)
+}
+
+func pieceDownloader(requestC chan chan *piece, responseC chan *piece) {
+	for req := range requestC {
+		piece, ok := <-req
+		if !ok {
+			continue
+		}
+
+		err := piece.download()
+		if err != nil {
+			piece.log.Error(err)
+			responseC <- nil
+			continue
+		}
+
+		responseC <- piece
+	}
+}
+
+func (t *transfer) selectPiece(requested *bitField) (*piece, error) {
 	var pieces []*piece
-	for _, p := range t.pieces {
-		if !p.downloaded && len(p.peers) > 0 {
+	for i, p := range t.pieces {
+		if !requested.Test(uint32(i)) && !p.ok && len(p.peers) > 0 {
 			pieces = append(pieces, p)
 		}
 	}
 	if len(pieces) == 0 {
-		return nil, errNoPiece
+		return nil, errPieceNotAvailable
 	}
 	if len(pieces) == 1 {
 		return pieces[0], nil
