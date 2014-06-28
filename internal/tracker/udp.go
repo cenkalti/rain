@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff"
+
 	"github.com/cenkalti/rain/internal/shared"
 )
 

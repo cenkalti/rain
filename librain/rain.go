@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/log"
+
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/shared"
 	"github.com/cenkalti/rain/internal/torrent"
