@@ -11,6 +11,9 @@ import (
 	"net"
 	"sync"
 	"time"
+
+	"github.com/cenkalti/rain/internal/bitfield"
+	"github.com/cenkalti/rain/internal/logger"
 )
 
 // All current implementations use 2^14 (16 kiB), and close connections which request an amount greater than that.
@@ -62,7 +65,7 @@ type peerConn struct {
 	// peerRequests   map[uint64]bool      // What remote peer requested
 	// ourRequests    map[uint64]time.Time // What we requested, when we requested it
 
-	log logger
+	log logger.Logger
 }
 
 func newPeerConn(conn net.Conn) *peerConn {
@@ -72,7 +75,7 @@ func newPeerConn(conn net.Conn) *peerConn {
 		unchokeC:     make(chan struct{}),
 		amChoking:    true,
 		peerChoking:  true,
-		log:          newLogger("peer " + conn.RemoteAddr().String()),
+		log:          logger.New("peer " + conn.RemoteAddr().String()),
 	}
 }
 
@@ -83,7 +86,7 @@ func (p *peerConn) run(t *transfer) {
 	defer close(p.disconnected)
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 
-	bitField := newBitField(nil, t.bitField.Len())
+	bitField := bitfield.New(nil, t.bitField.Len())
 
 	err := p.sendBitField(t.bitField)
 	if err != nil {
@@ -232,7 +235,7 @@ func (p *peerConn) run(t *transfer) {
 	}
 }
 
-func (p *peerConn) sendBitField(b bitField) error {
+func (p *peerConn) sendBitField(b bitfield.BitField) error {
 	var buf bytes.Buffer
 	length := int32(1 + len(b.Bytes()))
 	buf.Grow(4 + int(length))

@@ -1,4 +1,4 @@
-package rain
+package tracker
 
 import (
 	"bytes"
@@ -17,19 +17,20 @@ type httpTracker struct {
 	trackerID string
 }
 
-func (r *Rain) newHTTPTracker(u *url.URL) *httpTracker {
+func newHTTPTracker(b *trackerBase) *httpTracker {
 	return &httpTracker{
-		trackerBase: r.newTrackerBase(u),
+		trackerBase: b,
 	}
 }
 
-func (t *httpTracker) Announce(transfer *transfer, cancel <-chan struct{}, event <-chan trackerEvent, responseC chan<- []peerAddr) {
+func (t *httpTracker) Announce(transfer Transfer, cancel <-chan struct{}, event <-chan trackerEvent, responseC chan<- []Peer) {
 	var nextAnnounce time.Duration = time.Nanosecond // Start immediately.
 	for {
 		select {
 		case <-time.After(nextAnnounce):
+			infoHash := transfer.InfoHash()
 			q := url.Values{}
-			q.Set("info_hash", string(transfer.torrentFile.Info.Hash[:]))
+			q.Set("info_hash", string(infoHash[:]))
 			q.Set("peer_id", string(t.peerID[:]))
 			q.Set("port", strconv.FormatUint(uint64(t.port), 10))
 			q.Set("uploaded", strconv.FormatInt(transfer.Uploaded(), 10))
@@ -37,11 +38,11 @@ func (t *httpTracker) Announce(transfer *transfer, cancel <-chan struct{}, event
 			q.Set("left", strconv.FormatInt(transfer.Left(), 10))
 			q.Set("compact", "1")
 			q.Set("no_peer_id", "1")
-			q.Set("numwant", strconv.Itoa(numWant))
+			q.Set("numwant", strconv.Itoa(NumWant))
 			if t.trackerID != "" {
 				q.Set("trackerid", t.trackerID)
 			}
-			u := t.URL
+			u := t.url
 			u.RawQuery = q.Encode()
 			t.log.Debugf("u.String(): %q", u.String())
 

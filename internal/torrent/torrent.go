@@ -1,18 +1,19 @@
-package rain
+package torrent
 
 import (
 	"bytes"
 	"crypto/sha1"
-	"encoding/hex"
 	"errors"
 	"io/ioutil"
 	"os"
 
 	"code.google.com/p/bencode-go"
+
+	"github.com/cenkalti/rain/internal/shared"
 )
 
-type torrentFile struct {
-	Info         infoDict   `bencode:"info"`
+type Torrent struct {
+	Info         Info       `bencode:"info"`
 	Announce     string     `bencode:"announce"`
 	AnnounceList [][]string `bencode:"announce-list"`
 	CreationDate int64      `bencode:"creation date"`
@@ -21,11 +22,7 @@ type torrentFile struct {
 	Encoding     string     `bencode:"encoding"`
 }
 
-type infoHash [sha1.Size]byte
-
-func (i infoHash) String() string { return hex.EncodeToString(i[:]) }
-
-type infoDict struct {
+type Info struct {
 	PieceLength uint32 `bencode:"piece length"`
 	Pieces      string `bencode:"pieces"`
 	Private     byte   `bencode:"private"`
@@ -37,8 +34,8 @@ type infoDict struct {
 	Files []fileDict `bencode:"files"`
 
 	// These fields do not exist in torrent file.
-	// They are calculated when a torrentFile is created with NewtorrentFile func.
-	Hash        infoHash
+	// They are calculated when a Torrent is created with New.
+	Hash        shared.InfoHash
 	TotalLength int64
 	NumPieces   uint32
 }
@@ -49,7 +46,7 @@ type fileDict struct {
 	Md5sum string   `bencode:"md5sum"`
 }
 
-func newTorrentFile(path string) (*torrentFile, error) {
+func New(path string) (*Torrent, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -78,7 +75,7 @@ func newTorrentFile(path string) (*torrentFile, error) {
 		return nil, errors.New("invalid torrent file")
 	}
 
-	t := new(torrentFile)
+	t := new(Torrent)
 
 	// Unmarshal bencoded bytes into the struct
 	reader.Seek(0, os.SEEK_SET)
@@ -107,7 +104,7 @@ func newTorrentFile(path string) (*torrentFile, error) {
 	return t, nil
 }
 
-func (i *infoDict) HashOfPiece(index uint32) [sha1.Size]byte {
+func (i *Info) HashOfPiece(index uint32) [sha1.Size]byte {
 	if index < 0 || index >= i.NumPieces {
 		panic("piece index out of range")
 	}
@@ -119,7 +116,7 @@ func (i *infoDict) HashOfPiece(index uint32) [sha1.Size]byte {
 }
 
 // GetFiles returns the files in torrent as a slice, even if there is a single file.
-func (i *infoDict) GetFiles() []fileDict {
+func (i *Info) GetFiles() []fileDict {
 	if i.MultiFile() {
 		return i.Files
 	} else {
@@ -128,6 +125,6 @@ func (i *infoDict) GetFiles() []fileDict {
 }
 
 // MultiFile returns true if the torrent contains more than one file.
-func (i *infoDict) MultiFile() bool {
+func (i *Info) MultiFile() bool {
 	return len(i.Files) != 0
 }

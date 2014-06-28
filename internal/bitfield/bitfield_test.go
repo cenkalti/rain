@@ -1,4 +1,4 @@
-package rain
+package bitfield
 
 import "testing"
 

@@ -7,6 +7,10 @@ import (
 	"os"
 	"strconv"
 	"sync"
+
+	"github.com/cenkalti/rain/internal/bitfield"
+	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/internal/torrent"
 )
 
 type piece struct {
@@ -15,12 +19,12 @@ type piece struct {
 	length   uint32       // last piece may not be complete
 	files    partialFiles // the place to write downloaded bytes
 	blocks   []block
-	bitField bitField    // blocks we have
-	peers    []*peerConn // contains peers that have this piece
+	bitField bitfield.BitField // blocks we have
+	peers    []*peerConn       // contains peers that have this piece
 	peersM   sync.Mutex
 	ok       bool // we have the piece and hash check is ok
 	blockC   chan peerBlock
-	log      logger
+	log      logger.Logger
 }
 
 type block struct {
@@ -29,7 +33,7 @@ type block struct {
 	files  partialFiles // the place to write downloaded bytes
 }
 
-func newPieces(info *infoDict, osFiles []*os.File) []*piece {
+func newPieces(info *torrent.Info, osFiles []*os.File) []*piece {
 	var (
 		fileIndex  int   // index of the current file in torrent
 		fileLength int64 = info.GetFiles()[0].Length
@@ -53,7 +57,7 @@ func newPieces(info *infoDict, osFiles []*os.File) []*piece {
 			index:  i,
 			sha1:   info.HashOfPiece(i),
 			blockC: make(chan peerBlock),
-			log:    newLogger("piece #" + strconv.Itoa(int(i))),
+			log:    logger.New("piece #" + strconv.Itoa(int(i))),
 		}
 
 		// Construct p.files
@@ -81,7 +85,7 @@ func newPieces(info *infoDict, osFiles []*os.File) []*piece {
 		}
 
 		p.blocks = newBlocks(p.length, p.files)
-		p.bitField = newBitField(nil, uint32(len(p.blocks)))
+		p.bitField = bitfield.New(nil, uint32(len(p.blocks)))
 		pieces[i] = p
 	}
 	return pieces
@@ -130,6 +134,8 @@ func newBlocks(pieceLength uint32, files []partialFile) []block {
 	}
 	return blocks
 }
+
+func divMod32(a, b uint32) (uint32, uint32) { return a / b, a % b }
 
 // Implements sort.Interface based on availability of piece.
 type rarestFirst []*piece

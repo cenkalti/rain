@@ -1,4 +1,4 @@
-package rain
+package tracker
 
 // http://bittorrent.org/beps/bep_0015.html
 // http://xbtt.sourceforge.net/udp_tracker_protocol.html
@@ -10,11 +10,11 @@ import (
 	"errors"
 	"math/rand"
 	"net"
-	"net/url"
 	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff"
+	"github.com/cenkalti/rain/internal/shared"
 )
 
 const connectionIDMagic = 0x41727101980
@@ -56,16 +56,16 @@ func (t *transaction) Done() {
 	close(t.done)
 }
 
-func (r *Rain) newUDPTracker(u *url.URL) *udpTracker {
+func newUDPTracker(b *trackerBase) *udpTracker {
 	return &udpTracker{
-		trackerBase:  r.newTrackerBase(u),
+		trackerBase:  b,
 		transactions: make(map[int32]*transaction),
 		writeC:       make(chan trackerRequest),
 	}
 }
 
 func (t *udpTracker) Dial() error {
-	serverAddr, err := net.ResolveUDPAddr("udp", t.URL.Host)
+	serverAddr, err := net.ResolveUDPAddr("udp", t.url.Host)
 	if err != nil {
 		return err
 	}
@@ -276,8 +276,8 @@ func (t *udpTracker) connect() int64 {
 
 type announceRequest struct {
 	trackerRequestHeader
-	InfoHash   infoHash
-	PeerID     peerID
+	InfoHash   shared.InfoHash
+	PeerID     shared.PeerID
 	Downloaded int64
 	Left       int64
 	Uploaded   int64
@@ -296,22 +296,8 @@ type announceResponse struct {
 	Seeders  int32
 }
 
-type peerAddr struct {
-	IP   [net.IPv4len]byte
-	Port uint16
-}
-
-func (p peerAddr) TCPAddr() *net.TCPAddr {
-	ip := make(net.IP, net.IPv4len)
-	copy(ip, p.IP[:])
-	return &net.TCPAddr{
-		IP:   ip,
-		Port: int(p.Port),
-	}
-}
-
 // Announce announces transfer to t periodically.
-func (t *udpTracker) Announce(transfer *transfer, cancel <-chan struct{}, event <-chan trackerEvent, peersC chan<- []peerAddr) {
+func (t *udpTracker) Announce(transfer Transfer, cancel <-chan struct{}, event <-chan trackerEvent, peersC chan<- []Peer) {
 	err := t.Dial()
 	if err != nil {
 		// TODO retry connecting to tracker
@@ -319,12 +305,12 @@ func (t *udpTracker) Announce(transfer *transfer, cancel <-chan struct{}, event 
 	}
 
 	request := &announceRequest{
-		InfoHash:   transfer.torrentFile.Info.Hash,
+		InfoHash:   transfer.InfoHash(),
 		PeerID:     t.peerID,
 		Event:      trackerEventNone,
 		IP:         0, // Tracker uses sender of this UDP packet.
 		Key:        0, // TODO set it
-		NumWant:    numWant,
+		NumWant:    NumWant,
 		Port:       t.port,
 		Extensions: 0,
 	}
@@ -369,13 +355,13 @@ func (t *udpTracker) Announce(transfer *transfer, cancel <-chan struct{}, event 
 	}
 }
 
-func (r *announceRequest) update(d *transfer) {
-	r.Downloaded = d.Downloaded()
-	r.Uploaded = d.Uploaded()
-	r.Left = d.Left()
+func (r *announceRequest) update(t Transfer) {
+	r.Downloaded = t.Downloaded()
+	r.Uploaded = t.Uploaded()
+	r.Left = t.Left()
 }
 
-func (t *udpTracker) parseAnnounceResponse(data []byte) (*announceResponse, []peerAddr, error) {
+func (t *udpTracker) parseAnnounceResponse(data []byte) (*announceResponse, []Peer, error) {
 	response := new(announceResponse)
 	if len(data) < binary.Size(response) {
 		return nil, nil, errors.New("response is too small")

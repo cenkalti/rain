@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+
+	"github.com/cenkalti/rain/internal/shared"
 )
 
-func (p *peerConn) readHandShake1() (*infoHash, error) {
+func (p *peerConn) readHandShake1() (*shared.InfoHash, error) {
 	var pstrLen byte
 	err := binary.Read(p.conn, binary.BigEndian, &pstrLen)
 	if err != nil {
@@ -32,7 +34,7 @@ func (p *peerConn) readHandShake1() (*infoHash, error) {
 		return nil, err
 	}
 
-	var infoHash infoHash
+	var infoHash shared.InfoHash
 	_, err = io.ReadFull(p.conn, infoHash[:])
 	if err != nil {
 		return nil, err
@@ -41,8 +43,8 @@ func (p *peerConn) readHandShake1() (*infoHash, error) {
 	return &infoHash, nil
 }
 
-func (p *peerConn) readHandShake2() (*peerID, error) {
-	var id peerID
+func (p *peerConn) readHandShake2() (*shared.PeerID, error) {
+	var id shared.PeerID
 	_, err := io.ReadFull(p.conn, id[:])
 	if err != nil {
 		return nil, err
@@ -50,7 +52,7 @@ func (p *peerConn) readHandShake2() (*peerID, error) {
 	return &id, nil
 }
 
-func (p *peerConn) sendHandShake(ih infoHash, id peerID) error {
+func (p *peerConn) sendHandShake(ih shared.InfoHash, id shared.PeerID) error {
 	return binary.Write(p.conn, binary.BigEndian, newPeerHandShake(ih, id))
 }
 
@@ -58,11 +60,11 @@ type peerHandShake struct {
 	Pstrlen  byte
 	Pstr     [bitTorrent10pstrLen]byte
 	_        [8]byte
-	InfoHash infoHash
-	PeerID   peerID
+	InfoHash shared.InfoHash
+	PeerID   shared.PeerID
 }
 
-func newPeerHandShake(ih infoHash, id peerID) *peerHandShake {
+func newPeerHandShake(ih shared.InfoHash, id shared.PeerID) *peerHandShake {
 	h := &peerHandShake{
 		Pstrlen:  bitTorrent10pstrLen,
 		InfoHash: ih,

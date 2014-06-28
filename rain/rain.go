@@ -2,10 +2,14 @@ package rain
 
 import (
 	"crypto/rand"
-	"encoding/hex"
 	"net"
 	"sync"
 	"time"
+
+	"github.com/cenkalti/log"
+	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/internal/shared"
+	"github.com/cenkalti/rain/internal/torrent"
 )
 
 // Limits
@@ -20,17 +24,15 @@ const (
 // http://www.bittorrent.org/beps/bep_0020.html
 var peerIDPrefix = []byte("-RN0001-")
 
+func SetLogLevel(l log.Level) { logger.LogLevel = l }
+
 type Rain struct {
-	peerID     peerID
+	peerID     shared.PeerID
 	listener   *net.TCPListener
-	transfers  map[infoHash]*transfer
+	transfers  map[shared.InfoHash]*transfer
 	transfersM sync.Mutex
-	log        logger
+	log        logger.Logger
 }
-
-type peerID [20]byte
-
-func (p peerID) String() string { return hex.EncodeToString(p[:]) }
 
 // New returns a pointer to new Rain BitTorrent client.
 func New(port int) (*Rain, error) {
@@ -40,8 +42,8 @@ func New(port int) (*Rain, error) {
 	}
 	r := &Rain{
 		peerID:    peerID,
-		transfers: make(map[infoHash]*transfer),
-		log:       newLogger("rain"),
+		transfers: make(map[shared.InfoHash]*transfer),
+		log:       logger.New("rain"),
 	}
 	if err = r.listenPeerPort(port); err != nil {
 		return nil, err
@@ -49,8 +51,8 @@ func New(port int) (*Rain, error) {
 	return r, nil
 }
 
-func generatePeerID() (peerID, error) {
-	var id peerID
+func generatePeerID() (shared.PeerID, error) {
+	var id shared.PeerID
 	copy(id[:], peerIDPrefix)
 	_, err := rand.Read(id[len(peerIDPrefix):])
 	return id, err
@@ -140,7 +142,7 @@ func (r *Rain) servePeerConn(p *peerConn) {
 
 // Download starts a download and waits for it to finish.
 func (r *Rain) Download(torrentPath, where string) error {
-	torrent, err := newTorrentFile(torrentPath)
+	torrent, err := torrent.New(torrentPath)
 	if err != nil {
 		return err
 	}

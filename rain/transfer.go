@@ -7,22 +7,28 @@ import (
 	"path/filepath"
 	"sort"
 	"time"
+
+	"github.com/cenkalti/rain/internal/bitfield"
+	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/internal/shared"
+	"github.com/cenkalti/rain/internal/torrent"
+	"github.com/cenkalti/rain/internal/tracker"
 )
 
 // transfer represents an active transfer in the program.
 type transfer struct {
-	rain        *Rain
-	tracker     tracker
-	torrentFile *torrentFile
-	pieces      []*piece
-	bitField    bitField // pieces that we have
-	downloaded  chan struct{}
-	haveC       chan peerHave
-	log         logger
+	rain       *Rain
+	tracker    tracker.Tracker
+	torrent    *torrent.Torrent
+	pieces     []*piece
+	bitField   bitfield.BitField // pieces that we have
+	downloaded chan struct{}
+	haveC      chan peerHave
+	log        logger.Logger
 }
 
-func (r *Rain) newTransfer(tor *torrentFile, where string) (*transfer, error) {
-	tracker, err := r.newTracker(tor.Announce)
+func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error) {
+	tracker, err := tracker.New(tor.Announce, r.peerID, r.port())
 	if err != nil {
 		return nil, err
 	}
@@ -36,26 +42,27 @@ func (r *Rain) newTransfer(tor *torrentFile, where string) (*transfer, error) {
 		name = name[:8]
 	}
 	return &transfer{
-		rain:        r,
-		tracker:     tracker,
-		torrentFile: tor,
-		pieces:      pieces,
-		bitField:    newBitField(nil, uint32(len(pieces))),
-		downloaded:  make(chan struct{}),
-		haveC:       make(chan peerHave),
-		log:         newLogger("download " + name),
+		rain:       r,
+		tracker:    tracker,
+		torrent:    tor,
+		pieces:     pieces,
+		bitField:   bitfield.New(nil, uint32(len(pieces))),
+		downloaded: make(chan struct{}),
+		haveC:      make(chan peerHave),
+		log:        logger.New("download " + name),
 	}, nil
 }
 
-func (t *transfer) Downloaded() int64 { return 0 } // TODO
-func (t *transfer) Uploaded() int64   { return 0 } // TODO
-func (t *transfer) Left() int64       { return t.torrentFile.Info.TotalLength - t.Downloaded() }
+func (t *transfer) InfoHash() shared.InfoHash { return t.torrent.Info.Hash }
+func (t *transfer) Downloaded() int64         { return 0 } // TODO
+func (t *transfer) Uploaded() int64           { return 0 } // TODO
+func (t *transfer) Left() int64               { return t.torrent.Info.TotalLength - t.Downloaded() }
 
 func (t *transfer) run() {
-	peers := make(chan peerAddr, numWant)
+	peers := make(chan tracker.Peer, tracker.NumWant)
 	go t.connecter(peers)
 
-	announceC := make(chan []peerAddr)
+	announceC := make(chan []tracker.Peer)
 	go t.tracker.Announce(t, nil, nil, announceC)
 
 	var receivedHaveMessage bool
@@ -113,7 +120,7 @@ L:
 		// But, limit max simultaneous piece downloads.
 		var timeout <-chan time.Time
 		if numPieceDownload < maxSimultaneoutPieceDownloadEnd {
-			timeout = time.After(time.Duration(t.torrentFile.Info.PieceLength/minSpeedPerTorrent) * time.Second)
+			timeout = time.After(time.Duration(t.torrent.Info.PieceLength/minSpeedPerTorrent) * time.Second)
 		}
 		select {
 		case piece, ok := <-responseC:
@@ -136,7 +143,7 @@ L:
 }
 
 func (t *transfer) pieceRequester(requestC chan chan *piece) {
-	requested := newBitField(nil, t.bitField.Len())
+	requested := bitfield.New(nil, t.bitField.Len())
 	missing := t.bitField.Len() - t.bitField.Count()
 	for missing > 0 {
 		req := make(chan *piece)
@@ -176,7 +183,7 @@ func pieceDownloader(requestC chan chan *piece, responseC chan *piece) {
 	}
 }
 
-func (t *transfer) selectPiece(requested *bitField) (*piece, error) {
+func (t *transfer) selectPiece(requested *bitfield.BitField) (*piece, error) {
 	var pieces []*piece
 	for i, p := range t.pieces {
 		if !requested.Test(uint32(i)) && !p.ok && len(p.peers) > 0 {
@@ -194,11 +201,11 @@ func (t *transfer) selectPiece(requested *bitField) (*piece, error) {
 	return pieces[rand.Intn(len(pieces))], nil
 }
 
-func (t *transfer) connecter(peers chan peerAddr) {
+func (t *transfer) connecter(peers chan tracker.Peer) {
 	limit := make(chan struct{}, maxPeerPerTorrent)
 	for p := range peers {
 		limit <- struct{}{}
-		go func(peer peerAddr) {
+		go func(peer tracker.Peer) {
 			defer func() {
 				if err := recover(); err != nil {
 					t.log.Critical(err)
@@ -229,7 +236,7 @@ func (t *transfer) connectToPeer(addr *net.TCPAddr) {
 		return
 	}
 
-	err = p.sendHandShake(t.torrentFile.Info.Hash, t.rain.peerID)
+	err = p.sendHandShake(t.torrent.Info.Hash, t.rain.peerID)
 	if err != nil {
 		p.log.Error(err)
 		return
@@ -240,7 +247,7 @@ func (t *transfer) connectToPeer(addr *net.TCPAddr) {
 		p.log.Error(err)
 		return
 	}
-	if *ih != t.torrentFile.Info.Hash {
+	if *ih != t.torrent.Info.Hash {
 		p.log.Error("unexpected info_hash")
 		return
 	}
@@ -260,7 +267,7 @@ func (t *transfer) connectToPeer(addr *net.TCPAddr) {
 	pc.run(t)
 }
 
-func allocate(info *infoDict, where string) ([]*os.File, error) {
+func allocate(info *torrent.Info, where string) ([]*os.File, error) {
 	if !info.MultiFile() {
 		f, err := createTruncateSync(filepath.Join(where, info.Name), info.Length)
 		if err != nil {
