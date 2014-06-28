@@ -10,14 +10,15 @@ import (
 
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/internal/partialfile"
 	"github.com/cenkalti/rain/internal/torrent"
 )
 
 type piece struct {
 	index    uint32 // piece index in whole torrent
 	sha1     [sha1.Size]byte
-	length   uint32       // last piece may not be complete
-	files    partialFiles // the place to write downloaded bytes
+	length   uint32            // last piece may not be complete
+	files    partialfile.Files // the place to write downloaded bytes
 	blocks   []block
 	bitField bitfield.BitField // blocks we have
 	peers    []*peerConn       // contains peers that have this piece
@@ -30,7 +31,7 @@ type piece struct {
 type block struct {
 	index  uint32 // block index in piece
 	length uint32
-	files  partialFiles // the place to write downloaded bytes
+	files  partialfile.Files // the place to write downloaded bytes
 }
 
 func newPieces(info *torrent.Info, osFiles []*os.File) []*piece {
@@ -66,7 +67,7 @@ func newPieces(info *torrent.Info, osFiles []*os.File) []*piece {
 		for left := pieceLeft(); left > 0; {
 			n := uint32(minInt64(int64(left), fileLeft())) // number of bytes to write
 
-			file := partialFile{osFiles[fileIndex], fileOffset, n}
+			file := partialfile.File{osFiles[fileIndex], fileOffset, n}
 			p.log.Debugf("file: %#v", file)
 			p.files = append(p.files, file)
 
@@ -91,7 +92,7 @@ func newPieces(info *torrent.Info, osFiles []*os.File) []*piece {
 	return pieces
 }
 
-func newBlocks(pieceLength uint32, files []partialFile) []block {
+func newBlocks(pieceLength uint32, files partialfile.Files) []block {
 	div, mod := divMod32(pieceLength, blockSize)
 	numBlocks := div
 	if mod != 0 {
@@ -116,13 +117,13 @@ func newBlocks(pieceLength uint32, files []partialFile) []block {
 		fileIndex++
 		fileOffset = 0
 	}
-	fileLeft := func() uint32 { return files[fileIndex].length - fileOffset }
+	fileLeft := func() uint32 { return files[fileIndex].Length - fileOffset }
 	for i := range blocks {
 		var blockOffset uint32 = 0
 		blockLeft := func() uint32 { return blocks[i].length - blockOffset }
 		for left := blockLeft(); left > 0 && fileIndex < len(files); {
 			n := minUint32(left, fileLeft())
-			file := partialFile{files[fileIndex].file, files[fileIndex].offset + int64(fileOffset), n}
+			file := partialfile.File{files[fileIndex].File, files[fileIndex].Offset + int64(fileOffset), n}
 			blocks[i].files = append(blocks[i].files, file)
 			fileOffset += n
 			blockOffset += n
