@@ -105,7 +105,7 @@ func New(path string) (*Torrent, error) {
 }
 
 func (i *Info) HashOfPiece(index uint32) [sha1.Size]byte {
-	if index < 0 || index >= i.NumPieces {
+	if index >= i.NumPieces {
 		panic("piece index out of range")
 	}
 	var hash [sha1.Size]byte
