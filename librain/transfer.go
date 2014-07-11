@@ -109,32 +109,16 @@ func (t *transfer) downloader(start chan struct{}) {
 	go t.pieceRequester(requestC)
 
 	// Download pieces in parallel.
-	numPieceDownload := maxSimultaneoutPieceDownloadStart
 	for i := 0; i < maxSimultaneoutPieceDownloadStart; i++ {
 		go pieceDownloader(requestC, responseC)
 	}
 
-L:
-	for {
-		// Start another pieceDownloader if download speed is below the treshold.
-		// But, limit max simultaneous piece downloads.
-		var timeout <-chan time.Time
-		if numPieceDownload < maxSimultaneoutPieceDownloadEnd {
-			timeout = time.After(time.Duration(t.torrent.Info.PieceLength/minSpeedPerTorrent) * time.Second)
-		}
-		select {
-		case piece, ok := <-responseC:
-			if !ok {
-				panic("cannot download piece")
-			}
-			t.bitField.Set(piece.index)
-			missing--
-			if missing == 0 {
-				break L
-			}
-		case <-timeout:
-			go pieceDownloader(requestC, responseC)
-			numPieceDownload++
+	for p := range responseC {
+		t.bitField.Set(p.index)
+
+		missing--
+		if missing == 0 {
+			break
 		}
 	}
 
@@ -175,7 +159,7 @@ func pieceDownloader(requestC chan chan *piece, responseC chan *piece) {
 		err := piece.download()
 		if err != nil {
 			piece.log.Error(err)
-			responseC <- nil
+			// responseC <- nil
 			continue
 		}
 
