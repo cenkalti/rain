@@ -2,16 +2,16 @@ package bitfield
 
 import "testing"
 
-func TestNewBitField(t *testing.T) {
+func TestNew(t *testing.T) {
 	var v BitField
 	var buf = []byte{0x0f}
 
-	v = NewBitField(buf, 8)
+	v = New(buf, 8)
 	if v.Hex() != "0f" {
 		t.Errorf("invalid value: %s", v.Hex())
 	}
 
-	v = NewBitField(buf, 7)
+	v = New(buf, 7)
 	if v.Hex() != "0e" {
 		t.Errorf("invalid value: %s", v.Hex())
 	}
@@ -22,10 +22,10 @@ func TestNewBitField(t *testing.T) {
 				t.Error("expected panic but not found")
 			}
 		}()
-		NewBitField(buf, 9)
+		New(buf, 9)
 	}()
 
-	v = NewBitField(nil, 10)
+	v = New(nil, 10)
 	if v.Hex() != "0000" {
 		t.Errorf("invalid value: %s", v.Hex())
 	}
