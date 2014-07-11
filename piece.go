@@ -1,4 +1,4 @@
-package librain
+package rain
 
 import (
 	"crypto/sha1"

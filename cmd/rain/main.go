@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/cenkalti/log"
-	"github.com/cenkalti/rain/librain"
+	"github.com/cenkalti/rain"
 )
 
 var (
@@ -25,10 +25,10 @@ func main() {
 	}
 
 	if *debug {
-		librain.SetLogLevel(log.DEBUG)
+		rain.SetLogLevel(log.DEBUG)
 	}
 
-	r, err := librain.New(*port)
+	r, err := rain.New(*port)
 	if err != nil {
 		log.Fatal(err)
 	}
