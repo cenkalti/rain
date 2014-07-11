@@ -10,23 +10,45 @@ import (
 	"github.com/cenkalti/rain/internal/protocol"
 )
 
+type peerHandShake struct {
+	Pstrlen  byte
+	Pstr     [protocol.PstrLen]byte
+	_        [8]byte
+	InfoHash protocol.InfoHash
+	PeerID   protocol.PeerID
+}
+
+func newPeerHandShake(ih protocol.InfoHash, id protocol.PeerID) *peerHandShake {
+	h := &peerHandShake{
+		Pstrlen:  protocol.PstrLen,
+		InfoHash: ih,
+		PeerID:   id,
+	}
+	copy(h.Pstr[:], protocol.Pstr)
+	return h
+}
+
+func (p *peerConn) sendHandShake(ih protocol.InfoHash, id protocol.PeerID) error {
+	return binary.Write(p.conn, binary.BigEndian, newPeerHandShake(ih, id))
+}
+
 func (p *peerConn) readHandShake1() (*protocol.InfoHash, error) {
 	var pstrLen byte
 	err := binary.Read(p.conn, binary.BigEndian, &pstrLen)
 	if err != nil {
 		return nil, err
 	}
-	if pstrLen != bitTorrent10pstrLen {
-		return nil, fmt.Errorf("invalid pstrlen: %d != %d", pstrLen, bitTorrent10pstrLen)
+	if pstrLen != protocol.PstrLen {
+		return nil, fmt.Errorf("invalid pstrlen: %d != %d", pstrLen, protocol.PstrLen)
 	}
 
-	pstr := make([]byte, bitTorrent10pstrLen)
+	pstr := make([]byte, protocol.PstrLen)
 	_, err = io.ReadFull(p.conn, pstr)
 	if err != nil {
 		return nil, err
 	}
-	if bytes.Compare(pstr, bitTorrent10pstr) != 0 {
-		return nil, fmt.Errorf("invalid pstr: %q != %q", string(pstr), string(bitTorrent10pstr))
+	if bytes.Compare(pstr, protocol.Pstr) != 0 {
+		return nil, fmt.Errorf("invalid pstr: %q != %q", string(pstr), string(protocol.Pstr))
 	}
 
 	_, err = io.CopyN(ioutil.Discard, p.conn, 8) // reserved bytes are not used
@@ -50,26 +72,4 @@ func (p *peerConn) readHandShake2() (*protocol.PeerID, error) {
 		return nil, err
 	}
 	return &id, nil
-}
-
-func (p *peerConn) sendHandShake(ih protocol.InfoHash, id protocol.PeerID) error {
-	return binary.Write(p.conn, binary.BigEndian, newPeerHandShake(ih, id))
-}
-
-type peerHandShake struct {
-	Pstrlen  byte
-	Pstr     [bitTorrent10pstrLen]byte
-	_        [8]byte
-	InfoHash protocol.InfoHash
-	PeerID   protocol.PeerID
-}
-
-func newPeerHandShake(ih protocol.InfoHash, id protocol.PeerID) *peerHandShake {
-	h := &peerHandShake{
-		Pstrlen:  bitTorrent10pstrLen,
-		InfoHash: ih,
-		PeerID:   id,
-	}
-	copy(h.Pstr[:], bitTorrent10pstr)
-	return h
 }

@@ -14,41 +14,11 @@ import (
 
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/internal/protocol"
 )
 
 // All current implementations use 2^14 (16 kiB), and close connections which request an amount greater than that.
 const blockSize = 16 * 1024
-
-const bitTorrent10pstrLen = 19
-
-var bitTorrent10pstr = []byte("BitTorrent protocol")
-
-// Peer message types
-const (
-	msgChoke = iota
-	msgUnchoke
-	msgInterested
-	msgNotInterested
-	msgHave
-	msgBitfield
-	msgRequest
-	msgPiece
-	msgCancel
-	msgPort
-)
-
-var peerMessageTypes = [...]string{
-	"choke",
-	"unchoke",
-	"interested",
-	"not interested",
-	"have",
-	"bitfield",
-	"request",
-	"piece",
-	"cancel",
-	"port",
-}
 
 type peerConn struct {
 	conn         net.Conn
@@ -119,7 +89,7 @@ func (p *peerConn) run(t *transfer) {
 			continue
 		}
 
-		var msgType byte
+		var msgType protocol.Message
 		err = binary.Read(p.conn, binary.BigEndian, &msgType)
 		if err != nil {
 			p.log.Error(err)
@@ -127,22 +97,22 @@ func (p *peerConn) run(t *transfer) {
 		}
 		length--
 
-		p.log.Debugf("Received message of type %d", msgType)
+		p.log.Debugf("Received message of type %q", msgType)
 
 		switch msgType {
-		case msgChoke:
+		case protocol.Choke:
 			p.peerChoking = true
-		case msgUnchoke:
+		case protocol.Unchoke:
 			p.unchokeM.Lock()
 			p.peerChoking = false
 			close(p.unchokeC)
 			// p.unchokeC = make(chan struct{})
 			p.unchokeM.Unlock()
-		case msgInterested:
+		case protocol.Interested:
 			p.peerInterested = true
-		case msgNotInterested:
+		case protocol.NotInterested:
 			p.peerInterested = false
-		case msgHave:
+		case protocol.Have:
 			var i uint32
 			err = binary.Read(p.conn, binary.BigEndian, &i)
 			if err != nil {
@@ -159,7 +129,7 @@ func (p *peerConn) run(t *transfer) {
 			p.log.Debugln("new bitfield:", bitField.Hex())
 
 			t.haveC <- peerHave{p, piece}
-		case msgBitfield:
+		case protocol.Bitfield:
 			if !first {
 				p.log.Error("bitfield can only be sent after handshake")
 				return
@@ -182,8 +152,8 @@ func (p *peerConn) run(t *transfer) {
 					t.haveC <- peerHave{p, t.pieces[i]}
 				}
 			}
-		case msgRequest:
-		case msgPiece:
+		case protocol.Request:
+		case protocol.Piece:
 			var index uint32
 			err = binary.Read(p.conn, binary.BigEndian, &index)
 			if err != nil {
@@ -223,8 +193,8 @@ func (p *peerConn) run(t *transfer) {
 				return
 			}
 			piece.blockC <- peerBlock{p, block, data}
-		case msgCancel:
-		case msgPort:
+		case protocol.Cancel:
+		case protocol.Port:
 		default:
 			p.log.Debugf("Unknown message type: %d", msgType)
 			// Discard remaining bytes.
@@ -243,7 +213,7 @@ func (p *peerConn) sendBitField(b bitfield.BitField) error {
 	if err != nil {
 		return err
 	}
-	if err = buf.WriteByte(msgBitfield); err != nil {
+	if err = buf.WriteByte(byte(protocol.Bitfield)); err != nil {
 		return err
 	}
 	if _, err = buf.Write(b.Bytes()); err != nil {
@@ -267,26 +237,26 @@ func (p *peerConn) beInterested() (unchokeC chan struct{}, err error) {
 		return
 	}
 
-	p.onceInterested.Do(func() { err = p.sendMessage(msgInterested) })
+	p.onceInterested.Do(func() { err = p.sendMessage(protocol.Interested) })
 	return
 }
 
-func (p *peerConn) sendMessage(msgType byte) error {
+func (p *peerConn) sendMessage(msgType protocol.Message) error {
 	var msg = struct {
 		Length      uint32
-		MessageType byte
+		MessageType protocol.Message
 	}{1, msgType}
-	p.log.Debugf("Sending message: %q", peerMessageTypes[msgType])
+	p.log.Debugf("Sending message: %q", msgType)
 	return binary.Write(p.conn, binary.BigEndian, &msg)
 }
 
 type peerRequestMessage struct {
-	ID                   byte
+	ID                   protocol.Message
 	Index, Begin, Length uint32
 }
 
 func newPeerRequestMessage(index, begin, length uint32) *peerRequestMessage {
-	return &peerRequestMessage{msgRequest, index, begin, length}
+	return &peerRequestMessage{protocol.Request, index, begin, length}
 }
 
 func (p *peerConn) sendRequest(m *peerRequestMessage) error {
