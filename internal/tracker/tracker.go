@@ -9,7 +9,7 @@ import (
 	"net/url"
 
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/shared"
+	"github.com/cenkalti/rain/internal/protocol"
 )
 
 // Number of peers we want from trackers
@@ -30,7 +30,7 @@ type Tracker interface {
 }
 
 type Transfer interface {
-	InfoHash() shared.InfoHash
+	InfoHash() protocol.InfoHash
 	Downloaded() int64
 	Uploaded() int64
 	Left() int64
@@ -50,7 +50,7 @@ func (p Peer) TCPAddr() *net.TCPAddr {
 	}
 }
 
-func New(trackerURL string, peerID shared.PeerID, port uint16) (Tracker, error) {
+func New(trackerURL string, peerID protocol.PeerID, port uint16) (Tracker, error) {
 	u, err := url.Parse(trackerURL)
 	if err != nil {
 		return nil, err
@@ -75,7 +75,7 @@ func New(trackerURL string, peerID shared.PeerID, port uint16) (Tracker, error) 
 
 type trackerBase struct {
 	url    *url.URL
-	peerID shared.PeerID
+	peerID protocol.PeerID
 	port   uint16
 	log    logger.Logger
 }

@@ -7,10 +7,10 @@ import (
 	"io"
 	"io/ioutil"
 
-	"github.com/cenkalti/rain/internal/shared"
+	"github.com/cenkalti/rain/internal/protocol"
 )
 
-func (p *peerConn) readHandShake1() (*shared.InfoHash, error) {
+func (p *peerConn) readHandShake1() (*protocol.InfoHash, error) {
 	var pstrLen byte
 	err := binary.Read(p.conn, binary.BigEndian, &pstrLen)
 	if err != nil {
@@ -34,7 +34,7 @@ func (p *peerConn) readHandShake1() (*shared.InfoHash, error) {
 		return nil, err
 	}
 
-	var infoHash shared.InfoHash
+	var infoHash protocol.InfoHash
 	_, err = io.ReadFull(p.conn, infoHash[:])
 	if err != nil {
 		return nil, err
@@ -43,8 +43,8 @@ func (p *peerConn) readHandShake1() (*shared.InfoHash, error) {
 	return &infoHash, nil
 }
 
-func (p *peerConn) readHandShake2() (*shared.PeerID, error) {
-	var id shared.PeerID
+func (p *peerConn) readHandShake2() (*protocol.PeerID, error) {
+	var id protocol.PeerID
 	_, err := io.ReadFull(p.conn, id[:])
 	if err != nil {
 		return nil, err
@@ -52,7 +52,7 @@ func (p *peerConn) readHandShake2() (*shared.PeerID, error) {
 	return &id, nil
 }
 
-func (p *peerConn) sendHandShake(ih shared.InfoHash, id shared.PeerID) error {
+func (p *peerConn) sendHandShake(ih protocol.InfoHash, id protocol.PeerID) error {
 	return binary.Write(p.conn, binary.BigEndian, newPeerHandShake(ih, id))
 }
 
@@ -60,11 +60,11 @@ type peerHandShake struct {
 	Pstrlen  byte
 	Pstr     [bitTorrent10pstrLen]byte
 	_        [8]byte
-	InfoHash shared.InfoHash
-	PeerID   shared.PeerID
+	InfoHash protocol.InfoHash
+	PeerID   protocol.PeerID
 }
 
-func newPeerHandShake(ih shared.InfoHash, id shared.PeerID) *peerHandShake {
+func newPeerHandShake(ih protocol.InfoHash, id protocol.PeerID) *peerHandShake {
 	h := &peerHandShake{
 		Pstrlen:  bitTorrent10pstrLen,
 		InfoHash: ih,

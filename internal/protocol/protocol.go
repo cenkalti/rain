@@ -1,5 +1,4 @@
-// Package shared contains simple types that is shared between different packages.
-package shared
+package protocol
 
 import (
 	"crypto/sha1"

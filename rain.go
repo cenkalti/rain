@@ -9,7 +9,7 @@ import (
 	"github.com/cenkalti/log"
 
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/shared"
+	"github.com/cenkalti/rain/internal/protocol"
 	"github.com/cenkalti/rain/internal/torrent"
 )
 
@@ -28,9 +28,9 @@ var peerIDPrefix = []byte("-RN0001-")
 func SetLogLevel(l log.Level) { logger.LogLevel = l }
 
 type Rain struct {
-	peerID     shared.PeerID
+	peerID     protocol.PeerID
 	listener   *net.TCPListener
-	transfers  map[shared.InfoHash]*transfer
+	transfers  map[protocol.InfoHash]*transfer
 	transfersM sync.Mutex
 	log        logger.Logger
 }
@@ -43,7 +43,7 @@ func New(port int) (*Rain, error) {
 	}
 	r := &Rain{
 		peerID:    peerID,
-		transfers: make(map[shared.InfoHash]*transfer),
+		transfers: make(map[protocol.InfoHash]*transfer),
 		log:       logger.New("rain"),
 	}
 	if err = r.listenPeerPort(port); err != nil {
@@ -52,8 +52,8 @@ func New(port int) (*Rain, error) {
 	return r, nil
 }
 
-func generatePeerID() (shared.PeerID, error) {
-	var id shared.PeerID
+func generatePeerID() (protocol.PeerID, error) {
+	var id protocol.PeerID
 	copy(id[:], peerIDPrefix)
 	_, err := rand.Read(id[len(peerIDPrefix):])
 	return id, err

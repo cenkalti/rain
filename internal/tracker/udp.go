@@ -15,7 +15,7 @@ import (
 
 	"github.com/cenkalti/backoff"
 
-	"github.com/cenkalti/rain/internal/shared"
+	"github.com/cenkalti/rain/internal/protocol"
 )
 
 const connectionIDMagic = 0x41727101980
@@ -277,8 +277,8 @@ func (t *udpTracker) connect() int64 {
 
 type announceRequest struct {
 	trackerRequestHeader
-	InfoHash   shared.InfoHash
-	PeerID     shared.PeerID
+	InfoHash   protocol.InfoHash
+	PeerID     protocol.PeerID
 	Downloaded int64
 	Left       int64
 	Uploaded   int64

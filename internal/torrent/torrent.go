@@ -9,7 +9,7 @@ import (
 
 	"code.google.com/p/bencode-go"
 
-	"github.com/cenkalti/rain/internal/shared"
+	"github.com/cenkalti/rain/internal/protocol"
 )
 
 type Torrent struct {
@@ -35,7 +35,7 @@ type Info struct {
 
 	// These fields do not exist in torrent file.
 	// They are calculated when a Torrent is created with New.
-	Hash        shared.InfoHash
+	Hash        protocol.InfoHash
 	TotalLength int64
 	NumPieces   uint32
 }

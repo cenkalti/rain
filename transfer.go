@@ -10,7 +10,7 @@ import (
 
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/shared"
+	"github.com/cenkalti/rain/internal/protocol"
 	"github.com/cenkalti/rain/internal/torrent"
 	"github.com/cenkalti/rain/internal/tracker"
 )
@@ -53,10 +53,10 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 	}, nil
 }
 
-func (t *transfer) InfoHash() shared.InfoHash { return t.torrent.Info.Hash }
-func (t *transfer) Downloaded() int64         { return 0 } // TODO
-func (t *transfer) Uploaded() int64           { return 0 } // TODO
-func (t *transfer) Left() int64               { return t.torrent.Info.TotalLength - t.Downloaded() }
+func (t *transfer) InfoHash() protocol.InfoHash { return t.torrent.Info.Hash }
+func (t *transfer) Downloaded() int64           { return 0 } // TODO
+func (t *transfer) Uploaded() int64             { return 0 } // TODO
+func (t *transfer) Left() int64                 { return t.torrent.Info.TotalLength - t.Downloaded() }
 
 func (t *transfer) run() {
 	peers := make(chan tracker.Peer, tracker.NumWant)
