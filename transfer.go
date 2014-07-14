@@ -54,7 +54,7 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 }
 
 func (t *transfer) InfoHash() protocol.InfoHash { return t.torrent.Info.Hash }
-func (t *transfer) Downloaded() int64           { return 0 } // TODO
+func (t *transfer) Downloaded() int64           { return int64(t.bitField.Count() * t.torrent.Info.PieceLength) }
 func (t *transfer) Uploaded() int64             { return 0 } // TODO
 func (t *transfer) Left() int64                 { return t.torrent.Info.TotalLength - t.Downloaded() }
 

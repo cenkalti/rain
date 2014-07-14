@@ -18,7 +18,7 @@ const PstrLen = 19
 var Pstr = []byte("BitTorrent protocol")
 
 const (
-	Choke Message = iota
+	Choke MessageType = iota
 	Unchoke
 	Interested
 	NotInterested
@@ -30,7 +30,7 @@ const (
 	Port
 )
 
-var peerMessageTypes = [...]string{
+var messageStrings = [...]string{
 	"choke",
 	"unchoke",
 	"interested",
@@ -43,6 +43,6 @@ var peerMessageTypes = [...]string{
 	"port",
 }
 
-type Message byte
+type MessageType byte
 
-func (m Message) String() string { return peerMessageTypes[m] }
+func (m MessageType) String() string { return messageStrings[m] }

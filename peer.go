@@ -89,7 +89,7 @@ func (p *peerConn) run(t *transfer) {
 			continue
 		}
 
-		var msgType protocol.Message
+		var msgType protocol.MessageType
 		err = binary.Read(p.conn, binary.BigEndian, &msgType)
 		if err != nil {
 			p.log.Error(err)
@@ -241,17 +241,17 @@ func (p *peerConn) beInterested() (unchokeC chan struct{}, err error) {
 	return
 }
 
-func (p *peerConn) sendMessage(msgType protocol.Message) error {
+func (p *peerConn) sendMessage(msgType protocol.MessageType) error {
 	var msg = struct {
 		Length      uint32
-		MessageType protocol.Message
+		MessageType protocol.MessageType
 	}{1, msgType}
 	p.log.Debugf("Sending message: %q", msgType)
 	return binary.Write(p.conn, binary.BigEndian, &msg)
 }
 
 type peerRequestMessage struct {
-	ID                   protocol.Message
+	ID                   protocol.MessageType
 	Index, Begin, Length uint32
 }
 
