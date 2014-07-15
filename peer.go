@@ -56,17 +56,21 @@ func (p *peerConn) run(t *transfer) {
 	defer close(p.disconnected)
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 
-	bitField := bitfield.New(nil, t.bitField.Len())
-
-	err := p.sendBitField(t.bitField)
-	if err != nil {
-		p.log.Error(err)
-		return
+	// Do not send bitfield if we don't have any pieces.
+	// uTorrent seems to be dropping connections that send an empty bitfield message.
+	if t.bitField.Count() != 0 {
+		err := p.sendBitField(t.bitField)
+		if err != nil {
+			p.log.Error(err)
+			return
+		}
 	}
+
+	bitField := bitfield.New(nil, t.bitField.Len())
 
 	first := true
 	for {
-		err = p.conn.SetReadDeadline(time.Now().Add(connReadTimeout))
+		err := p.conn.SetReadDeadline(time.Now().Add(connReadTimeout))
 		if err != nil {
 			p.log.Error(err)
 			return
