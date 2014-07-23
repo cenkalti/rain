@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/cenkalti/rain/internal/bitfield"
@@ -24,6 +25,7 @@ type transfer struct {
 	bitField   bitfield.BitField // pieces that we have
 	downloaded chan struct{}
 	haveC      chan peerHave
+	haveCond   sync.Cond
 	log        logger.Logger
 }
 
@@ -49,6 +51,7 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 		bitField:   bitfield.New(nil, uint32(len(pieces))),
 		downloaded: make(chan struct{}),
 		haveC:      make(chan peerHave),
+		haveCond:   sync.Cond{L: new(sync.Mutex)},
 		log:        logger.New("download " + name),
 	}, nil
 }
@@ -65,9 +68,7 @@ func (t *transfer) run() {
 	announceC := make(chan []tracker.Peer)
 	go t.tracker.Announce(t, nil, nil, announceC)
 
-	var receivedHaveMessage bool
-	startDownloader := make(chan struct{})
-	go t.downloader(startDownloader)
+	go t.downloader()
 
 	for {
 		select {
@@ -88,19 +89,15 @@ func (t *transfer) run() {
 			piece.peersM.Lock()
 			piece.peers = append(piece.peers, peerHave.peer)
 			piece.peersM.Unlock()
-			if !receivedHaveMessage {
-				receivedHaveMessage = true
-				close(startDownloader)
-			}
+
+			t.haveCond.L.Lock()
+			t.haveCond.Broadcast()
+			t.haveCond.L.Unlock()
 		}
 	}
 }
 
-func (t *transfer) downloader(start chan struct{}) {
-	// Wait for a while to get enough "have" messages before starting to download pieces.
-	t.log.Debug("starting downloader")
-	<-start
-	time.Sleep(2 * time.Second)
+func (t *transfer) downloader() {
 	t.log.Debug("started downloader")
 
 	requestC := make(chan chan *piece)
@@ -111,7 +108,7 @@ func (t *transfer) downloader(start chan struct{}) {
 	go t.pieceRequester(requestC)
 
 	// Download pieces in parallel.
-	for i := 0; i < maxSimultaneoutPieceDownloadStart; i++ {
+	for i := 0; i < simultaneoutPieceDownload; i++ {
 		go pieceDownloader(requestC, responseC)
 	}
 
@@ -129,19 +126,29 @@ func (t *transfer) downloader(start chan struct{}) {
 }
 
 func (t *transfer) pieceRequester(requestC chan chan *piece) {
+	const waitDuration = time.Second
+
 	requested := bitfield.New(nil, t.bitField.Len())
 	missing := t.bitField.Len() - t.bitField.Count()
+
+	time.Sleep(waitDuration)
 	for missing > 0 {
 		req := make(chan *piece)
 		requestC <- req
 
+		t.haveCond.L.Lock()
 		piece, err := t.selectPiece(&requested)
 		if err != nil {
 			t.log.Debug(err)
-			// TODO do not sleep, block until we have next "have" message
-			time.Sleep(4 * time.Second)
+
+			// Block until we have next "have" message
+			t.haveCond.Wait()
+			t.haveCond.L.Unlock()
+			// Do not try to select piece on first "have" message. Wait for more messages for better selection.
+			time.Sleep(waitDuration)
 			continue
 		}
+		t.haveCond.L.Unlock()
 
 		piece.log.Debug("selected")
 		requested.Set(piece.index)
