@@ -85,7 +85,9 @@ func (t *transfer) run() {
 		// case peerDisconnected TODO
 		case peerHave := <-t.haveC:
 			piece := peerHave.piece
+			piece.peersM.Lock()
 			piece.peers = append(piece.peers, peerHave.peer)
+			piece.peersM.Unlock()
 			if !receivedHaveMessage {
 				receivedHaveMessage = true
 				close(startDownloader)
@@ -170,9 +172,11 @@ func pieceDownloader(requestC chan chan *piece, responseC chan *piece) {
 func (t *transfer) selectPiece(requested *bitfield.BitField) (*piece, error) {
 	var pieces []*piece
 	for i, p := range t.pieces {
+		p.peersM.Lock()
 		if !requested.Test(uint32(i)) && !p.ok && len(p.peers) > 0 {
 			pieces = append(pieces, p)
 		}
+		p.peersM.Unlock()
 	}
 	if len(pieces) == 0 {
 		return nil, errPieceNotAvailable
