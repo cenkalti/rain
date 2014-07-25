@@ -2,8 +2,6 @@ package rain
 
 import (
 	"crypto/sha1"
-	"errors"
-	"math/rand"
 	"os"
 	"strconv"
 	"sync"
@@ -137,33 +135,3 @@ func newBlocks(pieceLength uint32, files partialfile.Files) []block {
 }
 
 func divMod32(a, b uint32) (uint32, uint32) { return a / b, a % b }
-
-// Implements sort.Interface based on availability of piece.
-type rarestFirst []*piece
-
-func (r rarestFirst) Len() int           { return len(r) }
-func (r rarestFirst) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
-func (r rarestFirst) Less(i, j int) bool { return len(r[i].peers) < len(r[j].peers) }
-
-func (p *piece) download() error {
-	p.log.Debug("downloading")
-
-	peer, err := p.selectPeer()
-	if err != nil {
-		return err
-	}
-	p.log.Debugln("selected peer:", peer.conn.RemoteAddr())
-
-	return peer.downloadPiece(p)
-}
-
-func (p *piece) selectPeer() (*peerConn, error) {
-	p.peersM.Lock()
-	defer p.peersM.Unlock()
-	if len(p.peers) == 0 {
-		return nil, errPieceNotAvailable
-	}
-	return p.peers[rand.Intn(len(p.peers))], nil
-}
-
-var errPieceNotAvailable = errors.New("piece not available for download")

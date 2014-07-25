@@ -1,11 +1,9 @@
 package rain
 
 import (
-	"math/rand"
 	"net"
 	"os"
 	"path/filepath"
-	"sort"
 	"sync"
 	"time"
 
@@ -18,15 +16,15 @@ import (
 
 // transfer represents an active transfer in the program.
 type transfer struct {
-	rain       *Rain
-	tracker    tracker.Tracker
-	torrent    *torrent.Torrent
-	pieces     []*piece
-	bitField   bitfield.BitField // pieces that we have
-	downloaded chan struct{}
-	haveC      chan peerHave
-	haveCond   sync.Cond
-	log        logger.Logger
+	rain     *Rain
+	tracker  tracker.Tracker
+	torrent  *torrent.Torrent
+	pieces   []*piece
+	bitField bitfield.BitField // pieces that we have
+	Finished chan struct{}
+	haveC    chan peerHave
+	haveCond sync.Cond
+	log      logger.Logger
 }
 
 func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error) {
@@ -44,15 +42,15 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 		name = name[:8]
 	}
 	return &transfer{
-		rain:       r,
-		tracker:    tracker,
-		torrent:    tor,
-		pieces:     pieces,
-		bitField:   bitfield.New(nil, uint32(len(pieces))),
-		downloaded: make(chan struct{}),
-		haveC:      make(chan peerHave),
-		haveCond:   sync.Cond{L: new(sync.Mutex)},
-		log:        logger.New("download " + name),
+		rain:     r,
+		tracker:  tracker,
+		torrent:  tor,
+		pieces:   pieces,
+		bitField: bitfield.New(nil, uint32(len(pieces))),
+		Finished: make(chan struct{}),
+		haveC:    make(chan peerHave),
+		haveCond: sync.Cond{L: new(sync.Mutex)},
+		log:      logger.New("download " + name),
 	}, nil
 }
 
@@ -61,7 +59,7 @@ func (t *transfer) Downloaded() int64           { return int64(t.bitField.Count(
 func (t *transfer) Uploaded() int64             { return 0 } // TODO
 func (t *transfer) Left() int64                 { return t.torrent.Info.TotalLength - t.Downloaded() }
 
-func (t *transfer) run() {
+func (t *transfer) Run() {
 	peers := make(chan tracker.Peer, tracker.NumWant)
 	go t.connecter(peers)
 
@@ -95,105 +93,6 @@ func (t *transfer) run() {
 			t.haveCond.L.Unlock()
 		}
 	}
-}
-
-func (t *transfer) downloader() {
-	t.log.Debug("started downloader")
-
-	requestC := make(chan chan *piece)
-	responseC := make(chan *piece)
-
-	missing := t.bitField.Len() - t.bitField.Count()
-
-	go t.pieceRequester(requestC)
-
-	// Download pieces in parallel.
-	for i := 0; i < simultaneoutPieceDownload; i++ {
-		go pieceDownloader(requestC, responseC)
-	}
-
-	for p := range responseC {
-		t.bitField.Set(p.index)
-
-		missing--
-		if missing == 0 {
-			break
-		}
-	}
-
-	t.log.Notice("Finished")
-	close(t.downloaded)
-}
-
-func (t *transfer) pieceRequester(requestC chan chan *piece) {
-	const waitDuration = time.Second
-
-	requested := bitfield.New(nil, t.bitField.Len())
-	missing := t.bitField.Len() - t.bitField.Count()
-
-	time.Sleep(waitDuration)
-	for missing > 0 {
-		req := make(chan *piece)
-		requestC <- req
-
-		t.haveCond.L.Lock()
-		piece, err := t.selectPiece(&requested)
-		if err != nil {
-			t.log.Debug(err)
-
-			// Block until we have next "have" message
-			t.haveCond.Wait()
-			t.haveCond.L.Unlock()
-			// Do not try to select piece on first "have" message. Wait for more messages for better selection.
-			time.Sleep(waitDuration)
-			continue
-		}
-		t.haveCond.L.Unlock()
-
-		piece.log.Debug("selected")
-		requested.Set(piece.index)
-		req <- piece
-		missing--
-	}
-	close(requestC)
-}
-
-func pieceDownloader(requestC chan chan *piece, responseC chan *piece) {
-	for req := range requestC {
-		piece, ok := <-req
-		if !ok {
-			continue
-		}
-
-		err := piece.download()
-		if err != nil {
-			piece.log.Error(err)
-			// responseC <- nil
-			continue
-		}
-
-		responseC <- piece
-	}
-}
-
-func (t *transfer) selectPiece(requested *bitfield.BitField) (*piece, error) {
-	var pieces []*piece
-	for i, p := range t.pieces {
-		p.peersM.Lock()
-		if !requested.Test(uint32(i)) && !p.ok && len(p.peers) > 0 {
-			pieces = append(pieces, p)
-		}
-		p.peersM.Unlock()
-	}
-	if len(pieces) == 0 {
-		return nil, errPieceNotAvailable
-	}
-	if len(pieces) == 1 {
-		return pieces[0], nil
-	}
-	sort.Sort(rarestFirst(pieces))
-	pieces = pieces[:len(pieces)/2]
-	return pieces[rand.Intn(len(pieces))], nil
 }
 
 func (t *transfer) connecter(peers chan tracker.Peer) {
