@@ -115,6 +115,17 @@ func (r rarestFirst) Len() int           { return len(r) }
 func (r rarestFirst) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
 func (r rarestFirst) Less(i, j int) bool { return len(r[i].peers) < len(r[j].peers) }
 
+var errPieceNotAvailable = errors.New("piece not available for download")
+
+func (p *piece) selectPeer() (*peerConn, error) {
+	p.peersM.Lock()
+	defer p.peersM.Unlock()
+	if len(p.peers) == 0 {
+		return nil, errPieceNotAvailable
+	}
+	return p.peers[rand.Intn(len(p.peers))], nil
+}
+
 func (p *piece) download() error {
 	p.log.Debug("downloading")
 
@@ -126,14 +137,3 @@ func (p *piece) download() error {
 
 	return peer.downloadPiece(p)
 }
-
-func (p *piece) selectPeer() (*peerConn, error) {
-	p.peersM.Lock()
-	defer p.peersM.Unlock()
-	if len(p.peers) == 0 {
-		return nil, errPieceNotAvailable
-	}
-	return p.peers[rand.Intn(len(p.peers))], nil
-}
-
-var errPieceNotAvailable = errors.New("piece not available for download")
