@@ -60,6 +60,16 @@ func (t *transfer) Uploaded() int64             { return 0 } // TODO
 func (t *transfer) Left() int64                 { return t.torrent.Info.TotalLength - t.Downloaded() }
 
 func (t *transfer) Run() {
+	t.rain.transfersM.Lock()
+	t.rain.transfers[t.torrent.Info.Hash] = t
+	t.rain.transfersM.Unlock()
+
+	defer func() {
+		t.rain.transfersM.Lock()
+		delete(t.rain.transfers, t.torrent.Info.Hash)
+		t.rain.transfersM.Unlock()
+	}()
+
 	peers := make(chan tracker.Peer, tracker.NumWant)
 	go t.connecter(peers)
 

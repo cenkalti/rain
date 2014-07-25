@@ -152,10 +152,6 @@ func (r *Rain) Download(torrentPath, where string) error {
 		return err
 	}
 
-	r.transfersM.Lock()
-	r.transfers[torrent.Info.Hash] = t
-	r.transfersM.Unlock()
-
 	go t.Run()
 	<-t.Finished
 
