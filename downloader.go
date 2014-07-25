@@ -37,7 +37,7 @@ func (t *transfer) downloader() {
 	close(t.Finished)
 }
 
-func (t *transfer) pieceRequester(requestC chan chan *piece) {
+func (t *transfer) pieceRequester(requestC chan<- chan *piece) {
 	const waitDuration = time.Second
 
 	requested := bitfield.New(nil, t.bitField.Len())
@@ -70,7 +70,7 @@ func (t *transfer) pieceRequester(requestC chan chan *piece) {
 	close(requestC)
 }
 
-func pieceDownloader(requestC chan chan *piece, responseC chan *piece) {
+func pieceDownloader(requestC <-chan chan *piece, responseC chan<- *piece) {
 	for req := range requestC {
 		piece, ok := <-req
 		if !ok {
