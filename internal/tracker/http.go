@@ -28,6 +28,9 @@ func (t *httpTracker) Announce(transfer Transfer, cancel <-chan struct{}, event 
 	for {
 		select {
 		case <-time.After(nextAnnounce):
+			// If any error happens before parsing the response, try again in a minute.
+			nextAnnounce = time.Minute
+
 			infoHash := transfer.InfoHash()
 			q := url.Values{}
 			q.Set("info_hash", string(infoHash[:]))
