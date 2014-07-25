@@ -297,7 +297,7 @@ func (p *peerConn) downloadPiece(piece *piece) error {
 	for _ = range piece.blocks {
 		select {
 		case peerBlock := <-piece.blockC:
-			p.log.Infoln("received block of length", len(peerBlock.data))
+			p.log.Debugln("received block of length", len(peerBlock.data))
 			copy(pieceData[peerBlock.block.index*blockSize:], peerBlock.data)
 			if _, err = peerBlock.block.files.Write(peerBlock.data); err != nil {
 				return err
