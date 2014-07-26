@@ -5,8 +5,6 @@ import (
 	"math/rand"
 	"sort"
 	"time"
-
-	"github.com/cenkalti/rain/internal/bitfield"
 )
 
 func (t *transfer) downloader() {
@@ -40,7 +38,7 @@ func (t *transfer) downloader() {
 func (t *transfer) pieceRequester(requestC chan<- chan *piece) {
 	const waitDuration = time.Second
 
-	requested := bitfield.New(nil, t.bitField.Len())
+	requested := make([]bool, t.bitField.Len())
 	missing := t.bitField.Len() - t.bitField.Count()
 
 	time.Sleep(waitDuration)
@@ -49,7 +47,7 @@ func (t *transfer) pieceRequester(requestC chan<- chan *piece) {
 		requestC <- req
 
 		t.haveCond.L.Lock()
-		piece, err := t.selectPiece(&requested)
+		piece, err := t.selectPiece(requested)
 		if err != nil {
 			t.log.Debug(err)
 
@@ -63,7 +61,7 @@ func (t *transfer) pieceRequester(requestC chan<- chan *piece) {
 		t.haveCond.L.Unlock()
 
 		piece.log.Debug("selected")
-		requested.Set(piece.index)
+		requested[piece.index] = true
 		req <- piece
 		missing--
 	}
@@ -88,11 +86,11 @@ func pieceDownloader(requestC <-chan chan *piece, responseC chan<- *piece) {
 	}
 }
 
-func (t *transfer) selectPiece(requested *bitfield.BitField) (*piece, error) {
+func (t *transfer) selectPiece(requested []bool) (*piece, error) {
 	var pieces []*piece
 	for i, p := range t.pieces {
 		p.peersM.Lock()
-		if !requested.Test(uint32(i)) && !p.ok && len(p.peers) > 0 {
+		if !requested[i] && !p.ok && len(p.peers) > 0 {
 			pieces = append(pieces, p)
 		}
 		p.peersM.Unlock()
