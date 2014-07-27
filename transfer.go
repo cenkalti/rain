@@ -130,9 +130,9 @@ func (t *transfer) connectToPeer(addr *net.TCPAddr) {
 		return
 	}
 	defer conn.Close()
+	t.log.Debugf("tcp connection opened to %s", conn.RemoteAddr())
 
 	p := newPeerConn(conn)
-	p.log.Infoln("Connected to peer")
 
 	// Give a minute for completing handshake.
 	err = conn.SetDeadline(time.Now().Add(time.Minute))
@@ -166,7 +166,7 @@ func (t *transfer) connectToPeer(addr *net.TCPAddr) {
 		return
 	}
 
-	p.log.Debugln("connectToPeer: Handshake completed", conn.RemoteAddr())
+	p.log.Info("Connected to peer")
 	pc := newPeerConn(conn)
 	pc.run(t)
 }
