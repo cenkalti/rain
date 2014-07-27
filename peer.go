@@ -157,6 +157,62 @@ func (p *peerConn) Serve(t *transfer) {
 				}
 			}
 		case protocol.Request:
+			var index, begin, rlength uint32
+			err = binary.Read(p.conn, binary.BigEndian, &index)
+			if err != nil {
+				p.log.Error(err)
+				return
+			}
+			if index >= uint32(len(t.pieces)) {
+				p.log.Error("invalid request: index")
+				return
+			}
+			piece := t.pieces[index]
+
+			err = binary.Read(p.conn, binary.BigEndian, &begin)
+			if err != nil {
+				p.log.Error(err)
+				return
+			}
+			if begin >= piece.length {
+				p.log.Error("invalid request: begin")
+				return
+			}
+
+			err = binary.Read(p.conn, binary.BigEndian, &rlength)
+			if err != nil {
+				p.log.Error(err)
+				return
+			}
+			if rlength > blockSize {
+				p.log.Error("received a request with block size larger than allowed")
+				return
+			}
+			if begin+rlength >= piece.length {
+				p.log.Error("invalid request: length")
+			}
+
+			// TODO do not read whole piece
+			b := make([]byte, piece.length)
+			_, err = piece.files.Read(b)
+			if err != nil {
+				p.log.Error(err)
+				return
+			}
+
+			if p.amChoking {
+				err = p.sendMessage(protocol.Unchoke)
+				if err != nil {
+					p.log.Error(err)
+					return
+				}
+			}
+
+			_, err = p.conn.Write(b[begin : begin+rlength])
+			if err != nil {
+				p.log.Error(err)
+				return
+			}
 		case protocol.Piece:
 			var index uint32
 			err = binary.Read(p.conn, binary.BigEndian, &index)
