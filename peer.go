@@ -51,8 +51,8 @@ func newPeerConn(conn net.Conn) *peerConn {
 
 const connReadTimeout = 3 * time.Minute
 
-// run processes incoming messages after handshake.
-func (p *peerConn) run(t *transfer) {
+// Serve processes incoming messages after handshake.
+func (p *peerConn) Serve(t *transfer) {
 	defer close(p.disconnected)
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 

@@ -168,7 +168,7 @@ func (t *transfer) connectToPeer(addr *net.TCPAddr) {
 
 	p.log.Info("Connected to peer")
 	pc := newPeerConn(conn)
-	pc.run(t)
+	pc.Serve(t)
 }
 
 func allocate(info *torrent.Info, where string) ([]*os.File, error) {

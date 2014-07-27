@@ -136,7 +136,7 @@ func (r *Rain) servePeerConn(p *peerConn) {
 	}
 
 	p.log.Debugln("servePeerConn: Handshake completed", p.conn.RemoteAddr())
-	p.run(t)
+	p.Serve(t)
 }
 
 // Download starts a download and waits for it to finish.
