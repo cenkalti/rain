@@ -19,7 +19,7 @@ type piece struct {
 	files    partialfile.Files // the place to write downloaded bytes
 	blocks   []block
 	bitField bitfield.BitField // blocks we have
-	peers    []*peerConn       // contains peers that have this piece
+	peers    []*peer           // contains peers that have this piece
 	peersM   sync.Mutex
 	ok       bool // we have the piece and hash check is ok
 	blockC   chan peerBlock

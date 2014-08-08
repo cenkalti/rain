@@ -132,7 +132,7 @@ func (t *transfer) connectToPeer(addr *net.TCPAddr) {
 	defer conn.Close()
 	t.log.Debugf("tcp connection opened to %s", conn.RemoteAddr())
 
-	p := newPeerConn(conn)
+	p := newPeer(conn)
 
 	// Give a minute for completing handshake.
 	err = conn.SetDeadline(time.Now().Add(time.Minute))
@@ -167,8 +167,7 @@ func (t *transfer) connectToPeer(addr *net.TCPAddr) {
 	}
 
 	p.log.Info("Connected to peer")
-	pc := newPeerConn(conn)
-	pc.Serve(t)
+	p.Serve(t)
 }
 
 func allocate(info *torrent.Info, where string) ([]*os.File, error) {

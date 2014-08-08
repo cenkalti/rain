@@ -115,7 +115,7 @@ func (r rarestFirst) Less(i, j int) bool { return len(r[i].peers) < len(r[j].pee
 
 var errPieceNotAvailable = errors.New("piece not available for download")
 
-func (p *piece) selectPeer() (*peerConn, error) {
+func (p *piece) selectPeer() (*peer, error) {
 	p.peersM.Lock()
 	defer p.peersM.Unlock()
 	if len(p.peers) == 0 {

@@ -87,14 +87,14 @@ func (r *Rain) accepter() {
 				conn.Close()
 				<-limit
 			}()
-			r.servePeerConn(newPeerConn(conn))
+			r.servePeerConn(newPeer(conn))
 		}(conn)
 	}
 }
 
 func (r *Rain) port() uint16 { return uint16(r.listener.Addr().(*net.TCPAddr).Port) }
 
-func (r *Rain) servePeerConn(p *peerConn) {
+func (r *Rain) servePeerConn(p *peer) {
 	p.log.Debugln("Serving peer", p.conn.RemoteAddr())
 
 	// Give a minute for completing handshake.

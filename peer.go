@@ -20,7 +20,7 @@ import (
 // All current implementations use 2^14 (16 kiB), and close connections which request an amount greater than that.
 const blockSize = 16 * 1024
 
-type peerConn struct {
+type peer struct {
 	conn         net.Conn
 	disconnected chan struct{} // will be closed when peer disconnects
 
@@ -38,8 +38,8 @@ type peerConn struct {
 	log logger.Logger
 }
 
-func newPeerConn(conn net.Conn) *peerConn {
-	return &peerConn{
+func newPeer(conn net.Conn) *peer {
+	return &peer{
 		conn:         conn,
 		disconnected: make(chan struct{}),
 		unchokeC:     make(chan struct{}),
@@ -52,7 +52,7 @@ func newPeerConn(conn net.Conn) *peerConn {
 const connReadTimeout = 3 * time.Minute
 
 // Serve processes incoming messages after handshake.
-func (p *peerConn) Serve(t *transfer) {
+func (p *peer) Serve(t *transfer) {
 	defer close(p.disconnected)
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 
@@ -265,7 +265,7 @@ func (p *peerConn) Serve(t *transfer) {
 	}
 }
 
-func (p *peerConn) sendBitField(b bitfield.BitField) error {
+func (p *peer) sendBitField(b bitfield.BitField) error {
 	var buf bytes.Buffer
 	length := int32(1 + len(b.Bytes()))
 	buf.Grow(4 + int(length))
@@ -286,7 +286,7 @@ func (p *peerConn) sendBitField(b bitfield.BitField) error {
 
 // beInterested sends "interested" message to peer (once) and
 // returns a channel that will be closed when an "unchoke" message is received.
-func (p *peerConn) beInterested() (unchokeC chan struct{}, err error) {
+func (p *peer) beInterested() (unchokeC chan struct{}, err error) {
 	p.log.Debug("beInterested")
 	p.unchokeM.Lock()
 	defer p.unchokeM.Unlock()
@@ -301,7 +301,7 @@ func (p *peerConn) beInterested() (unchokeC chan struct{}, err error) {
 	return
 }
 
-func (p *peerConn) sendMessage(msgType protocol.MessageType) error {
+func (p *peer) sendMessage(msgType protocol.MessageType) error {
 	var msg = struct {
 		Length      uint32
 		MessageType protocol.MessageType
@@ -319,7 +319,7 @@ func newPeerRequestMessage(index, begin, length uint32) *peerRequestMessage {
 	return &peerRequestMessage{protocol.Request, index, begin, length}
 }
 
-func (p *peerConn) sendRequest(m *peerRequestMessage) error {
+func (p *peer) sendRequest(m *peerRequestMessage) error {
 	var msg = struct {
 		Length  uint32
 		Message peerRequestMessage
@@ -328,7 +328,7 @@ func (p *peerConn) sendRequest(m *peerRequestMessage) error {
 	return binary.Write(p.conn, binary.BigEndian, &msg)
 }
 
-func (p *peerConn) downloadPiece(piece *piece) error {
+func (p *peer) downloadPiece(piece *piece) error {
 	p.log.Debugf("downloading piece #%d", piece.index)
 
 	unchokeC, err := p.beInterested()
@@ -377,12 +377,12 @@ func (p *peerConn) downloadPiece(piece *piece) error {
 }
 
 type peerHave struct {
-	peer  *peerConn
+	peer  *peer
 	piece *piece
 }
 
 type peerBlock struct {
-	peer  *peerConn
+	peer  *peer
 	block *block
 	data  []byte
 }
