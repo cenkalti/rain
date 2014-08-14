@@ -70,27 +70,17 @@ func (t *transfer) Run() {
 		t.rain.transfersM.Unlock()
 	}()
 
-	peers := make(chan tracker.Peer, tracker.NumWant)
-	go t.connecter(peers)
-
 	announceC := make(chan *tracker.AnnounceResponse)
 	go t.tracker.Announce(t, nil, nil, announceC)
 
-	d := newDownloader(t)
-	go d.Run()
+	downloader := newDownloader(t)
+	go downloader.Run()
 
 	for {
 		select {
 		case announceResponse := <-announceC:
-			for _, pa := range announceResponse.Peers {
-				t.log.Debug("Peer:", pa.TCPAddr())
-				select {
-				case peers <- pa:
-				default:
-					<-peers
-					peers <- pa
-				}
-			}
+			t.log.Infof("Announce: %d seeder, %d leecher", announceResponse.Seeders, announceResponse.Leechers)
+			downloader.peersC <- announceResponse.Peers
 		// case peerConnected TODO
 		// case peerDisconnected TODO
 		case peerHave := <-t.haveC:
@@ -103,22 +93,6 @@ func (t *transfer) Run() {
 			t.haveCond.Broadcast()
 			t.haveCond.L.Unlock()
 		}
-	}
-}
-
-func (t *transfer) connecter(peers chan tracker.Peer) {
-	limit := make(chan struct{}, maxPeerPerTorrent)
-	for p := range peers {
-		limit <- struct{}{}
-		go func(peer tracker.Peer) {
-			defer func() {
-				if err := recover(); err != nil {
-					t.log.Critical(err)
-				}
-				<-limit
-			}()
-			t.connectToPeer(peer.TCPAddr())
-		}(p)
 	}
 }
 

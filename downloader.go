@@ -5,14 +5,20 @@ import (
 	"math/rand"
 	"sort"
 	"time"
+
+	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/internal/tracker"
 )
 
 type downloader struct {
 	transfer  *transfer
 	remaining []*piece
+	peersC    chan []tracker.Peer
+	peerC     chan tracker.Peer
 	requestC  chan chan *piece
 	responseC chan *piece
 	cancelC   chan struct{}
+	log       logger.Logger
 }
 
 func newDownloader(t *transfer) *downloader {
@@ -25,9 +31,12 @@ func newDownloader(t *transfer) *downloader {
 	return &downloader{
 		transfer:  t,
 		remaining: remaining,
+		peersC:    make(chan []tracker.Peer),
+		peerC:     make(chan tracker.Peer, tracker.NumWant),
 		requestC:  make(chan chan *piece),
 		responseC: make(chan *piece),
 		cancelC:   make(chan struct{}),
+		log:       t.log,
 	}
 }
 
@@ -37,6 +46,8 @@ func (d *downloader) Run() {
 
 	left := len(d.remaining)
 
+	go d.connecter()
+	go d.peerManager()
 	go d.pieceRequester()
 
 	// Download pieces in parallel.
@@ -60,6 +71,49 @@ func (d *downloader) Run() {
 	}
 }
 
+// peerManager receives from d.peersC and keeps most recent tracker.NumWant peer addresses in d.peerC.
+func (d *downloader) peerManager() {
+	for {
+		select {
+		case peers := <-d.peersC:
+			for _, peer := range peers {
+				d.log.Debug("Peer:", peer.TCPAddr())
+				select {
+				case d.peerC <- peer:
+				default:
+					<-d.peerC
+					d.peerC <- peer
+				}
+			}
+		case <-d.cancelC:
+			return
+		}
+	}
+}
+
+// connecter connects to peers coming from d. peerC.
+func (d *downloader) connecter() {
+	limit := make(chan struct{}, maxPeerPerTorrent)
+	for {
+		select {
+		case p := <-d.peerC:
+			limit <- struct{}{}
+			go func(peer tracker.Peer) {
+				defer func() {
+					if err := recover(); err != nil {
+						d.transfer.log.Critical(err)
+					}
+					<-limit
+				}()
+				d.transfer.connectToPeer(peer.TCPAddr())
+			}(p)
+		case <-d.cancelC:
+			return
+		}
+	}
+}
+
+// pieceRequester selects a piece to be downloaded next and sends it to d.requestC.
 func (d *downloader) pieceRequester() {
 	t := d.transfer
 	const waitDuration = time.Second
@@ -101,6 +155,7 @@ func (d *downloader) pieceRequester() {
 	}
 }
 
+// pieceDownloader receives a piece from d.requestC and downloads it.
 func (d *downloader) pieceDownloader() {
 	for req := range d.requestC {
 		piece, ok := <-req
@@ -130,7 +185,7 @@ func (d *downloader) selectPiece() (int, error) {
 		p.peersM.Unlock()
 	}
 	if len(pieces) == 0 {
-		return -1, errNoPieceAvailable
+		return -1, errNoPiece
 	}
 	if len(pieces) == 1 {
 		return 0, nil
@@ -152,13 +207,14 @@ func (r rarestFirst) Len() int           { return len(r) }
 func (r rarestFirst) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
 func (r rarestFirst) Less(i, j int) bool { return len(r[i].p.peers) < len(r[j].p.peers) }
 
-var errNoPieceAvailable = errors.New("no piece available for download")
+var errNoPiece = errors.New("no piece available for download")
+var errNoPeer = errors.New("no peer available for this piece")
 
 func (p *piece) selectPeer() (*peer, error) {
 	p.peersM.Lock()
 	defer p.peersM.Unlock()
 	if len(p.peers) == 0 {
-		return nil, errNoPieceAvailable
+		return nil, errNoPeer
 	}
 	return p.peers[rand.Intn(len(p.peers))], nil
 }
