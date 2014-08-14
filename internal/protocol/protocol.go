@@ -17,6 +17,8 @@ const PstrLen = 19
 
 var Pstr = []byte("BitTorrent protocol")
 
+type MessageType byte
+
 const (
 	Choke MessageType = iota
 	Unchoke
@@ -42,7 +44,5 @@ var messageStrings = [...]string{
 	"cancel",
 	"port",
 }
-
-type MessageType byte
 
 func (m MessageType) String() string { return messageStrings[m] }

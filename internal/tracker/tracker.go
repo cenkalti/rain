@@ -26,7 +26,11 @@ const (
 )
 
 type Tracker interface {
-	Announce(t Transfer, cancel <-chan struct{}, event <-chan trackerEvent, peersC chan<- []Peer)
+	// Announce is run in a seperate goroutine.
+	// It announces to the tracker periodically and adjust the interval according to the response
+	// returned by the tracker.
+	// Puts the responses into responseC. Blocks when sending to this channel.
+	Announce(t Transfer, cancel <-chan struct{}, event <-chan trackerEvent, responseC chan<- *AnnounceResponse)
 }
 
 type Transfer interface {
@@ -34,6 +38,14 @@ type Transfer interface {
 	Downloaded() int64
 	Uploaded() int64
 	Left() int64
+}
+
+type AnnounceResponse struct {
+	Error    error
+	Interval int32
+	Leechers int32
+	Seeders  int32
+	Peers    []Peer
 }
 
 type Peer struct {

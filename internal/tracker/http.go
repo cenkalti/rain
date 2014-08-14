@@ -23,7 +23,7 @@ func newHTTPTracker(b *trackerBase) *httpTracker {
 	}
 }
 
-func (t *httpTracker) Announce(transfer Transfer, cancel <-chan struct{}, event <-chan trackerEvent, responseC chan<- []Peer) {
+func (t *httpTracker) Announce(transfer Transfer, cancel <-chan struct{}, event <-chan trackerEvent, responseC chan<- *AnnounceResponse) {
 	var nextAnnounce time.Duration = time.Nanosecond // Start immediately.
 	for {
 		select {
@@ -72,6 +72,17 @@ func (t *httpTracker) Announce(transfer Transfer, cancel <-chan struct{}, event 
 
 			if response.FailureReason != "" {
 				t.log.Error(response.FailureReason)
+
+				announceResponse := &AnnounceResponse{
+					Error: trackerError(response.FailureReason),
+				}
+
+				select {
+				case responseC <- announceResponse:
+				case <-cancel:
+					return
+				}
+
 				continue
 			}
 			if response.WarningMessage != "" {
@@ -91,8 +102,15 @@ func (t *httpTracker) Announce(transfer Transfer, cancel <-chan struct{}, event 
 				continue
 			}
 
+			announceResponse := &AnnounceResponse{
+				Interval: response.Interval,
+				Leechers: response.Incomplete,
+				Seeders:  response.Complete,
+				Peers:    peers,
+			}
+
 			select {
-			case responseC <- peers:
+			case responseC <- announceResponse:
 			case <-cancel:
 				return
 			}

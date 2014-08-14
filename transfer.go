@@ -73,15 +73,16 @@ func (t *transfer) Run() {
 	peers := make(chan tracker.Peer, tracker.NumWant)
 	go t.connecter(peers)
 
-	announceC := make(chan []tracker.Peer)
+	announceC := make(chan *tracker.AnnounceResponse)
 	go t.tracker.Announce(t, nil, nil, announceC)
 
-	go t.downloader()
+	d := newDownloader(t)
+	go d.Run()
 
 	for {
 		select {
-		case peerAddrs := <-announceC:
-			for _, pa := range peerAddrs {
+		case announceResponse := <-announceC:
+			for _, pa := range announceResponse.Peers {
 				t.log.Debug("Peer:", pa.TCPAddr())
 				select {
 				case peers <- pa:

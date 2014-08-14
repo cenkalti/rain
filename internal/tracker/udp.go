@@ -298,7 +298,7 @@ type announceResponse struct {
 }
 
 // Announce announces transfer to t periodically.
-func (t *udpTracker) Announce(transfer Transfer, cancel <-chan struct{}, event <-chan trackerEvent, peersC chan<- []Peer) {
+func (t *udpTracker) Announce(transfer Transfer, cancel <-chan struct{}, event <-chan trackerEvent, responseC chan<- *AnnounceResponse) {
 	err := t.Dial()
 	if err != nil {
 		// TODO retry connecting to tracker
@@ -342,9 +342,17 @@ func (t *udpTracker) Announce(transfer Transfer, cancel <-chan struct{}, event <
 			// TODO calculate time and adjust.
 			nextAnnounce = time.Duration(response.Interval) * time.Second
 
+			announceResponse := &AnnounceResponse{
+				// TODO handle error
+				Interval: response.Interval,
+				Leechers: response.Leechers,
+				Seeders:  response.Seeders,
+				Peers:    peers,
+			}
+
 			// may block if caller does not receive from it.
 			select {
-			case peersC <- peers:
+			case responseC <- announceResponse:
 			case <-cancel:
 				return
 			}

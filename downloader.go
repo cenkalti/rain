@@ -7,47 +7,74 @@ import (
 	"time"
 )
 
-func (t *transfer) downloader() {
+type downloader struct {
+	transfer  *transfer
+	remaining []*piece
+	requestC  chan chan *piece
+	responseC chan *piece
+	cancelC   chan struct{}
+}
+
+func newDownloader(t *transfer) *downloader {
+	remaining := make([]*piece, 0, len(t.pieces))
+	for i := range t.pieces {
+		if !t.pieces[i].ok {
+			remaining = append(remaining, t.pieces[i])
+		}
+	}
+	return &downloader{
+		transfer:  t,
+		remaining: remaining,
+		requestC:  make(chan chan *piece),
+		responseC: make(chan *piece),
+		cancelC:   make(chan struct{}),
+	}
+}
+
+func (d *downloader) Run() {
+	t := d.transfer
 	t.log.Debug("started downloader")
 
-	requestC := make(chan chan *piece)
-	responseC := make(chan *piece)
+	left := len(d.remaining)
 
-	missing := t.bitField.Len() - t.bitField.Count()
-
-	go t.pieceRequester(requestC)
+	go d.pieceRequester()
 
 	// Download pieces in parallel.
 	for i := 0; i < simultaneoutPieceDownload; i++ {
-		go pieceDownloader(requestC, responseC)
+		go d.pieceDownloader()
 	}
 
-	for p := range responseC {
-		t.bitField.Set(p.index)
-
-		missing--
-		if missing == 0 {
-			break
+	for {
+		select {
+		case p := <-d.responseC:
+			t.bitField.Set(p.index) // #####
+			left--
+			if left == 0 {
+				t.log.Notice("Finished")
+				close(t.Finished)
+				return
+			}
+		case <-d.cancelC:
+			return
 		}
 	}
-
-	t.log.Notice("Finished")
-	close(t.Finished)
 }
 
-func (t *transfer) pieceRequester(requestC chan<- chan *piece) {
+func (d *downloader) pieceRequester() {
+	t := d.transfer
 	const waitDuration = time.Second
 
-	requested := make([]bool, t.bitField.Len())
-	missing := t.bitField.Len() - t.bitField.Count()
-
 	time.Sleep(waitDuration)
-	for missing > 0 {
+	for {
 		req := make(chan *piece)
-		requestC <- req
+		select {
+		case d.requestC <- req:
+		case <-d.cancelC:
+			return
+		}
 
 		t.haveCond.L.Lock()
-		piece, err := t.selectPiece(requested)
+		i, err := d.selectPiece()
 		if err != nil {
 			t.log.Debug(err)
 
@@ -60,16 +87,22 @@ func (t *transfer) pieceRequester(requestC chan<- chan *piece) {
 		}
 		t.haveCond.L.Unlock()
 
+		piece := d.remaining[i]
 		piece.log.Debug("selected")
-		requested[piece.index] = true
-		req <- piece
-		missing--
+
+		// delete selected
+		d.remaining[i], d.remaining = d.remaining[len(d.remaining)-1], d.remaining[:len(d.remaining)-1]
+
+		select {
+		case req <- piece:
+		case <-d.cancelC:
+			return
+		}
 	}
-	close(requestC)
 }
 
-func pieceDownloader(requestC <-chan chan *piece, responseC chan<- *piece) {
-	for req := range requestC {
+func (d *downloader) pieceDownloader() {
+	for req := range d.requestC {
 		piece, ok := <-req
 		if !ok {
 			continue
@@ -82,44 +115,50 @@ func pieceDownloader(requestC <-chan chan *piece, responseC chan<- *piece) {
 			continue
 		}
 
-		responseC <- piece
+		d.responseC <- piece
 	}
 }
 
-func (t *transfer) selectPiece(requested []bool) (*piece, error) {
-	var pieces []*piece
-	for i, p := range t.pieces {
+// selectPiece returns the index of the piece in pieces.
+func (d *downloader) selectPiece() (int, error) {
+	var pieces []t // pieces with peers
+	for i, p := range d.remaining {
 		p.peersM.Lock()
-		if !requested[i] && !p.ok && len(p.peers) > 0 {
-			pieces = append(pieces, p)
+		if len(p.peers) > 0 {
+			pieces = append(pieces, t{i, p})
 		}
 		p.peersM.Unlock()
 	}
 	if len(pieces) == 0 {
-		return nil, errPieceNotAvailable
+		return -1, errNoPieceAvailable
 	}
 	if len(pieces) == 1 {
-		return pieces[0], nil
+		return 0, nil
 	}
 	sort.Sort(rarestFirst(pieces))
 	pieces = pieces[:len(pieces)/2]
-	return pieces[rand.Intn(len(pieces))], nil
+	return pieces[rand.Intn(len(pieces))].i, nil
+}
+
+type t struct {
+	i int
+	p *piece
 }
 
 // Implements sort.Interface based on availability of piece.
-type rarestFirst []*piece
+type rarestFirst []t
 
 func (r rarestFirst) Len() int           { return len(r) }
 func (r rarestFirst) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
-func (r rarestFirst) Less(i, j int) bool { return len(r[i].peers) < len(r[j].peers) }
+func (r rarestFirst) Less(i, j int) bool { return len(r[i].p.peers) < len(r[j].p.peers) }
 
-var errPieceNotAvailable = errors.New("piece not available for download")
+var errNoPieceAvailable = errors.New("no piece available for download")
 
 func (p *piece) selectPeer() (*peer, error) {
 	p.peersM.Lock()
 	defer p.peersM.Unlock()
 	if len(p.peers) == 0 {
-		return nil, errPieceNotAvailable
+		return nil, errNoPieceAvailable
 	}
 	return p.peers[rand.Intn(len(p.peers))], nil
 }

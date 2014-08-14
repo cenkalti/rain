@@ -28,6 +28,8 @@ type peer struct {
 	unchokeC       chan struct{} // will be closed when and "unchoke" message is received
 	onceInterested sync.Once     // for sending "interested" message only once
 
+	requests chan peerRequest
+
 	amChoking      bool // this client is choking the peer
 	amInterested   bool // this client is interested in the peer
 	peerChoking    bool // peer is choking this client
@@ -43,6 +45,7 @@ func newPeer(conn net.Conn) *peer {
 		conn:         conn,
 		disconnected: make(chan struct{}),
 		unchokeC:     make(chan struct{}),
+		requests:     make(chan peerRequest, 10),
 		amChoking:    true,
 		peerChoking:  true,
 		log:          logger.New("peer " + conn.RemoteAddr().String()),
@@ -192,27 +195,29 @@ func (p *peer) Serve(t *transfer) {
 				p.log.Error("invalid request: length")
 			}
 
-			// TODO do not read whole piece
-			b := make([]byte, piece.length)
-			_, err = piece.files.Read(b)
-			if err != nil {
-				p.log.Error(err)
-				return
-			}
+			p.requests <- peerRequest{piece, begin, rlength}
 
-			if p.amChoking {
-				err = p.sendMessage(protocol.Unchoke)
-				if err != nil {
-					p.log.Error(err)
-					return
-				}
-			}
+			// // TODO do not read whole piece
+			// b := make([]byte, piece.length)
+			// _, err = piece.files.Read(b)
+			// if err != nil {
+			// 	p.log.Error(err)
+			// 	return
+			// }
 
-			_, err = p.conn.Write(b[begin : begin+rlength])
-			if err != nil {
-				p.log.Error(err)
-				return
-			}
+			// if p.amChoking {
+			// 	err = p.sendMessage(protocol.Unchoke)
+			// 	if err != nil {
+			// 		p.log.Error(err)
+			// 		return
+			// 	}
+			// }
+
+			// _, err = p.conn.Write(b[begin : begin+rlength])
+			// if err != nil {
+			// 	p.log.Error(err)
+			// 	return
+			// }
 		case protocol.Piece:
 			var index uint32
 			err = binary.Read(p.conn, binary.BigEndian, &index)
@@ -385,4 +390,10 @@ type peerBlock struct {
 	peer  *peer
 	block *block
 	data  []byte
+}
+
+type peerRequest struct {
+	piece  *piece
+	begin  uint32
+	length uint32
 }
