@@ -76,6 +76,9 @@ func (t *transfer) Run() {
 	downloader := newDownloader(t)
 	go downloader.Run()
 
+	uploader := newUploader(t)
+	go uploader.Run()
+
 	for {
 		select {
 		case announceResponse := <-announceC:

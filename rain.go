@@ -18,6 +18,7 @@ const (
 	maxPeerServe              = 200
 	maxPeerPerTorrent         = 50
 	simultaneoutPieceDownload = 4
+	uploadSlots               = 4
 )
 
 // http://www.bittorrent.org/beps/bep_0020.html

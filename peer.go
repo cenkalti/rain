@@ -195,29 +195,7 @@ func (p *peer) Serve(t *transfer) {
 				p.log.Error("invalid request: length")
 			}
 
-			p.requests <- peerRequest{piece, begin, rlength}
-
-			// // TODO do not read whole piece
-			// b := make([]byte, piece.length)
-			// _, err = piece.files.Read(b)
-			// if err != nil {
-			// 	p.log.Error(err)
-			// 	return
-			// }
-
-			// if p.amChoking {
-			// 	err = p.sendMessage(protocol.Unchoke)
-			// 	if err != nil {
-			// 		p.log.Error(err)
-			// 		return
-			// 	}
-			// }
-
-			// _, err = p.conn.Write(b[begin : begin+rlength])
-			// if err != nil {
-			// 	p.log.Error(err)
-			// 	return
-			// }
+			p.requests <- peerRequest{p, piece, begin, rlength}
 		case protocol.Piece:
 			var index uint32
 			err = binary.Read(p.conn, binary.BigEndian, &index)
@@ -393,6 +371,7 @@ type peerBlock struct {
 }
 
 type peerRequest struct {
+	peer   *peer
 	piece  *piece
 	begin  uint32
 	length uint32
