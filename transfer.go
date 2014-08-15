@@ -85,8 +85,6 @@ func (t *transfer) Run() {
 		case announceResponse := <-announceC:
 			t.log.Infof("Announce: %d seeder, %d leecher", announceResponse.Seeders, announceResponse.Leechers)
 			downloader.peersC <- announceResponse.Peers
-		// case peerConnected TODO
-		// case peerDisconnected TODO
 		case peerHave := <-t.haveC:
 			piece := peerHave.piece
 			piece.peersM.Lock()
