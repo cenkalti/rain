@@ -53,7 +53,7 @@ func (d *downloader) Run() {
 	go d.pieceRequester()
 
 	// Download pieces in parallel.
-	for i := 0; i < simultaneoutPieceDownload; i++ {
+	for i := 0; i < downloadSlots; i++ {
 		go d.pieceDownloader()
 	}
 
@@ -167,20 +167,29 @@ func (d *downloader) pieceRequester() {
 
 // pieceDownloader receives a piece from d.requestC and downloads it.
 func (d *downloader) pieceDownloader() {
-	for req := range d.requestC {
-		piece, ok := <-req
-		if !ok {
-			continue
-		}
+	for {
+		select {
+		case req := <-d.requestC:
+			piece, ok := <-req
+			if !ok {
+				continue
+			}
 
-		err := piece.download()
-		if err != nil {
-			piece.log.Error(err)
-			// responseC <- nil
-			continue
-		}
+			err := piece.download()
+			if err != nil {
+				piece.log.Error(err)
+				// responseC <- nil
+				continue
+			}
 
-		d.responseC <- piece
+			select {
+			case d.responseC <- piece:
+			case <-d.cancelC:
+				return
+			}
+		case <-d.cancelC:
+			return
+		}
 	}
 }
 
