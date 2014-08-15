@@ -71,6 +71,15 @@ func (p *peer) Serve(t *transfer) {
 
 	bitField := bitfield.New(nil, t.bitField.Len())
 
+	t.peersM.Lock()
+	t.peers[p] = struct{}{}
+	t.peersM.Unlock()
+	defer func() {
+		t.peersM.Lock()
+		delete(t.peers, p)
+		t.peersM.Unlock()
+	}()
+
 	first := true
 	for {
 		err := p.conn.SetReadDeadline(time.Now().Add(connReadTimeout))

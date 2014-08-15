@@ -23,7 +23,8 @@ type transfer struct {
 	bitField bitfield.BitField // pieces that we have
 	Finished chan struct{}
 	haveC    chan peerHave
-	haveCond sync.Cond
+	peers    map[*peer]struct{}
+	peersM   sync.RWMutex
 	log      logger.Logger
 }
 
@@ -49,7 +50,7 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 		bitField: bitfield.New(nil, uint32(len(pieces))),
 		Finished: make(chan struct{}),
 		haveC:    make(chan peerHave),
-		haveCond: sync.Cond{L: new(sync.Mutex)},
+		peers:    make(map[*peer]struct{}),
 		log:      logger.New("download " + name),
 	}, nil
 }
@@ -76,8 +77,8 @@ func (t *transfer) Run() {
 	downloader := newDownloader(t)
 	go downloader.Run()
 
-	uploader := newUploader(t)
-	go uploader.Run()
+	// uploader := newUploader(t)
+	// go uploader.Run()
 
 	for {
 		select {
@@ -92,9 +93,10 @@ func (t *transfer) Run() {
 			piece.peers = append(piece.peers, peerHave.peer)
 			piece.peersM.Unlock()
 
-			t.haveCond.L.Lock()
-			t.haveCond.Broadcast()
-			t.haveCond.L.Unlock()
+			select {
+			case downloader.haveNotifyC <- struct{}{}:
+			default:
+			}
 		}
 	}
 }

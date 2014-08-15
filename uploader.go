@@ -32,15 +32,23 @@ func (u *uploader) Run() {
 // requestSelector decides which request to serve.
 func (u *uploader) requestSelector() {
 	for {
-		// for _, peer := range u.transfer.peers {
-		// 	// ###
-		// }
+		var request peerRequest
 
-		// select {
-		// case u.requestC <- request:
-		// case <-u.cancelC:
-		// 	return
-		// }
+		u.transfer.peersM.RLock()
+		for peer := range u.transfer.peers {
+			select {
+			case request = <-peer.requests:
+				break
+			default:
+			}
+		}
+		u.transfer.peersM.RUnlock()
+
+		select {
+		case u.requestC <- request:
+		case <-u.cancelC:
+			return
+		}
 	}
 }
 

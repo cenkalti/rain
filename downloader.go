@@ -11,14 +11,15 @@ import (
 )
 
 type downloader struct {
-	transfer  *transfer
-	remaining []*piece
-	peersC    chan []tracker.Peer
-	peerC     chan tracker.Peer
-	requestC  chan chan *piece
-	responseC chan *piece
-	cancelC   chan struct{}
-	log       logger.Logger
+	transfer    *transfer
+	remaining   []*piece
+	peersC      chan []tracker.Peer
+	peerC       chan tracker.Peer
+	haveNotifyC chan struct{}
+	requestC    chan chan *piece
+	responseC   chan *piece
+	cancelC     chan struct{}
+	log         logger.Logger
 }
 
 func newDownloader(t *transfer) *downloader {
@@ -29,14 +30,15 @@ func newDownloader(t *transfer) *downloader {
 		}
 	}
 	return &downloader{
-		transfer:  t,
-		remaining: remaining,
-		peersC:    make(chan []tracker.Peer),
-		peerC:     make(chan tracker.Peer, tracker.NumWant),
-		requestC:  make(chan chan *piece),
-		responseC: make(chan *piece),
-		cancelC:   make(chan struct{}),
-		log:       t.log,
+		transfer:    t,
+		remaining:   remaining,
+		peersC:      make(chan []tracker.Peer),
+		peerC:       make(chan tracker.Peer, tracker.NumWant),
+		haveNotifyC: make(chan struct{}, 1),
+		requestC:    make(chan chan *piece),
+		responseC:   make(chan *piece),
+		cancelC:     make(chan struct{}),
+		log:         t.log,
 	}
 }
 
@@ -115,10 +117,7 @@ func (d *downloader) connecter() {
 
 // pieceRequester selects a piece to be downloaded next and sends it to d.requestC.
 func (d *downloader) pieceRequester() {
-	t := d.transfer
 	const waitDuration = time.Second
-
-	time.Sleep(waitDuration)
 	for {
 		req := make(chan *piece)
 		select {
@@ -127,19 +126,30 @@ func (d *downloader) pieceRequester() {
 			return
 		}
 
-		t.haveCond.L.Lock()
-		i, err := d.selectPiece()
-		if err != nil {
-			t.log.Debug(err)
+		var i int
+		for {
+			if len(d.remaining) == 0 {
+				return
+			}
+
+			var err error
+			i, err = d.selectPiece()
+			if err == nil {
+				break
+			}
+
+			d.transfer.log.Debug(err)
 
 			// Block until we have next "have" message
-			t.haveCond.Wait()
-			t.haveCond.L.Unlock()
-			// Do not try to select piece on first "have" message. Wait for more messages for better selection.
-			time.Sleep(waitDuration)
-			continue
+			select {
+			case <-d.haveNotifyC:
+				// Do not try to select piece on first "have" message. Wait for more messages for better selection.
+				time.Sleep(waitDuration)
+				continue
+			case <-d.cancelC:
+				return
+			}
 		}
-		t.haveCond.L.Unlock()
 
 		piece := d.remaining[i]
 		piece.log.Debug("selected")
