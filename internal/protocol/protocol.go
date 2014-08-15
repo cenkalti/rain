@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"crypto/sha1"
+	"encoding/base32"
 	"encoding/hex"
 	"errors"
 )
@@ -10,10 +11,15 @@ type InfoHash [sha1.Size]byte
 
 func NewInfoHashString(s string) (InfoHash, error) {
 	var ih InfoHash
-	if len(s) != 2*sha1.Size {
-		return ih, errors.New("info hash must be 40 characters")
+	var b []byte
+	var err error
+	if len(s) == 40 {
+		b, err = hex.DecodeString(s)
+	} else if len(s) == 32 {
+		b, err = base32.StdEncoding.DecodeString(s)
+	} else {
+		return ih, errors.New("info hash must be 32 or 40 characters")
 	}
-	b, err := hex.DecodeString(s)
 	if err != nil {
 		return ih, err
 	}
