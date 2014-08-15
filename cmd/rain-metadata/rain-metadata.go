@@ -8,12 +8,10 @@ import (
 	"github.com/cenkalti/log"
 
 	"github.com/cenkalti/rain"
-	"github.com/cenkalti/rain/internal/protocol"
 )
 
 var (
-	debug    = flag.Bool("d", false, "enable debug log")
-	infoHash = flag.String("i", "", "info hash")
+	debug = flag.Bool("d", false, "enable debug log")
 )
 
 func main() {
@@ -23,25 +21,23 @@ func main() {
 		rain.SetLogLevel(log.DEBUG)
 	}
 
-	if len(*infoHash) != 0 {
-		ih, err := protocol.NewInfoHashString(*infoHash)
-		if err != nil {
-			log.Fatal(err)
-		}
+	magnet, err := rain.ParseMagnet(flag.Arg(0))
+	if err != nil {
+		log.Fatal(err)
+	}
 
-		m, err := rain.Metadata(ih)
-		if err != nil {
-			log.Fatal(err)
-		}
+	m, err := rain.DownloadMetadata(magnet)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-		b, err := json.Marshal(m)
-		if err != nil {
-			log.Fatal(err)
-		}
+	b, err := json.Marshal(m)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-		_, err = fmt.Print(string(b))
-		if err != nil {
-			log.Fatal(err)
-		}
+	_, err = fmt.Print(string(b))
+	if err != nil {
+		log.Fatal(err)
 	}
 }

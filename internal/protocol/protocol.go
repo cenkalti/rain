@@ -27,7 +27,8 @@ func NewInfoHashString(s string) (InfoHash, error) {
 	return ih, nil
 }
 
-func (i InfoHash) String() string { return hex.EncodeToString(i[:]) }
+func (i InfoHash) String() string               { return hex.EncodeToString(i[:]) }
+func (i InfoHash) MarshalJSON() ([]byte, error) { return []byte(`"` + i.String() + `"`), nil }
 
 type PeerID [20]byte
 
