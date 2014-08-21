@@ -18,9 +18,11 @@ import (
 	"github.com/cenkalti/rain/internal/tracker"
 )
 
-const metadataPieceSize = 16 * 1024
-const concurrentMetadataDownloads = 1000
-const metadataNetworkTimeout = 2 * time.Minute
+const (
+	metadataPieceSize           = 16 * 1024
+	concurrentMetadataDownloads = 1000
+	metadataNetworkTimeout      = 2 * time.Minute
+)
 
 func DownloadMetadata(m *Magnet) (*torrent.Info, error) {
 	tr, err := tracker.New(m.Trackers[0], protocol.PeerID{}, 0)
