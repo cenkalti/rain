@@ -5,6 +5,7 @@ import (
 	"encoding/base32"
 	"encoding/hex"
 	"errors"
+	"strconv"
 )
 
 type InfoHash [sha1.Size]byte
@@ -51,21 +52,27 @@ const (
 	Piece
 	Cancel
 	Port
-	Extension = 0x14
+	Extension = 20
 )
 
 var messageStrings = map[MessageType]string{
-	0:    "choke",
-	1:    "unchoke",
-	2:    "interested",
-	3:    "not interested",
-	4:    "have",
-	5:    "bitfield",
-	6:    "request",
-	7:    "piece",
-	8:    "cancel",
-	9:    "port",
-	0x14: "extension",
+	0:  "choke",
+	1:  "unchoke",
+	2:  "interested",
+	3:  "not interested",
+	4:  "have",
+	5:  "bitfield",
+	6:  "request",
+	7:  "piece",
+	8:  "cancel",
+	9:  "port",
+	20: "extension",
 }
 
-func (m MessageType) String() string { return messageStrings[m] }
+func (m MessageType) String() string {
+	s, ok := messageStrings[m]
+	if !ok {
+		return strconv.FormatInt(int64(m), 10)
+	}
+	return s
+}
