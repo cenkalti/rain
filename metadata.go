@@ -127,27 +127,27 @@ func downloadMetadataFromPeer(m *Magnet, p *peer) (*torrent.Info, error) {
 		return nil, errors.New("rejected own connection: client")
 	}
 
-	p.log.Info("BT handshake completed")
+	p.log.Debug("BT handshake completed")
 
 	// Extension Protocol Handshake
-	d := map[string]interface{}{
-		"m": map[string]interface{}{
-			"ut_metadata": 1,
+	d := &extensionHandshakeMessage{
+		M: extensionMapping{
+			UTMetadata: 1,
 		},
 	}
 
-	err = p.sendExtensionMessage(0, d)
+	err = p.sendExtensionHandshake(d)
 	if err != nil {
 		return nil, err
 	}
 	p.log.Debug("Sent extension handshake")
 
 	var (
-		v             metadataHandshakeMessage
+		v             extensionHandshakeMessage
 		metadataBytes []byte
-		numPieces     int
-		lastPieceSize int
-		remaining     int
+		numPieces     uint32
+		lastPieceSize uint32
+		remaining     uint32
 	)
 
 	for {
@@ -216,11 +216,15 @@ func downloadMetadataFromPeer(m *Magnet, p *peer) (*torrent.Info, error) {
 				numPieces++
 			}
 			remaining = numPieces
+			p.log.Debugln("metadata has", numPieces, "pieces")
 
 			// Send metadata piece requests.
-			for i := 0; i < numPieces; i++ {
-				req := map[string]int{"msg_type": 0, "piece": i}
-				err = p.sendExtensionMessage(v.M.UTMetadata, req)
+			for i := uint32(0); i < numPieces; i++ {
+				m := &metadataMessage{
+					MessageType: 0,
+					Piece:       i,
+				}
+				err = sendMetadataMessage(m, p, v.M.UTMetadata)
 				if err != nil {
 					return nil, err
 				}
@@ -236,7 +240,7 @@ func downloadMetadataFromPeer(m *Magnet, p *peer) (*torrent.Info, error) {
 			r := bytes.NewReader(payload)
 			decoder := bencode.NewDecoder(r)
 
-			in := make(map[string]int)
+			in := make(map[string]uint32)
 			err = decoder.Decode(&in)
 			if err != nil {
 				return nil, err
@@ -258,10 +262,13 @@ func downloadMetadataFromPeer(m *Magnet, p *peer) (*torrent.Info, error) {
 
 			switch msgType {
 			case 0: // request
-				req := map[string]int{"msg_type": 2, "piece": i}
-				p.sendExtensionMessage(v.M.UTMetadata, req)
+				req := &metadataMessage{
+					MessageType: 2,
+					Piece:       i,
+				}
+				sendMetadataMessage(req, p, v.M.UTMetadata)
 			case 1: // data
-				var expectedSize int
+				var expectedSize uint32
 				if i == numPieces-1 {
 					expectedSize = lastPieceSize
 				} else {
@@ -269,7 +276,7 @@ func downloadMetadataFromPeer(m *Magnet, p *peer) (*torrent.Info, error) {
 				}
 
 				piece := payload[decoder.BytesParsed():]
-				if len(piece) != expectedSize {
+				if uint32(len(piece)) != expectedSize {
 					return nil, errors.New("received piece smaller than expected")
 				}
 
@@ -294,11 +301,28 @@ func downloadMetadataFromPeer(m *Magnet, p *peer) (*torrent.Info, error) {
 	}
 }
 
-type metadataHandshakeMessage struct {
-	M struct {
-		UTMetadata byte `bencode:"ut_metadata"`
-	} `bencode:"m"`
-	MetadataSize int `bencode:"metadata_size,omitempty"`
+func sendMetadataMessage(m *metadataMessage, p *peer, id byte) error {
+	var buf bytes.Buffer
+	e := bencode.NewEncoder(&buf)
+	err := e.Encode(m)
+	if err != nil {
+		return err
+	}
+	return p.sendExtensionMessage(id, buf.Bytes())
+}
+
+type extensionHandshakeMessage struct {
+	M            extensionMapping `bencode:"m"`
+	MetadataSize uint32           `bencode:"metadata_size,omitempty"`
+}
+
+type extensionMapping struct {
+	UTMetadata byte `bencode:"ut_metadata"`
+}
+
+type metadataMessage struct {
+	MessageType byte   `bencode:"msg_type"`
+	Piece       uint32 `bencode:"piece"`
 }
 
 // Required to make a fake announce to tracker to get peer list for metadata download.

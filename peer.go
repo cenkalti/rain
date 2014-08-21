@@ -304,27 +304,39 @@ func (p *peer) sendMessage(msgType protocol.MessageType) error {
 	return binary.Write(p.conn, binary.BigEndian, &msg)
 }
 
-func (p *peer) sendExtensionMessage(id byte, payload interface{}) error {
-	var buf bytes.Buffer
-	encoder := bencode.NewEncoder(&buf)
-	err := encoder.Encode(payload)
-	if err != nil {
-		return err
-	}
+func (p *peer) sendExtensionMessage(id byte, payload []byte) error {
 	msg := struct {
 		Length      uint32
 		BTID        byte
 		ExtensionID byte
 	}{
-		Length:      uint32(buf.Len()) + 2,
+		Length:      uint32(len(payload)) + 2,
 		BTID:        20,
 		ExtensionID: id,
 	}
-	var buf2 bytes.Buffer
-	binary.Write(&buf2, binary.BigEndian, &msg)
-	buf2.ReadFrom(&buf)
-	b := buf2.Bytes()
-	return binary.Write(p.conn, binary.BigEndian, b)
+
+	buf := bytes.NewBuffer(make([]byte, 0, 6+len(payload)))
+	err := binary.Write(buf, binary.BigEndian, msg)
+	if err != nil {
+		return err
+	}
+
+	_, err = buf.Write(payload)
+	if err != nil {
+		return err
+	}
+
+	return binary.Write(p.conn, binary.BigEndian, buf.Bytes())
+}
+
+func (p *peer) sendExtensionHandshake(m *extensionHandshakeMessage) error {
+	var buf bytes.Buffer
+	e := bencode.NewEncoder(&buf)
+	err := e.Encode(m)
+	if err != nil {
+		return err
+	}
+	return p.sendExtensionMessage(0, buf.Bytes())
 }
 
 type peerRequestMessage struct {
