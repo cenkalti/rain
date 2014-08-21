@@ -178,7 +178,7 @@ func downloadMetadataFromPeer(m *Magnet, p *peer) (*torrent.Info, error) {
 		}
 		p.log.Debugln("Read extension message")
 
-		var extensionID byte
+		var extensionID uint8
 		err = binary.Read(p.conn, binary.BigEndian, &extensionID)
 		if err != nil {
 			return nil, err
@@ -301,7 +301,7 @@ func downloadMetadataFromPeer(m *Magnet, p *peer) (*torrent.Info, error) {
 	}
 }
 
-func sendMetadataMessage(m *metadataMessage, p *peer, id byte) error {
+func sendMetadataMessage(m *metadataMessage, p *peer, id uint8) error {
 	var buf bytes.Buffer
 	e := bencode.NewEncoder(&buf)
 	err := e.Encode(m)
@@ -317,11 +317,11 @@ type extensionHandshakeMessage struct {
 }
 
 type extensionMapping struct {
-	UTMetadata byte `bencode:"ut_metadata"`
+	UTMetadata uint8 `bencode:"ut_metadata"`
 }
 
 type metadataMessage struct {
-	MessageType byte   `bencode:"msg_type"`
+	MessageType uint8  `bencode:"msg_type"`
 	Piece       uint32 `bencode:"piece"`
 }
 

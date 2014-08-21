@@ -39,7 +39,7 @@ const PstrLen = 19
 
 var Pstr = []byte("BitTorrent protocol")
 
-type MessageType byte
+type MessageType uint8
 
 const (
 	Choke MessageType = iota
