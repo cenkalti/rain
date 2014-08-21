@@ -104,7 +104,7 @@ func (r *Rain) servePeerConn(p *peer) {
 		return
 	}
 
-	ih, err := p.readHandShake1()
+	_, ih, err := p.readHandShake1()
 	if err != nil {
 		p.log.Error(err)
 		return
@@ -120,7 +120,7 @@ func (r *Rain) servePeerConn(p *peer) {
 	}
 	r.transfersM.Unlock()
 
-	err = p.sendHandShake(*ih, r.peerID)
+	err = p.sendHandShake(*ih, r.peerID, [8]byte{})
 	if err != nil {
 		p.log.Error(err)
 		return

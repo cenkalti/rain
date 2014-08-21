@@ -4,27 +4,27 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"errors"
-	"io/ioutil"
 	"os"
 
-	"code.google.com/p/bencode-go"
+	"github.com/zeebo/bencode"
 
 	"github.com/cenkalti/rain/internal/protocol"
 )
 
 type Torrent struct {
-	Info         Info       `bencode:"info"`
-	Announce     string     `bencode:"announce"`
-	AnnounceList [][]string `bencode:"announce-list"`
-	CreationDate int64      `bencode:"creation date"`
-	Comment      string     `bencode:"comment"`
-	CreatedBy    string     `bencode:"created by"`
-	Encoding     string     `bencode:"encoding"`
+	Info         *Info              `bencode:"-"`
+	RawInfo      bencode.RawMessage `bencode:"info" json:"-"`
+	Announce     string             `bencode:"announce"`
+	AnnounceList [][]string         `bencode:"announce-list"`
+	CreationDate int64              `bencode:"creation date"`
+	Comment      string             `bencode:"comment"`
+	CreatedBy    string             `bencode:"created by"`
+	Encoding     string             `bencode:"encoding"`
 }
 
 type Info struct {
 	PieceLength uint32 `bencode:"piece length"`
-	Pieces      string `bencode:"pieces"`
+	Pieces      []byte `bencode:"pieces"`
 	Private     byte   `bencode:"private"`
 	Name        string `bencode:"name"`
 	// Single File Mode
@@ -33,11 +33,13 @@ type Info struct {
 	// Multiple File mode
 	Files []fileDict `bencode:"files"`
 
-	// These fields do not exist in torrent file.
-	// They are calculated when a Torrent is created with New.
-	Hash        protocol.InfoHash
-	TotalLength int64
-	NumPieces   uint32
+	Raw []byte `bencode:"-"`
+
+	// Calculated fileds
+	Hash        protocol.InfoHash `bencode:"-"`
+	TotalLength int64             `bencode:"-"`
+	NumPieces   uint32            `bencode:"-"`
+	MultiFile   bool              `bencode:"-"`
 }
 
 type fileDict struct {
@@ -47,84 +49,73 @@ type fileDict struct {
 }
 
 func New(path string) (*Torrent, error) {
-	file, err := os.Open(path)
+	var t Torrent
+
+	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 
-	data, err := ioutil.ReadAll(file)
-	file.Close()
+	d := bencode.NewDecoder(f)
+	err = d.Decode(&t)
+	f.Close()
 	if err != nil {
 		return nil, err
 	}
 
-	reader := bytes.NewReader(data)
+	if len(t.RawInfo) == 0 {
+		return nil, errors.New("no info dict in torrent file")
+	}
 
-	decoded, err := bencode.Decode(reader)
+	t.Info, err = NewInfo(t.RawInfo)
+	return &t, err
+}
+
+func NewInfo(b []byte) (*Info, error) {
+	var i Info
+
+	r := bytes.NewReader(b)
+	d := bencode.NewDecoder(r)
+	err := d.Decode(&i)
 	if err != nil {
 		return nil, err
 	}
 
-	torrentMap, ok := decoded.(map[string]interface{})
-	if !ok {
-		return nil, errors.New("invalid torrent file")
-	}
+	i.Raw = append([]byte(nil), b...)
 
-	infoMap, ok := torrentMap["info"]
-	if !ok {
-		return nil, errors.New("invalid torrent file")
-	}
-
-	t := new(Torrent)
-
-	// Unmarshal bencoded bytes into the struct
-	reader.Seek(0, os.SEEK_SET)
-	err = bencode.Unmarshal(reader, t)
-	if err != nil {
-		return nil, err
-	}
-
-	// Calculate InfoHash
 	hash := sha1.New()
-	bencode.Marshal(hash, infoMap)
-	copy(t.Info.Hash[:], hash.Sum(nil))
+	hash.Write(b)
+	copy(i.Hash[:], hash.Sum(nil))
 
-	// Calculate TotalLength
-	if !t.Info.MultiFile() {
-		t.Info.TotalLength = t.Info.Length
+	i.MultiFile = len(i.Files) != 0
+
+	i.NumPieces = uint32(len(i.Pieces)) / sha1.Size
+
+	if !i.MultiFile {
+		i.TotalLength = i.Length
 	} else {
-		for _, f := range t.Info.Files {
-			t.Info.TotalLength += f.Length
+		for _, f := range i.Files {
+			i.TotalLength += f.Length
 		}
 	}
 
-	// Calculate NumPieces
-	t.Info.NumPieces = uint32(len(t.Info.Pieces)) / sha1.Size
-
-	return t, nil
+	return &i, nil
 }
 
-func (i *Info) HashOfPiece(index uint32) [sha1.Size]byte {
+func (i *Info) PieceHash(index uint32) []byte {
 	if index >= i.NumPieces {
 		panic("piece index out of range")
 	}
-	var hash [sha1.Size]byte
 	start := index * sha1.Size
 	end := start + sha1.Size
-	copy(hash[:], []byte(i.Pieces[start:end]))
-	return hash
+	return i.Pieces[start:end]
 }
 
 // GetFiles returns the files in torrent as a slice, even if there is a single file.
 func (i *Info) GetFiles() []fileDict {
-	if i.MultiFile() {
+	if i.MultiFile {
 		return i.Files
 	} else {
 		return []fileDict{fileDict{i.Length, []string{i.Name}, i.Md5sum}}
 	}
-}
-
-// MultiFile returns true if the torrent contains more than one file.
-func (i *Info) MultiFile() bool {
-	return len(i.Files) != 0
 }

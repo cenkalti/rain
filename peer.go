@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/zeebo/bencode"
+
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/protocol"
@@ -302,6 +304,29 @@ func (p *peer) sendMessage(msgType protocol.MessageType) error {
 	return binary.Write(p.conn, binary.BigEndian, &msg)
 }
 
+func (p *peer) sendExtensionMessage(id byte, payload interface{}) error {
+	var buf bytes.Buffer
+	encoder := bencode.NewEncoder(&buf)
+	err := encoder.Encode(payload)
+	if err != nil {
+		return err
+	}
+	msg := struct {
+		Length      uint32
+		BTID        byte
+		ExtensionID byte
+	}{
+		Length:      uint32(buf.Len()) + 2,
+		BTID:        20,
+		ExtensionID: id,
+	}
+	var buf2 bytes.Buffer
+	binary.Write(&buf2, binary.BigEndian, &msg)
+	buf2.ReadFrom(&buf)
+	b := buf2.Bytes()
+	return binary.Write(p.conn, binary.BigEndian, b)
+}
+
 type peerRequestMessage struct {
 	ID                   protocol.MessageType
 	Index, Begin, Length uint32
@@ -359,7 +384,7 @@ func (p *peer) downloadPiece(piece *piece) error {
 	// Verify piece hash
 	hash := sha1.New()
 	hash.Write(pieceData)
-	if bytes.Compare(hash.Sum(nil), piece.sha1[:]) != 0 {
+	if bytes.Compare(hash.Sum(nil), piece.hash) != 0 {
 		return errors.New("received corrupt piece")
 	}
 

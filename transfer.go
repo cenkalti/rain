@@ -33,11 +33,11 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 	if err != nil {
 		return nil, err
 	}
-	files, err := allocate(&tor.Info, where)
+	files, err := allocate(tor.Info, where)
 	if err != nil {
 		return nil, err
 	}
-	pieces := newPieces(&tor.Info, files)
+	pieces := newPieces(tor.Info, files)
 	name := tor.Info.Name
 	if len(name) > 8 {
 		name = name[:8]
@@ -118,13 +118,13 @@ func (t *transfer) connectToPeer(addr *net.TCPAddr) {
 		return
 	}
 
-	err = p.sendHandShake(t.torrent.Info.Hash, t.rain.peerID)
+	err = p.sendHandShake(t.torrent.Info.Hash, t.rain.peerID, [8]byte{})
 	if err != nil {
 		p.log.Error(err)
 		return
 	}
 
-	ih, err := p.readHandShake1()
+	_, ih, err := p.readHandShake1()
 	if err != nil {
 		p.log.Error(err)
 		return
@@ -149,7 +149,7 @@ func (t *transfer) connectToPeer(addr *net.TCPAddr) {
 }
 
 func allocate(info *torrent.Info, where string) ([]*os.File, error) {
-	if !info.MultiFile() {
+	if !info.MultiFile {
 		f, err := createTruncateSync(filepath.Join(where, info.Name), info.Length)
 		if err != nil {
 			return nil, err

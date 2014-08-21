@@ -1,7 +1,6 @@
 package rain
 
 import (
-	"crypto/sha1"
 	"os"
 	"strconv"
 	"sync"
@@ -14,7 +13,7 @@ import (
 
 type piece struct {
 	index    uint32 // piece index in whole torrent
-	sha1     [sha1.Size]byte
+	hash     []byte
 	length   uint32            // last piece may not be complete
 	files    partialfile.Files // the place to write downloaded bytes
 	blocks   []block
@@ -54,7 +53,7 @@ func newPieces(info *torrent.Info, osFiles []*os.File) []*piece {
 	for i := uint32(0); i < info.NumPieces; i++ {
 		p := &piece{
 			index:  i,
-			sha1:   info.HashOfPiece(i),
+			hash:   info.PieceHash(i),
 			blockC: make(chan peerBlock),
 			log:    logger.New("piece #" + strconv.Itoa(int(i))),
 		}
