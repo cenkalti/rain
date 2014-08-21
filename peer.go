@@ -311,7 +311,7 @@ func (p *peer) sendExtensionMessage(id byte, payload []byte) error {
 		ExtensionID byte
 	}{
 		Length:      uint32(len(payload)) + 2,
-		BTID:        20,
+		BTID:        protocol.Extension,
 		ExtensionID: id,
 	}
 

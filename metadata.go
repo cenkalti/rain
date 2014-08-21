@@ -172,7 +172,7 @@ func downloadMetadataFromPeer(m *Magnet, p *peer) (*torrent.Info, error) {
 		}
 		length--
 
-		if messageID != 20 { // extension message id
+		if messageID != protocol.Extension { // extension message id
 			io.CopyN(ioutil.Discard, p.conn, int64(length))
 			continue
 		}

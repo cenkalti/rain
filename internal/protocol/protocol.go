@@ -51,19 +51,21 @@ const (
 	Piece
 	Cancel
 	Port
+	Extension = 0x14
 )
 
-var messageStrings = [...]string{
-	"choke",
-	"unchoke",
-	"interested",
-	"not interested",
-	"have",
-	"bitfield",
-	"request",
-	"piece",
-	"cancel",
-	"port",
+var messageStrings = map[MessageType]string{
+	0:    "choke",
+	1:    "unchoke",
+	2:    "interested",
+	3:    "not interested",
+	4:    "have",
+	5:    "bitfield",
+	6:    "request",
+	7:    "piece",
+	8:    "cancel",
+	9:    "port",
+	0x14: "extension",
 }
 
 func (m MessageType) String() string { return messageStrings[m] }
