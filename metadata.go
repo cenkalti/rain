@@ -19,8 +19,8 @@ import (
 )
 
 const metadataPieceSize = 16 * 1024
-const concurrentMetadataDownloads = tracker.NumWant
-const metadataNetworkTimeout = 30 * time.Second
+const concurrentMetadataDownloads = 1000
+const metadataNetworkTimeout = 2 * time.Minute
 
 func DownloadMetadata(m *Magnet) (*torrent.Info, error) {
 	tr, err := tracker.New(m.Trackers[0], protocol.PeerID{}, 0)
@@ -159,7 +159,9 @@ func downloadMetadataFromPeer(m *Magnet, p *peer) (*torrent.Info, error) {
 		if err != nil {
 			return nil, err
 		}
-		// p.log.Debugln("Read", length, "byte(s) message")
+		if length == 0 { // keep-alive
+			continue
+		}
 
 		var messageID protocol.MessageType
 		err = binary.Read(p.conn, binary.BigEndian, &messageID)
