@@ -22,12 +22,12 @@ const connectionIDMagic = 0x41727101980
 
 type trackerAction int32
 
-// Tracker Actions
+// UDP tracker Actions
 const (
-	trackerActionConnect trackerAction = iota
-	trackerActionAnnounce
-	trackerActionScrape
-	trackerActionError
+	connect trackerAction = iota
+	announce
+	scrape
+	errorAction
 )
 
 type udpTracker struct {
@@ -125,7 +125,7 @@ func (t *udpTracker) readLoop() {
 		}
 
 		// Tracker has sent and error.
-		if header.Action == trackerActionError {
+		if header.Action == errorAction {
 			// The part after the header is the error message.
 			trx.err = Error(buf[binary.Size(header):])
 			trx.Done()
@@ -244,7 +244,7 @@ type connectResponse struct {
 func (t *udpTracker) connect() int64 {
 	req := new(connectRequest)
 	req.SetConnectionID(connectionIDMagic)
-	req.SetAction(trackerActionConnect)
+	req.SetAction(connect)
 
 	write := func(req trackerRequest) {
 		binary.Write(t.conn, binary.BigEndian, req)
@@ -265,7 +265,7 @@ func (t *udpTracker) connect() int64 {
 			continue
 		}
 
-		if response.Action != trackerActionConnect {
+		if response.Action != connect {
 			t.log.Error("invalid action in connect response")
 			continue
 		}
@@ -315,7 +315,7 @@ func (t *udpTracker) Announce(transfer Transfer, cancel <-chan struct{}, event <
 		Port:       t.port,
 		Extensions: 0,
 	}
-	request.SetAction(trackerActionAnnounce)
+	request.SetAction(announce)
 	var nextAnnounce time.Duration = time.Nanosecond // Start immediately.
 	for {
 		select {
@@ -384,7 +384,7 @@ func (t *udpTracker) parseAnnounceResponse(data []byte) (*announceResponse, []Pe
 	}
 	t.log.Debugf("annouceResponse: %#v", response)
 
-	if response.Action != trackerActionAnnounce {
+	if response.Action != announce {
 		return nil, nil, errors.New("invalid action")
 	}
 
