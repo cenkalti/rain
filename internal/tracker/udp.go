@@ -344,7 +344,7 @@ func (t *udpTracker) Announce(transfer Transfer, cancel <-chan struct{}, event <
 
 			announceResponse := &AnnounceResponse{
 				// TODO handle error
-				Interval: response.Interval,
+				Interval: time.Duration(response.Interval) * time.Second,
 				Leechers: response.Leechers,
 				Seeders:  response.Seeders,
 				Peers:    peers,

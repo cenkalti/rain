@@ -47,7 +47,7 @@ func (t *httpTracker) Announce(transfer Transfer, cancel <-chan struct{}, event 
 			r = &AnnounceResponse{Error: err}
 			nextAnnounce = HTTPTimeout
 		} else {
-			nextAnnounce = time.Duration(r.Interval) * time.Second
+			nextAnnounce = r.Interval
 		}
 		select {
 		case responseC <- r:
@@ -123,7 +123,7 @@ func (t *httpTracker) announce(transfer Transfer, e Event) (*AnnounceResponse, e
 	}
 
 	return &AnnounceResponse{
-		Interval: response.Interval,
+		Interval: time.Duration(response.Interval) * time.Second,
 		Leechers: response.Incomplete,
 		Seeders:  response.Complete,
 		Peers:    peers,

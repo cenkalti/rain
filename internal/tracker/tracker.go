@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"time"
 
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/protocol"
@@ -32,7 +33,7 @@ type Transfer interface {
 
 type AnnounceResponse struct {
 	Error    error
-	Interval int32
+	Interval time.Duration
 	Leechers int32
 	Seeders  int32
 	Peers    []Peer
