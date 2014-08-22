@@ -17,7 +17,7 @@ const NumWant = 50
 
 type Event int32
 
-// Tracker Announce Events
+// Tracker Announce Events. Numbers corresponds to constants in UDP tracker protocol.
 const (
 	None Event = iota
 	Completed
@@ -32,6 +32,7 @@ var eventNames = [...]string{
 	"stopped",
 }
 
+// String returns the name of event as represented in HTTP tracker protocol.
 func (e Event) String() string {
 	return eventNames[e]
 }
