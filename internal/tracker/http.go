@@ -23,7 +23,7 @@ func newHTTPTracker(b *trackerBase) *httpTracker {
 	}
 }
 
-func (t *httpTracker) Announce(transfer Transfer, cancel <-chan struct{}, event <-chan trackerEvent, responseC chan<- *AnnounceResponse) {
+func (t *httpTracker) Announce(transfer Transfer, cancel <-chan struct{}, event <-chan Event, responseC chan<- *AnnounceResponse) {
 	var nextAnnounce time.Duration = time.Nanosecond // Start immediately.
 	for {
 		select {

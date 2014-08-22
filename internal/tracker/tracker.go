@@ -15,22 +15,33 @@ import (
 // Number of peers we want from trackers
 const NumWant = 50
 
-type trackerEvent int32
+type Event int32
 
 // Tracker Announce Events
 const (
-	trackerEventNone trackerEvent = iota
-	trackerEventCompleted
-	trackerEventStarted
-	trackerEventStopped
+	None Event = iota
+	Completed
+	Started
+	Stopped
 )
 
+var eventNames = [...]string{
+	"empty",
+	"completed",
+	"started",
+	"stopped",
+}
+
+func (e Event) String() string {
+	return eventNames[e]
+}
+
 type Tracker interface {
-	// Announce is run in a seperate goroutine.
+	// Announce is called in a go statement.
 	// It announces to the tracker periodically and adjust the interval according to the response
 	// returned by the tracker.
-	// Puts the responses into responseC. Blocks when sending to this channel.
-	Announce(t Transfer, cancel <-chan struct{}, event <-chan trackerEvent, responseC chan<- *AnnounceResponse)
+	// Puts the responses into r. Blocks when sending to this channel.
+	Announce(t Transfer, cancel <-chan struct{}, e <-chan Event, r chan<- *AnnounceResponse)
 }
 
 type Transfer interface {

@@ -282,7 +282,7 @@ type announceRequest struct {
 	Downloaded int64
 	Left       int64
 	Uploaded   int64
-	Event      trackerEvent
+	Event      Event
 	IP         uint32
 	Key        uint32
 	NumWant    int32
@@ -298,7 +298,7 @@ type announceResponse struct {
 }
 
 // Announce announces transfer to t periodically.
-func (t *udpTracker) Announce(transfer Transfer, cancel <-chan struct{}, event <-chan trackerEvent, responseC chan<- *AnnounceResponse) {
+func (t *udpTracker) Announce(transfer Transfer, cancel <-chan struct{}, event <-chan Event, responseC chan<- *AnnounceResponse) {
 	err := t.Dial()
 	if err != nil {
 		// TODO retry connecting to tracker
@@ -308,7 +308,7 @@ func (t *udpTracker) Announce(transfer Transfer, cancel <-chan struct{}, event <
 	request := &announceRequest{
 		InfoHash:   transfer.InfoHash(),
 		PeerID:     t.peerID,
-		Event:      trackerEventNone,
+		Event:      None,
 		IP:         0, // Tracker uses sender of this UDP packet.
 		Key:        0, // TODO set it
 		NumWant:    NumWant,
