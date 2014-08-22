@@ -25,7 +25,6 @@ const (
 )
 
 type MetadataDownloader struct {
-	peerID    protocol.PeerID
 	magnet    *Magnet
 	tracker   tracker.Tracker
 	announceC chan *tracker.AnnounceResponse
@@ -35,14 +34,14 @@ type MetadataDownloader struct {
 }
 
 func NewMetadataDownloader(m *Magnet) (*MetadataDownloader, error) {
-	id, err := generatePeerID()
-	if err != nil {
-		return nil, err
-	}
 	if len(m.Trackers) == 0 {
 		return nil, errors.New("magnet link does not contain a tracker")
 	}
-	tr, err := tracker.New(m.Trackers[0], id, 0)
+	c, err := newDummyClient()
+	if err != nil {
+		return nil, err
+	}
+	tr, err := tracker.New(m.Trackers[0], c)
 	if err != nil {
 		return nil, err
 	}
@@ -340,6 +339,20 @@ type metadataMessage struct {
 	MessageType uint8  `bencode:"msg_type"`
 	Piece       uint32 `bencode:"piece"`
 }
+
+type dummyClient struct {
+	peerID protocol.PeerID
+}
+
+func newDummyClient() (*dummyClient, error) {
+	var c dummyClient
+	var err error
+	c.peerID, err = generatePeerID()
+	return &c, err
+}
+
+func (c *dummyClient) PeerID() protocol.PeerID { return c.peerID }
+func (c *dummyClient) Port() uint16            { return 6881 }
 
 // Required to make a fake announce to tracker to get peer list for metadata download.
 type emptyTransfer protocol.InfoHash

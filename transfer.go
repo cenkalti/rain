@@ -29,7 +29,7 @@ type transfer struct {
 }
 
 func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error) {
-	tracker, err := tracker.New(tor.Announce, r.peerID, r.port())
+	tracker, err := tracker.New(tor.Announce, r)
 	if err != nil {
 		return nil, err
 	}

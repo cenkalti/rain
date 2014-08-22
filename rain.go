@@ -93,7 +93,8 @@ func (r *Rain) accepter() {
 	}
 }
 
-func (r *Rain) port() uint16 { return uint16(r.listener.Addr().(*net.TCPAddr).Port) }
+func (r *Rain) PeerID() protocol.PeerID { return r.peerID }
+func (r *Rain) Port() uint16            { return uint16(r.listener.Addr().(*net.TCPAddr).Port) }
 
 func (r *Rain) servePeerConn(p *peer) {
 	p.log.Debugln("Serving peer", p.conn.RemoteAddr())

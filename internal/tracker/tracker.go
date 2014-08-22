@@ -53,7 +53,7 @@ func (p Peer) TCPAddr() *net.TCPAddr {
 	}
 }
 
-func New(trackerURL string, peerID protocol.PeerID, port uint16) (Tracker, error) {
+func New(trackerURL string, c Client) (Tracker, error) {
 	u, err := url.Parse(trackerURL)
 	if err != nil {
 		return nil, err
@@ -61,8 +61,8 @@ func New(trackerURL string, peerID protocol.PeerID, port uint16) (Tracker, error
 
 	base := &trackerBase{
 		url:    u,
-		peerID: peerID,
-		port:   port,
+		peerID: c.PeerID(),
+		port:   c.Port(),
 		log:    logger.New("tracker " + trackerURL),
 	}
 
@@ -81,6 +81,11 @@ type trackerBase struct {
 	peerID protocol.PeerID
 	port   uint16
 	log    logger.Logger
+}
+
+type Client interface {
+	PeerID() protocol.PeerID
+	Port() uint16
 }
 
 // parsePeers parses compact representation of peer list.
