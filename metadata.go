@@ -24,40 +24,55 @@ const (
 	metadataNetworkTimeout      = 2 * time.Minute
 )
 
-func DownloadMetadata(m *Magnet) (*torrent.Info, error) {
-	tr, err := tracker.New(m.Trackers[0], protocol.PeerID{}, 0)
+type MetadataDownloader struct {
+	peerID    protocol.PeerID
+	magnet    *Magnet
+	tracker   tracker.Tracker
+	announceC chan *tracker.AnnounceResponse
+	peerC     chan tracker.Peer
+	Result    chan *torrent.Info
+	cancel    chan struct{}
+}
+
+func NewMetadataDownloader(m *Magnet) (*MetadataDownloader, error) {
+	id, err := generatePeerID()
 	if err != nil {
 		return nil, err
 	}
-
-	t := emptyTransfer(m.InfoHash)
-	announceC := make(chan *tracker.AnnounceResponse)
-	go tr.Announce(&t, nil, nil, announceC)
-
-	peerC := make(chan tracker.Peer)
-	resultC := make(chan *torrent.Info)
-	cancel := make(chan struct{})
-
-	go func() {
-		for resp := range announceC {
-			for _, p := range resp.Peers {
-				peerC <- p
-			}
-		}
-	}()
-
-	for i := 0; i < concurrentMetadataDownloads; i++ {
-		go metadataDownloader(m, peerC, resultC, cancel)
+	if len(m.Trackers) == 0 {
+		return nil, errors.New("magnet link does not contain a tracker")
 	}
-
-	defer func() { close(cancel) }()
-	return <-resultC, nil
+	tr, err := tracker.New(m.Trackers[0], id, 0)
+	if err != nil {
+		return nil, err
+	}
+	return &MetadataDownloader{
+		magnet:    m,
+		tracker:   tr,
+		announceC: make(chan *tracker.AnnounceResponse),
+		peerC:     make(chan tracker.Peer),
+		Result:    make(chan *torrent.Info, 1),
+		cancel:    make(chan struct{}),
+	}, nil
 }
 
-func metadataDownloader(m *Magnet, peers chan tracker.Peer, result chan *torrent.Info, cancel chan struct{}) {
+func (m *MetadataDownloader) Run() {
+	t := emptyTransfer(m.magnet.InfoHash)
+	go m.tracker.Announce(&t, m.cancel, nil, m.announceC)
+	for i := 0; i < concurrentMetadataDownloads; i++ {
+		go m.worker()
+	}
+	for resp := range m.announceC {
+		for _, p := range resp.Peers {
+			m.peerC <- p
+		}
+	}
+}
+
+func (m *MetadataDownloader) worker() {
 	for {
 		select {
-		case peer := <-peers:
+		case peer := <-m.peerC:
 			conn, err := net.DialTCP("tcp4", nil, peer.TCPAddr())
 			if err != nil {
 				log.Error(err)
@@ -67,7 +82,7 @@ func metadataDownloader(m *Magnet, peers chan tracker.Peer, result chan *torrent
 			p := newPeer(conn)
 			p.log.Debug("tcp connection is opened")
 
-			info, err := downloadMetadataFromPeer(m, p)
+			info, err := downloadMetadataFromPeer(m.magnet, p)
 			conn.Close()
 			if err != nil {
 				p.log.Error(err)
@@ -75,11 +90,12 @@ func metadataDownloader(m *Magnet, peers chan tracker.Peer, result chan *torrent
 			}
 
 			select {
-			case result <- info:
-			case <-cancel:
+			case m.Result <- info:
+				close(m.cancel) // will stop other workers
+			case <-m.cancel:
 				return
 			}
-		case <-cancel:
+		case <-m.cancel:
 			return
 		}
 	}

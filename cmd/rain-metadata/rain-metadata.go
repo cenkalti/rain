@@ -26,10 +26,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	m, err := rain.DownloadMetadata(magnet)
+	d, err := rain.NewMetadataDownloader(magnet)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	go d.Run()
+
+	m := <-d.Result
 
 	b, err := json.Marshal(m)
 	if err != nil {
