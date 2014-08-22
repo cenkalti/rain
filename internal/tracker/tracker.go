@@ -102,9 +102,10 @@ func (t *trackerBase) parsePeers(r *bytes.Reader) ([]Peer, error) {
 	return peers, nil
 }
 
-type trackerError string
+// Error is the string that is sent by the tracker from announce or scrape.
+type Error string
 
-func (e trackerError) Error() string { return string(e) }
+func (e Error) Error() string { return string(e) }
 
 type Event int32
 

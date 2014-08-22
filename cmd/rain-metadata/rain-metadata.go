@@ -4,14 +4,17 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"time"
 
 	"github.com/cenkalti/log"
 
 	"github.com/cenkalti/rain"
+	"github.com/cenkalti/rain/internal/tracker"
 )
 
 var (
-	debug = flag.Bool("d", false, "enable debug log")
+	debug   = flag.Bool("d", false, "enable debug log")
+	timeout = flag.Uint("t", 5000, "tracker timeout (ms)")
 )
 
 func main() {
@@ -25,6 +28,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	tracker.HTTPTimeout = time.Duration(*timeout) * time.Millisecond
 
 	d, err := rain.NewMetadataDownloader(magnet)
 	if err != nil {

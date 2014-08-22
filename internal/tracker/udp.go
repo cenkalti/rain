@@ -127,7 +127,7 @@ func (t *udpTracker) readLoop() {
 		// Tracker has sent and error.
 		if header.Action == trackerActionError {
 			// The part after the header is the error message.
-			trx.err = trackerError(buf[binary.Size(header):])
+			trx.err = Error(buf[binary.Size(header):])
 			trx.Done()
 			continue
 		}

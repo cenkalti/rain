@@ -2,7 +2,9 @@ package tracker
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -11,36 +13,62 @@ import (
 	"code.google.com/p/bencode-go"
 )
 
+var HTTPTimeout = 30 * time.Second
+
 type httpTracker struct {
 	*trackerBase
-	client    http.Client
+	client    *http.Client
 	trackerID string
 }
 
 func newHTTPTracker(b *trackerBase) *httpTracker {
 	return &httpTracker{
 		trackerBase: b,
+		client: &http.Client{
+			Timeout: HTTPTimeout,
+			Transport: &http.Transport{
+				Dial: (&net.Dialer{
+					Timeout: HTTPTimeout,
+				}).Dial,
+				TLSHandshakeTimeout: HTTPTimeout,
+				DisableKeepAlives:   true,
+			},
+		},
 	}
 }
 
 func (t *httpTracker) Announce(transfer Transfer, cancel <-chan struct{}, event <-chan Event, responseC chan<- *AnnounceResponse) {
 	var nextAnnounce time.Duration = time.Nanosecond // Start immediately.
+
+	announce := func(e Event) {
+		r, err := t.announce(transfer, e)
+		if err != nil {
+			t.log.Error(err)
+			r = &AnnounceResponse{Error: err}
+			nextAnnounce = HTTPTimeout
+		} else {
+			nextAnnounce = time.Duration(r.Interval) * time.Second
+		}
+		select {
+		case responseC <- r:
+		case <-cancel:
+			return
+		}
+	}
+
 	for {
 		select {
 		case <-time.After(nextAnnounce):
-			t.announce(transfer, cancel, responseC, &nextAnnounce, None)
+			announce(None)
 		case e := <-event:
-			t.announce(transfer, cancel, responseC, &nextAnnounce, e)
+			announce(e)
 		case <-cancel:
 			return
 		}
 	}
 }
 
-func (t *httpTracker) announce(transfer Transfer, cancel <-chan struct{}, responseC chan<- *AnnounceResponse, nextAnnounce *time.Duration, e Event) {
-	// If any error happens before parsing the response, try again in a minute.
-	*nextAnnounce = time.Minute
-
+func (t *httpTracker) announce(transfer Transfer, e Event) (*AnnounceResponse, error) {
 	infoHash := transfer.InfoHash()
 	q := url.Values{}
 	q.Set("info_hash", string(infoHash[:]))
@@ -62,46 +90,28 @@ func (t *httpTracker) announce(transfer Transfer, cancel <-chan struct{}, respon
 
 	resp, err := t.client.Get(u.String())
 	if err != nil {
-		t.log.Error(err)
-		return
+		return nil, err
 	}
 
-	if resp.StatusCode >= 400 {
+	if resp.StatusCode != 200 {
 		data, _ := ioutil.ReadAll(resp.Body)
-		t.log.Errorf("Status: %d Body: %s", resp.StatusCode, string(data))
 		resp.Body.Close()
-		return
+		return nil, fmt.Errorf("status not 200 OK (status: %d body: %q)", resp.StatusCode, string(data))
 	}
 
 	var response = new(httpTrackerAnnounceResponse)
 	err = bencode.Unmarshal(resp.Body, &response)
 	resp.Body.Close()
 	if err != nil {
-		t.log.Error(err)
-		return
+		return nil, err
 	}
 
-	if response.FailureReason != "" {
-		t.log.Error(response.FailureReason)
-
-		announceResponse := &AnnounceResponse{
-			Error: trackerError(response.FailureReason),
-		}
-
-		select {
-		case responseC <- announceResponse:
-		case <-cancel:
-			return
-		}
-
-		return
-	}
 	if response.WarningMessage != "" {
 		t.log.Warning(response.WarningMessage)
-		return
 	}
-
-	*nextAnnounce = time.Duration(response.Interval) * time.Second
+	if response.FailureReason != "" {
+		return nil, Error(response.FailureReason)
+	}
 
 	if response.TrackerId != "" {
 		t.trackerID = response.TrackerId
@@ -109,22 +119,15 @@ func (t *httpTracker) announce(transfer Transfer, cancel <-chan struct{}, respon
 
 	peers, err := t.parsePeers(bytes.NewReader([]byte(response.Peers)))
 	if err != nil {
-		t.log.Error(err)
-		return
+		return nil, err
 	}
 
-	announceResponse := &AnnounceResponse{
+	return &AnnounceResponse{
 		Interval: response.Interval,
 		Leechers: response.Incomplete,
 		Seeders:  response.Complete,
 		Peers:    peers,
-	}
-
-	select {
-	case responseC <- announceResponse:
-	case <-cancel:
-		return
-	}
+	}, nil
 }
 
 type httpTrackerAnnounceResponse struct {
