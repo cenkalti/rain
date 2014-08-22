@@ -15,28 +15,6 @@ import (
 // Number of peers we want from trackers
 const NumWant = 50
 
-type Event int32
-
-// Tracker Announce Events. Numbers corresponds to constants in UDP tracker protocol.
-const (
-	None Event = iota
-	Completed
-	Started
-	Stopped
-)
-
-var eventNames = [...]string{
-	"empty",
-	"completed",
-	"started",
-	"stopped",
-}
-
-// String returns the name of event as represented in HTTP tracker protocol.
-func (e Event) String() string {
-	return eventNames[e]
-}
-
 type Tracker interface {
 	// Announce is called in a go statement.
 	// It announces to the tracker periodically and adjust the interval according to the response
@@ -127,3 +105,25 @@ func (t *trackerBase) parsePeers(r *bytes.Reader) ([]Peer, error) {
 type trackerError string
 
 func (e trackerError) Error() string { return string(e) }
+
+type Event int32
+
+// Tracker Announce Events. Numbers corresponds to constants in UDP tracker protocol.
+const (
+	None Event = iota
+	Completed
+	Started
+	Stopped
+)
+
+var eventNames = [...]string{
+	"empty",
+	"completed",
+	"started",
+	"stopped",
+}
+
+// String returns the name of event as represented in HTTP tracker protocol.
+func (e Event) String() string {
+	return eventNames[e]
+}
