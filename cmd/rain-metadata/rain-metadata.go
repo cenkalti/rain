@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/cenkalti/log"
@@ -18,6 +19,11 @@ var (
 )
 
 func main() {
+	flag.Usage = func() {
+		fmt.Fprint(os.Stderr, "rain-metadata: Download metadata from magnet link.\nUsage: rain-metadata [options] magnet\nOptions:\n")
+		flag.PrintDefaults()
+	}
+
 	flag.Parse()
 
 	if *debug {
@@ -40,12 +46,7 @@ func main() {
 
 	m := <-d.Result
 
-	b, err := json.Marshal(m)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	_, err = fmt.Print(string(b))
+	err = json.NewEncoder(os.Stdout).Encode(m)
 	if err != nil {
 		log.Fatal(err)
 	}
