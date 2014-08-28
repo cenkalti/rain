@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"code.google.com/p/bencode-go"
+	"github.com/zeebo/bencode"
 )
 
 var HTTPTimeout = 30 * time.Second
@@ -101,7 +101,8 @@ func (t *httpTracker) announce(transfer Transfer, e Event) (*AnnounceResponse, e
 	}
 
 	var response = new(httpTrackerAnnounceResponse)
-	err = bencode.Unmarshal(resp.Body, &response)
+	d := bencode.NewDecoder(resp.Body)
+	err = d.Decode(&response)
 	resp.Body.Close()
 	if err != nil {
 		return nil, err
