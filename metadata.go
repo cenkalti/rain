@@ -24,6 +24,19 @@ const (
 	metadataNetworkTimeout      = 2 * time.Minute
 )
 
+// Extension IDs
+const (
+	extensionHandshakeID = iota
+	extensionMetadataID
+)
+
+// Metadata Extension Message Types
+const (
+	metadataRequest = iota
+	metadataData
+	metadataReject
+)
+
 type MetadataDownloader struct {
 	magnet    *Magnet
 	tracker   tracker.Tracker
@@ -147,7 +160,7 @@ func downloadMetadataFromPeer(m *Magnet, p *peer) (*torrent.Info, error) {
 	// Extension Protocol Handshake
 	d := &extensionHandshakeMessage{
 		M: extensionMapping{
-			UTMetadata: 1,
+			UTMetadata: extensionMetadataID,
 		},
 	}
 
@@ -202,7 +215,7 @@ func downloadMetadataFromPeer(m *Magnet, p *peer) (*torrent.Info, error) {
 		p.log.Debugln("LTEP message ID:", extensionID)
 
 		switch extensionID {
-		case 0: // handshake
+		case extensionHandshakeID:
 			payload := make([]byte, length)
 			_, err = io.ReadFull(p.conn, payload)
 			if err != nil {
@@ -236,7 +249,7 @@ func downloadMetadataFromPeer(m *Magnet, p *peer) (*torrent.Info, error) {
 			// Send metadata piece requests.
 			for i := uint32(0); i < numPieces; i++ {
 				m := &metadataMessage{
-					MessageType: 0,
+					MessageType: metadataRequest,
 					Piece:       i,
 				}
 				err = sendMetadataMessage(m, p, v.M.UTMetadata)
@@ -245,7 +258,7 @@ func downloadMetadataFromPeer(m *Magnet, p *peer) (*torrent.Info, error) {
 				}
 				p.log.Debugln("piece request sent", i)
 			}
-		case 1: // ut_metadata
+		case extensionMetadataID:
 			payload := make([]byte, length)
 			_, err = io.ReadFull(p.conn, payload)
 			if err != nil {
@@ -276,13 +289,13 @@ func downloadMetadataFromPeer(m *Magnet, p *peer) (*torrent.Info, error) {
 			}
 
 			switch msgType {
-			case 0: // request
+			case metadataRequest:
 				req := &metadataMessage{
-					MessageType: 2,
+					MessageType: metadataReject,
 					Piece:       i,
 				}
 				sendMetadataMessage(req, p, v.M.UTMetadata)
-			case 1: // data
+			case metadataData:
 				var expectedSize uint32
 				if i == numPieces-1 {
 					expectedSize = lastPieceSize
@@ -309,7 +322,7 @@ func downloadMetadataFromPeer(m *Magnet, p *peer) (*torrent.Info, error) {
 					p.log.Info("peer has successfully sent the metadata")
 					return info, nil
 				}
-			case 2: // reject
+			case metadataReject:
 				return nil, errors.New("peer rejected our metadata request")
 			}
 		}

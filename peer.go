@@ -336,7 +336,7 @@ func (p *peer) sendExtensionHandshake(m *extensionHandshakeMessage) error {
 	if err != nil {
 		return err
 	}
-	return p.sendExtensionMessage(0, buf.Bytes())
+	return p.sendExtensionMessage(extensionHandshakeID, buf.Bytes())
 }
 
 type peerRequestMessage struct {
