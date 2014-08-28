@@ -10,6 +10,7 @@ import (
 	"github.com/cenkalti/log"
 
 	"github.com/cenkalti/rain"
+	"github.com/cenkalti/rain/internal/magnet"
 	"github.com/cenkalti/rain/internal/tracker"
 )
 
@@ -30,7 +31,7 @@ func main() {
 		rain.SetLogLevel(log.DEBUG)
 	}
 
-	magnet, err := rain.ParseMagnet(flag.Arg(0))
+	magnet, err := magnet.Parse(flag.Arg(0))
 	if err != nil {
 		log.Fatal(err)
 	}

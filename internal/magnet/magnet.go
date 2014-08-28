@@ -1,4 +1,4 @@
-package rain
+package magnet
 
 import (
 	"errors"
@@ -14,7 +14,7 @@ type Magnet struct {
 	Trackers []string
 }
 
-func ParseMagnet(s string) (*Magnet, error) {
+func Parse(s string) (*Magnet, error) {
 	u, err := url.Parse(s)
 	if err != nil {
 		return nil, err

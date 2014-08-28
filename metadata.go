@@ -13,6 +13,7 @@ import (
 	"github.com/cenkalti/log"
 	"github.com/zeebo/bencode"
 
+	"github.com/cenkalti/rain/internal/magnet"
 	"github.com/cenkalti/rain/internal/protocol"
 	"github.com/cenkalti/rain/internal/torrent"
 	"github.com/cenkalti/rain/internal/tracker"
@@ -38,7 +39,7 @@ const (
 )
 
 type MetadataDownloader struct {
-	magnet    *Magnet
+	magnet    *magnet.Magnet
 	tracker   tracker.Tracker
 	announceC chan *tracker.AnnounceResponse
 	peerC     chan tracker.Peer
@@ -46,7 +47,7 @@ type MetadataDownloader struct {
 	cancel    chan struct{}
 }
 
-func NewMetadataDownloader(m *Magnet) (*MetadataDownloader, error) {
+func NewMetadataDownloader(m *magnet.Magnet) (*MetadataDownloader, error) {
 	if len(m.Trackers) == 0 {
 		return nil, errors.New("magnet link does not contain a tracker")
 	}
@@ -113,7 +114,7 @@ func (m *MetadataDownloader) worker() {
 	}
 }
 
-func downloadMetadataFromPeer(m *Magnet, p *peer) (*torrent.Info, error) {
+func downloadMetadataFromPeer(m *magnet.Magnet, p *peer) (*torrent.Info, error) {
 	err := p.conn.SetDeadline(time.Now().Add(metadataNetworkTimeout))
 	if err != nil {
 		return nil, err
