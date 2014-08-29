@@ -305,10 +305,45 @@ func (t *udpTracker) Announce(transfer Transfer, cancel <-chan struct{}, event <
 		t.log.Fatal(err)
 	}
 
+	// TODO below is same as HTTP tracker
+	var nextAnnounce time.Duration
+	var retry = *defaultRetryBackoff
+
+	announce := func(e Event) {
+		r, err := t.announce(transfer, e)
+		if err != nil {
+			t.log.Error(err)
+			r = &AnnounceResponse{Error: err}
+			nextAnnounce = retry.NextBackOff()
+		} else {
+			retry.Reset()
+			nextAnnounce = r.Interval
+		}
+		select {
+		case responseC <- r:
+		case <-cancel:
+			return
+		}
+	}
+
+	announce(None)
+	for {
+		select {
+		case <-time.After(nextAnnounce):
+			announce(None)
+		case e := <-event:
+			announce(e)
+		case <-cancel:
+			return
+		}
+	}
+}
+
+func (t *udpTracker) announce(transfer Transfer, e Event) (*AnnounceResponse, error) {
 	request := &announceRequest{
 		InfoHash:   transfer.InfoHash(),
 		PeerID:     t.peerID,
-		Event:      None,
+		Event:      e,
 		IP:         0, // Tracker uses sender of this UDP packet.
 		Key:        0, // TODO set it
 		NumWant:    NumWant,
@@ -316,52 +351,29 @@ func (t *udpTracker) Announce(transfer Transfer, cancel <-chan struct{}, event <
 		Extensions: 0,
 	}
 	request.SetAction(announce)
-	var nextAnnounce time.Duration = time.Nanosecond // Start immediately.
-	for {
-		select {
-		// TODO send first without waiting
-		case <-time.After(nextAnnounce):
-			t.log.Debug("Time to announce")
-			// TODO update on every try.
-			request.update(transfer)
 
-			// t.request may block, that's why we pass cancel as argument.
-			reply, err := t.request(request, cancel)
-			if err != nil {
-				t.log.Error(err)
-				continue
-			}
+	// TODO update on every try.
+	request.update(transfer)
 
-			response, peers, err := t.parseAnnounceResponse(reply)
-			if err != nil {
-				t.log.Error(err)
-				continue
-			}
-			t.log.Debugf("Announce response: %#v", response)
-
-			// TODO calculate time and adjust.
-			nextAnnounce = time.Duration(response.Interval) * time.Second
-
-			announceResponse := &AnnounceResponse{
-				// TODO handle error
-				Interval: time.Duration(response.Interval) * time.Second,
-				Leechers: response.Leechers,
-				Seeders:  response.Seeders,
-				Peers:    peers,
-			}
-
-			// may block if caller does not receive from it.
-			select {
-			case responseC <- announceResponse:
-			case <-cancel:
-				return
-			}
-		case <-cancel:
-			return
-			// case request.e = <-event:
-			// request.update(d)
-		}
+	// t.request may block, that's why we pass cancel as argument.
+	reply, err := t.request(request, nil) // TODO pass cancel instead of nil
+	if err != nil {
+		return nil, err
 	}
+
+	response, peers, err := t.parseAnnounceResponse(reply)
+	if err != nil {
+		return nil, err
+	}
+	t.log.Debugf("Announce response: %#v", response)
+
+	return &AnnounceResponse{
+		Error:    nil, // TODO handler error
+		Interval: time.Duration(response.Interval) * time.Second,
+		Leechers: response.Leechers,
+		Seeders:  response.Seeders,
+		Peers:    peers,
+	}, nil
 }
 
 func (r *announceRequest) update(t Transfer) {
