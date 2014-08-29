@@ -1,3 +1,4 @@
+// Package tracker implements HTTP and UDP tracker clients.
 package tracker
 
 import (
