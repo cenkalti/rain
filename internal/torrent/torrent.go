@@ -23,29 +23,29 @@ type Torrent struct {
 }
 
 type Info struct {
-	PieceLength uint32 `bencode:"piece length"`
-	Pieces      []byte `bencode:"pieces"`
-	Private     byte   `bencode:"private"`
-	Name        string `bencode:"name"`
+	PieceLength uint32 `bencode:"piece length" json:"piece_length"`
+	Pieces      []byte `bencode:"pieces" json:"pieces"`
+	Private     byte   `bencode:"private" json:"private"`
+	Name        string `bencode:"name" json:"name"`
 	// Single File Mode
-	Length int64  `bencode:"length"`
-	Md5sum string `bencode:"md5sum"`
+	Length int64  `bencode:"length" json:"length"`
+	Md5sum string `bencode:"md5sum" json:"md5sum,omitempty"`
 	// Multiple File mode
-	Files []fileDict `bencode:"files"`
+	Files []fileDict `bencode:"files" json:"files"`
 
-	Raw []byte `bencode:"-"`
+	Raw []byte `bencode:"-" json:"-"`
 
 	// Calculated fileds
-	Hash        protocol.InfoHash `bencode:"-"`
-	TotalLength int64             `bencode:"-"`
-	NumPieces   uint32            `bencode:"-"`
-	MultiFile   bool              `bencode:"-"`
+	Hash        protocol.InfoHash `bencode:"-" json:"-"`
+	TotalLength int64             `bencode:"-" json:"-"`
+	NumPieces   uint32            `bencode:"-" json:"-"`
+	MultiFile   bool              `bencode:"-" json:"-"`
 }
 
 type fileDict struct {
-	Length int64    `bencode:"length"`
-	Path   []string `bencode:"path"`
-	Md5sum string   `bencode:"md5sum"`
+	Length int64    `bencode:"length" json:"length"`
+	Path   []string `bencode:"path" json:"path"`
+	Md5sum string   `bencode:"md5sum" json:"md5sum,omitempty"`
 }
 
 func New(path string) (*Torrent, error) {
