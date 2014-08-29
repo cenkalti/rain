@@ -45,7 +45,6 @@ func newTransaction(req udpReqeust) *transaction {
 }
 
 func (t *transaction) Done() {
-	defer recover()
 	close(t.done)
 }
 
@@ -146,7 +145,7 @@ func (t *udpTracker) writeLoop() {
 	var connectionIDtime time.Time
 
 	for req := range t.writeC {
-		if time.Now().Sub(connectionIDtime) > 60*time.Second {
+		if time.Since(connectionIDtime) > 60*time.Second {
 			connectionID = t.connect()
 			connectionIDtime = time.Now()
 		}
@@ -157,45 +156,6 @@ func (t *udpTracker) writeLoop() {
 		}
 	}
 }
-
-func (t *udpTracker) request(req udpReqeust, cancel <-chan struct{}) ([]byte, error) {
-	action := func(req udpReqeust) { t.writeC <- req }
-	return t.retry(req, action, cancel)
-}
-
-func (t *udpTracker) retry(req udpReqeust, action func(udpReqeust), cancel <-chan struct{}) ([]byte, error) {
-	id := rand.Int31()
-	req.SetTransactionID(id)
-
-	trx := newTransaction(req)
-	t.transactionsM.Lock()
-	t.transactions[id] = trx
-	t.transactionsM.Unlock()
-
-	ticker := backoff.NewTicker(new(udpBackOff))
-	for {
-		select {
-		case <-ticker.C:
-			action(req)
-		case <-trx.done:
-			return trx.response, trx.err
-		case <-cancel:
-			return nil, errors.New("transaction cancelled")
-		}
-	}
-}
-
-type udpBackOff int
-
-func (b *udpBackOff) NextBackOff() time.Duration {
-	defer func() { *b++ }()
-	if *b > 8 {
-		*b = 8
-	}
-	return time.Duration(15*(2^*b)) * time.Second
-}
-
-func (b *udpBackOff) Reset() { *b = 0 }
 
 // connect sends a connectRequest and returns a ConnectionID given by the tracker.
 // On error, it backs off with the algorithm described in BEP15 and retries.
@@ -211,7 +171,7 @@ func (t *udpTracker) connect() int64 {
 
 	// TODO wait before retry
 	for {
-		data, err := t.retry(req, write, nil)
+		data, err := t.retry(write, req, nil)
 		if err != nil {
 			t.log.Error(err)
 			continue
@@ -231,6 +191,34 @@ func (t *udpTracker) connect() int64 {
 
 		t.log.Debugf("connect Response: %#v\n", response)
 		return response.ConnectionID
+	}
+}
+
+func (t *udpTracker) request(req udpReqeust, cancel <-chan struct{}) ([]byte, error) {
+	action := func(req udpReqeust) { t.writeC <- req }
+	return t.retry(action, req, cancel)
+}
+
+func (t *udpTracker) retry(action func(udpReqeust), req udpReqeust, cancel <-chan struct{}) ([]byte, error) {
+	id := rand.Int31()
+	req.SetTransactionID(id)
+
+	trx := newTransaction(req)
+	t.transactionsM.Lock()
+	t.transactions[id] = trx
+	t.transactionsM.Unlock()
+
+	ticker := backoff.NewTicker(new(udpBackOff))
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			action(req)
+		case <-trx.done:
+			return trx.response, trx.err
+		case <-cancel:
+			return nil, errors.New("transaction cancelled")
+		}
 	}
 }
 
@@ -344,6 +332,18 @@ func (t *udpTracker) parseAnnounceResponse(data []byte) (*announceResponse, []Pe
 
 	return response, peers, nil
 }
+
+type udpBackOff int
+
+func (b *udpBackOff) NextBackOff() time.Duration {
+	defer func() { *b++ }()
+	if *b > 8 {
+		*b = 8
+	}
+	return time.Duration(15*(2^*b)) * time.Second
+}
+
+func (b *udpBackOff) Reset() { *b = 0 }
 
 type udpMessage interface {
 	GetAction() action

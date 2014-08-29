@@ -23,7 +23,7 @@ type Tracker interface {
 	// Announce is called in a go statement.
 	// It announces to the tracker periodically and adjust the interval according to the response
 	// returned by the tracker.
-	// Puts the responses into r. Blocks when sending to this channel.
+	// Puts responses into r. Blocks when sending to this channel.
 	Announce(t Transfer, cancel <-chan struct{}, e <-chan Event, r chan<- *AnnounceResponse)
 }
 
