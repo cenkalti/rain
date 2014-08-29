@@ -39,14 +39,16 @@ func newHTTPTracker(b *trackerBase) *httpTracker {
 
 func (t *httpTracker) Announce(transfer Transfer, cancel <-chan struct{}, event <-chan Event, responseC chan<- *AnnounceResponse) {
 	var nextAnnounce time.Duration
+	var retry = *defaultRetryBackoff
 
 	announce := func(e Event) {
 		r, err := t.announce(transfer, e)
 		if err != nil {
 			t.log.Error(err)
 			r = &AnnounceResponse{Error: err}
-			nextAnnounce = HTTPTimeout
+			nextAnnounce = retry.NextBackOff()
 		} else {
+			retry.Reset()
 			nextAnnounce = r.Interval
 		}
 		select {

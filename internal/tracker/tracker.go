@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/cenkalti/backoff"
+
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/protocol"
 )
@@ -133,4 +135,18 @@ var eventNames = [...]string{
 // String returns the name of event as represented in HTTP tracker protocol.
 func (e Event) String() string {
 	return eventNames[e]
+}
+
+// defaultRetryBackoff is the back-off algorithm to use before retrying failed announce and scrape operations.
+var defaultRetryBackoff = &backoff.ExponentialBackOff{
+	InitialInterval:     5 * time.Second,
+	RandomizationFactor: 0.5,
+	Multiplier:          2,
+	MaxInterval:         30 * time.Minute,
+	MaxElapsedTime:      1<<63 - 1, // max duration (~290 years)
+	Clock:               backoff.SystemClock,
+}
+
+func init() {
+	defaultRetryBackoff.Reset()
 }
