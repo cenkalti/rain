@@ -30,14 +30,6 @@ const (
 	errorAction
 )
 
-type udpTracker struct {
-	*trackerBase
-	conn          *net.UDPConn
-	transactions  map[int32]*transaction
-	transactionsM sync.Mutex
-	writeC        chan udpReqeust
-}
-
 type transaction struct {
 	request  udpReqeust
 	response []byte
@@ -55,6 +47,14 @@ func newTransaction(req udpReqeust) *transaction {
 func (t *transaction) Done() {
 	defer recover()
 	close(t.done)
+}
+
+type udpTracker struct {
+	*trackerBase
+	conn          *net.UDPConn
+	transactions  map[int32]*transaction
+	transactionsM sync.Mutex
+	writeC        chan udpReqeust
 }
 
 func newUDPTracker(b *trackerBase) *udpTracker {
@@ -185,38 +185,6 @@ func (t *udpTracker) retry(req udpReqeust, action func(udpReqeust), cancel <-cha
 	}
 }
 
-type udpMessage interface {
-	GetAction() action
-	SetAction(action)
-	GetTransactionID() int32
-	SetTransactionID(int32)
-}
-
-// udpMessageHeader contains the common fields in all udpMessage structs.
-type udpMessageHeader struct {
-	Action        action
-	TransactionID int32
-}
-
-func (h *udpMessageHeader) GetAction() action         { return h.Action }
-func (h *udpMessageHeader) SetAction(a action)        { h.Action = a }
-func (h *udpMessageHeader) GetTransactionID() int32   { return h.TransactionID }
-func (h *udpMessageHeader) SetTransactionID(id int32) { h.TransactionID = id }
-
-type udpRequestHeader struct {
-	ConnectionID int64
-	udpMessageHeader
-}
-
-type udpReqeust interface {
-	udpMessage
-	GetConnectionID() int64
-	SetConnectionID(int64)
-}
-
-func (h *udpRequestHeader) GetConnectionID() int64   { return h.ConnectionID }
-func (h *udpRequestHeader) SetConnectionID(id int64) { h.ConnectionID = id }
-
 type udpBackOff int
 
 func (b *udpBackOff) NextBackOff() time.Duration {
@@ -228,15 +196,6 @@ func (b *udpBackOff) NextBackOff() time.Duration {
 }
 
 func (b *udpBackOff) Reset() { *b = 0 }
-
-type connectRequest struct {
-	udpRequestHeader
-}
-
-type connectResponse struct {
-	udpMessageHeader
-	ConnectionID int64
-}
 
 // connect sends a connectRequest and returns a ConnectionID given by the tracker.
 // On error, it backs off with the algorithm described in BEP15 and retries.
@@ -273,28 +232,6 @@ func (t *udpTracker) connect() int64 {
 		t.log.Debugf("connect Response: %#v\n", response)
 		return response.ConnectionID
 	}
-}
-
-type announceRequest struct {
-	udpRequestHeader
-	InfoHash   protocol.InfoHash
-	PeerID     protocol.PeerID
-	Downloaded int64
-	Left       int64
-	Uploaded   int64
-	Event      Event
-	IP         uint32
-	Key        uint32
-	NumWant    int32
-	Port       uint16
-	Extensions uint16
-}
-
-type announceResponse struct {
-	udpMessageHeader
-	Interval int32
-	Leechers int32
-	Seeders  int32
 }
 
 // Announce announces transfer to t periodically.
@@ -406,4 +343,68 @@ func (t *udpTracker) parseAnnounceResponse(data []byte) (*announceResponse, []Pe
 	}
 
 	return response, peers, nil
+}
+
+type udpMessage interface {
+	GetAction() action
+	SetAction(action)
+	GetTransactionID() int32
+	SetTransactionID(int32)
+}
+
+type udpReqeust interface {
+	udpMessage
+	GetConnectionID() int64
+	SetConnectionID(int64)
+}
+
+// udpMessageHeader implements udpMessage.
+type udpMessageHeader struct {
+	Action        action
+	TransactionID int32
+}
+
+func (h *udpMessageHeader) GetAction() action         { return h.Action }
+func (h *udpMessageHeader) SetAction(a action)        { h.Action = a }
+func (h *udpMessageHeader) GetTransactionID() int32   { return h.TransactionID }
+func (h *udpMessageHeader) SetTransactionID(id int32) { h.TransactionID = id }
+
+// udpRequestHeader implements udpMessage and udpReqeust.
+type udpRequestHeader struct {
+	ConnectionID int64
+	udpMessageHeader
+}
+
+func (h *udpRequestHeader) GetConnectionID() int64   { return h.ConnectionID }
+func (h *udpRequestHeader) SetConnectionID(id int64) { h.ConnectionID = id }
+
+type connectRequest struct {
+	udpRequestHeader
+}
+
+type connectResponse struct {
+	udpMessageHeader
+	ConnectionID int64
+}
+
+type announceRequest struct {
+	udpRequestHeader
+	InfoHash   protocol.InfoHash
+	PeerID     protocol.PeerID
+	Downloaded int64
+	Left       int64
+	Uploaded   int64
+	Event      Event
+	IP         uint32
+	Key        uint32
+	NumWant    int32
+	Port       uint16
+	Extensions uint16
+}
+
+type announceResponse struct {
+	udpMessageHeader
+	Interval int32
+	Leechers int32
+	Seeders  int32
 }
