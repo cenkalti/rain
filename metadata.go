@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/cenkalti/log"
@@ -44,6 +45,8 @@ type MetadataDownloader struct {
 	announceC chan *tracker.AnnounceResponse
 	Result    chan *torrent.Info
 	cancel    chan struct{}
+	peers     map[tracker.Peer]struct{} // connecting or connected
+	peersM    sync.Mutex
 }
 
 func NewMetadataDownloader(m *magnet.Magnet) (*MetadataDownloader, error) {
@@ -64,6 +67,7 @@ func NewMetadataDownloader(m *magnet.Magnet) (*MetadataDownloader, error) {
 		announceC: make(chan *tracker.AnnounceResponse),
 		Result:    make(chan *torrent.Info, 1),
 		cancel:    make(chan struct{}),
+		peers:     make(map[tracker.Peer]struct{}),
 	}, nil
 }
 
@@ -88,6 +92,20 @@ func (m *MetadataDownloader) Run(announceInterval time.Duration) {
 }
 
 func (m *MetadataDownloader) worker(peer tracker.Peer) {
+	// Do not open multiple connections to the same peer simultaneously.
+	m.peersM.Lock()
+	if _, ok := m.peers[peer]; ok {
+		m.peersM.Unlock()
+		return
+	}
+	m.peers[peer] = struct{}{}
+	defer func() {
+		m.peersM.Lock()
+		delete(m.peers, peer)
+		m.peersM.Unlock()
+	}()
+	m.peersM.Unlock()
+
 	conn, err := net.DialTCP("tcp4", nil, peer.TCPAddr())
 	if err != nil {
 		log.Error(err)
