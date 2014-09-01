@@ -16,8 +16,9 @@ import (
 )
 
 var (
-	debug   = flag.Bool("d", false, "enable debug log")
-	timeout = flag.Uint("t", 5000, "tracker timeout (ms)")
+	debug    = flag.Bool("d", false, "enable debug log")
+	timeout  = flag.Uint("t", 5000, "tracker timeout (ms)")
+	interval = flag.Uint("i", 5000, "tracker announce interval (ms)")
 )
 
 func main() {
@@ -46,7 +47,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	go d.Run()
+	go d.Run(time.Duration(*interval) * time.Millisecond)
 
 	m := <-d.Result
 

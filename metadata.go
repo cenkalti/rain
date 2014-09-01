@@ -67,12 +67,22 @@ func NewMetadataDownloader(m *magnet.Magnet) (*MetadataDownloader, error) {
 	}, nil
 }
 
-func (m *MetadataDownloader) Run() {
+func (m *MetadataDownloader) Run(announceInterval time.Duration) {
 	t := emptyTransfer(m.magnet.InfoHash)
-	go m.tracker.Announce(&t, m.cancel, nil, m.announceC)
-	for resp := range m.announceC {
-		for _, p := range resp.Peers {
-			go m.worker(p)
+	events := make(chan tracker.Event)
+	go m.tracker.Announce(&t, m.cancel, events, m.announceC)
+	for {
+		select {
+		case resp := <-m.announceC:
+			log.Infof("Seeders: %d Leechers: %d", resp.Seeders, resp.Leechers)
+			for _, p := range resp.Peers {
+				go m.worker(p)
+			}
+		case <-time.After(announceInterval):
+			select {
+			case events <- tracker.None:
+			default:
+			}
 		}
 	}
 }
