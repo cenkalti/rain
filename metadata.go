@@ -42,7 +42,6 @@ type MetadataDownloader struct {
 	magnet    *magnet.Magnet
 	tracker   tracker.Tracker
 	announceC chan *tracker.AnnounceResponse
-	peerC     chan tracker.Peer
 	Result    chan *torrent.Info
 	cancel    chan struct{}
 }
@@ -63,7 +62,6 @@ func NewMetadataDownloader(m *magnet.Magnet) (*MetadataDownloader, error) {
 		magnet:    m,
 		tracker:   tr,
 		announceC: make(chan *tracker.AnnounceResponse),
-		peerC:     make(chan tracker.Peer),
 		Result:    make(chan *torrent.Info, 1),
 		cancel:    make(chan struct{}),
 	}, nil
@@ -72,45 +70,33 @@ func NewMetadataDownloader(m *magnet.Magnet) (*MetadataDownloader, error) {
 func (m *MetadataDownloader) Run() {
 	t := emptyTransfer(m.magnet.InfoHash)
 	go m.tracker.Announce(&t, m.cancel, nil, m.announceC)
-	for i := 0; i < concurrentMetadataDownloads; i++ {
-		go m.worker()
-	}
 	for resp := range m.announceC {
 		for _, p := range resp.Peers {
-			m.peerC <- p
+			go m.worker(p)
 		}
 	}
 }
 
-func (m *MetadataDownloader) worker() {
-	for {
-		select {
-		case peer := <-m.peerC:
-			conn, err := net.DialTCP("tcp4", nil, peer.TCPAddr())
-			if err != nil {
-				log.Error(err)
-				continue
-			}
+func (m *MetadataDownloader) worker(peer tracker.Peer) {
+	conn, err := net.DialTCP("tcp4", nil, peer.TCPAddr())
+	if err != nil {
+		log.Error(err)
+	}
 
-			p := newPeer(conn)
-			p.log.Debug("tcp connection is opened")
+	p := newPeer(conn)
+	p.log.Debug("tcp connection is opened")
 
-			info, err := downloadMetadataFromPeer(m.magnet, p)
-			conn.Close()
-			if err != nil {
-				p.log.Error(err)
-				continue
-			}
+	info, err := downloadMetadataFromPeer(m.magnet, p)
+	conn.Close()
+	if err != nil {
+		p.log.Error(err)
+	}
 
-			select {
-			case m.Result <- info:
-				close(m.cancel) // will stop other workers
-			case <-m.cancel:
-				return
-			}
-		case <-m.cancel:
-			return
-		}
+	select {
+	case m.Result <- info:
+		close(m.cancel) // will stop other workers
+	case <-m.cancel:
+		return
 	}
 }
 
