@@ -21,9 +21,8 @@ import (
 )
 
 const (
-	metadataPieceSize           = 16 * 1024
-	concurrentMetadataDownloads = 1000
-	metadataNetworkTimeout      = 2 * time.Minute
+	metadataPieceSize      = 16 * 1024
+	metadataNetworkTimeout = 2 * time.Minute
 )
 
 // Extension IDs
