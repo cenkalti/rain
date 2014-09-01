@@ -81,6 +81,7 @@ func (m *MetadataDownloader) worker(peer tracker.Peer) {
 	conn, err := net.DialTCP("tcp4", nil, peer.TCPAddr())
 	if err != nil {
 		log.Error(err)
+		return
 	}
 
 	p := newPeer(conn)
@@ -90,6 +91,7 @@ func (m *MetadataDownloader) worker(peer tracker.Peer) {
 	conn.Close()
 	if err != nil {
 		p.log.Error(err)
+		return
 	}
 
 	select {
