@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/cenkalti/backoff"
 	"github.com/cenkalti/log"
 
 	"github.com/cenkalti/rain"
@@ -36,7 +37,9 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Be more aggressive than normal.
 	tracker.HTTPTimeout = time.Duration(*timeout) * time.Millisecond
+	tracker.UDPBackOff = func() backoff.BackOff { return new(udpBackOff) }
 
 	d, err := rain.NewMetadataDownloader(magnet)
 	if err != nil {
@@ -52,3 +55,11 @@ func main() {
 		log.Fatal(err)
 	}
 }
+
+type udpBackOff struct{}
+
+func (b *udpBackOff) NextBackOff() time.Duration {
+	return time.Duration(*timeout) * time.Millisecond
+}
+
+func (b *udpBackOff) Reset() {}

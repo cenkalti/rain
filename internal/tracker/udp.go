@@ -19,6 +19,7 @@ import (
 )
 
 const connectionIDMagic = 0x41727101980
+const connectionIDInterval = time.Minute
 
 type action int32
 
@@ -38,29 +39,29 @@ type transaction struct {
 }
 
 func newTransaction(req udpReqeust) *transaction {
+	req.SetTransactionID(rand.Int31())
 	return &transaction{
 		request: req,
 		done:    make(chan struct{}),
 	}
 }
 
-func (t *transaction) Done() {
-	close(t.done)
-}
+func (t *transaction) ID() int32 { return t.request.GetTransactionID() }
+func (t *transaction) Done()     { close(t.done) }
 
 type udpTracker struct {
 	*trackerBase
 	conn          *net.UDPConn
 	transactions  map[int32]*transaction
 	transactionsM sync.Mutex
-	writeC        chan udpReqeust
+	writeC        chan *transaction
 }
 
 func newUDPTracker(b *trackerBase) *udpTracker {
 	return &udpTracker{
 		trackerBase:  b,
 		transactions: make(map[int32]*transaction),
-		writeC:       make(chan udpReqeust),
+		writeC:       make(chan *transaction),
 	}
 }
 
@@ -119,7 +120,7 @@ func (t *udpTracker) readLoop() {
 		delete(t.transactions, header.TransactionID)
 		t.transactionsM.Unlock()
 		if !ok {
-			t.log.Error("unexpected transaction_id")
+			t.log.Errorln("unexpected transaction_id:", header.TransactionID)
 			continue
 		}
 
@@ -144,16 +145,22 @@ func (t *udpTracker) writeLoop() {
 	var connectionID int64
 	var connectionIDtime time.Time
 
-	for req := range t.writeC {
-		if time.Since(connectionIDtime) > 60*time.Second {
+	for trx := range t.writeC {
+		if time.Since(connectionIDtime) > connectionIDInterval {
 			connectionID = t.connect()
 			connectionIDtime = time.Now()
 		}
-		req.SetConnectionID(connectionID)
+		trx.request.SetConnectionID(connectionID)
 
-		if err := binary.Write(t.conn, binary.BigEndian, req); err != nil {
-			t.log.Error(err)
-		}
+		t.writeTrx(trx)
+	}
+}
+
+func (t *udpTracker) writeTrx(trx *transaction) {
+	t.log.Debugln("Writing transaction. ID:", trx.ID())
+	err := binary.Write(t.conn, binary.BigEndian, trx.request)
+	if err != nil {
+		t.log.Error(err)
 	}
 }
 
@@ -162,16 +169,13 @@ func (t *udpTracker) writeLoop() {
 // It does not return until tracker sends a ConnectionID.
 func (t *udpTracker) connect() int64 {
 	req := new(connectRequest)
-	req.SetConnectionID(connectionIDMagic)
 	req.SetAction(connect)
+	req.SetConnectionID(connectionIDMagic)
 
-	write := func(req udpReqeust) {
-		binary.Write(t.conn, binary.BigEndian, req)
-	}
+	trx := newTransaction(req)
 
-	// TODO wait before retry
 	for {
-		data, err := t.retry(write, req, nil)
+		data, err := t.retryTransaction(t.writeTrx, trx, nil) // Does not return until transaction is completed.
 		if err != nil {
 			t.log.Error(err)
 			continue
@@ -194,32 +198,32 @@ func (t *udpTracker) connect() int64 {
 	}
 }
 
-func (t *udpTracker) request(req udpReqeust, cancel <-chan struct{}) ([]byte, error) {
-	action := func(req udpReqeust) { t.writeC <- req }
-	return t.retry(action, req, cancel)
-}
-
-func (t *udpTracker) retry(action func(udpReqeust), req udpReqeust, cancel <-chan struct{}) ([]byte, error) {
-	id := rand.Int31()
-	req.SetTransactionID(id)
-
-	trx := newTransaction(req)
+func (t *udpTracker) retryTransaction(f func(*transaction), trx *transaction, cancel <-chan struct{}) ([]byte, error) {
 	t.transactionsM.Lock()
-	t.transactions[id] = trx
+	t.transactions[trx.ID()] = trx
 	t.transactionsM.Unlock()
 
-	ticker := backoff.NewTicker(new(udpBackOff))
+	ticker := backoff.NewTicker(UDPBackOff())
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			action(req)
+			f(trx)
 		case <-trx.done:
+			// transaction is deleted in readLoop()
 			return trx.response, trx.err
 		case <-cancel:
+			t.transactionsM.Lock()
+			delete(t.transactions, trx.ID())
+			t.transactionsM.Unlock()
 			return nil, errors.New("transaction cancelled")
 		}
 	}
+}
+
+func (t *udpTracker) sendTransaction(trx *transaction, cancel <-chan struct{}) ([]byte, error) {
+	f := func(trx *transaction) { t.writeC <- trx }
+	return t.retryTransaction(f, trx, cancel)
 }
 
 // Announce announces transfer to t periodically.
@@ -281,7 +285,8 @@ func (t *udpTracker) announce(transfer Transfer, e Event) (*AnnounceResponse, er
 	request.update(transfer)
 
 	// t.request may block, that's why we pass cancel as argument.
-	reply, err := t.request(request, nil) // TODO pass cancel instead of nil
+	trx := newTransaction(request)
+	reply, err := t.sendTransaction(trx, nil) // TODO pass cancel instead of nil
 	if err != nil {
 		return nil, err
 	}
@@ -344,6 +349,8 @@ func (b *udpBackOff) NextBackOff() time.Duration {
 }
 
 func (b *udpBackOff) Reset() { *b = 0 }
+
+var UDPBackOff = func() backoff.BackOff { return new(udpBackOff) }
 
 type udpMessage interface {
 	GetAction() action
