@@ -25,6 +25,8 @@ type Tracker interface {
 	// returned by the tracker.
 	// Puts responses into r. Blocks when sending to this channel.
 	Announce(t Transfer, cancel <-chan struct{}, e <-chan Event, r chan<- *AnnounceResponse)
+
+	URL() string
 }
 
 type Transfer interface {
@@ -64,6 +66,7 @@ func New(trackerURL string, c Client) (Tracker, error) {
 
 	base := &trackerBase{
 		url:    u,
+		rawurl: trackerURL,
 		peerID: c.PeerID(),
 		port:   c.Port(),
 		log:    logger.New("tracker " + trackerURL),
@@ -81,10 +84,13 @@ func New(trackerURL string, c Client) (Tracker, error) {
 
 type trackerBase struct {
 	url    *url.URL
+	rawurl string
 	peerID protocol.PeerID
 	port   uint16
 	log    logger.Logger
 }
+
+func (t trackerBase) URL() string { return t.rawurl }
 
 type Client interface {
 	PeerID() protocol.PeerID
