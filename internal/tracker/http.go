@@ -37,6 +37,9 @@ func newHTTPTracker(b *trackerBase) *httpTracker {
 	}
 }
 
+func (t *httpTracker) Dial() error  { return nil } // TODO Implement HTTP tracker Dial()
+func (t *httpTracker) Close() error { return nil } // TODO Implement HTTP tracker Close()
+
 func (t *httpTracker) Announce(transfer Transfer, cancel <-chan struct{}, event <-chan Event, responseC chan<- *AnnounceResponse) {
 	var nextAnnounce time.Duration
 	var retry = *defaultRetryBackoff
