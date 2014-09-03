@@ -228,43 +228,7 @@ func (t *udpTracker) sendTransaction(trx *transaction, cancel <-chan struct{}) (
 	return t.retryTransaction(f, trx, cancel)
 }
 
-// Announce announces transfer to t periodically.
-func (t *udpTracker) Announce(transfer Transfer, cancel <-chan struct{}, event <-chan Event, responseC chan<- *AnnounceResponse) {
-	// TODO below is same as HTTP tracker
-	var nextAnnounce time.Duration
-	var retry = *defaultRetryBackoff
-
-	announce := func(e Event) {
-		r, err := t.announce(transfer, e)
-		if err != nil {
-			t.log.Error(err)
-			r = &AnnounceResponse{Error: err}
-			nextAnnounce = retry.NextBackOff()
-		} else {
-			retry.Reset()
-			nextAnnounce = r.Interval
-		}
-		select {
-		case responseC <- r:
-		case <-cancel:
-			return
-		}
-	}
-
-	announce(None)
-	for {
-		select {
-		case <-time.After(nextAnnounce):
-			announce(None)
-		case e := <-event:
-			announce(e)
-		case <-cancel:
-			return
-		}
-	}
-}
-
-func (t *udpTracker) announce(transfer Transfer, e Event) (*AnnounceResponse, error) {
+func (t *udpTracker) Announce(transfer Transfer, e Event) (*AnnounceResponse, error) {
 	t.dialMutex.Lock()
 	if !t.connected {
 		err := t.dial()

@@ -20,13 +20,11 @@ import (
 const NumWant = 50
 
 type Tracker interface {
-	// Announce is called in a go statement.
-	// It announces to the tracker periodically and adjust the interval according to the response
-	// returned by the tracker.
-	// Puts responses into r. Blocks when sending to this channel.
-	Announce(t Transfer, cancel <-chan struct{}, e <-chan Event, r chan<- *AnnounceResponse)
-
 	URL() string
+	// Announce transfer to the tracker.
+	Announce(t Transfer, e Event) (*AnnounceResponse, error)
+	// Close must be called in order to close open connections if Announce is ever called.
+	Close() error
 }
 
 type Transfer interface {
@@ -79,6 +77,42 @@ func New(trackerURL string, c Client) (Tracker, error) {
 		return newUDPTracker(base), nil
 	default:
 		return nil, fmt.Errorf("unsupported tracker scheme: %s", u.Scheme)
+	}
+}
+
+// Announce announces to the tracker periodically and adjust the interval according to the response returned by the tracker.
+// Puts responses into responseC. Blocks when sending to this channel.
+// t.Close must be called after using this function to close open connections to the tracker.
+func Announce(t Tracker, transfer Transfer, cancel <-chan struct{}, startEvent Event, eventC <-chan Event, responseC chan<- *AnnounceResponse) {
+	var nextAnnounce time.Duration
+	var retry = *defaultRetryBackoff
+
+	announce := func(e Event) {
+		r, err := t.Announce(transfer, e)
+		if err != nil {
+			r = &AnnounceResponse{Error: err}
+			nextAnnounce = retry.NextBackOff()
+		} else {
+			retry.Reset()
+			nextAnnounce = r.Interval
+		}
+		select {
+		case responseC <- r:
+		case <-cancel:
+			return
+		}
+	}
+
+	announce(startEvent)
+	for {
+		select {
+		case <-time.After(nextAnnounce):
+			announce(None)
+		case e := <-eventC:
+			announce(e)
+		case <-cancel:
+			return
+		}
 	}
 }
 

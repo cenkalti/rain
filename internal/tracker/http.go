@@ -18,60 +18,29 @@ var HTTPTimeout = 30 * time.Second
 type httpTracker struct {
 	*trackerBase
 	client    *http.Client
+	transport *http.Transport
 	trackerID string
 }
 
 func newHTTPTracker(b *trackerBase) *httpTracker {
+	transport := &http.Transport{
+		Dial: (&net.Dialer{
+			Timeout: HTTPTimeout,
+		}).Dial,
+		TLSHandshakeTimeout: HTTPTimeout,
+		DisableKeepAlives:   true,
+	}
 	return &httpTracker{
 		trackerBase: b,
 		client: &http.Client{
-			Timeout: HTTPTimeout,
-			Transport: &http.Transport{
-				Dial: (&net.Dialer{
-					Timeout: HTTPTimeout,
-				}).Dial,
-				TLSHandshakeTimeout: HTTPTimeout,
-				DisableKeepAlives:   true,
-			},
+			Timeout:   HTTPTimeout,
+			Transport: transport,
 		},
+		transport: transport,
 	}
 }
 
-func (t *httpTracker) Announce(transfer Transfer, cancel <-chan struct{}, event <-chan Event, responseC chan<- *AnnounceResponse) {
-	var nextAnnounce time.Duration
-	var retry = *defaultRetryBackoff
-
-	announce := func(e Event) {
-		r, err := t.announce(transfer, e)
-		if err != nil {
-			t.log.Error(err)
-			r = &AnnounceResponse{Error: err}
-			nextAnnounce = retry.NextBackOff()
-		} else {
-			retry.Reset()
-			nextAnnounce = r.Interval
-		}
-		select {
-		case responseC <- r:
-		case <-cancel:
-			return
-		}
-	}
-
-	announce(None)
-	for {
-		select {
-		case <-time.After(nextAnnounce):
-			announce(None)
-		case e := <-event:
-			announce(e)
-		case <-cancel:
-			return
-		}
-	}
-}
-
-func (t *httpTracker) announce(transfer Transfer, e Event) (*AnnounceResponse, error) {
+func (t *httpTracker) Announce(transfer Transfer, e Event) (*AnnounceResponse, error) {
 	infoHash := transfer.InfoHash()
 	q := url.Values{}
 	q.Set("info_hash", string(infoHash[:]))
@@ -132,6 +101,11 @@ func (t *httpTracker) announce(transfer Transfer, e Event) (*AnnounceResponse, e
 		Seeders:  response.Complete,
 		Peers:    peers,
 	}, nil
+}
+
+func (t *httpTracker) Close() error {
+	t.transport.CloseIdleConnections()
+	return nil
 }
 
 type httpTrackerAnnounceResponse struct {
