@@ -52,6 +52,8 @@ func (t *transaction) Done()     { close(t.done) }
 type udpTracker struct {
 	*trackerBase
 	conn          *net.UDPConn
+	dialMutex     sync.Mutex
+	connected     bool
 	transactions  map[int32]*transaction
 	transactionsM sync.Mutex
 	writeC        chan *transaction
@@ -65,7 +67,7 @@ func newUDPTracker(b *trackerBase) *udpTracker {
 	}
 }
 
-func (t *udpTracker) Dial() error {
+func (t *udpTracker) dial() error {
 	serverAddr, err := net.ResolveUDPAddr("udp", t.url.Host)
 	if err != nil {
 		return err
@@ -228,12 +230,6 @@ func (t *udpTracker) sendTransaction(trx *transaction, cancel <-chan struct{}) (
 
 // Announce announces transfer to t periodically.
 func (t *udpTracker) Announce(transfer Transfer, cancel <-chan struct{}, event <-chan Event, responseC chan<- *AnnounceResponse) {
-	err := t.Dial()
-	if err != nil {
-		// TODO retry connecting to tracker
-		t.log.Fatal(err)
-	}
-
 	// TODO below is same as HTTP tracker
 	var nextAnnounce time.Duration
 	var retry = *defaultRetryBackoff
@@ -269,6 +265,17 @@ func (t *udpTracker) Announce(transfer Transfer, cancel <-chan struct{}, event <
 }
 
 func (t *udpTracker) announce(transfer Transfer, e Event) (*AnnounceResponse, error) {
+	t.dialMutex.Lock()
+	if !t.connected {
+		err := t.dial()
+		if err != nil {
+			t.dialMutex.Unlock()
+			return nil, err
+		}
+		t.connected = true
+	}
+	t.dialMutex.Unlock()
+
 	request := &announceRequest{
 		InfoHash:   transfer.InfoHash(),
 		PeerID:     t.peerID,
