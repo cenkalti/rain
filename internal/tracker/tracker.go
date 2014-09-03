@@ -20,16 +20,13 @@ import (
 const NumWant = 50
 
 type Tracker interface {
-	URL() string
-	// Dial must be called before Announce to connect to the tracker.
-	Dial() error
-	// Close the connection to the tracker.
-	Close() error
-	// Announce the transfer to the tracker periodically.
-	// Announce never returns, so it is better to call with a go statement.
-	// Announce adjust the interval according to the response returned by the tracker.
-	// Announce sends responses into r channel in a blocking way.
+	// Announce is called in a go statement.
+	// It announces to the tracker periodically and adjust the interval according to the response
+	// returned by the tracker.
+	// Puts responses into r. Blocks when sending to this channel.
 	Announce(t Transfer, cancel <-chan struct{}, e <-chan Event, r chan<- *AnnounceResponse)
+
+	URL() string
 }
 
 type Transfer interface {
