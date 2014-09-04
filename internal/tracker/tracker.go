@@ -19,6 +19,8 @@ import (
 // Number of peers we want from trackers
 const NumWant = 50
 
+var RequestCancelled = errors.New("request cancelled")
+
 type Tracker interface {
 	URL() string
 	// Announce transfer to the tracker.

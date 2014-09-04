@@ -2,7 +2,6 @@ package tracker
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -73,8 +72,8 @@ func (t *httpTracker) Announce(transfer Transfer, e Event, cancel <-chan struct{
 		Host:       u.Host,
 	}
 
-	bodyC := make(chan io.ReadCloser)
-	errC := make(chan error)
+	bodyC := make(chan io.ReadCloser, 1)
+	errC := make(chan error, 1)
 	go func() {
 		resp, err := t.client.Do(req)
 		if err != nil {
@@ -96,7 +95,8 @@ func (t *httpTracker) Announce(transfer Transfer, e Event, cancel <-chan struct{
 	case err := <-errC:
 		return nil, err
 	case <-cancel:
-		return nil, errors.New("request cancelled")
+		t.transport.CancelRequest(req)
+		return nil, RequestCancelled
 	case body := <-bodyC:
 		d := bencode.NewDecoder(body)
 		err := d.Decode(&response)
