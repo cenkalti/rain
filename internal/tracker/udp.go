@@ -229,7 +229,7 @@ func (t *udpTracker) sendTransaction(trx *transaction, cancel <-chan struct{}) (
 	return t.retryTransaction(f, trx, cancel)
 }
 
-func (t *udpTracker) Announce(transfer Transfer, e Event) (*AnnounceResponse, error) {
+func (t *udpTracker) Announce(transfer Transfer, e Event, cancel <-chan struct{}) (*AnnounceResponse, error) {
 	t.dialMutex.Lock()
 	if !t.connected {
 		err := t.dial()
@@ -252,12 +252,16 @@ func (t *udpTracker) Announce(transfer Transfer, e Event) (*AnnounceResponse, er
 		Extensions: 0,
 	}
 	request.SetAction(announce)
+
 	request2 := &transferAnnounceRequest{transfer: transfer, announceRequest: request}
+	trx := newTransaction(request2)
 
 	// t.request may block, that's why we pass cancel as argument.
-	trx := newTransaction(request2)
-	reply, err := t.sendTransaction(trx, nil) // TODO pass cancel instead of nil
+	reply, err := t.sendTransaction(trx, cancel)
 	if err != nil {
+		if err, ok := err.(Error); ok {
+			return &AnnounceResponse{Error: err}, nil
+		}
 		return nil, err
 	}
 
@@ -268,7 +272,6 @@ func (t *udpTracker) Announce(transfer Transfer, e Event) (*AnnounceResponse, er
 	t.log.Debugf("Announce response: %#v", response)
 
 	return &AnnounceResponse{
-		Error:    nil, // TODO handler error
 		Interval: time.Duration(response.Interval) * time.Second,
 		Leechers: response.Leechers,
 		Seeders:  response.Seeders,

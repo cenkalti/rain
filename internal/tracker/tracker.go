@@ -22,7 +22,7 @@ const NumWant = 50
 type Tracker interface {
 	URL() string
 	// Announce transfer to the tracker.
-	Announce(t Transfer, e Event) (*AnnounceResponse, error)
+	Announce(t Transfer, e Event, cancel <-chan struct{}) (*AnnounceResponse, error)
 	Scrape([]Transfer) (*ScrapeResponse, error)
 	// Close must be called in order to close open connections if Announce is ever called.
 	Close() error
@@ -93,7 +93,7 @@ func AnnouncePeriodically(t Tracker, transfer Transfer, cancel <-chan struct{}, 
 	var retry = *defaultRetryBackoff
 
 	announce := func(e Event) {
-		r, err := t.Announce(transfer, e)
+		r, err := t.Announce(transfer, e, cancel)
 		if err != nil {
 			r = &AnnounceResponse{Error: err}
 			nextAnnounce = retry.NextBackOff()

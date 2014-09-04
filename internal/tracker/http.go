@@ -2,7 +2,9 @@ package tracker
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -40,7 +42,7 @@ func newHTTPTracker(b *trackerBase) *httpTracker {
 	}
 }
 
-func (t *httpTracker) Announce(transfer Transfer, e Event) (*AnnounceResponse, error) {
+func (t *httpTracker) Announce(transfer Transfer, e Event, cancel <-chan struct{}) (*AnnounceResponse, error) {
 	infoHash := transfer.InfoHash()
 	q := url.Values{}
 	q.Set("info_hash", string(infoHash[:]))
@@ -56,27 +58,52 @@ func (t *httpTracker) Announce(transfer Transfer, e Event) (*AnnounceResponse, e
 	if t.trackerID != "" {
 		q.Set("trackerid", t.trackerID)
 	}
+
 	u := t.url
 	u.RawQuery = q.Encode()
 	t.log.Debugf("u.String(): %q", u.String())
 
-	resp, err := t.client.Get(u.String())
-	if err != nil {
-		return nil, err
+	req := &http.Request{
+		Method:     "GET",
+		URL:        u,
+		Proto:      "HTTP/1.1",
+		ProtoMajor: 1,
+		ProtoMinor: 1,
+		Header:     make(http.Header),
+		Host:       u.Host,
 	}
 
-	if resp.StatusCode != 200 {
-		data, _ := ioutil.ReadAll(resp.Body)
-		resp.Body.Close()
-		return nil, fmt.Errorf("status not 200 OK (status: %d body: %q)", resp.StatusCode, string(data))
-	}
+	bodyC := make(chan io.ReadCloser)
+	errC := make(chan error)
+	go func() {
+		resp, err := t.client.Do(req)
+		if err != nil {
+			errC <- err
+		}
+
+		if resp.StatusCode != 200 {
+			data, _ := ioutil.ReadAll(resp.Body)
+			resp.Body.Close()
+			errC <- fmt.Errorf("status not 200 OK (status: %d body: %q)", resp.StatusCode, string(data))
+		}
+
+		bodyC <- resp.Body
+	}()
 
 	var response = new(httpTrackerAnnounceResponse)
-	d := bencode.NewDecoder(resp.Body)
-	err = d.Decode(&response)
-	resp.Body.Close()
-	if err != nil {
+
+	select {
+	case err := <-errC:
 		return nil, err
+	case <-cancel:
+		return nil, errors.New("request cancelled")
+	case body := <-bodyC:
+		d := bencode.NewDecoder(body)
+		err := d.Decode(&response)
+		body.Close()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if response.WarningMessage != "" {
