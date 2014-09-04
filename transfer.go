@@ -72,7 +72,7 @@ func (t *transfer) Run() {
 	}()
 
 	announceC := make(chan *tracker.AnnounceResponse)
-	go tracker.Announce(t.tracker, t, nil, tracker.Started, nil, announceC)
+	go tracker.AnnouncePeriodically(t.tracker, t, nil, tracker.Started, nil, announceC)
 
 	downloader := newDownloader(t)
 	go downloader.Run()

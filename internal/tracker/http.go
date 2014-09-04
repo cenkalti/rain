@@ -103,6 +103,8 @@ func (t *httpTracker) Announce(transfer Transfer, e Event) (*AnnounceResponse, e
 	}, nil
 }
 
+func (t *httpTracker) Scrape(transfers []Transfer) (*ScrapeResponse, error) { return nil, nil }
+
 func (t *httpTracker) Close() error {
 	t.transport.CloseIdleConnections()
 	return nil

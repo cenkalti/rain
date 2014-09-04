@@ -23,6 +23,7 @@ type Tracker interface {
 	URL() string
 	// Announce transfer to the tracker.
 	Announce(t Transfer, e Event) (*AnnounceResponse, error)
+	Scrape([]Transfer) (*ScrapeResponse, error)
 	// Close must be called in order to close open connections if Announce is ever called.
 	Close() error
 }
@@ -40,6 +41,10 @@ type AnnounceResponse struct {
 	Leechers int32
 	Seeders  int32
 	Peers    []Peer
+}
+
+type ScrapeResponse struct {
+	// TODO not implemented
 }
 
 type Peer struct {
@@ -80,10 +85,10 @@ func New(trackerURL string, c Client) (Tracker, error) {
 	}
 }
 
-// Announce announces to the tracker periodically and adjust the interval according to the response returned by the tracker.
+// AnnouncePeriodically announces to the tracker periodically and adjust the interval according to the response returned by the tracker.
 // Puts responses into responseC. Blocks when sending to this channel.
 // t.Close must be called after using this function to close open connections to the tracker.
-func Announce(t Tracker, transfer Transfer, cancel <-chan struct{}, startEvent Event, eventC <-chan Event, responseC chan<- *AnnounceResponse) {
+func AnnouncePeriodically(t Tracker, transfer Transfer, cancel <-chan struct{}, startEvent Event, eventC <-chan Event, responseC chan<- *AnnounceResponse) {
 	var nextAnnounce time.Duration
 	var retry = *defaultRetryBackoff
 

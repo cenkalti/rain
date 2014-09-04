@@ -73,7 +73,7 @@ func NewMetadataDownloader(m *magnet.Magnet) (*MetadataDownloader, error) {
 func (m *MetadataDownloader) Run(announceInterval time.Duration) {
 	t := emptyTransfer(m.magnet.InfoHash)
 	events := make(chan tracker.Event)
-	go tracker.Announce(m.tracker, &t, m.cancel, tracker.None, events, m.announceC)
+	go tracker.AnnouncePeriodically(m.tracker, &t, m.cancel, tracker.None, events, m.announceC)
 	for {
 		select {
 		case resp := <-m.announceC:
