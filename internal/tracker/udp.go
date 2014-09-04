@@ -83,8 +83,8 @@ func (t *udpTracker) dial() error {
 }
 
 // Close the tracker connection.
-// TODO end all goroutines.
 func (t *udpTracker) Close() error {
+	close(t.writeC)
 	return t.conn.Close()
 }
 
