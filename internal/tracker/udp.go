@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"io"
 	"math/rand"
 	"net"
 	"sync"
@@ -160,7 +161,7 @@ func (t *udpTracker) writeLoop() {
 
 func (t *udpTracker) writeTrx(trx *transaction) {
 	t.log.Debugln("Writing transaction. ID:", trx.ID())
-	err := binary.Write(t.conn, binary.BigEndian, trx.request)
+	_, err := trx.request.WriteTo(t.conn)
 	if err != nil {
 		t.log.Error(err)
 	}
@@ -251,12 +252,10 @@ func (t *udpTracker) Announce(transfer Transfer, e Event) (*AnnounceResponse, er
 		Extensions: 0,
 	}
 	request.SetAction(announce)
-
-	// TODO update on every try.
-	request.update(transfer)
+	request2 := &transferAnnounceRequest{transfer: transfer, announceRequest: request}
 
 	// t.request may block, that's why we pass cancel as argument.
-	trx := newTransaction(request)
+	trx := newTransaction(request2)
 	reply, err := t.sendTransaction(trx, nil) // TODO pass cancel instead of nil
 	if err != nil {
 		return nil, err
@@ -275,12 +274,6 @@ func (t *udpTracker) Announce(transfer Transfer, e Event) (*AnnounceResponse, er
 		Seeders:  response.Seeders,
 		Peers:    peers,
 	}, nil
-}
-
-func (r *announceRequest) update(t Transfer) {
-	r.Downloaded = t.Downloaded()
-	r.Uploaded = t.Uploaded()
-	r.Left = t.Left()
 }
 
 func (t *udpTracker) parseAnnounceResponse(data []byte) (*announceResponse, []Peer, error) {
@@ -334,6 +327,7 @@ type udpReqeust interface {
 	udpMessage
 	GetConnectionID() int64
 	SetConnectionID(int64)
+	io.WriterTo
 }
 
 // udpMessageHeader implements udpMessage.
@@ -360,6 +354,10 @@ type connectRequest struct {
 	udpRequestHeader
 }
 
+func (r *connectRequest) WriteTo(w io.Writer) (int64, error) {
+	return 0, binary.Write(w, binary.BigEndian, r)
+}
+
 type connectResponse struct {
 	udpMessageHeader
 	ConnectionID int64
@@ -378,6 +376,18 @@ type announceRequest struct {
 	NumWant    int32
 	Port       uint16
 	Extensions uint16
+}
+
+type transferAnnounceRequest struct {
+	transfer Transfer
+	*announceRequest
+}
+
+func (r *transferAnnounceRequest) WriteTo(w io.Writer) (int64, error) {
+	r.Downloaded = r.transfer.Downloaded()
+	r.Uploaded = r.transfer.Uploaded()
+	r.Left = r.transfer.Left()
+	return 0, binary.Write(w, binary.BigEndian, r.announceRequest)
 }
 
 type announceResponse struct {
