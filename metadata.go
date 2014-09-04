@@ -252,6 +252,7 @@ func downloadMetadataFromPeer(m *magnet.Magnet, p *peer) (*torrent.Info, error) 
 			if v.MetadataSize == 0 {
 				return nil, errors.New("zero metadata size")
 			}
+			p.log.Infoln("Metadata size:", v.MetadataSize, "bytes")
 
 			metadataBytes = make([]byte, v.MetadataSize)
 			numPieces = v.MetadataSize / (metadataPieceSize)
@@ -260,7 +261,10 @@ func downloadMetadataFromPeer(m *magnet.Magnet, p *peer) (*torrent.Info, error) 
 				numPieces++
 			}
 			remaining = numPieces
-			p.log.Debugln("metadata has", numPieces, "pieces")
+			p.log.Infoln("Metadata has", numPieces, "piece(s)")
+			if numPieces == 1 {
+				lastPieceSize = v.MetadataSize
+			}
 
 			// Send metadata piece requests.
 			for i := uint32(0); i < numPieces; i++ {
@@ -321,7 +325,7 @@ func downloadMetadataFromPeer(m *magnet.Magnet, p *peer) (*torrent.Info, error) 
 
 				piece := payload[decoder.BytesParsed():]
 				if uint32(len(piece)) != expectedSize {
-					return nil, errors.New("received piece smaller than expected")
+					return nil, fmt.Errorf("received piece smaller than expected (%d/%d)", len(piece), expectedSize)
 				}
 
 				copy(metadataBytes[i*metadataPieceSize:], piece)
