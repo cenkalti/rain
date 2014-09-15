@@ -102,61 +102,92 @@ func (t *transfer) Run() {
 }
 
 func (t *transfer) connectToPeer(addr *net.TCPAddr) {
-	t.log.Debugln("Connecting to peer", addr)
+	log := logger.New("peer -> " + addr.String())
 
-	conn, err := net.DialTCP("tcp4", nil, addr)
+	var conn net.Conn
+	var err error
+	log.Debug("Connecting to peer")
+	conn, err = net.DialTCP("tcp4", nil, addr)
 	if err != nil {
-		t.log.Error(err)
+		log.Error(err)
 		return
 	}
 	defer conn.Close()
-	t.log.Debugf("tcp connection opened to %s", conn.RemoteAddr())
+	log.Debug("Connected")
 
-	encConn := mse.WrapConn(conn)
-	sKey := make([]byte, 20)
-	copy(sKey, t.torrent.Info.Hash[:])
-	selected, err := encConn.HandshakeOutgoing(sKey, mse.RC4, nil)
-	if err != nil {
-		t.log.Error(err)
-		return
+	// Outgoing handshake bytes
+	b := make([]byte, 68)
+	b[0] = protocol.PstrLen
+	copy(b[1:], protocol.Pstr)
+	copy(b[20:], []byte{}) // no extensions for now
+	copy(b[28:], t.torrent.Info.Hash[:])
+	peerID := t.rain.PeerID()
+	copy(b[48:], peerID[:])
+
+	if !t.rain.config.Encryption.DisableOutgoing {
+		// Try encryption handshake
+		encConn := mse.WrapConn(conn)
+		sKey := make([]byte, 20)
+		copy(sKey, t.torrent.Info.Hash[:])
+		selected, err := encConn.HandshakeOutgoing(sKey, mse.RC4, b)
+		if err != nil {
+			log.Debugln("Encrytpion handshake has failed: ", err)
+			if !t.rain.config.Encryption.ForceOutgoing {
+				// Connect again and try w/o encryption
+				log.Debug("Connecting again for unencrypted handshake...")
+				conn, err = net.DialTCP("tcp4", nil, addr)
+				if err != nil {
+					log.Error(err)
+					return
+				}
+				defer conn.Close()
+				log.Debug("Connected")
+
+				// Send BT handshake
+				conn.SetDeadline(time.Now().Add(30 * time.Second))
+				if _, err = conn.Write(b); err != nil {
+					log.Error(err)
+					return
+				}
+			} else {
+				log.Debug("Will not try again because ougoing encryption is forced.")
+			}
+		} else {
+			log.Debugf("Encryption handshake is successfull. Selected cipher: %d", selected)
+			conn = encConn
+		}
+	} else {
+		// Send BT handshake
+		conn.SetDeadline(time.Now().Add(30 * time.Second))
+		if _, err = conn.Write(b); err != nil {
+			log.Error(err)
+			return
+		}
 	}
-	t.log.Noticef("Selected encryption cipher: %d", selected)
 
-	p := newPeer(encConn)
-
-	// Give a minute for completing handshake.
-	err = conn.SetDeadline(time.Now().Add(time.Minute))
-	if err != nil {
-		return
-	}
-
-	err = p.sendHandShake(t.torrent.Info.Hash, t.rain.peerID, [8]byte{})
-	if err != nil {
-		p.log.Error(err)
-		return
-	}
+	p := newPeer(conn)
 
 	_, ih, err := p.readHandShake1()
 	if err != nil {
-		p.log.Error(err)
+		log.Error(err)
 		return
 	}
 	if *ih != t.torrent.Info.Hash {
-		p.log.Error("unexpected info_hash")
+		log.Error("unexpected info_hash")
 		return
 	}
 
 	id, err := p.readHandShake2()
 	if err != nil {
-		p.log.Error(err)
+		log.Error(err)
 		return
 	}
 	if *id == t.rain.peerID {
-		p.log.Debug("Rejected own connection: client")
+		log.Debug("Rejected own connection: client")
 		return
 	}
 
-	p.log.Info("Connected to peer")
+	log.Info("Connected to peer")
 	p.Serve(t)
 }
 
