@@ -40,7 +40,7 @@ func main() {
 
 	// Be more aggressive than normal.
 	tracker.HTTPTimeout = time.Duration(*timeout) * time.Millisecond
-	tracker.UDPBackOff = func() backoff.BackOff { return new(udpBackOff) }
+	tracker.UDPBackOff = func() backoff.BackOff { return &backoff.ConstantBackOff{time.Duration(*timeout) * time.Millisecond} }
 
 	d, err := rain.NewMetadataDownloader(magnet)
 	if err != nil {
@@ -56,11 +56,3 @@ func main() {
 		log.Fatal(err)
 	}
 }
-
-type udpBackOff struct{}
-
-func (b *udpBackOff) NextBackOff() time.Duration {
-	return time.Duration(*timeout) * time.Millisecond
-}
-
-func (b *udpBackOff) Reset() {}
