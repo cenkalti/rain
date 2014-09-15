@@ -9,7 +9,7 @@ import (
 
 type Config struct {
 	filename                  string
-	Port                      uint16
+	Port                      int
 	DisableOutgoingEncryption bool
 	ForceOutgoingEncryption   bool
 	ForceIncomingEncryption   bool

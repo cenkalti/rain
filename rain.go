@@ -27,6 +27,7 @@ var peerIDPrefix = []byte("-RN0001-")
 func SetLogLevel(l log.Level) { logger.LogLevel = l }
 
 type Rain struct {
+	config     *Config
 	peerID     protocol.PeerID
 	listener   *net.TCPListener
 	transfers  map[protocol.InfoHash]*transfer
@@ -35,20 +36,17 @@ type Rain struct {
 }
 
 // New returns a pointer to new Rain BitTorrent client.
-func New(port int) (*Rain, error) {
+func New(c *Config) (*Rain, error) {
 	peerID, err := generatePeerID()
 	if err != nil {
 		return nil, err
 	}
-	r := &Rain{
+	return &Rain{
+		config:    c,
 		peerID:    peerID,
 		transfers: make(map[protocol.InfoHash]*transfer),
 		log:       logger.New("rain"),
-	}
-	if err = r.listenPeerPort(port); err != nil {
-		return nil, err
-	}
-	return r, nil
+	}, nil
 }
 
 func generatePeerID() (protocol.PeerID, error) {
@@ -58,10 +56,10 @@ func generatePeerID() (protocol.PeerID, error) {
 	return id, err
 }
 
-// listenPeerPort starts to listen a TCP port to accept incoming peer connections.
-func (r *Rain) listenPeerPort(port int) error {
+// Listen peer port and accept incoming peer connections.
+func (r *Rain) Listen() error {
 	var err error
-	addr := &net.TCPAddr{Port: port}
+	addr := &net.TCPAddr{Port: r.config.Port}
 	r.listener, err = net.ListenTCP("tcp4", addr)
 	if err != nil {
 		return err
@@ -70,6 +68,8 @@ func (r *Rain) listenPeerPort(port int) error {
 	go r.accepter()
 	return nil
 }
+
+func (r *Rain) Close() error { return r.listener.Close() }
 
 func (r *Rain) accepter() {
 	limit := make(chan struct{}, maxPeerServe)
