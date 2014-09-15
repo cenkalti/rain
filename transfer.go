@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cenkalti/mse"
+
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/protocol"
@@ -110,7 +112,17 @@ func (t *transfer) connectToPeer(addr *net.TCPAddr) {
 	defer conn.Close()
 	t.log.Debugf("tcp connection opened to %s", conn.RemoteAddr())
 
-	p := newPeer(conn)
+	encConn := mse.WrapConn(conn)
+	sKey := make([]byte, 20)
+	copy(sKey, t.torrent.Info.Hash[:])
+	selected, err := encConn.HandshakeOutgoing(sKey, mse.RC4, nil)
+	if err != nil {
+		t.log.Error(err)
+		return
+	}
+	t.log.Noticef("Selected encryption cipher: %d", selected)
+
+	p := newPeer(encConn)
 
 	// Give a minute for completing handshake.
 	err = conn.SetDeadline(time.Now().Add(time.Minute))
