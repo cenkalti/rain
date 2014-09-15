@@ -8,11 +8,13 @@ import (
 )
 
 type Config struct {
-	filename                  string
-	Port                      int
-	DisableOutgoingEncryption bool
-	ForceOutgoingEncryption   bool
-	ForceIncomingEncryption   bool
+	filename   string
+	Port       int
+	Encryption struct {
+		DisableOutgoing bool `yaml:"disable_outgoing"`
+		ForceOutgoing   bool `yaml:"force_outgoing"`
+		ForceIncoming   bool `yaml:"force_incoming"`
+	}
 }
 
 var DefaultConfig = Config{
