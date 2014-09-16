@@ -33,9 +33,9 @@ func (p *peer) sendHandShake(ih protocol.InfoHash, id protocol.PeerID, extension
 	return binary.Write(p.conn, binary.BigEndian, newPeerHandShake(ih, id, extensions))
 }
 
-func (p *peer) readHandShake1() (extensions *bitfield.BitField, ih *protocol.InfoHash, err error) {
+func readHandShake1(r io.Reader) (extensions *bitfield.BitField, ih *protocol.InfoHash, err error) {
 	var pstrLen byte
-	err = binary.Read(p.conn, binary.BigEndian, &pstrLen)
+	err = binary.Read(r, binary.BigEndian, &pstrLen)
 	if err != nil {
 		return
 	}
@@ -45,7 +45,7 @@ func (p *peer) readHandShake1() (extensions *bitfield.BitField, ih *protocol.Inf
 	}
 
 	pstr := make([]byte, protocol.PstrLen)
-	_, err = io.ReadFull(p.conn, pstr)
+	_, err = io.ReadFull(r, pstr)
 	if err != nil {
 		return
 	}
@@ -55,14 +55,14 @@ func (p *peer) readHandShake1() (extensions *bitfield.BitField, ih *protocol.Inf
 	}
 
 	b := bitfield.New(nil, 64)
-	_, err = io.ReadFull(p.conn, b.Bytes())
+	_, err = io.ReadFull(r, b.Bytes())
 	if err != nil {
 		return
 	}
 	extensions = &b
 
 	var infoHash protocol.InfoHash
-	_, err = io.ReadFull(p.conn, infoHash[:])
+	_, err = io.ReadFull(r, infoHash[:])
 	if err != nil {
 		return
 	}
@@ -71,9 +71,9 @@ func (p *peer) readHandShake1() (extensions *bitfield.BitField, ih *protocol.Inf
 	return
 }
 
-func (p *peer) readHandShake2() (*protocol.PeerID, error) {
+func readHandShake2(r io.Reader) (*protocol.PeerID, error) {
 	var id protocol.PeerID
-	_, err := io.ReadFull(p.conn, id[:])
+	_, err := io.ReadFull(r, id[:])
 	if err != nil {
 		return nil, err
 	}

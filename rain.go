@@ -105,7 +105,7 @@ func (r *Rain) servePeerConn(p *peer) {
 		return
 	}
 
-	_, ih, err := p.readHandShake1()
+	_, ih, err := readHandShake1(p.conn)
 	if err != nil {
 		p.log.Error(err)
 		return
@@ -127,7 +127,7 @@ func (r *Rain) servePeerConn(p *peer) {
 		return
 	}
 
-	id, err := p.readHandShake2()
+	id, err := readHandShake2(p.conn)
 	if err != nil {
 		p.log.Error(err)
 		return

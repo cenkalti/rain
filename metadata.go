@@ -150,7 +150,7 @@ func downloadMetadataFromPeer(m *magnet.Magnet, p *peer) (*torrent.Info, error) 
 	}
 	p.log.Debug("sent BT handshake")
 
-	ex, ih, err := p.readHandShake1()
+	ex, ih, err := readHandShake1(p.conn)
 	if err != nil {
 		p.log.Debug("cannot read handshake part 1")
 		return nil, err
@@ -162,7 +162,7 @@ func downloadMetadataFromPeer(m *magnet.Magnet, p *peer) (*torrent.Info, error) 
 		return nil, errors.New("extension protocol is not supported by peer")
 	}
 
-	id, err := p.readHandShake2()
+	id, err := readHandShake2(p.conn)
 	if err != nil {
 		p.log.Debug("cannot read handshake part 2")
 		return nil, err

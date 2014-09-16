@@ -165,9 +165,7 @@ func (t *transfer) connectToPeer(addr *net.TCPAddr) {
 		}
 	}
 
-	p := newPeer(conn)
-
-	_, ih, err := p.readHandShake1()
+	_, ih, err := readHandShake1(conn)
 	if err != nil {
 		log.Error(err)
 		return
@@ -177,7 +175,7 @@ func (t *transfer) connectToPeer(addr *net.TCPAddr) {
 		return
 	}
 
-	id, err := p.readHandShake2()
+	id, err := readHandShake2(conn)
 	if err != nil {
 		log.Error(err)
 		return
@@ -188,6 +186,7 @@ func (t *transfer) connectToPeer(addr *net.TCPAddr) {
 	}
 
 	log.Info("Connected to peer")
+	p := newPeer(conn)
 	p.Serve(t)
 }
 
