@@ -99,23 +99,25 @@ func (t *transfer) Run() {
 }
 
 func (t *transfer) connectToPeer(addr *net.TCPAddr) {
-	if addr.Port == int(t.rain.Port()) {
-		return // TODO remove
-	}
-	encMode := Enabled
-	if t.rain.config.Encryption.ForceOutgoing {
-		encMode = Force
-	}
+	var conn net.Conn
+	var ext [8]byte
+	var err error
 	if t.rain.config.Encryption.DisableOutgoing {
-		encMode = Disabled
+		conn, ext, _, err = connect(addr, [8]byte{}, t.torrent.Info.Hash, t.rain.peerID)
+	} else {
+		conn, ext, _, err = connectEncrypted(addr, [8]byte{}, t.torrent.Info.Hash, t.rain.peerID, t.rain.config.Encryption.ForceOutgoing)
 	}
-	conn, _, err := newOutgoingConnection(addr, encMode, t.torrent.Info.Hash, t.rain.peerID)
 	if err != nil {
-		t.log.Error(err)
+		if err == errOwnConnection {
+			t.log.Debug(err)
+		} else {
+			t.log.Error(err)
+		}
 		return
 	}
 	p := newPeer(conn)
 	p.log.Info("Connected to peer")
+	p.log.Debugf("Peer extensions: %s", ext)
 	p.Serve(t)
 }
 

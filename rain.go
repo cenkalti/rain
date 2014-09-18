@@ -99,12 +99,8 @@ func (r *Rain) Port() uint16            { return uint16(r.listener.Addr().(*net.
 func (r *Rain) servePeerConn(p *peer) {
 	p.log.Debugln("Serving peer", p.conn.RemoteAddr())
 
-	encMode := Enabled
-	if r.config.Encryption.ForceIncoming {
-		encMode = Force
-	}
 	var t *transfer
-	_, _, _, err := handshakeIncoming(p.conn, encMode, [8]byte{}, r.peerID, func(sKeyHash [20]byte) (sKey []byte) {
+	_, _, _, err := handshakeIncoming(p.conn, r.config.Encryption.ForceIncoming, [8]byte{}, r.peerID, func(sKeyHash [20]byte) (sKey []byte) {
 		// TODO always return first for now
 		for _, t = range r.transfers {
 			return t.torrent.Info.Hash[:]
@@ -112,7 +108,11 @@ func (r *Rain) servePeerConn(p *peer) {
 		panic("oops!")
 	})
 	if err != nil {
-		t.log.Error(err)
+		if err == errOwnConnection {
+			t.log.Debug(err)
+		} else {
+			t.log.Error(err)
+		}
 		return
 	}
 
