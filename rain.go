@@ -102,23 +102,24 @@ func (r *Rain) Port() uint16            { return uint16(r.listener.Addr().(*net.
 func (r *Rain) servePeerConn(p *peer) {
 	p.log.Debugln("Serving peer", p.conn.RemoteAddr())
 
-	_, _, ih, _, err := connection.Accept(p.conn, r.config.Encryption.ForceIncoming,
-		func(sKeyHash [20]byte) (sKey []byte) {
-			r.transfersM.Lock()
-			t, ok := r.transfersSKey[sKeyHash]
-			r.transfersM.Unlock()
-			if ok {
-				sKey = t.torrent.Info.Hash[:]
-			}
-			return
-		},
-		func(ih protocol.InfoHash) bool {
-			r.transfersM.Lock()
-			_, ok := r.transfers[ih]
-			r.transfersM.Unlock()
-			return ok
-		},
-		[8]byte{}, r.peerID)
+	getSKey := func(sKeyHash [20]byte) (sKey []byte) {
+		r.transfersM.Lock()
+		t, ok := r.transfersSKey[sKeyHash]
+		r.transfersM.Unlock()
+		if ok {
+			sKey = t.torrent.Info.Hash[:]
+		}
+		return
+	}
+
+	hasInfoHash := func(ih protocol.InfoHash) bool {
+		r.transfersM.Lock()
+		_, ok := r.transfers[ih]
+		r.transfersM.Unlock()
+		return ok
+	}
+
+	_, _, ih, _, err := connection.Accept(p.conn, r.config.Encryption.ForceIncoming, getSKey, hasInfoHash, [8]byte{}, r.peerID)
 	if err != nil {
 		if err == connection.ErrOwnConnection {
 			r.log.Debug(err)
