@@ -115,6 +115,7 @@ func (t *transfer) connectToPeer(addr *net.TCPAddr) {
 		}
 		return
 	}
+	defer conn.Close()
 	p := newPeer(conn)
 	p.log.Info("Connected to peer")
 	p.log.Debugf("Peer extensions: %s", ext)

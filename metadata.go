@@ -117,6 +117,7 @@ func (m *MetadataDownloader) worker(peer tracker.Peer) {
 		log.Error(err)
 		return
 	}
+	defer conn.Close()
 
 	if peerExtensions[5]&0x10 == 0 {
 		log.Debug("Peer does not support extension protocol")
