@@ -101,7 +101,7 @@ func connectEncrypted(addr *net.TCPAddr, ourExtensions [8]byte, ih protocol.Info
 	}
 
 	out := bytes.NewBuffer(make([]byte, 0, 68))
-	handshake.Write(out, ih, ourID, [8]byte{})
+	handshake.Write(out, ih, ourID, ourExtensions)
 
 	// Try encryption handshake
 	encConn := mse.WrapConn(conn)

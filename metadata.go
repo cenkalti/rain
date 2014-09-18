@@ -111,7 +111,7 @@ func (m *MetadataDownloader) worker(peer tracker.Peer) {
 
 	ourExtensions := [8]byte{}
 	ourExtensions[5] |= 0x10 // BEP 10 Extension Protocol
-	conn, peerExtensions, _, err := connect(peer.TCPAddr(), ourExtensions, m.magnet.InfoHash, ourID)
+	conn, _, peerExtensions, _, err := connectEncrypted(peer.TCPAddr(), ourExtensions, m.magnet.InfoHash, ourID, false)
 	if err != nil {
 		log.Error(err)
 		return
