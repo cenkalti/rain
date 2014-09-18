@@ -149,7 +149,7 @@ func connectEncrypted(addr *net.TCPAddr, ourExtensions [8]byte, ih protocol.Info
 func handshakeIncoming(
 	conn net.Conn, forceEncryption bool, ourExtensions [8]byte, id protocol.PeerID,
 	getSKey func(sKeyHash [20]byte) (sKey []byte)) (
-	cipher mse.CryptoMethod, peerExtensions [8]byte, ih protocol.InfoHash, peerID protocol.PeerID, err error) {
+	cipher mse.CryptoMethod, peerExtensions [8]byte, peerID protocol.PeerID, err error) {
 
 	var ourInfoHash protocol.InfoHash
 	getAndSaveInfoHash := func(sKeyHash [20]byte) []byte {
@@ -166,7 +166,8 @@ func handshakeIncoming(
 	hasIncomingPayload := false
 	var buf bytes.Buffer
 	var reader io.Reader = io.TeeReader(conn, &buf)
-	peerExtensions, ih, err = handshake.Read1(reader)
+	var peerInfoHash protocol.InfoHash
+	peerExtensions, peerInfoHash, err = handshake.Read1(reader)
 	if err == handshake.ErrInvalidProtocol {
 		reader = io.MultiReader(&buf, conn)
 		rw := readWriter{reader, conn}
@@ -198,11 +199,11 @@ func handshakeIncoming(
 				}
 				hasIncomingPayload = true
 				r := bytes.NewReader(payloadIn[:lenPayloadIn])
-				peerExtensions, ih, err = handshake.Read1(r)
+				peerExtensions, peerInfoHash, err = handshake.Read1(r)
 				if err != nil {
 					return nil, err
 				}
-				if ih != ourInfoHash {
+				if peerInfoHash != ourInfoHash {
 					return nil, errInvalidInfoHash
 				}
 				peerID, err = handshake.Read2(r)
@@ -230,11 +231,11 @@ func handshakeIncoming(
 		if err = conn.SetReadDeadline(time.Now().Add(handshakeDeadline)); err != nil {
 			return
 		}
-		peerExtensions, ih, err = handshake.Read1(conn)
+		peerExtensions, peerInfoHash, err = handshake.Read1(conn)
 		if err != nil {
 			return
 		}
-		if ih != ourInfoHash {
+		if peerInfoHash != ourInfoHash {
 			err = errInvalidInfoHash
 			return
 		}

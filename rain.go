@@ -27,12 +27,13 @@ var build = "0001"
 func SetLogLevel(l log.Level) { logger.LogLevel = l }
 
 type Rain struct {
-	config     *Config
-	peerID     protocol.PeerID
-	listener   *net.TCPListener
-	transfers  map[protocol.InfoHash]*transfer
-	transfersM sync.Mutex
-	log        logger.Logger
+	config        *Config
+	peerID        protocol.PeerID
+	listener      *net.TCPListener
+	transfers     map[protocol.InfoHash]*transfer // all active transfers
+	transfersSKey map[[20]byte]*transfer          // for encryption
+	transfersM    sync.Mutex
+	log           logger.Logger
 }
 
 // New returns a pointer to new Rain BitTorrent client.
@@ -42,10 +43,11 @@ func New(c *Config) (*Rain, error) {
 		return nil, err
 	}
 	return &Rain{
-		config:    c,
-		peerID:    peerID,
-		transfers: make(map[protocol.InfoHash]*transfer),
-		log:       logger.New("rain"),
+		config:        c,
+		peerID:        peerID,
+		transfers:     make(map[protocol.InfoHash]*transfer),
+		transfersSKey: make(map[[20]byte]*transfer),
+		log:           logger.New("rain"),
 	}, nil
 }
 
@@ -100,12 +102,12 @@ func (r *Rain) servePeerConn(p *peer) {
 	p.log.Debugln("Serving peer", p.conn.RemoteAddr())
 
 	var t *transfer
-	_, _, _, _, err := handshakeIncoming(p.conn, r.config.Encryption.ForceIncoming, [8]byte{}, r.peerID, func(sKeyHash [20]byte) (sKey []byte) {
-		// TODO always return first for now
-		for _, t = range r.transfers {
-			return t.torrent.Info.Hash[:]
-		}
-		panic("oops!")
+	_, _, _, err := handshakeIncoming(p.conn, r.config.Encryption.ForceIncoming, [8]byte{}, r.peerID, func(sKeyHash [20]byte) (sKey []byte) {
+		r.transfersM.Lock()
+		t = r.transfersSKey[sKeyHash]
+		r.transfersM.Unlock()
+		sKey = t.torrent.Info.Hash[:]
+		return
 	})
 	if err != nil {
 		if err == errOwnConnection {
@@ -115,16 +117,6 @@ func (r *Rain) servePeerConn(p *peer) {
 		}
 		return
 	}
-
-	// // Do not continue if we don't have a torrent with this infoHash.
-	// r.transfersM.Lock()
-	// t, ok := r.transfers[*ih]
-	// if !ok {
-	// 	p.log.Error("unexpected info_hash")
-	// 	r.transfersM.Unlock()
-	// 	return
-	// }
-	// r.transfersM.Unlock()
 
 	p.log.Debugln("servePeerConn: Handshake completed")
 	p.Serve(t)

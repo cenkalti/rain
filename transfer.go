@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/cenkalti/mse"
+
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/protocol"
@@ -60,13 +62,17 @@ func (t *transfer) Uploaded() int64             { return 0 } // TODO
 func (t *transfer) Left() int64                 { return t.torrent.Info.TotalLength - t.Downloaded() }
 
 func (t *transfer) Run() {
+	sKey := mse.HashSKey(t.torrent.Info.Hash[:])
+
 	t.rain.transfersM.Lock()
 	t.rain.transfers[t.torrent.Info.Hash] = t
+	t.rain.transfersSKey[sKey] = t
 	t.rain.transfersM.Unlock()
 
 	defer func() {
 		t.rain.transfersM.Lock()
 		delete(t.rain.transfers, t.torrent.Info.Hash)
+		delete(t.rain.transfersSKey, sKey)
 		t.rain.transfersM.Unlock()
 	}()
 
