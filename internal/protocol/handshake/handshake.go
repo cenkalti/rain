@@ -9,8 +9,7 @@ import (
 	"github.com/cenkalti/rain/internal/protocol"
 )
 
-var pstr = [19]byte{'B', 'i', 't', 'T', 'o', 'r',
-	'r', 'e', 'n', 't', ' ', 'p', 'r', 'o', 't', 'o', 'c', 'o', 'l'}
+var pstr = [19]byte{'B', 'i', 't', 'T', 'o', 'r', 'r', 'e', 'n', 't', ' ', 'p', 'r', 'o', 't', 'o', 'c', 'o', 'l'}
 
 func Write(w io.Writer, ih protocol.InfoHash, id protocol.PeerID, extensions [8]byte) error {
 	var h = struct {
