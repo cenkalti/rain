@@ -65,7 +65,7 @@ func connect(addr *net.TCPAddr, ourExtensions [8]byte, ih protocol.InfoHash, our
 }
 
 func connectEncrypted(addr *net.TCPAddr, ourExtensions [8]byte, ih protocol.InfoHash, ourID protocol.PeerID, force bool) (
-	conn net.Conn, peerExtensions [8]byte, peerID protocol.PeerID, err error) {
+	conn net.Conn, cipher mse.CryptoMethod, peerExtensions [8]byte, peerID protocol.PeerID, err error) {
 
 	log := logger.New("peer -> " + addr.String())
 
@@ -94,9 +94,8 @@ func connectEncrypted(addr *net.TCPAddr, ourExtensions [8]byte, ih protocol.Info
 	handshake.Write(out, ih, ourID, [8]byte{})
 
 	// Try encryption handshake
-	var selected mse.CryptoMethod
 	encConn := mse.WrapConn(conn)
-	selected, err = encConn.HandshakeOutgoing(sKey, provide, out.Bytes())
+	cipher, err = encConn.HandshakeOutgoing(sKey, provide, out.Bytes())
 	if err != nil {
 		log.Debugln("Encrytpion handshake has failed: ", err)
 		if force {
@@ -105,9 +104,10 @@ func connectEncrypted(addr *net.TCPAddr, ourExtensions [8]byte, ih protocol.Info
 			return
 		}
 		// Connect again and try w/o encryption
-		return connect(addr, ourExtensions, ih, ourID)
+		conn, peerExtensions, peerID, err = connect(addr, ourExtensions, ih, ourID)
+		return conn, 0, peerExtensions, peerID, err
 	}
-	log.Debugf("Encryption handshake is successfull. Selected cipher: %d", selected)
+	log.Debugf("Encryption handshake is successfull. Selected cipher: %d", cipher)
 	conn = encConn
 
 	var ihRead protocol.InfoHash

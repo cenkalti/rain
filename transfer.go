@@ -105,7 +105,7 @@ func (t *transfer) connectToPeer(addr *net.TCPAddr) {
 	if t.rain.config.Encryption.DisableOutgoing {
 		conn, ext, _, err = connect(addr, [8]byte{}, t.torrent.Info.Hash, t.rain.peerID)
 	} else {
-		conn, ext, _, err = connectEncrypted(addr, [8]byte{}, t.torrent.Info.Hash, t.rain.peerID, t.rain.config.Encryption.ForceOutgoing)
+		conn, _, ext, _, err = connectEncrypted(addr, [8]byte{}, t.torrent.Info.Hash, t.rain.peerID, t.rain.config.Encryption.ForceOutgoing)
 	}
 	if err != nil {
 		if err == errOwnConnection {
