@@ -14,13 +14,13 @@ import (
 	"github.com/cenkalti/rain/internal/protocol/handshake"
 )
 
+const handshakeDeadline = 30 * time.Second
+
 var (
 	errOwnConnection                = errors.New("own connection")
 	errInvalidInfoHash              = errors.New("invalid info hash")
 	errConnectionNotEncrytpted      = errors.New("connection is not encrypted")
 	errPeerDoesNotSupportEncryption = errors.New("peer does not support encryption")
-
-	handshakeDeadline = 30 * time.Second
 )
 
 func connect(addr *net.TCPAddr, ourExtensions [8]byte, ih protocol.InfoHash, ourID protocol.PeerID) (
