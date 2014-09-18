@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"net"
 	"sync"
-	"time"
 
 	"github.com/cenkalti/log"
 
@@ -22,7 +21,8 @@ const (
 )
 
 // http://www.bittorrent.org/beps/bep_0020.html
-var peerIDPrefix = []byte("-RN0001-")
+var peerIDPrefix = []byte("-RN" + build + "-")
+var build = "0001"
 
 func SetLogLevel(l log.Level) { logger.LogLevel = l }
 
@@ -99,45 +99,34 @@ func (r *Rain) Port() uint16            { return uint16(r.listener.Addr().(*net.
 func (r *Rain) servePeerConn(p *peer) {
 	p.log.Debugln("Serving peer", p.conn.RemoteAddr())
 
-	// Give a minute for completing handshake.
-	err := p.conn.SetDeadline(time.Now().Add(time.Minute))
+	encMode := Enabled
+	if r.config.Encryption.ForceIncoming {
+		encMode = Force
+	}
+	var t *transfer
+	_, _, _, err := handshakeIncoming(p.conn, encMode, [8]byte{}, r.peerID, func(sKeyHash [20]byte) (sKey []byte) {
+		// TODO always return first for now
+		for _, t = range r.transfers {
+			return t.torrent.Info.Hash[:]
+		}
+		panic("oops!")
+	})
 	if err != nil {
+		t.log.Error(err)
 		return
 	}
 
-	_, ih, err := readHandShake1(p.conn)
-	if err != nil {
-		p.log.Error(err)
-		return
-	}
+	// // Do not continue if we don't have a torrent with this infoHash.
+	// r.transfersM.Lock()
+	// t, ok := r.transfers[*ih]
+	// if !ok {
+	// 	p.log.Error("unexpected info_hash")
+	// 	r.transfersM.Unlock()
+	// 	return
+	// }
+	// r.transfersM.Unlock()
 
-	// Do not continue if we don't have a torrent with this infoHash.
-	r.transfersM.Lock()
-	t, ok := r.transfers[*ih]
-	if !ok {
-		p.log.Error("unexpected info_hash")
-		r.transfersM.Unlock()
-		return
-	}
-	r.transfersM.Unlock()
-
-	err = p.sendHandShake(*ih, r.peerID, [8]byte{})
-	if err != nil {
-		p.log.Error(err)
-		return
-	}
-
-	id, err := readHandShake2(p.conn)
-	if err != nil {
-		p.log.Error(err)
-		return
-	}
-	if *id == r.peerID {
-		p.log.Debug("Rejected own connection: server")
-		return
-	}
-
-	p.log.Debugln("servePeerConn: Handshake completed", p.conn.RemoteAddr())
+	p.log.Debugln("servePeerConn: Handshake completed")
 	p.Serve(t)
 }
 

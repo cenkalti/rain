@@ -143,7 +143,7 @@ func downloadMetadataFromPeer(m *magnet.Magnet, p *peer) (*torrent.Info, error) 
 	extensions := [8]byte{}
 	extensions[5] |= 0x10 // BEP 10 Extension Protocol
 
-	err = p.sendHandShake(m.InfoHash, peerID, extensions)
+	err = writeHandShake(p.conn, m.InfoHash, peerID, extensions)
 	if err != nil {
 		p.log.Debug("cannot send BT handshake")
 		return nil, err
@@ -155,10 +155,10 @@ func downloadMetadataFromPeer(m *magnet.Magnet, p *peer) (*torrent.Info, error) 
 		p.log.Debug("cannot read handshake part 1")
 		return nil, err
 	}
-	if *ih != m.InfoHash {
+	if ih != m.InfoHash {
 		return nil, errors.New("unexpected info_hash")
 	}
-	if ex.Bytes()[5]&0x10 == 0 {
+	if ex[5]&0x10 == 0 {
 		return nil, errors.New("extension protocol is not supported by peer")
 	}
 
@@ -167,7 +167,7 @@ func downloadMetadataFromPeer(m *magnet.Magnet, p *peer) (*torrent.Info, error) 
 		p.log.Debug("cannot read handshake part 2")
 		return nil, err
 	}
-	if *id == peerID {
+	if id == peerID {
 		return nil, errors.New("rejected own connection: client")
 	}
 

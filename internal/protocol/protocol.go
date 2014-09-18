@@ -35,8 +35,10 @@ type PeerID [20]byte
 
 func (p PeerID) String() string { return hex.EncodeToString(p[:]) }
 
+// TODO remove this
 const PstrLen = 19
 
+// TODO make it array
 var Pstr = []byte("BitTorrent protocol")
 
 type MessageType uint8
