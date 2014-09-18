@@ -85,9 +85,9 @@ func (r *Rain) accepter() {
 		limit <- struct{}{}
 		go func(conn net.Conn) {
 			defer func() {
-				// if err := recover(); err != nil {
-				// r.log.Critical(err)
-				// }
+				if err := recover(); err != nil {
+					r.log.Critical(err)
+				}
 				conn.Close()
 				<-limit
 			}()
