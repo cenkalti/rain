@@ -1,4 +1,4 @@
-package rain
+package connection
 
 import (
 	"bytes"
@@ -17,12 +17,12 @@ import (
 const handshakeDeadline = 30 * time.Second
 
 var (
-	errOwnConnection    = errors.New("dropped own connection")
-	errInvalidInfoHash  = errors.New("invalid info hash")
-	errEncryptionForced = errors.New("encryption is forced")
+	ErrInvalidInfoHash = errors.New("invalid info hash")
+	ErrOwnConnection   = errors.New("dropped own connection")
+	ErrNotEncrypted    = errors.New("connection is not encrypted")
 )
 
-func connectEncrypted(addr *net.TCPAddr, enableEncryption, forceEncryption bool, ourExtensions [8]byte, ih protocol.InfoHash, ourID protocol.PeerID) (
+func Dial(addr *net.TCPAddr, enableEncryption, forceEncryption bool, ourExtensions [8]byte, ih protocol.InfoHash, ourID protocol.PeerID) (
 	conn net.Conn, cipher mse.CryptoMethod, peerExtensions [8]byte, peerID protocol.PeerID, err error) {
 
 	log := logger.New("peer -> " + addr.String())
@@ -62,7 +62,7 @@ func connectEncrypted(addr *net.TCPAddr, enableEncryption, forceEncryption bool,
 			log.Debugln("Encrytpion handshake has failed: ", err)
 			if forceEncryption {
 				log.Debug("Will not try again because ougoing encryption is forced.")
-				err = errEncryptionForced
+				err = ErrNotEncrypted
 				return
 			}
 			// Connect again and try w/o encryption
@@ -83,7 +83,7 @@ func connectEncrypted(addr *net.TCPAddr, enableEncryption, forceEncryption bool,
 			log.Debugf("Encryption handshake is successfull. Selected cipher: %d", cipher)
 			conn = encConn
 			if forceEncryption && cipher == mse.PlainText {
-				err = errEncryptionForced
+				err = ErrNotEncrypted
 				return
 			}
 		}
@@ -108,7 +108,7 @@ func connectEncrypted(addr *net.TCPAddr, enableEncryption, forceEncryption bool,
 		return
 	}
 	if ihRead != ih {
-		err = errInvalidInfoHash
+		err = ErrInvalidInfoHash
 		return
 	}
 
@@ -117,7 +117,7 @@ func connectEncrypted(addr *net.TCPAddr, enableEncryption, forceEncryption bool,
 		return
 	}
 	if peerID == ourID {
-		err = errOwnConnection
+		err = ErrOwnConnection
 		return
 	}
 
@@ -125,7 +125,7 @@ func connectEncrypted(addr *net.TCPAddr, enableEncryption, forceEncryption bool,
 	return
 }
 
-func handshakeIncoming(
+func Accept(
 	conn net.Conn, forceEncryption bool,
 	getSKey func(sKeyHash [20]byte) (sKey []byte),
 	hasInfoHash func(protocol.InfoHash) bool,
@@ -176,7 +176,7 @@ func handshakeIncoming(
 					return nil, err
 				}
 				if !hasInfoHash(peerInfoHash) {
-					return nil, errInvalidInfoHash
+					return nil, ErrInvalidInfoHash
 				}
 				peerID, err = handshake.Read2(r)
 				if err != nil {
@@ -195,7 +195,7 @@ func handshakeIncoming(
 	}
 
 	if forceEncryption && !encrypted {
-		err = errEncryptionForced
+		err = ErrNotEncrypted
 		return
 	}
 
@@ -208,7 +208,7 @@ func handshakeIncoming(
 			return
 		}
 		if !hasInfoHash(peerInfoHash) {
-			err = errInvalidInfoHash
+			err = ErrInvalidInfoHash
 			return
 		}
 		if err = conn.SetWriteDeadline(time.Now().Add(handshakeDeadline)); err != nil {
@@ -225,7 +225,7 @@ func handshakeIncoming(
 	}
 
 	if peerID == ourID {
-		err = errOwnConnection
+		err = ErrOwnConnection
 		return
 	}
 

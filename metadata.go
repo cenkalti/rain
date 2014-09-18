@@ -13,6 +13,7 @@ import (
 	"github.com/cenkalti/log"
 	"github.com/zeebo/bencode"
 
+	"github.com/cenkalti/rain/internal/connection"
 	"github.com/cenkalti/rain/internal/magnet"
 	"github.com/cenkalti/rain/internal/protocol"
 	"github.com/cenkalti/rain/internal/torrent"
@@ -111,7 +112,7 @@ func (m *MetadataDownloader) worker(peer tracker.Peer) {
 
 	ourExtensions := [8]byte{}
 	ourExtensions[5] |= 0x10 // BEP 10 Extension Protocol
-	conn, _, peerExtensions, _, err := connectEncrypted(peer.TCPAddr(), true, false, ourExtensions, m.magnet.InfoHash, ourID)
+	conn, _, peerExtensions, _, err := connection.Dial(peer.TCPAddr(), true, false, ourExtensions, m.magnet.InfoHash, ourID)
 	if err != nil {
 		log.Error(err)
 		return

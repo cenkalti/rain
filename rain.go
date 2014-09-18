@@ -7,6 +7,7 @@ import (
 
 	"github.com/cenkalti/log"
 
+	"github.com/cenkalti/rain/internal/connection"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/protocol"
 	"github.com/cenkalti/rain/internal/torrent"
@@ -101,7 +102,7 @@ func (r *Rain) Port() uint16            { return uint16(r.listener.Addr().(*net.
 func (r *Rain) servePeerConn(p *peer) {
 	p.log.Debugln("Serving peer", p.conn.RemoteAddr())
 
-	_, _, ih, _, err := handshakeIncoming(p.conn, r.config.Encryption.ForceIncoming,
+	_, _, ih, _, err := connection.Accept(p.conn, r.config.Encryption.ForceIncoming,
 		func(sKeyHash [20]byte) (sKey []byte) {
 			r.transfersM.Lock()
 			t, ok := r.transfersSKey[sKeyHash]
@@ -119,7 +120,7 @@ func (r *Rain) servePeerConn(p *peer) {
 		},
 		[8]byte{}, r.peerID)
 	if err != nil {
-		if err == errOwnConnection {
+		if err == connection.ErrOwnConnection {
 			r.log.Debug(err)
 		} else {
 			r.log.Error(err)

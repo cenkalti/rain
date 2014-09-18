@@ -9,6 +9,7 @@ import (
 	"github.com/cenkalti/mse"
 
 	"github.com/cenkalti/rain/internal/bitfield"
+	"github.com/cenkalti/rain/internal/connection"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/protocol"
 	"github.com/cenkalti/rain/internal/torrent"
@@ -108,9 +109,9 @@ func (t *transfer) connectToPeer(addr *net.TCPAddr) {
 	var conn net.Conn
 	var ext [8]byte
 	var err error
-	conn, _, ext, _, err = connectEncrypted(addr, !t.rain.config.Encryption.DisableOutgoing, t.rain.config.Encryption.ForceOutgoing, [8]byte{}, t.torrent.Info.Hash, t.rain.peerID)
+	conn, _, ext, _, err = connection.Dial(addr, !t.rain.config.Encryption.DisableOutgoing, t.rain.config.Encryption.ForceOutgoing, [8]byte{}, t.torrent.Info.Hash, t.rain.peerID)
 	if err != nil {
-		if err == errOwnConnection {
+		if err == connection.ErrOwnConnection {
 			t.log.Debug(err)
 		} else {
 			t.log.Error(err)
