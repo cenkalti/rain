@@ -100,7 +100,7 @@ func (r *Rain) servePeerConn(p *peer) {
 	p.log.Debugln("Serving peer", p.conn.RemoteAddr())
 
 	var t *transfer
-	_, _, _, err := handshakeIncoming(p.conn, r.config.Encryption.ForceIncoming, [8]byte{}, r.peerID, func(sKeyHash [20]byte) (sKey []byte) {
+	_, _, _, _, err := handshakeIncoming(p.conn, r.config.Encryption.ForceIncoming, [8]byte{}, r.peerID, func(sKeyHash [20]byte) (sKey []byte) {
 		// TODO always return first for now
 		for _, t = range r.transfers {
 			return t.torrent.Info.Hash[:]

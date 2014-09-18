@@ -147,9 +147,9 @@ func connectEncrypted(addr *net.TCPAddr, ourExtensions [8]byte, ih protocol.Info
 }
 
 func handshakeIncoming(
-	conn net.Conn, force bool, ourExtensions [8]byte, id protocol.PeerID,
+	conn net.Conn, forceEncryption bool, ourExtensions [8]byte, id protocol.PeerID,
 	getSKey func(sKeyHash [20]byte) (sKey []byte)) (
-	peerExtensions [8]byte, ih protocol.InfoHash, peerID protocol.PeerID, err error) {
+	cipher mse.CryptoMethod, peerExtensions [8]byte, ih protocol.InfoHash, peerID protocol.PeerID, err error) {
 
 	var ourInfoHash protocol.InfoHash
 	getAndSaveInfoHash := func(sKeyHash [20]byte) []byte {
@@ -180,9 +180,10 @@ func handshakeIncoming(
 				if provided&mse.RC4 != 0 {
 					selected = mse.RC4
 					encrypted = true
-				} else if (provided&mse.PlainText != 0) && !force {
+				} else if (provided&mse.PlainText != 0) && !forceEncryption {
 					selected = mse.PlainText
 				}
+				cipher = selected
 				return
 			},
 			payloadIn,
@@ -220,7 +221,7 @@ func handshakeIncoming(
 		return
 	}
 
-	if force && !encrypted {
+	if forceEncryption && !encrypted {
 		err = errConnectionNotEncrytpted
 		return
 	}
