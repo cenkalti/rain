@@ -84,9 +84,9 @@ func (r *Rain) accepter() {
 		limit <- struct{}{}
 		go func(conn net.Conn) {
 			defer func() {
-				if err := recover(); err != nil {
-					r.log.Critical(err)
-				}
+				// if err := recover(); err != nil {
+				// r.log.Critical(err)
+				// }
 				conn.Close()
 				<-limit
 			}()
@@ -101,20 +101,37 @@ func (r *Rain) Port() uint16            { return uint16(r.listener.Addr().(*net.
 func (r *Rain) servePeerConn(p *peer) {
 	p.log.Debugln("Serving peer", p.conn.RemoteAddr())
 
-	var t *transfer
-	_, _, _, err := handshakeIncoming(p.conn, r.config.Encryption.ForceIncoming, [8]byte{}, r.peerID, func(sKeyHash [20]byte) (sKey []byte) {
-		r.transfersM.Lock()
-		t = r.transfersSKey[sKeyHash]
-		r.transfersM.Unlock()
-		sKey = t.torrent.Info.Hash[:]
-		return
-	})
+	_, _, ih, _, err := handshakeIncoming(p.conn, r.config.Encryption.ForceIncoming,
+		func(sKeyHash [20]byte) (sKey []byte) {
+			r.transfersM.Lock()
+			t, ok := r.transfersSKey[sKeyHash]
+			r.transfersM.Unlock()
+			if ok {
+				sKey = t.torrent.Info.Hash[:]
+			}
+			return
+		},
+		func(ih protocol.InfoHash) bool {
+			r.transfersM.Lock()
+			_, ok := r.transfers[ih]
+			r.transfersM.Unlock()
+			return ok
+		},
+		[8]byte{}, r.peerID)
 	if err != nil {
 		if err == errOwnConnection {
-			t.log.Debug(err)
+			r.log.Debug(err)
 		} else {
-			t.log.Error(err)
+			r.log.Error(err)
 		}
+		return
+	}
+
+	r.transfersM.Lock()
+	t, ok := r.transfers[ih]
+	r.transfersM.Unlock()
+	if !ok {
+		r.log.Debug("Transfer is removed during incoming handshake")
 		return
 	}
 

@@ -17,64 +17,12 @@ import (
 const handshakeDeadline = 30 * time.Second
 
 var (
-	errOwnConnection                = errors.New("own connection")
-	errInvalidInfoHash              = errors.New("invalid info hash")
-	errConnectionNotEncrytpted      = errors.New("connection is not encrypted")
-	errPeerDoesNotSupportEncryption = errors.New("peer does not support encryption")
+	errOwnConnection    = errors.New("dropped own connection")
+	errInvalidInfoHash  = errors.New("invalid info hash")
+	errEncryptionForced = errors.New("encryption is forced")
 )
 
-func connect(addr *net.TCPAddr, ourExtensions [8]byte, ih protocol.InfoHash, ourID protocol.PeerID) (
-	conn net.Conn, peerExtensions [8]byte, peerID protocol.PeerID, err error) {
-
-	log := logger.New("peer -> " + addr.String())
-
-	log.Debug("Connecting to peer...")
-	conn, err = net.DialTCP("tcp4", nil, addr)
-	if err != nil {
-		return
-	}
-	log.Debug("Connected")
-	defer func() {
-		if err != nil {
-			conn.Close()
-		}
-	}()
-
-	if err = conn.SetWriteDeadline(time.Now().Add(handshakeDeadline)); err != nil {
-		return
-	}
-	err = handshake.Write(conn, ih, ourID, ourExtensions)
-	if err != nil {
-		return
-	}
-
-	if err = conn.SetReadDeadline(time.Now().Add(handshakeDeadline)); err != nil {
-		return
-	}
-	var ihRead protocol.InfoHash
-	peerExtensions, ihRead, err = handshake.Read1(conn)
-	if err != nil {
-		return
-	}
-	if ihRead != ih {
-		err = errInvalidInfoHash
-		return
-	}
-
-	peerID, err = handshake.Read2(conn)
-	if err != nil {
-		return
-	}
-	if peerID == ourID {
-		err = errOwnConnection
-		return
-	}
-
-	err = conn.SetDeadline(time.Time{})
-	return
-}
-
-func connectEncrypted(addr *net.TCPAddr, ourExtensions [8]byte, ih protocol.InfoHash, ourID protocol.PeerID, force bool) (
+func connectEncrypted(addr *net.TCPAddr, enableEncryption, forceEncryption bool, ourExtensions [8]byte, ih protocol.InfoHash, ourID protocol.PeerID) (
 	conn net.Conn, cipher mse.CryptoMethod, peerExtensions [8]byte, peerID protocol.PeerID, err error) {
 
 	log := logger.New("peer -> " + addr.String())
@@ -92,37 +40,68 @@ func connectEncrypted(addr *net.TCPAddr, ourExtensions [8]byte, ih protocol.Info
 		}
 	}()
 
-	sKey := make([]byte, 20)
-	copy(sKey, ih[:])
-
-	provide := mse.RC4
-	if !force {
-		provide |= mse.PlainText
+	out := bytes.NewBuffer(make([]byte, 0, 68))
+	err = handshake.Write(out, ih, ourID, ourExtensions)
+	if err != nil {
+		return
 	}
 
-	out := bytes.NewBuffer(make([]byte, 0, 68))
-	handshake.Write(out, ih, ourID, ourExtensions)
+	if enableEncryption {
+		sKey := make([]byte, 20)
+		copy(sKey, ih[:])
 
-	// Try encryption handshake
-	encConn := mse.WrapConn(conn)
-	cipher, err = encConn.HandshakeOutgoing(sKey, provide, out.Bytes())
-	if err != nil {
-		log.Debugln("Encrytpion handshake has failed: ", err)
-		if force {
-			log.Debug("Will not try again because ougoing encryption is forced.")
-			err = errPeerDoesNotSupportEncryption
+		provide := mse.RC4
+		if !forceEncryption {
+			provide |= mse.PlainText
+		}
+
+		// Try encryption handshake
+		encConn := mse.WrapConn(conn)
+		cipher, err = encConn.HandshakeOutgoing(sKey, provide, out.Bytes())
+		if err != nil {
+			log.Debugln("Encrytpion handshake has failed: ", err)
+			if forceEncryption {
+				log.Debug("Will not try again because ougoing encryption is forced.")
+				err = errEncryptionForced
+				return
+			}
+			// Connect again and try w/o encryption
+			log.Debug("Connecting again without encryption...")
+			conn, err = net.DialTCP("tcp4", nil, addr)
+			if err != nil {
+				return
+			}
+			log.Debug("Connected")
+			// Send BT handshake
+			if err = conn.SetWriteDeadline(time.Now().Add(handshakeDeadline)); err != nil {
+				return
+			}
+			if _, err = conn.Write(out.Bytes()); err != nil {
+				return
+			}
+		} else {
+			log.Debugf("Encryption handshake is successfull. Selected cipher: %d", cipher)
+			conn = encConn
+			if forceEncryption && cipher == mse.PlainText {
+				err = errEncryptionForced
+				return
+			}
+		}
+	} else {
+		// Send BT handshake
+		if err = conn.SetWriteDeadline(time.Now().Add(handshakeDeadline)); err != nil {
 			return
 		}
-		// Connect again and try w/o encryption
-		conn, peerExtensions, peerID, err = connect(addr, ourExtensions, ih, ourID)
-		return conn, 0, peerExtensions, peerID, err
+		if _, err = conn.Write(out.Bytes()); err != nil {
+			return
+		}
 	}
-	log.Debugf("Encryption handshake is successfull. Selected cipher: %d", cipher)
-	conn = encConn
 
+	// Read BT handshake
 	if err = conn.SetReadDeadline(time.Now().Add(handshakeDeadline)); err != nil {
 		return
 	}
+
 	var ihRead protocol.InfoHash
 	peerExtensions, ihRead, err = handshake.Read1(conn)
 	if err != nil {
@@ -147,16 +126,11 @@ func connectEncrypted(addr *net.TCPAddr, ourExtensions [8]byte, ih protocol.Info
 }
 
 func handshakeIncoming(
-	conn net.Conn, forceEncryption bool, ourExtensions [8]byte, id protocol.PeerID,
-	getSKey func(sKeyHash [20]byte) (sKey []byte)) (
-	cipher mse.CryptoMethod, peerExtensions [8]byte, peerID protocol.PeerID, err error) {
-
-	var ourInfoHash protocol.InfoHash
-	getAndSaveInfoHash := func(sKeyHash [20]byte) []byte {
-		b := getSKey(sKeyHash)
-		copy(ourInfoHash[:], b)
-		return b
-	}
+	conn net.Conn, forceEncryption bool,
+	getSKey func(sKeyHash [20]byte) (sKey []byte),
+	hasInfoHash func(protocol.InfoHash) bool,
+	ourExtensions [8]byte, ourID protocol.PeerID) (
+	cipher mse.CryptoMethod, peerExtensions [8]byte, ih protocol.InfoHash, peerID protocol.PeerID, err error) {
 
 	if err = conn.SetReadDeadline(time.Now().Add(handshakeDeadline)); err != nil {
 		return
@@ -168,15 +142,13 @@ func handshakeIncoming(
 	var reader io.Reader = io.TeeReader(conn, &buf)
 	var peerInfoHash protocol.InfoHash
 	peerExtensions, peerInfoHash, err = handshake.Read1(reader)
+	conn = &rwConn{readWriter{io.MultiReader(&buf, conn), conn}, conn}
 	if err == handshake.ErrInvalidProtocol {
-		reader = io.MultiReader(&buf, conn)
-		rw := readWriter{reader, conn}
-		conn2 := &rwConn{rw, conn}
-		encConn := mse.WrapConn(conn2)
+		encConn := mse.WrapConn(conn)
 		payloadIn := make([]byte, 68)
 		var lenPayloadIn uint16
 		err = encConn.HandshakeIncoming(
-			getAndSaveInfoHash,
+			getSKey,
 			func(provided mse.CryptoMethod) (selected mse.CryptoMethod) {
 				if provided&mse.RC4 != 0 {
 					selected = mse.RC4
@@ -203,7 +175,7 @@ func handshakeIncoming(
 				if err != nil {
 					return nil, err
 				}
-				if peerInfoHash != ourInfoHash {
+				if !hasInfoHash(peerInfoHash) {
 					return nil, errInvalidInfoHash
 				}
 				peerID, err = handshake.Read2(r)
@@ -211,7 +183,7 @@ func handshakeIncoming(
 					return nil, err
 				}
 				out := bytes.NewBuffer(make([]byte, 0, 68))
-				handshake.Write(out, ourInfoHash, id, ourExtensions)
+				handshake.Write(out, peerInfoHash, ourID, ourExtensions)
 				return out.Bytes(), nil
 			})
 		if err == nil {
@@ -223,7 +195,7 @@ func handshakeIncoming(
 	}
 
 	if forceEncryption && !encrypted {
-		err = errConnectionNotEncrytpted
+		err = errEncryptionForced
 		return
 	}
 
@@ -235,14 +207,14 @@ func handshakeIncoming(
 		if err != nil {
 			return
 		}
-		if peerInfoHash != ourInfoHash {
+		if !hasInfoHash(peerInfoHash) {
 			err = errInvalidInfoHash
 			return
 		}
 		if err = conn.SetWriteDeadline(time.Now().Add(handshakeDeadline)); err != nil {
 			return
 		}
-		err = handshake.Write(conn, ourInfoHash, id, ourExtensions)
+		err = handshake.Write(conn, peerInfoHash, ourID, ourExtensions)
 		if err != nil {
 			return
 		}
@@ -252,7 +224,7 @@ func handshakeIncoming(
 		}
 	}
 
-	if id == peerID {
+	if peerID == ourID {
 		err = errOwnConnection
 		return
 	}
