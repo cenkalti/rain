@@ -16,6 +16,7 @@ import (
 
 	"github.com/cenkalti/rain/internal/magnet"
 	"github.com/cenkalti/rain/internal/protocol"
+	"github.com/cenkalti/rain/internal/protocol/handshake"
 	"github.com/cenkalti/rain/internal/torrent"
 	"github.com/cenkalti/rain/internal/tracker"
 )
@@ -143,14 +144,14 @@ func downloadMetadataFromPeer(m *magnet.Magnet, p *peer) (*torrent.Info, error) 
 	extensions := [8]byte{}
 	extensions[5] |= 0x10 // BEP 10 Extension Protocol
 
-	err = writeHandShake(p.conn, m.InfoHash, peerID, extensions)
+	err = handshake.Write(p.conn, m.InfoHash, peerID, extensions)
 	if err != nil {
 		p.log.Debug("cannot send BT handshake")
 		return nil, err
 	}
 	p.log.Debug("sent BT handshake")
 
-	ex, ih, err := readHandShake1(p.conn)
+	ex, ih, err := handshake.Read1(p.conn)
 	if err != nil {
 		p.log.Debug("cannot read handshake part 1")
 		return nil, err
@@ -162,7 +163,7 @@ func downloadMetadataFromPeer(m *magnet.Magnet, p *peer) (*torrent.Info, error) 
 		return nil, errors.New("extension protocol is not supported by peer")
 	}
 
-	id, err := readHandShake2(p.conn)
+	id, err := handshake.Read2(p.conn)
 	if err != nil {
 		p.log.Debug("cannot read handshake part 2")
 		return nil, err

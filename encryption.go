@@ -10,6 +10,7 @@ import (
 
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/protocol"
+	"github.com/cenkalti/rain/internal/protocol/handshake"
 )
 
 var (
@@ -36,13 +37,13 @@ func connect(addr *net.TCPAddr, ourExtensions [8]byte, ih protocol.InfoHash, our
 		}
 	}()
 
-	err = writeHandShake(conn, ih, ourID, ourExtensions)
+	err = handshake.Write(conn, ih, ourID, ourExtensions)
 	if err != nil {
 		return
 	}
 
 	var ihRead protocol.InfoHash
-	peerExtensions, ihRead, err = readHandShake1(conn)
+	peerExtensions, ihRead, err = handshake.Read1(conn)
 	if err != nil {
 		return
 	}
@@ -51,7 +52,7 @@ func connect(addr *net.TCPAddr, ourExtensions [8]byte, ih protocol.InfoHash, our
 		return
 	}
 
-	peerID, err = readHandShake2(conn)
+	peerID, err = handshake.Read2(conn)
 	if err != nil {
 		return
 	}
@@ -90,7 +91,7 @@ func connectEncrypted(addr *net.TCPAddr, ourExtensions [8]byte, ih protocol.Info
 	}
 
 	out := bytes.NewBuffer(make([]byte, 0, 68))
-	writeHandShake(out, ih, ourID, [8]byte{})
+	handshake.Write(out, ih, ourID, [8]byte{})
 
 	// Try encryption handshake
 	var selected mse.CryptoMethod
@@ -110,7 +111,7 @@ func connectEncrypted(addr *net.TCPAddr, ourExtensions [8]byte, ih protocol.Info
 	conn = encConn
 
 	var ihRead protocol.InfoHash
-	peerExtensions, ihRead, err = readHandShake1(conn)
+	peerExtensions, ihRead, err = handshake.Read1(conn)
 	if err != nil {
 		return
 	}
@@ -119,7 +120,7 @@ func connectEncrypted(addr *net.TCPAddr, ourExtensions [8]byte, ih protocol.Info
 		return
 	}
 
-	peerID, err = readHandShake2(conn)
+	peerID, err = handshake.Read2(conn)
 	if err != nil {
 		return
 	}
@@ -153,8 +154,8 @@ func handshakeIncoming(
 	hasIncomingPayload := false
 	var buf bytes.Buffer
 	var reader io.Reader = io.TeeReader(conn, &buf)
-	peerExtensions, ih, err = readHandShake1(reader)
-	if err == errInvalidProtocol {
+	peerExtensions, ih, err = handshake.Read1(reader)
+	if err == handshake.ErrInvalidProtocol {
 		reader = io.MultiReader(&buf, conn)
 		rw := readWriter{reader, conn}
 		conn2 := &rwConn{rw, conn}
@@ -184,19 +185,19 @@ func handshakeIncoming(
 				}
 				hasIncomingPayload = true
 				r := bytes.NewReader(payloadIn[:lenPayloadIn])
-				peerExtensions, ih, err = readHandShake1(r)
+				peerExtensions, ih, err = handshake.Read1(r)
 				if err != nil {
 					return nil, err
 				}
 				if ih != ourInfoHash {
 					return nil, errInvalidInfoHash
 				}
-				peerID, err = readHandShake2(r)
+				peerID, err = handshake.Read2(r)
 				if err != nil {
 					return nil, err
 				}
 				out := bytes.NewBuffer(make([]byte, 0, 68))
-				writeHandShake(out, ourInfoHash, id, ourExtensions)
+				handshake.Write(out, ourInfoHash, id, ourExtensions)
 				return out.Bytes(), nil
 			})
 		if err == nil {
@@ -213,7 +214,7 @@ func handshakeIncoming(
 	}
 
 	if !hasIncomingPayload {
-		peerExtensions, ih, err = readHandShake1(conn)
+		peerExtensions, ih, err = handshake.Read1(conn)
 		if err != nil {
 			return
 		}
@@ -221,11 +222,11 @@ func handshakeIncoming(
 			err = errInvalidInfoHash
 			return
 		}
-		err = writeHandShake(conn, ourInfoHash, id, ourExtensions)
+		err = handshake.Write(conn, ourInfoHash, id, ourExtensions)
 		if err != nil {
 			return
 		}
-		peerID, err = readHandShake2(conn)
+		peerID, err = handshake.Read2(conn)
 		if err != nil {
 			return
 		}

@@ -1,4 +1,4 @@
-package rain
+package handshake
 
 import (
 	"bytes"
@@ -9,43 +9,46 @@ import (
 	"github.com/cenkalti/rain/internal/protocol"
 )
 
-func writeHandShake(w io.Writer, ih protocol.InfoHash, id protocol.PeerID, extensions [8]byte) error {
+var pstr = [19]byte{'B', 'i', 't', 'T', 'o', 'r',
+	'r', 'e', 'n', 't', ' ', 'p', 'r', 'o', 't', 'o', 'c', 'o', 'l'}
+
+func Write(w io.Writer, ih protocol.InfoHash, id protocol.PeerID, extensions [8]byte) error {
 	var h = struct {
 		Pstrlen    byte
-		Pstr       [protocol.PstrLen]byte
+		Pstr       [len(pstr)]byte
 		Extensions [8]byte
 		InfoHash   protocol.InfoHash
 		PeerID     protocol.PeerID
 	}{
-		Pstrlen:    protocol.PstrLen,
+		Pstrlen:    byte(len(pstr)),
+		Pstr:       pstr,
 		Extensions: extensions,
 		InfoHash:   ih,
 		PeerID:     id,
 	}
-	copy(h.Pstr[:], protocol.Pstr)
 	return binary.Write(w, binary.BigEndian, h)
 }
 
-var errInvalidProtocol = errors.New("invalid protocol")
+var ErrInvalidProtocol = errors.New("invalid protocol")
 
-func readHandShake1(r io.Reader) (extensions [8]byte, ih protocol.InfoHash, err error) {
+func Read1(r io.Reader) (extensions [8]byte, ih protocol.InfoHash, err error) {
 	var pstrLen byte
 	err = binary.Read(r, binary.BigEndian, &pstrLen)
 	if err != nil {
 		return
 	}
-	if pstrLen != protocol.PstrLen {
-		err = errInvalidProtocol
+	if pstrLen != byte(len(pstr)) {
+		err = ErrInvalidProtocol
 		return
 	}
 
-	pstr := make([]byte, protocol.PstrLen)
+	pstr := make([]byte, pstrLen)
 	_, err = io.ReadFull(r, pstr)
 	if err != nil {
 		return
 	}
-	if bytes.Compare(pstr, protocol.Pstr) != 0 {
-		err = errInvalidProtocol
+	if bytes.Compare(pstr, pstr) != 0 {
+		err = ErrInvalidProtocol
 		return
 	}
 
@@ -58,7 +61,7 @@ func readHandShake1(r io.Reader) (extensions [8]byte, ih protocol.InfoHash, err 
 	return
 }
 
-func readHandShake2(r io.Reader) (id protocol.PeerID, err error) {
+func Read2(r io.Reader) (id protocol.PeerID, err error) {
 	_, err = io.ReadFull(r, id[:])
 	return
 }
