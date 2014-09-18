@@ -12,6 +12,13 @@ func TestConfigLoadSave(t *testing.T) {
 	if err != nil && !os.IsNotExist(err) {
 		t.Fatal(err)
 	}
+	defer func() {
+		// Cleanup
+		err = os.Remove(filename)
+		if err != nil {
+			t.Error(err)
+		}
+	}()
 
 	// Test new config
 	c, err := LoadConfig(filename)
@@ -32,12 +39,7 @@ func TestConfigLoadSave(t *testing.T) {
 	}
 	t.Logf("%+v", c)
 	if c.Port != 6 {
-		t.Fatal("invalid port in config")
+		t.Error("invalid port in config")
 	}
 
-	// Cleanup
-	err = os.Remove(filename)
-	if err != nil {
-		t.Fatal(err)
-	}
 }
