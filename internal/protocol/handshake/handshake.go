@@ -9,6 +9,8 @@ import (
 	"github.com/cenkalti/rain/internal/protocol"
 )
 
+var ErrInvalidProtocol = errors.New("invalid protocol")
+
 var pstr = [19]byte{'B', 'i', 't', 'T', 'o', 'r', 'r', 'e', 'n', 't', ' ', 'p', 'r', 'o', 't', 'o', 'c', 'o', 'l'}
 
 func Write(w io.Writer, ih protocol.InfoHash, id protocol.PeerID, extensions [8]byte) error {
@@ -27,8 +29,6 @@ func Write(w io.Writer, ih protocol.InfoHash, id protocol.PeerID, extensions [8]
 	}
 	return binary.Write(w, binary.BigEndian, h)
 }
-
-var ErrInvalidProtocol = errors.New("invalid protocol")
 
 func Read1(r io.Reader) (extensions [8]byte, ih protocol.InfoHash, err error) {
 	var pstrLen byte
