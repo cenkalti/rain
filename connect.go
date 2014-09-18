@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"time"
 
 	"github.com/cenkalti/mse"
 
@@ -18,6 +19,8 @@ var (
 	errInvalidInfoHash              = errors.New("invalid info hash")
 	errConnectionNotEncrytpted      = errors.New("connection is not encrypted")
 	errPeerDoesNotSupportEncryption = errors.New("peer does not support encryption")
+
+	handshakeDeadline = 30 * time.Second
 )
 
 func connect(addr *net.TCPAddr, ourExtensions [8]byte, ih protocol.InfoHash, ourID protocol.PeerID) (
@@ -37,11 +40,17 @@ func connect(addr *net.TCPAddr, ourExtensions [8]byte, ih protocol.InfoHash, our
 		}
 	}()
 
+	if err = conn.SetWriteDeadline(time.Now().Add(handshakeDeadline)); err != nil {
+		return
+	}
 	err = handshake.Write(conn, ih, ourID, ourExtensions)
 	if err != nil {
 		return
 	}
 
+	if err = conn.SetReadDeadline(time.Now().Add(handshakeDeadline)); err != nil {
+		return
+	}
 	var ihRead protocol.InfoHash
 	peerExtensions, ihRead, err = handshake.Read1(conn)
 	if err != nil {
@@ -61,6 +70,7 @@ func connect(addr *net.TCPAddr, ourExtensions [8]byte, ih protocol.InfoHash, our
 		return
 	}
 
+	err = conn.SetDeadline(time.Time{})
 	return
 }
 
@@ -110,6 +120,9 @@ func connectEncrypted(addr *net.TCPAddr, ourExtensions [8]byte, ih protocol.Info
 	log.Debugf("Encryption handshake is successfull. Selected cipher: %d", cipher)
 	conn = encConn
 
+	if err = conn.SetReadDeadline(time.Now().Add(handshakeDeadline)); err != nil {
+		return
+	}
 	var ihRead protocol.InfoHash
 	peerExtensions, ihRead, err = handshake.Read1(conn)
 	if err != nil {
@@ -129,6 +142,7 @@ func connectEncrypted(addr *net.TCPAddr, ourExtensions [8]byte, ih protocol.Info
 		return
 	}
 
+	err = conn.SetDeadline(time.Time{})
 	return
 }
 
@@ -137,17 +151,15 @@ func handshakeIncoming(
 	getSKey func(sKeyHash [20]byte) (sKey []byte)) (
 	peerExtensions [8]byte, ih protocol.InfoHash, peerID protocol.PeerID, err error) {
 
-	// // Give a minute for completing handshake.
-	// err := conn.SetDeadline(time.Now().Add(time.Minute))
-	// if err != nil {
-	// 	return
-	// }
-
 	var ourInfoHash protocol.InfoHash
 	getAndSaveInfoHash := func(sKeyHash [20]byte) []byte {
 		b := getSKey(sKeyHash)
 		copy(ourInfoHash[:], b)
 		return b
+	}
+
+	if err = conn.SetReadDeadline(time.Now().Add(handshakeDeadline)); err != nil {
+		return
 	}
 
 	encrypted := false
@@ -214,12 +226,18 @@ func handshakeIncoming(
 	}
 
 	if !hasIncomingPayload {
+		if err = conn.SetReadDeadline(time.Now().Add(handshakeDeadline)); err != nil {
+			return
+		}
 		peerExtensions, ih, err = handshake.Read1(conn)
 		if err != nil {
 			return
 		}
 		if ih != ourInfoHash {
 			err = errInvalidInfoHash
+			return
+		}
+		if err = conn.SetWriteDeadline(time.Now().Add(handshakeDeadline)); err != nil {
 			return
 		}
 		err = handshake.Write(conn, ourInfoHash, id, ourExtensions)
@@ -237,6 +255,7 @@ func handshakeIncoming(
 		return
 	}
 
+	err = conn.SetDeadline(time.Time{})
 	return
 }
 
