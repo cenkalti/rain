@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net"
 	"sync"
 	"time"
 
@@ -16,7 +15,6 @@ import (
 
 	"github.com/cenkalti/rain/internal/magnet"
 	"github.com/cenkalti/rain/internal/protocol"
-	"github.com/cenkalti/rain/internal/protocol/handshake"
 	"github.com/cenkalti/rain/internal/torrent"
 	"github.com/cenkalti/rain/internal/tracker"
 )
@@ -106,14 +104,25 @@ func (m *MetadataDownloader) worker(peer tracker.Peer) {
 	}()
 	m.peersM.Unlock()
 
-	conn, err := net.DialTCP("tcp4", nil, peer.TCPAddr())
+	ourID, err := generatePeerID()
+	if err != nil {
+		panic(err)
+	}
+
+	ourExtensions := [8]byte{}
+	ourExtensions[5] |= 0x10 // BEP 10 Extension Protocol
+	conn, peerExtensions, _, err := connect(peer.TCPAddr(), ourExtensions, m.magnet.InfoHash, ourID)
 	if err != nil {
 		log.Error(err)
 		return
 	}
 
+	if peerExtensions[5]&0x10 == 0 {
+		log.Debug("Peer does not support extension protocol")
+		return
+	}
+
 	p := newPeer(conn)
-	p.log.Debug("tcp connection is opened")
 
 	info, err := downloadMetadataFromPeer(m.magnet, p)
 	conn.Close()
@@ -131,57 +140,13 @@ func (m *MetadataDownloader) worker(peer tracker.Peer) {
 }
 
 func downloadMetadataFromPeer(m *magnet.Magnet, p *peer) (*torrent.Info, error) {
-	err := p.conn.SetDeadline(time.Now().Add(metadataNetworkTimeout))
-	if err != nil {
-		return nil, err
-	}
-
-	peerID, err := generatePeerID()
-	if err != nil {
-		return nil, err
-	}
-
-	extensions := [8]byte{}
-	extensions[5] |= 0x10 // BEP 10 Extension Protocol
-
-	err = handshake.Write(p.conn, m.InfoHash, peerID, extensions)
-	if err != nil {
-		p.log.Debug("cannot send BT handshake")
-		return nil, err
-	}
-	p.log.Debug("sent BT handshake")
-
-	ex, ih, err := handshake.Read1(p.conn)
-	if err != nil {
-		p.log.Debug("cannot read handshake part 1")
-		return nil, err
-	}
-	if ih != m.InfoHash {
-		return nil, errors.New("unexpected info_hash")
-	}
-	if ex[5]&0x10 == 0 {
-		return nil, errors.New("extension protocol is not supported by peer")
-	}
-
-	id, err := handshake.Read2(p.conn)
-	if err != nil {
-		p.log.Debug("cannot read handshake part 2")
-		return nil, err
-	}
-	if id == peerID {
-		return nil, errors.New("rejected own connection: client")
-	}
-
-	p.log.Debug("BT handshake completed")
-
-	// Extension Protocol Handshake
 	d := &extensionHandshakeMessage{
 		M: extensionMapping{
 			UTMetadata: extensionMetadataID,
 		},
 	}
 
-	err = p.sendExtensionHandshake(d)
+	err := p.sendExtensionHandshake(d)
 	if err != nil {
 		return nil, err
 	}
@@ -201,6 +166,7 @@ func downloadMetadataFromPeer(m *magnet.Magnet, p *peer) (*torrent.Info, error) 
 			return nil, err
 		}
 
+		p.log.Debug("Reading peer message...")
 		var length uint32
 		err = binary.Read(p.conn, binary.BigEndian, &length)
 		if err != nil {
@@ -209,16 +175,19 @@ func downloadMetadataFromPeer(m *magnet.Magnet, p *peer) (*torrent.Info, error) 
 		if length == 0 { // keep-alive
 			continue
 		}
+		p.log.Debugf("Next message length: %d", length)
 
 		var messageID protocol.MessageType
 		err = binary.Read(p.conn, binary.BigEndian, &messageID)
 		if err != nil {
 			return nil, err
 		}
+		p.log.Debugf("messageID: %s\n", messageID)
 		length--
 
 		if messageID != protocol.Extension { // extension message id
 			io.CopyN(ioutil.Discard, p.conn, int64(length))
+			p.log.Debugf("Discarded %d bytes", length)
 			continue
 		}
 		p.log.Debugln("Read extension message")
