@@ -40,7 +40,7 @@ const (
 
 type MetadataDownloader struct {
 	magnet    *magnet.Magnet
-	tracker   tracker.Tracker
+	tracker   tracker.Tracker // TODO support multiple trackers
 	announceC chan *tracker.AnnounceResponse
 	Result    chan *torrent.Info
 	cancel    chan struct{}

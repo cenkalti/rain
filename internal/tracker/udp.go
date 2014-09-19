@@ -5,6 +5,7 @@ package tracker
 // http://www.rasterbar.com/products/libtorrent/udp_tracker_protocol.html
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"errors"
@@ -253,7 +254,11 @@ func (t *udpTracker) Announce(transfer Transfer, e Event, cancel <-chan struct{}
 	}
 	request.SetAction(announce)
 
-	request2 := &transferAnnounceRequest{transfer: transfer, announceRequest: request}
+	request2 := &transferAnnounceRequest{
+		transfer:        transfer,
+		announceRequest: request,
+		urlData:         t.url.Path + "?" + t.url.RawQuery,
+	}
 	trx := newTransaction(request2)
 
 	// t.request may block, that's why we pass cancel as argument.
@@ -386,13 +391,35 @@ type announceRequest struct {
 type transferAnnounceRequest struct {
 	transfer Transfer
 	*announceRequest
+	urlData string
 }
 
 func (r *transferAnnounceRequest) WriteTo(w io.Writer) (int64, error) {
+	buf := bufio.NewWriter(w)
+
 	r.Downloaded = r.transfer.Downloaded()
 	r.Uploaded = r.transfer.Uploaded()
 	r.Left = r.transfer.Left()
-	return 0, binary.Write(w, binary.BigEndian, r.announceRequest)
+	err := binary.Write(buf, binary.BigEndian, r.announceRequest)
+	if err != nil {
+		return 0, err
+	}
+
+	pos := 0
+	for pos < len(r.urlData) {
+		remaining := len(r.urlData) - 1 - pos
+		var size int
+		if remaining > 255 {
+			size = 255
+		} else {
+			size = remaining
+		}
+		buf.Write([]byte{0x2, byte(size)})
+		buf.WriteString(r.urlData[pos : pos+size])
+		pos += size
+	}
+
+	return 0, buf.Flush()
 }
 
 type announceResponse struct {
