@@ -40,7 +40,7 @@ const (
 
 type MetadataDownloader struct {
 	magnet    *magnet.Magnet
-	tracker   tracker.Tracker // TODO support multiple trackers
+	trackers  []tracker.Tracker
 	announceC chan *tracker.AnnounceResponse
 	Result    chan *torrent.Info
 	cancel    chan struct{}
@@ -56,13 +56,18 @@ func NewMetadataDownloader(m *magnet.Magnet) (*MetadataDownloader, error) {
 	if err != nil {
 		return nil, err
 	}
-	tr, err := tracker.New(m.Trackers[0], c)
-	if err != nil {
-		return nil, err
+	trackers := make([]tracker.Tracker, 0, len(m.Trackers))
+	for _, s := range m.Trackers {
+		tr, err := tracker.New(s, c)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		trackers = append(trackers, tr)
 	}
 	return &MetadataDownloader{
 		magnet:    m,
-		tracker:   tr,
+		trackers:  trackers,
 		announceC: make(chan *tracker.AnnounceResponse),
 		Result:    make(chan *torrent.Info, 1),
 		cancel:    make(chan struct{}),
@@ -73,7 +78,9 @@ func NewMetadataDownloader(m *magnet.Magnet) (*MetadataDownloader, error) {
 func (m *MetadataDownloader) Run(announceInterval time.Duration) {
 	t := emptyTransfer(m.magnet.InfoHash)
 	events := make(chan tracker.Event)
-	go tracker.AnnouncePeriodically(m.tracker, &t, m.cancel, tracker.None, events, m.announceC)
+	for _, tr := range m.trackers {
+		go tracker.AnnouncePeriodically(tr, &t, m.cancel, tracker.None, events, m.announceC)
+	}
 	for {
 		select {
 		case resp := <-m.announceC:
