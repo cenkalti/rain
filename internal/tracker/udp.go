@@ -257,7 +257,7 @@ func (t *udpTracker) Announce(transfer Transfer, e Event, cancel <-chan struct{}
 	request2 := &transferAnnounceRequest{
 		transfer:        transfer,
 		announceRequest: request,
-		urlData:         t.url.Path + "?" + t.url.RawQuery,
+		urlData:         t.url.RequestURI(),
 	}
 	trx := newTransaction(request2)
 
@@ -395,31 +395,33 @@ type transferAnnounceRequest struct {
 }
 
 func (r *transferAnnounceRequest) WriteTo(w io.Writer) (int64, error) {
-	buf := bufio.NewWriter(w)
+	buf := bufio.NewWriterSize(w, 98+2+255)
 
-	r.Downloaded = r.transfer.Downloaded()
-	r.Uploaded = r.transfer.Uploaded()
-	r.Left = r.transfer.Left()
+	r.announceRequest.Downloaded = r.transfer.Downloaded()
+	r.announceRequest.Uploaded = r.transfer.Uploaded()
+	r.announceRequest.Left = r.transfer.Left()
 	err := binary.Write(buf, binary.BigEndian, r.announceRequest)
 	if err != nil {
 		return 0, err
 	}
 
-	pos := 0
-	for pos < len(r.urlData) {
-		remaining := len(r.urlData) - 1 - pos
-		var size int
-		if remaining > 255 {
-			size = 255
-		} else {
-			size = remaining
+	if r.urlData != "" {
+		pos := 0
+		for pos < len(r.urlData) {
+			remaining := len(r.urlData) - pos
+			var size int
+			if remaining > 255 {
+				size = 255
+			} else {
+				size = remaining
+			}
+			buf.Write([]byte{0x2, byte(size)})
+			buf.WriteString(r.urlData[pos : pos+size])
+			pos += size
 		}
-		buf.Write([]byte{0x2, byte(size)})
-		buf.WriteString(r.urlData[pos : pos+size])
-		pos += size
 	}
 
-	return 0, buf.Flush()
+	return int64(buf.Buffered()), buf.Flush()
 }
 
 type announceResponse struct {
