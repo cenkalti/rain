@@ -122,11 +122,22 @@ func (t *httpTracker) Announce(transfer Transfer, e Event, cancel <-chan struct{
 		return nil, err
 	}
 
+	// Filter external IP
+	if len(response.ExternalIP) != 0 {
+		for i, p := range peers {
+			if bytes.Equal(p.IP[:], response.ExternalIP) {
+				peers[i], peers = peers[len(peers)-1], peers[:len(peers)-1]
+				break
+			}
+		}
+	}
+
 	return &AnnounceResponse{
-		Interval: time.Duration(response.Interval) * time.Second,
-		Leechers: response.Incomplete,
-		Seeders:  response.Complete,
-		Peers:    peers,
+		Interval:   time.Duration(response.Interval) * time.Second,
+		Leechers:   response.Incomplete,
+		Seeders:    response.Complete,
+		Peers:      peers,
+		ExternalIP: response.ExternalIP,
 	}, nil
 }
 
@@ -147,4 +158,5 @@ type httpTrackerAnnounceResponse struct {
 	Incomplete     int32  `bencode:"incomplete"`
 	Peers          string `bencode:"peers"`
 	Peers6         string `bencode:"peers6"`
+	ExternalIP     []byte `bencode:"external ip"`
 }

@@ -38,11 +38,12 @@ type Transfer interface {
 }
 
 type AnnounceResponse struct {
-	Error    error
-	Interval time.Duration
-	Leechers int32
-	Seeders  int32
-	Peers    []Peer
+	Error      error
+	Interval   time.Duration
+	Leechers   int32
+	Seeders    int32
+	Peers      []Peer
+	ExternalIP net.IP
 }
 
 type ScrapeResponse struct {
