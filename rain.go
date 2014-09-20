@@ -25,7 +25,7 @@ const (
 var peerIDPrefix = []byte("-RN" + build + "-")
 var build = "0001"
 
-func SetLogLevel(l log.Level) { logger.LogLevel = l }
+func SetLogLevel(l log.Level) { logger.DefaultHandler.SetLevel(l) }
 
 type Rain struct {
 	config        *Config

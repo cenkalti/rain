@@ -11,19 +11,19 @@ import (
 
 type Logger log.Logger
 
-// If you want to change the logging level, you must do it before calling New.
-var LogLevel = log.INFO
+var DefaultHandler log.Handler
+
+func init() {
+	h := log.NewWriterHandler(os.Stderr)
+	h.SetFormatter(logFormatter{})
+	h.Colorize = true
+	DefaultHandler = h
+}
 
 func New(name string) Logger {
-	handler := log.NewWriterHandler(os.Stderr)
-	handler.SetFormatter(logFormatter{})
-	handler.Colorize = true
-
 	logger := log.NewLogger(name)
-	logger.SetHandler(handler)
-
-	handler.SetLevel(LogLevel)
-	logger.SetLevel(LogLevel)
+	logger.SetLevel(log.DEBUG) // forward all messages to handler
+	logger.SetHandler(DefaultHandler)
 	return logger
 }
 
