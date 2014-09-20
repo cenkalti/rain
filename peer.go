@@ -91,6 +91,7 @@ func (p *peer) Serve(t *transfer) {
 		}
 
 		var length uint32
+		p.log.Debug("Reading message...")
 		err = binary.Read(p.conn, binary.BigEndian, &length)
 		if err != nil {
 			if err == io.EOF {
@@ -396,7 +397,7 @@ func (p *peer) downloadPiece(piece *piece) error {
 	// Verify piece hash
 	hash := sha1.New()
 	hash.Write(pieceData)
-	if bytes.Compare(hash.Sum(nil), piece.hash) != 0 {
+	if !bytes.Equal(hash.Sum(nil), piece.hash) {
 		return errors.New("received corrupt piece")
 	}
 
