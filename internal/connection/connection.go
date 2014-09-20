@@ -132,16 +132,21 @@ func Accept(
 	ourExtensions [8]byte, ourID protocol.PeerID) (
 	cipher mse.CryptoMethod, peerExtensions [8]byte, ih protocol.InfoHash, peerID protocol.PeerID, err error) {
 
+	isEncrypted := false
+	hasIncomingPayload := false
+
 	if err = conn.SetReadDeadline(time.Now().Add(handshakeDeadline)); err != nil {
 		return
 	}
 
-	encrypted := false
-	hasIncomingPayload := false
+	// Try to do unencrypted handshake first.
+	// If protocol string is not valid, try to do encrypted handshake.
+	// rwConn returns the read bytes again that is read by handshake.Read1.
 	var buf bytes.Buffer
 	var reader io.Reader = io.TeeReader(conn, &buf)
 	peerExtensions, ih, err = handshake.Read1(reader)
 	conn = &rwConn{readWriter{io.MultiReader(&buf, conn), conn}, conn}
+
 	if err == handshake.ErrInvalidProtocol {
 		encConn := mse.WrapConn(conn)
 		payloadIn := make([]byte, 68)
@@ -151,7 +156,7 @@ func Accept(
 			func(provided mse.CryptoMethod) (selected mse.CryptoMethod) {
 				if provided&mse.RC4 != 0 {
 					selected = mse.RC4
-					encrypted = true
+					isEncrypted = true
 				} else if (provided&mse.PlainText != 0) && !forceEncryption {
 					selected = mse.PlainText
 				}
@@ -193,7 +198,7 @@ func Accept(
 		return
 	}
 
-	if forceEncryption && !encrypted {
+	if forceEncryption && !isEncrypted {
 		err = ErrNotEncrypted
 		return
 	}
