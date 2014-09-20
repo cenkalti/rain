@@ -62,7 +62,7 @@ func generatePeerID() (protocol.PeerID, error) {
 // Listen peer port and accept incoming peer connections.
 func (r *Rain) Listen() error {
 	var err error
-	addr := &net.TCPAddr{Port: r.config.Port}
+	addr := &net.TCPAddr{Port: int(r.config.Port)}
 	r.listener, err = net.ListenTCP("tcp4", addr)
 	if err != nil {
 		return err
@@ -97,7 +97,7 @@ func (r *Rain) accepter() {
 }
 
 func (r *Rain) PeerID() protocol.PeerID { return r.peerID }
-func (r *Rain) Port() uint16            { return uint16(r.listener.Addr().(*net.TCPAddr).Port) }
+func (r *Rain) Port() uint16            { return r.config.Port }
 
 func (r *Rain) servePeerConn(p *peer) {
 	p.log.Debugln("Serving peer", p.conn.RemoteAddr())
