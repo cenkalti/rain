@@ -32,7 +32,7 @@ func TestDownload(t *testing.T) {
 	c1.Port = port1
 
 	c2 := rain.DefaultConfig
-	c2.Port = port1
+	c2.Port = port2
 
 	r1, err := rain.New(&c1) // Seeder
 	if err != nil {
