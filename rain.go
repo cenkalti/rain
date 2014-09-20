@@ -91,7 +91,7 @@ func (r *Rain) accepter() {
 				conn.Close()
 				<-limit
 			}()
-			r.servePeerConn(newPeer(conn))
+			r.servePeerConn(newPeer(conn, incoming))
 		}(conn)
 	}
 }

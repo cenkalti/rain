@@ -284,7 +284,7 @@ func (t *udpTracker) Announce(transfer Transfer, e Event, cancel <-chan struct{}
 	}, nil
 }
 
-func (t *udpTracker) parseAnnounceResponse(data []byte) (*announceResponse, []Peer, error) {
+func (t *udpTracker) parseAnnounceResponse(data []byte) (*announceResponse, []*net.TCPAddr, error) {
 	response := new(announceResponse)
 	if len(data) < binary.Size(response) {
 		return nil, nil, errors.New("response is too small")
@@ -302,7 +302,7 @@ func (t *udpTracker) parseAnnounceResponse(data []byte) (*announceResponse, []Pe
 		return nil, nil, errors.New("invalid action")
 	}
 
-	peers, err := t.parsePeers(reader)
+	peers, err := t.parsePeersBinary(reader)
 	if err != nil {
 		return nil, nil, err
 	}

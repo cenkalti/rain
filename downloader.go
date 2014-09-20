@@ -3,6 +3,7 @@ package rain
 import (
 	"errors"
 	"math/rand"
+	"net"
 	"sort"
 	"time"
 
@@ -13,8 +14,8 @@ import (
 type downloader struct {
 	transfer    *transfer
 	remaining   []*piece
-	peersC      chan []tracker.Peer
-	peerC       chan tracker.Peer
+	peersC      chan []*net.TCPAddr
+	peerC       chan *net.TCPAddr
 	haveNotifyC chan struct{}
 	requestC    chan chan *piece
 	responseC   chan *piece
@@ -32,8 +33,8 @@ func newDownloader(t *transfer) *downloader {
 	return &downloader{
 		transfer:    t,
 		remaining:   remaining,
-		peersC:      make(chan []tracker.Peer),
-		peerC:       make(chan tracker.Peer, tracker.NumWant),
+		peersC:      make(chan []*net.TCPAddr),
+		peerC:       make(chan *net.TCPAddr, tracker.NumWant),
 		haveNotifyC: make(chan struct{}, 1),
 		requestC:    make(chan chan *piece),
 		responseC:   make(chan *piece),
@@ -79,7 +80,7 @@ func (d *downloader) peerManager() {
 		select {
 		case peers := <-d.peersC:
 			for _, peer := range peers {
-				d.log.Debug("Peer:", peer.TCPAddr())
+				d.log.Debug("Peer:", peer)
 				select {
 				case d.peerC <- peer:
 				default:
@@ -100,14 +101,14 @@ func (d *downloader) connecter() {
 		select {
 		case p := <-d.peerC:
 			limit <- struct{}{}
-			go func(peer tracker.Peer) {
+			go func(peer *net.TCPAddr) {
 				defer func() {
 					if err := recover(); err != nil {
 						d.transfer.log.Critical(err)
 					}
 					<-limit
 				}()
-				d.transfer.connectToPeer(peer.TCPAddr())
+				d.transfer.connectToPeer(peer)
 			}(p)
 		case <-d.cancelC:
 			return

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"sync"
 	"time"
 
@@ -44,7 +45,7 @@ type MetadataDownloader struct {
 	announceC chan *tracker.AnnounceResponse
 	Result    chan *torrent.Info
 	cancel    chan struct{}
-	peers     map[tracker.Peer]struct{} // connecting or connected
+	peers     map[*net.TCPAddr]struct{} // connecting or connected
 	peersM    sync.Mutex
 }
 
@@ -71,7 +72,7 @@ func NewMetadataDownloader(m *magnet.Magnet) (*MetadataDownloader, error) {
 		announceC: make(chan *tracker.AnnounceResponse),
 		Result:    make(chan *torrent.Info, 1),
 		cancel:    make(chan struct{}),
-		peers:     make(map[tracker.Peer]struct{}),
+		peers:     make(map[*net.TCPAddr]struct{}),
 	}, nil
 }
 
@@ -97,7 +98,7 @@ func (m *MetadataDownloader) Run(announceInterval time.Duration) {
 	}
 }
 
-func (m *MetadataDownloader) worker(peer tracker.Peer) {
+func (m *MetadataDownloader) worker(peer *net.TCPAddr) {
 	// Do not open multiple connections to the same peer simultaneously.
 	m.peersM.Lock()
 	if _, ok := m.peers[peer]; ok {
@@ -119,7 +120,7 @@ func (m *MetadataDownloader) worker(peer tracker.Peer) {
 
 	ourExtensions := [8]byte{}
 	ourExtensions[5] |= 0x10 // BEP 10 Extension Protocol
-	conn, _, peerExtensions, _, err := connection.Dial(peer.TCPAddr(), true, false, ourExtensions, m.magnet.InfoHash, ourID)
+	conn, _, peerExtensions, _, err := connection.Dial(peer, true, false, ourExtensions, m.magnet.InfoHash, ourID)
 	if err != nil {
 		log.Error(err)
 		return
@@ -131,7 +132,7 @@ func (m *MetadataDownloader) worker(peer tracker.Peer) {
 		return
 	}
 
-	p := newPeer(conn)
+	p := newPeer(conn, outgoing)
 
 	info, err := downloadMetadataFromPeer(m.magnet, p)
 	conn.Close()

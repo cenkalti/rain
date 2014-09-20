@@ -42,26 +42,12 @@ type AnnounceResponse struct {
 	Interval   time.Duration
 	Leechers   int32
 	Seeders    int32
-	Peers      []Peer
+	Peers      []*net.TCPAddr
 	ExternalIP net.IP
 }
 
 type ScrapeResponse struct {
 	// TODO not implemented
-}
-
-type Peer struct {
-	IP   [net.IPv4len]byte
-	Port uint16
-}
-
-func (p Peer) TCPAddr() *net.TCPAddr {
-	ip := make(net.IP, net.IPv4len)
-	copy(ip, p.IP[:])
-	return &net.TCPAddr{
-		IP:   ip,
-		Port: int(p.Port),
-	}
 }
 
 func New(trackerURL string, c Client) (Tracker, error) {
@@ -139,8 +125,8 @@ type Client interface {
 	Port() uint16
 }
 
-// parsePeers parses compact representation of peer list.
-func (t *trackerBase) parsePeers(r *bytes.Reader) ([]Peer, error) {
+// parsePeersBinary parses compact representation of peer list.
+func (t *trackerBase) parsePeersBinary(r *bytes.Reader) ([]*net.TCPAddr, error) {
 	t.log.Debugf("len(rest): %#v", r.Len())
 	if r.Len()%6 != 0 {
 		return nil, errors.New("invalid peer list")
@@ -148,14 +134,19 @@ func (t *trackerBase) parsePeers(r *bytes.Reader) ([]Peer, error) {
 
 	count := r.Len() / 6
 	t.log.Debugf("count of peers: %#v", count)
-	peers := make([]Peer, count)
+	peers := make([]*net.TCPAddr, count)
 	for i := 0; i < count; i++ {
-		if err := binary.Read(r, binary.BigEndian, &peers[i]); err != nil {
+		var peer struct {
+			IP   [net.IPv4len]byte
+			Port uint16
+		}
+		if err := binary.Read(r, binary.BigEndian, &peer); err != nil {
 			return nil, err
 		}
+		peers[i] = &net.TCPAddr{IP: peer.IP[:], Port: int(peer.Port)}
 	}
-	t.log.Debugf("peers: %#v\n", peers)
 
+	t.log.Debugf("peers: %#v\n", peers)
 	return peers, nil
 }
 

@@ -89,6 +89,10 @@ func (t *transfer) Run() {
 	for {
 		select {
 		case announceResponse := <-announceC:
+			if announceResponse.Error != nil {
+				t.log.Error(announceResponse.Error)
+				break
+			}
 			t.log.Infof("Announce: %d seeder, %d leecher", announceResponse.Seeders, announceResponse.Leechers)
 			downloader.peersC <- announceResponse.Peers
 		case peerHave := <-t.haveC:
@@ -116,7 +120,7 @@ func (t *transfer) connectToPeer(addr *net.TCPAddr) {
 		return
 	}
 	defer conn.Close()
-	p := newPeer(conn)
+	p := newPeer(conn, outgoing)
 	p.log.Info("Connected to peer")
 	p.log.Debugf("Peer extensions: %s", ext)
 	p.Serve(t)

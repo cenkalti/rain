@@ -117,7 +117,16 @@ func (t *httpTracker) Announce(transfer Transfer, e Event, cancel <-chan struct{
 		t.trackerID = response.TrackerId
 	}
 
-	peers, err := t.parsePeers(bytes.NewReader([]byte(response.Peers)))
+	// Peers may be in binary or dictionary model.
+	var peers []*net.TCPAddr
+	var err error
+	if len(response.Peers) > 0 {
+		if response.Peers[0] == 'l' {
+			peers, err = t.parsePeersDictionary(response.Peers)
+		} else {
+			peers, err = t.parsePeersBinary(bytes.NewReader(response.Peers))
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -141,6 +150,24 @@ func (t *httpTracker) Announce(transfer Transfer, e Event, cancel <-chan struct{
 	}, nil
 }
 
+func (t *httpTracker) parsePeersDictionary(b bencode.RawMessage) ([]*net.TCPAddr, error) {
+	var peers []struct {
+		IP   string `bencode:"ip"`
+		Port uint16 `bencode:"port"`
+	}
+	err := bencode.DecodeBytes(b, &peers)
+	if err != nil {
+		return nil, err
+	}
+
+	addrs := make([]*net.TCPAddr, len(peers))
+	for i, p := range peers {
+		pe := &net.TCPAddr{IP: net.ParseIP(p.IP), Port: int(p.Port)}
+		addrs[i] = pe
+	}
+	return addrs, err
+}
+
 func (t *httpTracker) Scrape(transfers []Transfer) (*ScrapeResponse, error) { return nil, nil }
 
 func (t *httpTracker) Close() error {
@@ -149,14 +176,14 @@ func (t *httpTracker) Close() error {
 }
 
 type httpTrackerAnnounceResponse struct {
-	FailureReason  string `bencode:"failure reason"`
-	WarningMessage string `bencode:"warning message"`
-	Interval       int32  `bencode:"interval"`
-	MinInterval    int32  `bencode:"min interval"`
-	TrackerId      string `bencode:"tracker id"`
-	Complete       int32  `bencode:"complete"`
-	Incomplete     int32  `bencode:"incomplete"`
-	Peers          string `bencode:"peers"`
-	Peers6         string `bencode:"peers6"`
-	ExternalIP     []byte `bencode:"external ip"`
+	FailureReason  string             `bencode:"failure reason"`
+	WarningMessage string             `bencode:"warning message"`
+	Interval       int32              `bencode:"interval"`
+	MinInterval    int32              `bencode:"min interval"`
+	TrackerId      string             `bencode:"tracker id"`
+	Complete       int32              `bencode:"complete"`
+	Incomplete     int32              `bencode:"incomplete"`
+	Peers          bencode.RawMessage `bencode:"peers"`
+	Peers6         string             `bencode:"peers6"`
+	ExternalIP     []byte             `bencode:"external ip"`
 }

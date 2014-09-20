@@ -2,6 +2,7 @@ package rain_test
 
 import (
 	"io/ioutil"
+	"net"
 	"net/http"
 	"testing"
 	"time"
@@ -18,8 +19,8 @@ const (
 	port1       = 6881
 	port2       = 6882
 	trackerAddr = ":5000"
-	torrentFile = "/Users/cenk/torrent_test/sample_torrent.torrent"
-	torrentData = "/Users/cenk/torrent_test/sample_torrent"
+	torrentFile = "testfiles/sample_torrent.torrent"
+	torrentData = "testfiles"
 )
 
 func init() {
@@ -48,17 +49,22 @@ func TestDownload(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Start tracker
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
 	registry := tracker.NewInMemoryRegistry()
 	s := server.New(120, 30, registry, logger)
+	l, err := net.Listen("tcp", trackerAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
 	go func() {
-		if err := http.ListenAndServe(trackerAddr, s); err != nil {
+		if err := http.Serve(l, s); err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	go r1.Run(torrentFile, "")
+	go r1.Run(torrentFile, torrentData)
 
 	// Wait for r1 to announce to tracker.
 	time.Sleep(2 * time.Second)

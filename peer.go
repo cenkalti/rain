@@ -22,6 +22,11 @@ import (
 // All current implementations use 2^14 (16 kiB), and close connections which request an amount greater than that.
 const blockSize = 16 * 1024
 
+const (
+	outgoing = iota
+	incoming
+)
+
 type peer struct {
 	conn         net.Conn
 	disconnected chan struct{} // will be closed when peer disconnects
@@ -42,7 +47,14 @@ type peer struct {
 	log logger.Logger
 }
 
-func newPeer(conn net.Conn) *peer {
+func newPeer(conn net.Conn, direction int) *peer {
+	var arrow string
+	switch direction {
+	case outgoing:
+		arrow = "-> "
+	case incoming:
+		arrow = "<- "
+	}
 	return &peer{
 		conn:         conn,
 		disconnected: make(chan struct{}),
@@ -50,7 +62,7 @@ func newPeer(conn net.Conn) *peer {
 		requests:     make(chan peerRequest, 10),
 		amChoking:    true,
 		peerChoking:  true,
-		log:          logger.New("peer " + conn.RemoteAddr().String()),
+		log:          logger.New("peer " + arrow + conn.RemoteAddr().String()),
 	}
 }
 
@@ -62,8 +74,7 @@ func (p *peer) Serve(t *transfer) {
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 
 	// Do not send bitfield if we don't have any pieces.
-	// uTorrent seems to be dropping connections that send an empty bitfield message.
-	if t.bitField.Count() != 0 {
+	if t.bitField.Count() > 0 {
 		err := p.sendBitField(t.bitField)
 		if err != nil {
 			p.log.Error(err)
