@@ -1,6 +1,8 @@
 package rain
 
 import (
+	"time"
+
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/protocol"
 )
@@ -43,6 +45,11 @@ func (u *uploader) requestSelector() {
 			}
 		}
 		u.transfer.peersM.RUnlock()
+
+		if request.peer == nil {
+			time.Sleep(time.Second) // TODO remove sleep
+			continue
+		}
 
 		select {
 		case u.requestC <- request:
