@@ -119,7 +119,7 @@ func (r *Rain) servePeerConn(p *peer) {
 		return ok
 	}
 
-	_, _, ih, _, err := connection.Accept(p.conn, r.config.Encryption.ForceIncoming, getSKey, hasInfoHash, [8]byte{}, r.peerID)
+	_, _, ih, _, err := connection.Accept(p.conn, getSKey, r.config.Encryption.ForceIncoming, hasInfoHash, [8]byte{}, r.peerID)
 	if err != nil {
 		if err == connection.ErrOwnConnection {
 			r.log.Debug(err)

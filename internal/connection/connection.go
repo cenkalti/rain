@@ -126,11 +126,16 @@ func Dial(addr net.Addr, enableEncryption, forceEncryption bool, ourExtensions [
 }
 
 func Accept(
-	conn net.Conn, forceEncryption bool,
+	conn net.Conn,
 	getSKey func(sKeyHash [20]byte) (sKey []byte),
+	forceEncryption bool,
 	hasInfoHash func(protocol.InfoHash) bool,
 	ourExtensions [8]byte, ourID protocol.PeerID) (
 	cipher mse.CryptoMethod, peerExtensions [8]byte, ih protocol.InfoHash, peerID protocol.PeerID, err error) {
+
+	if forceEncryption && getSKey == nil {
+		panic("forceEncryption && getSKey == nil")
+	}
 
 	isEncrypted := false
 	hasIncomingPayload := false
@@ -147,7 +152,7 @@ func Accept(
 	peerExtensions, ih, err = handshake.Read1(reader)
 	conn = &rwConn{readWriter{io.MultiReader(&buf, conn), conn}, conn}
 
-	if err == handshake.ErrInvalidProtocol {
+	if err == handshake.ErrInvalidProtocol && getSKey != nil {
 		encConn := mse.WrapConn(conn)
 		payloadIn := make([]byte, 68)
 		var lenPayloadIn uint16
