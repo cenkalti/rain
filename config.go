@@ -8,7 +8,6 @@ import (
 )
 
 type Config struct {
-	filename   string
 	Port       int
 	Encryption struct {
 		DisableOutgoing bool `yaml:"disable_outgoing"`
@@ -22,28 +21,16 @@ var DefaultConfig = Config{
 }
 
 func LoadConfig(filename string) (*Config, error) {
+	c := DefaultConfig
 	b, err := ioutil.ReadFile(filename)
-	if err != nil {
-		if os.IsNotExist(err) {
-			c := DefaultConfig
-			c.filename = filename
-			return &c, c.Save()
-		} else {
-			return nil, err
-		}
+	if os.IsNotExist(err) {
+		return &c, nil
 	}
-	c := &Config{filename: filename}
-	err = yaml.Unmarshal(b, c)
 	if err != nil {
 		return nil, err
 	}
-	return c, nil
-}
-
-func (c *Config) Save() error {
-	b, err := yaml.Marshal(c)
-	if err != nil {
-		return err
+	if err = yaml.Unmarshal(b, &c); err != nil {
+		return nil, err
 	}
-	return ioutil.WriteFile(c.filename, b, 0644)
+	return &c, nil
 }
