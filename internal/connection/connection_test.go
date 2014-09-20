@@ -54,7 +54,7 @@ func TestUnencrypted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cipher, ext, ih, id, err := connection.Accept(conn, false, nil, func(ih protocol.InfoHash) bool { return ih == infoHash }, ext2, id2)
+	cipher, ext, ih, id, err := connection.Accept(conn, nil, false, func(ih protocol.InfoHash) bool { return ih == infoHash }, ext2, id2)
 	<-done
 	if err != nil {
 		t.Fatal(err)
@@ -104,13 +104,14 @@ func TestEncrypted(t *testing.T) {
 		t.Fatal(err)
 	}
 	cipher, ext, ih, id, err := connection.Accept(
-		conn, false,
+		conn,
 		func(h [20]byte) (sKey []byte) {
 			if h == sKeyHash {
 				return infoHash[:]
 			}
 			return nil
 		},
+		false,
 		func(ih protocol.InfoHash) bool { return ih == infoHash },
 		ext2, id2)
 	<-done

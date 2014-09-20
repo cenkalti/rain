@@ -195,16 +195,15 @@ func Accept(
 				handshake.Write(out, ih, ourID, ourExtensions)
 				return out.Bytes(), nil
 			})
+		if forceEncryption && !isEncrypted {
+			err = ErrNotEncrypted
+			return
+		}
 		if err == nil {
 			conn = encConn
 		}
 	}
 	if err != nil {
-		return
-	}
-
-	if forceEncryption && !isEncrypted {
-		err = ErrNotEncrypted
 		return
 	}
 
