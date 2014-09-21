@@ -102,8 +102,6 @@ func (r *Rain) PeerID() protocol.PeerID { return r.peerID }
 func (r *Rain) Port() uint16            { return r.config.Port }
 
 func (r *Rain) servePeer(conn net.Conn) {
-	p := newPeer(conn, incoming)
-
 	getSKey := func(sKeyHash [20]byte) (sKey []byte) {
 		r.transfersM.Lock()
 		t, ok := r.transfersSKey[sKeyHash]
@@ -121,7 +119,7 @@ func (r *Rain) servePeer(conn net.Conn) {
 		return ok
 	}
 
-	encConn, _, _, ih, _, err := connection.Accept(p.conn, getSKey, r.config.Encryption.ForceIncoming, hasInfoHash, [8]byte{}, r.peerID)
+	encConn, _, _, ih, _, err := connection.Accept(conn, getSKey, r.config.Encryption.ForceIncoming, hasInfoHash, [8]byte{}, r.peerID)
 	if err != nil {
 		if err == connection.ErrOwnConnection {
 			r.log.Debug(err)
@@ -130,7 +128,8 @@ func (r *Rain) servePeer(conn net.Conn) {
 		}
 		return
 	}
-	p.conn = encConn
+
+	p := newPeer(encConn, incoming)
 	p.log.Info("Connection accepted")
 
 	r.transfersM.Lock()
