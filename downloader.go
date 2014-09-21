@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math/rand"
 	"net"
+	"runtime"
 	"sort"
 	"time"
 
@@ -113,6 +114,8 @@ func (d *downloader) connecter() {
 			go func(peer *net.TCPAddr) {
 				defer func() {
 					if err := recover(); err != nil {
+						buf := make([]byte, 10000)
+						d.transfer.log.Debug("\n\n" + string(buf[:runtime.Stack(buf, false)]))
 						d.transfer.log.Critical(err)
 					}
 					<-limit

@@ -71,7 +71,7 @@ func TestDownload(t *testing.T) {
 	r1.Start(t1)
 
 	// Wait for r1 to announce to tracker.
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	where, err := ioutil.TempDir("", "rain-")
 	if err != nil {

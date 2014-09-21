@@ -3,6 +3,7 @@ package rain
 import (
 	"crypto/rand"
 	"net"
+	"runtime"
 	"sync"
 
 	"github.com/cenkalti/log"
@@ -86,6 +87,8 @@ func (r *Rain) accepter() {
 		go func(conn net.Conn) {
 			defer func() {
 				if err := recover(); err != nil {
+					buf := make([]byte, 10000)
+					r.log.Debug("\n\n" + string(buf[:runtime.Stack(buf, false)]))
 					r.log.Critical(err)
 				}
 				conn.Close()
