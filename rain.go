@@ -103,7 +103,6 @@ func (r *Rain) Port() uint16            { return r.config.Port }
 
 func (r *Rain) servePeer(conn net.Conn) {
 	p := newPeer(conn, incoming)
-	p.log.Debugln("Serving peer", p.conn.RemoteAddr())
 
 	getSKey := func(sKeyHash [20]byte) (sKey []byte) {
 		r.transfersM.Lock()
@@ -132,6 +131,7 @@ func (r *Rain) servePeer(conn net.Conn) {
 		return
 	}
 	p.conn = encConn
+	p.log.Info("Connection accepted")
 
 	r.transfersM.Lock()
 	t, ok := r.transfers[ih]

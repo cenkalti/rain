@@ -111,7 +111,7 @@ func (d *downloader) connecter() {
 			}
 
 			limit <- struct{}{}
-			go func(peer *net.TCPAddr) {
+			go func(addr *net.TCPAddr) {
 				defer func() {
 					if err := recover(); err != nil {
 						buf := make([]byte, 10000)
@@ -119,7 +119,7 @@ func (d *downloader) connecter() {
 					}
 					<-limit
 				}()
-				d.transfer.connect(peer)
+				d.transfer.connect(addr)
 			}(p)
 		case <-d.cancelC:
 			return
