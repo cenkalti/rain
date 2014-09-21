@@ -26,8 +26,8 @@ type downloader struct {
 
 func newDownloader(t *transfer) *downloader {
 	remaining := make([]*piece, 0, len(t.pieces))
-	for i := range t.pieces {
-		if !t.pieces[i].ok {
+	for i := uint32(0); i < t.bitField.Len(); i++ {
+		if t.bitField.Test(i) {
 			remaining = append(remaining, t.pieces[i])
 		}
 	}
@@ -191,6 +191,7 @@ func (d *downloader) pieceDownloader() {
 				// responseC <- nil
 				continue
 			}
+			d.transfer.bitField.Set(piece.index)
 
 			select {
 			case d.responseC <- piece:

@@ -413,7 +413,6 @@ func (p *peer) downloadPiece(piece *piece) error {
 	}
 
 	piece.log.Debug("piece written successfully")
-	piece.ok = true
 	return nil
 }
 

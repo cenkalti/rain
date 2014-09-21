@@ -40,6 +40,16 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 		return nil, err
 	}
 	pieces := newPieces(tor.Info, files)
+	bitField := bitfield.New(nil, uint32(len(pieces)))
+	for _, p := range pieces {
+		ok, err := p.hashCheck()
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			bitField.Set(p.index)
+		}
+	}
 	name := tor.Info.Name
 	if len(name) > 8 {
 		name = name[:8]
@@ -49,7 +59,7 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 		tracker:  tracker,
 		torrent:  tor,
 		pieces:   pieces,
-		bitField: bitfield.New(nil, uint32(len(pieces))),
+		bitField: bitField,
 		Finished: make(chan struct{}),
 		haveC:    make(chan peerHave),
 		peers:    make(map[*peer]struct{}),
@@ -58,9 +68,17 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 }
 
 func (t *transfer) InfoHash() protocol.InfoHash { return t.torrent.Info.Hash }
-func (t *transfer) Downloaded() int64           { return int64(t.bitField.Count() * t.torrent.Info.PieceLength) }
-func (t *transfer) Uploaded() int64             { return 0 } // TODO
-func (t *transfer) Left() int64                 { return t.torrent.Info.TotalLength - t.Downloaded() }
+func (t *transfer) Downloaded() int64 {
+	var sum int64
+	for i := uint32(0); i < t.bitField.Len(); i++ {
+		if t.bitField.Test(i) {
+			sum += int64(t.pieces[i].length)
+		}
+	}
+	return sum
+}
+func (t *transfer) Uploaded() int64 { return 0 } // TODO
+func (t *transfer) Left() int64     { return t.torrent.Info.TotalLength - t.Downloaded() }
 
 func (t *transfer) Run() {
 	sKey := mse.HashSKey(t.torrent.Info.Hash[:])
@@ -78,7 +96,11 @@ func (t *transfer) Run() {
 	}()
 
 	announceC := make(chan *tracker.AnnounceResponse)
-	go tracker.AnnouncePeriodically(t.tracker, t, nil, tracker.Started, nil, announceC)
+	if t.bitField.All() {
+		go tracker.AnnouncePeriodically(t.tracker, t, nil, tracker.Completed, nil, announceC)
+	} else {
+		go tracker.AnnouncePeriodically(t.tracker, t, nil, tracker.Started, nil, announceC)
+	}
 
 	downloader := newDownloader(t)
 	go downloader.Run()

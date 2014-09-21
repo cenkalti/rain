@@ -25,7 +25,7 @@ var (
 func Dial(addr net.Addr, enableEncryption, forceEncryption bool, ourExtensions [8]byte, ih protocol.InfoHash, ourID protocol.PeerID) (
 	conn net.Conn, cipher mse.CryptoMethod, peerExtensions [8]byte, peerID protocol.PeerID, err error) {
 
-	log := logger.New("peer -> " + addr.String())
+	log := logger.New("conn -> " + addr.String())
 
 	// First connection
 	log.Debug("Connecting to peer...")
@@ -133,6 +133,8 @@ func Accept(
 	ourExtensions [8]byte, ourID protocol.PeerID) (
 	cipher mse.CryptoMethod, peerExtensions [8]byte, ih protocol.InfoHash, peerID protocol.PeerID, err error) {
 
+	log := logger.New("conn <- " + conn.RemoteAddr().String())
+
 	if forceEncryption && getSKey == nil {
 		panic("forceEncryption && getSKey == nil")
 	}
@@ -200,6 +202,7 @@ func Accept(
 			return
 		}
 		if err == nil {
+			log.Debugf("Encryption handshake is successfull. Selected cipher: %d", cipher)
 			conn = encConn
 		}
 	}

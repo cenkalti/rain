@@ -1,6 +1,8 @@
 package rain
 
 import (
+	"bytes"
+	"crypto/sha1"
 	"os"
 	"strconv"
 	"sync"
@@ -20,7 +22,6 @@ type piece struct {
 	bitField bitfield.BitField // blocks we have
 	peers    []*peer           // contains peers that have this piece
 	peersM   sync.Mutex
-	ok       bool // we have the piece and hash check is ok
 	blockC   chan peerBlock
 	log      logger.Logger
 }
@@ -131,6 +132,20 @@ func newBlocks(pieceLength uint32, files partialfile.Files) []block {
 		}
 	}
 	return blocks
+}
+
+func (p *piece) hashCheck() (ok bool, err error) {
+	b := make([]byte, p.length)
+	_, err = p.files.Read(b)
+	if err != nil {
+		return
+	}
+	hash := sha1.New()
+	hash.Write(b)
+	if bytes.Equal(hash.Sum(nil), p.hash) {
+		ok = true
+	}
+	return
 }
 
 func divMod32(a, b uint32) (uint32, uint32) { return a / b, a % b }
