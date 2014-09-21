@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
@@ -100,6 +101,11 @@ func TestDownload(t *testing.T) {
 		filepath.Join(torrentDataDir, torrentName),
 		filepath.Join(where, torrentName))
 	err = cmd.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.RemoveAll(where)
 	if err != nil {
 		t.Fatal(err)
 	}
