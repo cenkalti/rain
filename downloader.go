@@ -66,7 +66,7 @@ func (d *downloader) Run() {
 			t.bitField.Set(p.index) // #####
 			left--
 			if left == 0 {
-				t.log.Notice("Finished")
+				t.log.Notice("Download finished.")
 				close(t.Finished)
 				return
 			}

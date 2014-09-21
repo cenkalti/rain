@@ -64,7 +64,11 @@ func TestDownload(t *testing.T) {
 		}
 	}()
 
-	go r1.Run(torrentFile, torrentData)
+	t1, err := r1.Add(torrentFile, torrentData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r1.Start(t1)
 
 	// Wait for r1 to announce to tracker.
 	time.Sleep(2 * time.Second)
@@ -74,7 +78,10 @@ func TestDownload(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err = r2.Download(torrentFile, where); err != nil {
+	t2, err := r2.Add(torrentFile, where)
+	if err != nil {
 		t.Fatal(err)
 	}
+	r2.Start(t2)
+	<-t2.Finished
 }

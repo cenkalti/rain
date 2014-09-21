@@ -141,25 +141,17 @@ func (r *Rain) servePeerConn(p *peer) {
 	p.Serve(t)
 }
 
-// Download starts a download and waits for it to finish.
-func (r *Rain) Download(torrentPath, where string) error {
+func (r *Rain) Add(torrentPath, where string) (*transfer, error) {
 	torrent, err := torrent.New(torrentPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	r.log.Debugf("Parsed torrent file: %#v", torrent)
-
-	t, err := r.newTransfer(torrent, where)
-	if err != nil {
-		return err
-	}
-
-	go t.Run()
-	<-t.Finished
-
-	return nil
+	return r.newTransfer(torrent, where)
 }
 
-func (r *Rain) DownloadMagnet(url, where string) error {
-	panic("not implemented")
-}
+func (r *Rain) AddMagnet(url, where string) (*transfer, error) { panic("not implemented") }
+
+func (r *Rain) Start(t *transfer)  { go t.Run() }
+func (r *Rain) Stop(t *transfer)   { panic("not implemented") }
+func (r *Rain) Remove(t *transfer) { panic("not implemented") }
