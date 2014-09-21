@@ -1,6 +1,7 @@
 package rain
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
@@ -35,7 +36,7 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 	if err != nil {
 		return nil, err
 	}
-	files, err := allocate(tor.Info, where)
+	files, err := openAllocate(tor.Info, where)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +149,7 @@ func (t *transfer) connectToPeer(addr *net.TCPAddr) {
 	p.Serve(t)
 }
 
-func allocate(info *torrent.Info, where string) ([]*os.File, error) {
+func openAllocate(info *torrent.Info, where string) ([]*os.File, error) {
 	if !info.MultiFile {
 		f, err := createTruncateSync(filepath.Join(where, info.Name), info.Length)
 		if err != nil {
@@ -175,19 +176,27 @@ func allocate(info *torrent.Info, where string) ([]*os.File, error) {
 }
 
 func createTruncateSync(path string, length int64) (*os.File, error) {
-	f, err := os.Create(path)
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0640)
 	if err != nil {
 		return nil, err
 	}
 
-	err = f.Truncate(length)
+	fi, err := f.Stat()
 	if err != nil {
 		return nil, err
 	}
 
-	err = f.Sync()
-	if err != nil {
-		return nil, err
+	if fi.Size() == 0 {
+		if err = f.Truncate(length); err != nil {
+			return nil, err
+		}
+		if err = f.Sync(); err != nil {
+			return nil, err
+		}
+	} else {
+		if fi.Size() != length {
+			return nil, fmt.Errorf("%s expected to be %d bytes but it is %d bytes", path, length, fi.Size())
+		}
 	}
 
 	return f, nil

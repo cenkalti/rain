@@ -272,10 +272,8 @@ func (p *peer) Serve(t *transfer) {
 }
 
 func (p *peer) sendBitField(b bitfield.BitField) error {
-	var buf bytes.Buffer
-	length := int32(1 + len(b.Bytes()))
-	buf.Grow(4 + int(length))
-	err := binary.Write(&buf, binary.BigEndian, length)
+	buf := bytes.NewBuffer(make([]byte, 0, 5+len(b.Bytes())))
+	err := binary.Write(buf, binary.BigEndian, uint32(1+len(b.Bytes())))
 	if err != nil {
 		return err
 	}
@@ -286,7 +284,7 @@ func (p *peer) sendBitField(b bitfield.BitField) error {
 		return err
 	}
 	p.log.Debugf("Sending message: \"bitfield\" %#v", buf.Bytes())
-	_, err = io.Copy(p.conn, &buf)
+	_, err = buf.WriteTo(p.conn)
 	return err
 }
 
