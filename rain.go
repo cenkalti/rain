@@ -84,16 +84,16 @@ func (r *Rain) accepter() {
 			return
 		}
 		limit <- struct{}{}
-		go func(conn net.Conn) {
+		go func(c net.Conn) {
 			defer func() {
 				if err := recover(); err != nil {
 					buf := make([]byte, 10000)
 					r.log.Critical(err, "\n", string(buf[:runtime.Stack(buf, false)]))
 				}
-				conn.Close()
+				c.Close()
 				<-limit
 			}()
-			r.servePeer(conn)
+			r.servePeer(c)
 		}(conn)
 	}
 }

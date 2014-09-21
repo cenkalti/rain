@@ -31,17 +31,18 @@ type peer struct {
 	conn         net.Conn
 	disconnected chan struct{} // will be closed when peer disconnects
 
-	unchokeM       sync.Mutex    // protects unchokeC
-	unchokeC       chan struct{} // will be closed when and "unchoke" message is received
-	onceInterested sync.Once     // for sending "interested" message only once
-
-	requests chan peerRequest
-
 	amChoking      bool // this client is choking the peer
 	amInterested   bool // this client is interested in the peer
 	peerChoking    bool // peer is choking this client
 	peerInterested bool // peer is interested in this client
-	// peerRequests   map[uint64]bool      // What remote peer requested
+
+	onceInterested sync.Once // for sending "interested" message only once
+
+	// Protects "peerChoking" and broadcasts when an "unchoke" message is received.
+	unchokeCond sync.Cond
+
+	// What remote peer requested
+	requests chan peerRequest
 	// ourRequests    map[uint64]time.Time // What we requested, when we requested it
 
 	log logger.Logger
@@ -55,13 +56,14 @@ func newPeer(conn net.Conn, direction int) *peer {
 	case incoming:
 		arrow = "<- "
 	}
+	var m sync.Mutex
 	return &peer{
 		conn:         conn,
 		disconnected: make(chan struct{}),
-		unchokeC:     make(chan struct{}),
-		requests:     make(chan peerRequest, 10),
 		amChoking:    true,
 		peerChoking:  true,
+		unchokeCond:  sync.Cond{L: &m},
+		requests:     make(chan peerRequest, 10),
 		log:          logger.New("peer " + arrow + conn.RemoteAddr().String()),
 	}
 }
@@ -131,17 +133,17 @@ func (p *peer) Serve(t *transfer) {
 
 		switch msgType {
 		case protocol.Choke:
+			p.unchokeCond.L.Lock()
 			p.peerChoking = true
+			p.unchokeCond.L.Unlock()
 		case protocol.Unchoke:
-			p.unchokeM.Lock()
+			p.unchokeCond.L.Lock()
 			p.peerChoking = false
-			close(p.unchokeC)
-			// p.unchokeC = make(chan struct{})
-			p.unchokeM.Unlock()
+			p.unchokeCond.Broadcast()
+			p.unchokeCond.L.Unlock()
 		case protocol.Interested:
 			p.peerInterested = true
-			err := p.sendMessage(protocol.Unchoke)
-			if err != nil {
+			if err := p.sendMessage(protocol.Unchoke); err != nil {
 				p.log.Error(err)
 				return
 			}
@@ -258,8 +260,9 @@ func (p *peer) Serve(t *transfer) {
 		case protocol.Port:
 		default:
 			p.log.Debugf("Unknown message type: %d", msgType)
-			// Discard remaining bytes.
+			p.log.Debugln("Discarding", length, "bytes...")
 			io.CopyN(ioutil.Discard, p.conn, int64(length))
+			p.log.Debug("Discarding finished.")
 		}
 
 		first = false
@@ -285,19 +288,35 @@ func (p *peer) sendBitField(b bitfield.BitField) error {
 
 // beInterested sends "interested" message to peer (once) and
 // returns a channel that will be closed when an "unchoke" message is received.
-func (p *peer) beInterested() (unchokeC chan struct{}, err error) {
+func (p *peer) beInterested() error {
 	p.log.Debug("beInterested")
-	p.unchokeM.Lock()
-	defer p.unchokeM.Unlock()
 
-	unchokeC = p.unchokeC
-
-	if !p.peerChoking {
-		return
+	var err error
+	p.onceInterested.Do(func() { err = p.sendMessage(protocol.Interested) })
+	if err != nil {
+		return err
 	}
 
-	p.onceInterested.Do(func() { err = p.sendMessage(protocol.Interested) })
-	return
+	var disconnected bool
+	checkDisconnect := func() {
+		select {
+		case <-p.disconnected:
+			disconnected = true
+		default:
+		}
+	}
+
+	p.unchokeCond.L.Lock()
+	for checkDisconnect(); p.peerChoking && !disconnected; {
+		p.unchokeCond.Wait()
+	}
+	p.unchokeCond.L.Unlock()
+
+	if disconnected {
+		return errors.New("peer disconnected while waiting for unchoke message")
+	}
+
+	return nil
 }
 
 func (p *peer) sendMessage(msgType protocol.MessageType) error {
@@ -365,16 +384,9 @@ func (p *peer) sendRequest(m *peerRequestMessage) error {
 func (p *peer) downloadPiece(piece *piece) error {
 	p.log.Debugf("downloading piece #%d", piece.index)
 
-	unchokeC, err := p.beInterested()
+	err := p.beInterested()
 	if err != nil {
 		return err
-	}
-
-	select {
-	case <-unchokeC:
-	case <-time.After(time.Minute):
-		p.conn.Close()
-		return errors.New("Peer did not unchoke")
 	}
 
 	for _, b := range piece.blocks {
