@@ -1,10 +1,16 @@
 package tracker
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/cenkalti/rain/internal/protocol"
+)
 
 func TestManager(t *testing.T) {
-	const url = "magnet:?xt=urn:btih:f60cc95e3566af84c1ab223fd4ce80fa88e6438a&dn=sample%5Ftorrent&tr=udp://178.62.175.45:6969"
-	m := NewManager(nil)
+	const url = "udp://127.0.0.1:6969"
+
+	c := &dummyClient{peerID: protocol.PeerID{}}
+	m := NewManager(c)
 	tr, err := m.NewTracker(url)
 	if err != nil {
 		t.Fatal(err)
@@ -31,3 +37,10 @@ func TestManager(t *testing.T) {
 		t.Fatal("ok")
 	}
 }
+
+type dummyClient struct {
+	peerID protocol.PeerID
+}
+
+func (c *dummyClient) PeerID() protocol.PeerID { return c.peerID }
+func (c *dummyClient) Port() uint16            { return 6881 }

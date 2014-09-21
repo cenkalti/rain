@@ -33,22 +33,14 @@ func (m *Manager) NewTracker(trackerURL string) (*managedTracker, error) {
 	if err != nil {
 		return nil, err
 	}
-	mt := &managedTracker{tracker: t}
+	mt := &managedTracker{manager: m, Tracker: t}
 	m.trackers[trackerURL] = &trackerAndCount{tracker: mt, count: 1}
 	return mt, nil
 }
 
 type managedTracker struct {
 	manager *Manager
-	tracker Tracker
-}
-
-func (t *managedTracker) URL() string {
-	return t.URL()
-}
-
-func (t *managedTracker) Announce(transfer Transfer, e Event) (*AnnounceResponse, error) {
-	return t.Announce(transfer, e)
+	Tracker
 }
 
 func (t *managedTracker) Close() error {
@@ -58,7 +50,7 @@ func (t *managedTracker) Close() error {
 	if entry.count == 0 {
 		delete(t.manager.trackers, t.URL())
 		t.manager.m.Unlock()
-		return entry.tracker.Close()
+		return entry.tracker.Tracker.Close()
 	}
 	t.manager.m.Unlock()
 	return nil

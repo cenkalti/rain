@@ -86,7 +86,10 @@ func (t *udpTracker) dial() error {
 // Close the tracker connection.
 func (t *udpTracker) Close() error {
 	close(t.writeC)
-	return t.conn.Close()
+	if t.conn != nil {
+		return t.conn.Close()
+	}
+	return nil
 }
 
 // readLoop reads datagrams from connection, finds the transaction and
