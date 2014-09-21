@@ -13,9 +13,6 @@ type BitField struct {
 // New returns a new bitField value. Bytes in buf are copied.
 // If buf is nil, a new buffer is created to store "length" bits.
 func New(buf []byte, length uint32) BitField {
-	if length < 0 {
-		panic("length < 0")
-	}
 	if len(buf) > math.MaxUint32/8 {
 		panic("buffer is too big")
 	}
