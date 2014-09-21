@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"math"
 	"os"
 
 	"github.com/cenkalti/log"
@@ -15,7 +16,7 @@ const defaultConfig = "~/.rain.yaml"
 var (
 	config = flag.String("c", defaultConfig, "config file")
 	where  = flag.String("w", ".", "where to download")
-	port   = flag.Int("p", rain.DefaultConfig.Port, "listen port for incoming peer connections")
+	port   = flag.Int("p", int(rain.DefaultConfig.Port), "listen port for incoming peer connections")
 	debug  = flag.Bool("d", false, "enable debug log")
 )
 
@@ -51,7 +52,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	c.Port = *port
+	if *port > math.MaxUint16 {
+		log.Fatal("invalid port number")
+	}
+	c.Port = uint16(*port)
 
 	r, err := rain.New(c)
 	if err != nil {
@@ -63,7 +67,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err = r.Download(args[0], *where); err != nil {
+	t, err := r.Add(args[0], *where)
+	if err != nil {
 		log.Fatal(err)
 	}
+
+	r.Start(t)
+	<-t.Finished
 }
