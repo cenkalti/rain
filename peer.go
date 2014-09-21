@@ -140,6 +140,11 @@ func (p *peer) Serve(t *transfer) {
 			p.unchokeM.Unlock()
 		case protocol.Interested:
 			p.peerInterested = true
+			err := p.sendMessage(protocol.Unchoke)
+			if err != nil {
+				p.log.Error(err)
+				return
+			}
 		case protocol.NotInterested:
 			p.peerInterested = false
 		case protocol.Have:
@@ -183,42 +188,32 @@ func (p *peer) Serve(t *transfer) {
 				}
 			}
 		case protocol.Request:
-			var index, begin, rlength uint32
-			err = binary.Read(p.conn, binary.BigEndian, &index)
+			var req request
+			err = binary.Read(p.conn, binary.BigEndian, &req)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
-			if index >= uint32(len(t.pieces)) {
+			p.log.Debugf("Request: %#v", req)
+
+			if req.Index >= uint32(len(t.pieces)) {
 				p.log.Error("invalid request: index")
 				return
 			}
-			piece := t.pieces[index]
-
-			err = binary.Read(p.conn, binary.BigEndian, &begin)
-			if err != nil {
-				p.log.Error(err)
-				return
-			}
-			if begin >= piece.length {
+			piece := t.pieces[req.Index]
+			if req.Begin >= piece.length {
 				p.log.Error("invalid request: begin")
 				return
 			}
-
-			err = binary.Read(p.conn, binary.BigEndian, &rlength)
-			if err != nil {
-				p.log.Error(err)
-				return
-			}
-			if rlength > blockSize {
+			if req.Length > blockSize {
 				p.log.Error("received a request with block size larger than allowed")
 				return
 			}
-			if begin+rlength >= piece.length {
+			if req.Begin+req.Length > piece.length {
 				p.log.Error("invalid request: length")
 			}
 
-			p.requests <- peerRequest{p, piece, begin, rlength}
+			p.requests <- peerRequest{p, piece, req.Begin, req.Length}
 		case protocol.Piece:
 			var index uint32
 			err = binary.Read(p.conn, binary.BigEndian, &index)
@@ -430,4 +425,8 @@ type peerRequest struct {
 	piece  *piece
 	begin  uint32
 	length uint32
+}
+
+type request struct {
+	Index, Begin, Length uint32
 }

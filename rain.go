@@ -91,7 +91,7 @@ func (r *Rain) accepter() {
 				conn.Close()
 				<-limit
 			}()
-			r.servePeerConn(newPeer(conn, incoming))
+			r.servePeer(conn)
 		}(conn)
 	}
 }
@@ -99,7 +99,8 @@ func (r *Rain) accepter() {
 func (r *Rain) PeerID() protocol.PeerID { return r.peerID }
 func (r *Rain) Port() uint16            { return r.config.Port }
 
-func (r *Rain) servePeerConn(p *peer) {
+func (r *Rain) servePeer(conn net.Conn) {
+	p := newPeer(conn, incoming)
 	p.log.Debugln("Serving peer", p.conn.RemoteAddr())
 
 	getSKey := func(sKeyHash [20]byte) (sKey []byte) {
@@ -119,7 +120,7 @@ func (r *Rain) servePeerConn(p *peer) {
 		return ok
 	}
 
-	_, _, ih, _, err := connection.Accept(p.conn, getSKey, r.config.Encryption.ForceIncoming, hasInfoHash, [8]byte{}, r.peerID)
+	encConn, _, _, ih, _, err := connection.Accept(p.conn, getSKey, r.config.Encryption.ForceIncoming, hasInfoHash, [8]byte{}, r.peerID)
 	if err != nil {
 		if err == connection.ErrOwnConnection {
 			r.log.Debug(err)
@@ -128,6 +129,7 @@ func (r *Rain) servePeerConn(p *peer) {
 		}
 		return
 	}
+	p.conn = encConn
 
 	r.transfersM.Lock()
 	t, ok := r.transfers[ih]

@@ -117,7 +117,7 @@ func (d *downloader) connecter() {
 					}
 					<-limit
 				}()
-				d.transfer.connectToPeer(peer)
+				d.transfer.connect(peer)
 			}(p)
 		case <-d.cancelC:
 			return

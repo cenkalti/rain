@@ -132,7 +132,7 @@ func (t *transfer) Run() {
 	}
 }
 
-func (t *transfer) connectToPeer(addr *net.TCPAddr) {
+func (t *transfer) connect(addr *net.TCPAddr) {
 	conn, _, ext, _, err := connection.Dial(addr, !t.rain.config.Encryption.DisableOutgoing, t.rain.config.Encryption.ForceOutgoing, [8]byte{}, t.torrent.Info.Hash, t.rain.peerID)
 	if err != nil {
 		if err == connection.ErrOwnConnection {
