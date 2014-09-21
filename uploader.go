@@ -1,6 +1,8 @@
 package rain
 
 import (
+	"bufio"
+	"encoding/binary"
 	"time"
 
 	"github.com/cenkalti/rain/internal/logger"
@@ -63,9 +65,16 @@ func (u *uploader) requestSelector() {
 func (u *uploader) pieceUploader() {
 	for {
 		select {
-		case reqeust := <-u.requestC:
-			peer := reqeust.peer
-			piece := reqeust.piece
+		case req := <-u.requestC:
+			peer := req.peer
+			piece := req.piece
+
+			if peer.amChoking {
+				if err := peer.sendMessage(protocol.Unchoke); err != nil {
+					peer.log.Error(err)
+					return
+				}
+			}
 
 			// TODO do not read whole piece
 			b := make([]byte, piece.length)
@@ -75,16 +84,23 @@ func (u *uploader) pieceUploader() {
 				return
 			}
 
-			if peer.amChoking {
-				err = peer.sendMessage(protocol.Unchoke)
-				if err != nil {
-					peer.log.Error(err)
-					return
-				}
+			buf := bufio.NewWriterSize(peer.conn, int(13+req.length))
+			msgLen := 9 + req.length
+			if err = binary.Write(buf, binary.BigEndian, msgLen); err != nil {
+				peer.log.Error(err)
+				return
 			}
-
-			_, err = peer.conn.Write(b[reqeust.begin : reqeust.begin+reqeust.length])
-			if err != nil {
+			buf.WriteByte(byte(protocol.Piece))
+			if err = binary.Write(buf, binary.BigEndian, piece.index); err != nil {
+				peer.log.Error(err)
+				return
+			}
+			if err = binary.Write(buf, binary.BigEndian, req.begin); err != nil {
+				peer.log.Error(err)
+				return
+			}
+			buf.Write(b[req.begin : req.begin+req.length])
+			if err = buf.Flush(); err != nil {
 				peer.log.Error(err)
 				return
 			}
