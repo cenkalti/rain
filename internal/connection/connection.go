@@ -131,7 +131,7 @@ func Accept(
 	forceEncryption bool,
 	hasInfoHash func(protocol.InfoHash) bool,
 	ourExtensions [8]byte, ourID protocol.PeerID) (
-	cipher mse.CryptoMethod, peerExtensions [8]byte, ih protocol.InfoHash, peerID protocol.PeerID, err error) {
+	encConn net.Conn, cipher mse.CryptoMethod, peerExtensions [8]byte, ih protocol.InfoHash, peerID protocol.PeerID, err error) {
 
 	log := logger.New("conn <- " + conn.RemoteAddr().String())
 
@@ -155,10 +155,10 @@ func Accept(
 	conn = &rwConn{readWriter{io.MultiReader(&buf, conn), conn}, conn}
 
 	if err == handshake.ErrInvalidProtocol && getSKey != nil {
-		encConn := mse.WrapConn(conn)
+		mseConn := mse.WrapConn(conn)
 		payloadIn := make([]byte, 68)
 		var lenPayloadIn uint16
-		err = encConn.HandshakeIncoming(
+		err = mseConn.HandshakeIncoming(
 			getSKey,
 			func(provided mse.CryptoMethod) (selected mse.CryptoMethod) {
 				if provided&mse.RC4 != 0 {
@@ -197,16 +197,17 @@ func Accept(
 				handshake.Write(out, ih, ourID, ourExtensions)
 				return out.Bytes(), nil
 			})
-		if forceEncryption && !isEncrypted {
-			err = ErrNotEncrypted
-			return
-		}
 		if err == nil {
 			log.Debugf("Encryption handshake is successfull. Selected cipher: %d", cipher)
-			conn = encConn
+			conn = mseConn
 		}
 	}
 	if err != nil {
+		return
+	}
+
+	if forceEncryption && !isEncrypted {
+		err = ErrNotEncrypted
 		return
 	}
 
@@ -241,6 +242,7 @@ func Accept(
 	}
 
 	err = conn.SetDeadline(time.Time{})
+	encConn = conn
 	return
 }
 
