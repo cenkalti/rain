@@ -20,6 +20,7 @@ type downloader struct {
 	requestC    chan chan *piece
 	responseC   chan *piece
 	cancelC     chan struct{}
+	port        uint16
 	log         logger.Logger
 }
 
@@ -39,6 +40,7 @@ func newDownloader(t *transfer) *downloader {
 		requestC:    make(chan chan *piece),
 		responseC:   make(chan *piece),
 		cancelC:     make(chan struct{}),
+		port:        t.rain.config.Port,
 		log:         t.log,
 	}
 }
@@ -100,6 +102,13 @@ func (d *downloader) connecter() {
 	for {
 		select {
 		case p := <-d.peerC:
+			if p.Port == 0 {
+				break
+			}
+			if p.IP.IsLoopback() && p.Port == int(d.port) {
+				break
+			}
+
 			limit <- struct{}{}
 			go func(peer *net.TCPAddr) {
 				defer func() {
