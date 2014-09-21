@@ -97,13 +97,28 @@ func TestEncrypted(t *testing.T) {
 		if id != id2 {
 			t.Errorf("id: %s", id)
 		}
+		_, err = conn.Write([]byte("hello out"))
+		if err != nil {
+			t.Fail()
+		}
+		b := make([]byte, 10)
+		n, err := conn.Read(b)
+		if err != nil {
+			t.Error(err)
+		}
+		if n != 8 {
+			t.Fail()
+		}
+		if string(b[:8]) != "hello in" {
+			t.Fail()
+		}
 		close(done)
 	}()
 	conn, err := l.Accept()
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, cipher, ext, ih, id, err := connection.Accept(
+	encConn, cipher, ext, ih, id, err := connection.Accept(
 		conn,
 		func(h [20]byte) (sKey []byte) {
 			if h == sKeyHash {
@@ -114,7 +129,6 @@ func TestEncrypted(t *testing.T) {
 		false,
 		func(ih protocol.InfoHash) bool { return ih == infoHash },
 		ext2, id2)
-	<-done
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,4 +144,20 @@ func TestEncrypted(t *testing.T) {
 	if id != id1 {
 		t.Errorf("id: %s", id)
 	}
+	b := make([]byte, 10)
+	n, err := encConn.Read(b)
+	if err != nil {
+		t.Error(err)
+	}
+	if n != 9 {
+		t.Fail()
+	}
+	if string(b[:9]) != "hello out" {
+		t.Fail()
+	}
+	_, err = encConn.Write([]byte("hello in"))
+	if err != nil {
+		t.Fail()
+	}
+	<-done
 }
