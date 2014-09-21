@@ -40,17 +40,17 @@ func TestDownload(t *testing.T) {
 	c2 := rain.DefaultConfig
 	c2.Port = port2
 
-	r1, err := rain.New(&c1) // Seeder
+	seeder, err := rain.New(&c1)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = r1.Listen()
+	err = seeder.Listen()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	r2, err := rain.New(&c2) // Leecher
+	leecher, err := rain.New(&c2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,13 +70,13 @@ func TestDownload(t *testing.T) {
 		}
 	}()
 
-	t1, err := r1.Add(torrentFile, torrentDataDir)
+	t1, err := seeder.Add(torrentFile, torrentDataDir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	r1.Start(t1)
+	seeder.Start(t1)
 
-	// Wait for r1 to announce to tracker.
+	// Wait for seeder to announce to tracker.
 	time.Sleep(1 * time.Second)
 
 	where, err := ioutil.TempDir("", "rain-")
@@ -84,11 +84,11 @@ func TestDownload(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t2, err := r2.Add(torrentFile, where)
+	t2, err := leecher.Add(torrentFile, where)
 	if err != nil {
 		t.Fatal(err)
 	}
-	r2.Start(t2)
+	leecher.Start(t2)
 
 	select {
 	case <-t2.Finished:
