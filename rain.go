@@ -88,8 +88,7 @@ func (r *Rain) accepter() {
 			defer func() {
 				if err := recover(); err != nil {
 					buf := make([]byte, 10000)
-					r.log.Debug("\n\n" + string(buf[:runtime.Stack(buf, false)]))
-					r.log.Critical(err)
+					r.log.Critical(err, "\n", string(buf[:runtime.Stack(buf, false)]))
 				}
 				conn.Close()
 				<-limit

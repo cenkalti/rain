@@ -115,8 +115,7 @@ func (d *downloader) connecter() {
 				defer func() {
 					if err := recover(); err != nil {
 						buf := make([]byte, 10000)
-						d.transfer.log.Debug("\n\n" + string(buf[:runtime.Stack(buf, false)]))
-						d.transfer.log.Critical(err)
+						d.transfer.log.Critical(err, "\n", string(buf[:runtime.Stack(buf, false)]))
 					}
 					<-limit
 				}()
