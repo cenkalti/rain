@@ -4,6 +4,8 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"os/exec"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -16,11 +18,15 @@ import (
 )
 
 const (
-	port1       = 6881
-	port2       = 6882
-	trackerAddr = ":5000"
-	torrentFile = "testfiles/sample_torrent.torrent"
-	torrentData = "testfiles"
+	port1 = 6881
+	port2 = 6882
+)
+
+var (
+	trackerAddr    = ":5000"
+	torrentFile    = filepath.Join("testfiles", "sample_torrent.torrent")
+	torrentDataDir = "testfiles"
+	torrentName    = "sample_torrent"
 )
 
 func init() {
@@ -64,7 +70,7 @@ func TestDownload(t *testing.T) {
 		}
 	}()
 
-	t1, err := r1.Add(torrentFile, torrentData)
+	t1, err := r1.Add(torrentFile, torrentDataDir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,5 +89,18 @@ func TestDownload(t *testing.T) {
 		t.Fatal(err)
 	}
 	r2.Start(t2)
-	<-t2.Finished
+
+	select {
+	case <-t2.Finished:
+	case <-time.After(10 * time.Second):
+		t.FailNow()
+	}
+
+	cmd := exec.Command("diff", "-rq",
+		filepath.Join(torrentDataDir, torrentName),
+		filepath.Join(where, torrentName))
+	err = cmd.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
 }
