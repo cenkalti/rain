@@ -60,6 +60,8 @@ func generatePeerID() (protocol.PeerID, error) {
 	return id, err
 }
 
+func (r *Rain) PeerID() protocol.PeerID { return r.peerID }
+
 // Listen peer port and accept incoming peer connections.
 func (r *Rain) Listen() error {
 	var err error
@@ -71,6 +73,13 @@ func (r *Rain) Listen() error {
 	r.log.Notice("Listening peers on tcp://" + r.listener.Addr().String())
 	go r.accepter()
 	return nil
+}
+
+func (r *Rain) Port() uint16 {
+	if r.listener != nil {
+		return uint16(r.listener.Addr().(*net.TCPAddr).Port)
+	}
+	return 0
 }
 
 func (r *Rain) Close() error { return r.listener.Close() }
@@ -97,9 +106,6 @@ func (r *Rain) accepter() {
 		}(conn)
 	}
 }
-
-func (r *Rain) PeerID() protocol.PeerID { return r.peerID }
-func (r *Rain) Port() uint16            { return r.config.Port }
 
 func (r *Rain) servePeer(conn net.Conn) {
 	getSKey := func(sKeyHash [20]byte) (sKey []byte) {

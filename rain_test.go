@@ -18,11 +18,6 @@ import (
 	"github.com/cenkalti/rain"
 )
 
-const (
-	port1 = 6881
-	port2 = 6882
-)
-
 var (
 	trackerAddr    = ":5000"
 	torrentFile    = filepath.Join("testfiles", "sample_torrent.torrent")
@@ -36,11 +31,7 @@ func init() {
 
 func TestDownload(t *testing.T) {
 	c1 := rain.DefaultConfig
-	c1.Port = port1
-
-	c2 := rain.DefaultConfig
-	c2.Port = port2
-
+	c1.Port = 0 // pick a random port
 	seeder, err := rain.New(&c1)
 	if err != nil {
 		t.Fatal(err)
@@ -51,25 +42,12 @@ func TestDownload(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	leecher, err := rain.New(&c2)
+	leecher, err := rain.New(&rain.DefaultConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Start tracker
-	logger := logrus.New()
-	logger.Level = logrus.DebugLevel
-	registry := tracker.NewInMemoryRegistry()
-	s := server.New(120, 30, registry, logger)
-	l, err := net.Listen("tcp", trackerAddr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	go func() {
-		if err := http.Serve(l, s); err != nil {
-			t.Fatal(err)
-		}
-	}()
+	startTracker(t)
 
 	t1, err := seeder.Add(torrentFile, torrentDataDir)
 	if err != nil {
@@ -109,4 +87,20 @@ func TestDownload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func startTracker(t *testing.T) {
+	logger := logrus.New()
+	logger.Level = logrus.DebugLevel
+	registry := tracker.NewInMemoryRegistry()
+	s := server.New(120, 30, registry, logger)
+	l, err := net.Listen("tcp", trackerAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	go func() {
+		if err := http.Serve(l, s); err != nil {
+			t.Fatal(err)
+		}
+	}()
 }
