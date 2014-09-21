@@ -43,13 +43,13 @@ func New(buf []byte, length uint32) BitField {
 	return BitField{b, length}
 }
 
-// Bytes returns bytes in b.
+// Bytes returns bytes in b. If you modify the returned slice the bits in b are modified too.
 func (b BitField) Bytes() []byte { return b.b }
 
-// Len returns bit length.
+// Len returns the number of bits as given to New.
 func (b BitField) Len() uint32 { return b.length }
 
-// Hex returns bytes as string.
+// Hex returns bytes as string. If not all the bits in last byte are used, they encode as not set.
 func (b BitField) Hex() string { return hex.EncodeToString(b.b) }
 
 // Set bit i. 0 is the most significant bit. Panics if i >= b.Len().
@@ -64,8 +64,9 @@ func (b BitField) SetTo(i uint32, value bool) {
 	b.checkIndex(i)
 	if value {
 		b.Set(i)
+	} else {
+		b.Clear(i)
 	}
-	b.Clear(i)
 }
 
 // Clear bit i. 0 is the most significant bit. Panics if i >= b.Len().
