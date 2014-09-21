@@ -7,8 +7,9 @@ import (
 	"os"
 
 	"github.com/cenkalti/log"
-	"github.com/cenkalti/rain"
 	"github.com/mitchellh/go-homedir"
+
+	"github.com/cenkalti/rain"
 )
 
 const defaultConfig = "~/.rain.yaml"
