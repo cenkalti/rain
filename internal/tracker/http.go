@@ -126,7 +126,12 @@ func (t *httpTracker) Announce(transfer Transfer, e Event, cancel <-chan struct{
 		if response.Peers[0] == 'l' {
 			peers, err = t.parsePeersDictionary(response.Peers)
 		} else {
-			peers, err = t.parsePeersBinary(bytes.NewReader(response.Peers))
+			var b []byte
+			err = bencode.DecodeBytes(response.Peers, &b)
+			if err != nil {
+				return nil, err
+			}
+			peers, err = t.parsePeersBinary(bytes.NewReader(b))
 		}
 	}
 	if err != nil {

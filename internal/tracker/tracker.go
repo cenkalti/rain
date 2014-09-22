@@ -129,6 +129,9 @@ type Client interface {
 func (t *trackerBase) parsePeersBinary(r *bytes.Reader) ([]*net.TCPAddr, error) {
 	t.log.Debugf("len(rest): %#v", r.Len())
 	if r.Len()%6 != 0 {
+		b := make([]byte, r.Len())
+		r.Read(b)
+		t.log.Debugf("Peers: %q", b)
 		return nil, errors.New("invalid peer list")
 	}
 
