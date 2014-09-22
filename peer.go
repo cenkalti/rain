@@ -186,7 +186,7 @@ func (p *peer) Serve() {
 				}
 			}
 		case protocol.Request:
-			var req request
+			var req requestMessage
 			err = binary.Read(p.conn, binary.BigEndian, &req)
 			if err != nil {
 				p.log.Error(err)
@@ -213,28 +213,22 @@ func (p *peer) Serve() {
 
 			p.requests <- peerRequest{p, piece, req.Begin, req.Length}
 		case protocol.Piece:
-			var index uint32
-			err = binary.Read(p.conn, binary.BigEndian, &index)
+			var msg pieceMessage
+			err = binary.Read(p.conn, binary.BigEndian, &msg)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
-			if index >= uint32(len(t.pieces)) {
+			if msg.Index >= uint32(len(t.pieces)) {
 				p.log.Error("unexpected piece index")
 				return
 			}
-			piece := t.pieces[index]
-			var begin uint32
-			err = binary.Read(p.conn, binary.BigEndian, &begin)
-			if err != nil {
-				p.log.Error(err)
-				return
-			}
-			if begin%blockSize != 0 {
+			piece := t.pieces[msg.Index]
+			if msg.Begin%blockSize != 0 {
 				p.log.Error("unexpected piece offset")
 				return
 			}
-			blockIndex := begin / blockSize
+			blockIndex := msg.Begin / blockSize
 			if blockIndex >= uint32(len(piece.blocks)) {
 				p.log.Error("unexpected piece offset")
 				return
@@ -441,6 +435,10 @@ type peerRequest struct {
 	length uint32
 }
 
-type request struct {
+type requestMessage struct {
 	Index, Begin, Length uint32
+}
+
+type pieceMessage struct {
+	Index, Begin uint32
 }
