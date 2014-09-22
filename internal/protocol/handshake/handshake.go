@@ -46,7 +46,7 @@ func Read1(r io.Reader) (extensions [8]byte, ih protocol.InfoHash, err error) {
 	if err != nil {
 		return
 	}
-	if bytes.Compare(pstr, pstr) != 0 {
+	if !bytes.Equal(pstr, pstr) {
 		err = ErrInvalidProtocol
 		return
 	}

@@ -22,6 +22,8 @@ import (
 // All current implementations use 2^14 (16 kiB), and close connections which request an amount greater than that.
 const blockSize = 16 * 1024
 
+const connReadTimeout = 3 * time.Minute
+
 const (
 	outgoing = iota
 	incoming
@@ -73,8 +75,6 @@ func newPeer(conn net.Conn, direction int, t *transfer) *peer {
 		log:          logger.New("peer " + arrow + conn.RemoteAddr().String()),
 	}
 }
-
-const connReadTimeout = 3 * time.Minute
 
 // Serve processes incoming messages after handshake.
 func (p *peer) Serve() {
