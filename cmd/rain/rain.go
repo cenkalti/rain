@@ -32,7 +32,7 @@ func main() {
 
 	args := flag.Args()
 	if len(args) == 0 {
-		fmt.Fprint(os.Stderr, "Give a torrent file as first argument!")
+		fmt.Fprintln(os.Stderr, "Give a torrent file as first argument!")
 		os.Exit(1)
 	}
 
