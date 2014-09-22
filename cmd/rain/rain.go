@@ -16,7 +16,7 @@ const defaultConfig = "~/.rain.yaml"
 
 var (
 	config = flag.String("c", defaultConfig, "config file")
-	where  = flag.String("w", ".", "where to download")
+	where  = flag.String("w", rain.DefaultConfig.DownloadDir, "where to download")
 	port   = flag.Int("p", int(rain.DefaultConfig.Port), "listen port for incoming peer connections")
 	debug  = flag.Bool("d", false, "enable debug log")
 )
@@ -58,6 +58,10 @@ func main() {
 	}
 	c.Port = uint16(*port)
 
+	if *where != rain.DefaultConfig.DownloadDir {
+		c.DownloadDir = *where
+	}
+
 	r, err := rain.New(c)
 	if err != nil {
 		log.Fatal(err)
@@ -68,7 +72,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	t, err := r.Add(args[0], *where)
+	t, err := r.Add(args[0], "")
 	if err != nil {
 		log.Fatal(err)
 	}

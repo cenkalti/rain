@@ -75,6 +75,8 @@ func (r *Rain) Listen() error {
 	return nil
 }
 
+// Port returns the port number that the client is listening.
+// If the client does not listen any port, returns 0.
 func (r *Rain) Port() uint16 {
 	if r.listener != nil {
 		return uint16(r.listener.Addr().(*net.TCPAddr).Port)

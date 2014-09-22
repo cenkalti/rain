@@ -8,8 +8,9 @@ import (
 )
 
 type Config struct {
-	Port       uint16
-	Encryption struct {
+	Port        uint16
+	DownloadDir string
+	Encryption  struct {
 		DisableOutgoing bool `yaml:"disable_outgoing"`
 		ForceOutgoing   bool `yaml:"force_outgoing"`
 		ForceIncoming   bool `yaml:"force_incoming"`
@@ -17,7 +18,8 @@ type Config struct {
 }
 
 var DefaultConfig = Config{
-	Port: 6881,
+	Port:        6881,
+	DownloadDir: ".",
 }
 
 func LoadConfig(filename string) (*Config, error) {
