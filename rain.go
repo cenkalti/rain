@@ -21,9 +21,11 @@ const (
 	uploadSlots       = 4
 )
 
+// Client version. Set when building: "$ go build -ldflags "-X github.com/cenkalti/rain.Build 0001" cmd/rain/rain.go"
+var Build = "0000" // zero means development version
+
 // http://www.bittorrent.org/beps/bep_0020.html
-var peerIDPrefix = []byte("-RN" + build + "-")
-var build = "0001"
+var peerIDPrefix = []byte("-RN" + Build + "-")
 
 func SetLogLevel(l log.Level) { logger.DefaultHandler.SetLevel(l) }
 

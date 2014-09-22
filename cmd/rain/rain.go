@@ -15,14 +15,20 @@ import (
 const defaultConfig = "~/.rain.yaml"
 
 var (
-	config = flag.String("c", defaultConfig, "config file")
-	where  = flag.String("w", rain.DefaultConfig.DownloadDir, "where to download")
-	port   = flag.Int("p", int(rain.DefaultConfig.Port), "listen port for incoming peer connections")
-	debug  = flag.Bool("d", false, "enable debug log")
+	config  = flag.String("c", defaultConfig, "config file")
+	where   = flag.String("w", rain.DefaultConfig.DownloadDir, "where to download")
+	port    = flag.Int("p", int(rain.DefaultConfig.Port), "listen port for incoming peer connections")
+	debug   = flag.Bool("d", false, "enable debug log")
+	version = flag.Bool("v", false, "version")
 )
 
 func main() {
 	flag.Parse()
+
+	if *version == true {
+		fmt.Println(rain.Build)
+		os.Exit(0)
+	}
 
 	args := flag.Args()
 	if len(args) == 0 {
