@@ -132,7 +132,7 @@ func (m *MetadataDownloader) worker(peer *net.TCPAddr) {
 		return
 	}
 
-	p := newPeer(conn, outgoing)
+	p := newPeer(conn, outgoing, nil)
 
 	info, err := downloadMetadataFromPeer(m.magnet, p)
 	conn.Close()

@@ -31,6 +31,8 @@ type peer struct {
 	conn         net.Conn
 	disconnected chan struct{} // will be closed when peer disconnects
 
+	transfer *transfer
+
 	amChoking      bool // this client is choking the peer
 	amInterested   bool // this client is interested in the peer
 	peerChoking    bool // peer is choking this client
@@ -41,6 +43,8 @@ type peer struct {
 	// Protects "peerChoking" and broadcasts when an "unchoke" message is received.
 	unchokeCond sync.Cond
 
+	bitField bitfield.BitField
+
 	// What remote peer requested
 	requests chan peerRequest
 	// ourRequests    map[uint64]time.Time // What we requested, when we requested it
@@ -48,7 +52,7 @@ type peer struct {
 	log logger.Logger
 }
 
-func newPeer(conn net.Conn, direction int) *peer {
+func newPeer(conn net.Conn, direction int, t *transfer) *peer {
 	var arrow string
 	switch direction {
 	case outgoing:
@@ -60,9 +64,11 @@ func newPeer(conn net.Conn, direction int) *peer {
 	return &peer{
 		conn:         conn,
 		disconnected: make(chan struct{}),
+		transfer:     t,
 		amChoking:    true,
 		peerChoking:  true,
 		unchokeCond:  sync.Cond{L: &m},
+		bitField:     bitfield.New(t.bitField.Len()),
 		requests:     make(chan peerRequest, 10),
 		log:          logger.New("peer " + arrow + conn.RemoteAddr().String()),
 	}
@@ -71,20 +77,10 @@ func newPeer(conn net.Conn, direction int) *peer {
 const connReadTimeout = 3 * time.Minute
 
 // Serve processes incoming messages after handshake.
-func (p *peer) Serve(t *transfer) {
+func (p *peer) Serve() {
+	t := p.transfer
 	defer close(p.disconnected)
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
-
-	// Do not send bitfield if we don't have any pieces.
-	if t.bitField.Count() > 0 {
-		err := p.sendBitField(t.bitField)
-		if err != nil {
-			p.log.Error(err)
-			return
-		}
-	}
-
-	bitField := bitfield.New(t.bitField.Len())
 
 	t.peersM.Lock()
 	t.peers[p] = struct{}{}
@@ -161,9 +157,9 @@ func (p *peer) Serve(t *transfer) {
 				return
 			}
 			piece := t.pieces[i]
-			bitField.Set(i)
+			p.bitField.Set(i)
 			p.log.Debug("Peer ", p.conn.RemoteAddr(), " has piece #", i)
-			p.log.Debugln("new bitfield:", bitField.Hex())
+			p.log.Debugln("new bitfield:", p.bitField.Hex())
 
 			t.haveC <- peerHave{p, piece}
 		case protocol.Bitfield:
@@ -172,20 +168,20 @@ func (p *peer) Serve(t *transfer) {
 				return
 			}
 
-			if int64(length) != int64(len(bitField.Bytes())) {
+			if int64(length) != int64(len(p.bitField.Bytes())) {
 				p.log.Error("invalid bitfield length")
 				return
 			}
 
-			_, err = p.conn.Read(bitField.Bytes())
+			_, err = p.conn.Read(p.bitField.Bytes())
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
-			p.log.Debugln("Received bitfield:", bitField.Hex())
+			p.log.Debugln("Received bitfield:", p.bitField.Hex())
 
-			for i := uint32(0); i < bitField.Len(); i++ {
-				if bitField.Test(i) {
+			for i := uint32(0); i < p.bitField.Len(); i++ {
+				if p.bitField.Test(i) {
 					t.haveC <- peerHave{p, t.pieces[i]}
 				}
 			}
@@ -269,16 +265,22 @@ func (p *peer) Serve(t *transfer) {
 	}
 }
 
-func (p *peer) sendBitField(b bitfield.BitField) error {
-	buf := bytes.NewBuffer(make([]byte, 0, 5+len(b.Bytes())))
-	err := binary.Write(buf, binary.BigEndian, uint32(1+len(b.Bytes())))
+func (p *peer) sendBitField() error {
+	// Do not send a bitfield message if we don't have any pieces.
+	if p.transfer.bitField.Count() == 0 {
+		return nil
+	}
+
+	buf := bytes.NewBuffer(make([]byte, 0, 5+len(p.transfer.bitField.Bytes())))
+
+	err := binary.Write(buf, binary.BigEndian, uint32(1+len(p.transfer.bitField.Bytes())))
 	if err != nil {
 		return err
 	}
 	if err = buf.WriteByte(byte(protocol.Bitfield)); err != nil {
 		return err
 	}
-	if _, err = buf.Write(b.Bytes()); err != nil {
+	if _, err = buf.Write(p.transfer.bitField.Bytes()); err != nil {
 		return err
 	}
 	p.log.Debugf("Sending message: \"bitfield\" %#v", buf.Bytes())

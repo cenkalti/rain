@@ -18,7 +18,6 @@ import (
 const (
 	maxPeerServe      = 200
 	maxPeerPerTorrent = 50
-	downloadSlots     = 4
 	uploadSlots       = 4
 )
 
@@ -137,9 +136,6 @@ func (r *Rain) servePeer(conn net.Conn) {
 		return
 	}
 
-	p := newPeer(encConn, incoming)
-	p.log.Info("Connection accepted")
-
 	r.transfersM.Lock()
 	t, ok := r.transfers[ih]
 	r.transfersM.Unlock()
@@ -148,8 +144,15 @@ func (r *Rain) servePeer(conn net.Conn) {
 		return
 	}
 
-	p.log.Debugln("servePeerConn: Handshake completed")
-	p.Serve(t)
+	p := newPeer(encConn, incoming, t)
+	p.log.Info("Connection accepted")
+
+	if err = p.sendBitField(); err != nil {
+		p.log.Error(err)
+		return
+	}
+
+	p.Serve()
 }
 
 func (r *Rain) Add(torrentPath, where string) (*transfer, error) {

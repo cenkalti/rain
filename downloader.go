@@ -8,6 +8,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/cenkalti/rain/internal/connection"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/tracker"
 )
@@ -57,7 +58,7 @@ func (d *downloader) Run() {
 	go d.pieceRequester()
 
 	// Download pieces in parallel.
-	for i := 0; i < downloadSlots; i++ {
+	for i := 0; i < maxPeerPerTorrent; i++ {
 		go d.pieceDownloader()
 	}
 
@@ -119,12 +120,36 @@ func (d *downloader) connecter() {
 					}
 					<-limit
 				}()
-				d.transfer.connect(addr)
+				d.connect(addr)
 			}(p)
 		case <-d.cancelC:
 			return
 		}
 	}
+}
+
+func (d *downloader) connect(addr *net.TCPAddr) {
+	t := d.transfer
+	conn, _, _, _, err := connection.Dial(addr, !t.rain.config.Encryption.DisableOutgoing, t.rain.config.Encryption.ForceOutgoing, [8]byte{}, t.torrent.Info.Hash, t.rain.peerID)
+	if err != nil {
+		if err == connection.ErrOwnConnection {
+			t.log.Debug(err)
+		} else {
+			t.log.Error(err)
+		}
+		return
+	}
+	defer conn.Close()
+
+	p := newPeer(conn, outgoing, t)
+	p.log.Info("Connected to peer")
+
+	if err = p.sendBitField(); err != nil {
+		p.log.Error(err)
+		return
+	}
+
+	p.Serve()
 }
 
 // pieceRequester selects a piece to be downloaded next and sends it to d.requestC.

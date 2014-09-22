@@ -2,7 +2,6 @@ package rain
 
 import (
 	"fmt"
-	"net"
 	"os"
 	"path/filepath"
 	"sync"
@@ -10,7 +9,6 @@ import (
 	"github.com/cenkalti/mse"
 
 	"github.com/cenkalti/rain/internal/bitfield"
-	"github.com/cenkalti/rain/internal/connection"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/protocol"
 	"github.com/cenkalti/rain/internal/torrent"
@@ -137,23 +135,6 @@ func (t *transfer) Run() {
 			}
 		}
 	}
-}
-
-func (t *transfer) connect(addr *net.TCPAddr) {
-	conn, _, ext, _, err := connection.Dial(addr, !t.rain.config.Encryption.DisableOutgoing, t.rain.config.Encryption.ForceOutgoing, [8]byte{}, t.torrent.Info.Hash, t.rain.peerID)
-	if err != nil {
-		if err == connection.ErrOwnConnection {
-			t.log.Debug(err)
-		} else {
-			t.log.Error(err)
-		}
-		return
-	}
-	defer conn.Close()
-	p := newPeer(conn, outgoing)
-	p.log.Info("Connected to peer")
-	p.log.Debugf("Peer extensions: %s", ext)
-	p.Serve(t)
 }
 
 func prepareFiles(info *torrent.Info, where string) (files []*os.File, checkHash bool, err error) {
