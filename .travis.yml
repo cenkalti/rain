@@ -4,8 +4,7 @@ go:
   - tip
 install:
   - go get -d -v ./...
-  - go get -d -v github.com/crosbymichael/tracker
-  - go get -d -v github.com/crosbymichael/tracker/server
   - go build -v ./...
+  - go test -i ./...
 script:
   - make test
