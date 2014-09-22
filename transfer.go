@@ -36,19 +36,21 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 	if err != nil {
 		return nil, err
 	}
-	files, err := openAllocate(tor.Info, where)
+	files, checkHash, err := prepareFiles(tor.Info, where)
 	if err != nil {
 		return nil, err
 	}
 	pieces := newPieces(tor.Info, files)
 	bitField := bitfield.New(nil, uint32(len(pieces)))
-	for _, p := range pieces {
-		ok, err := p.hashCheck()
-		if err != nil {
-			return nil, err
-		}
-		if ok {
-			bitField.Set(p.index)
+	if checkHash {
+		for _, p := range pieces {
+			ok, err := p.hashCheck()
+			if err != nil {
+				return nil, err
+			}
+			if ok {
+				bitField.Set(p.index)
+			}
 		}
 	}
 	name := tor.Info.Name
@@ -149,57 +151,75 @@ func (t *transfer) connect(addr *net.TCPAddr) {
 	p.Serve(t)
 }
 
-func openAllocate(info *torrent.Info, where string) ([]*os.File, error) {
+func prepareFiles(info *torrent.Info, where string) (files []*os.File, checkHash bool, err error) {
+	var f *os.File
+	var exists bool
+
 	if !info.MultiFile {
-		f, err := createTruncateSync(filepath.Join(where, info.Name), info.Length)
+		f, exists, err = openOrAllocate(filepath.Join(where, info.Name), info.Length)
 		if err != nil {
-			return nil, err
+			return
 		}
-		return []*os.File{f}, nil
+		if exists {
+			checkHash = true
+		}
+		files = []*os.File{f}
+		return
 	}
 
 	// Multiple files
-	files := make([]*os.File, len(info.Files))
+	files = make([]*os.File, len(info.Files))
 	for i, f := range info.Files {
 		parts := append([]string{where, info.Name}, f.Path...)
 		path := filepath.Join(parts...)
-		err := os.MkdirAll(filepath.Dir(path), os.ModeDir|0755)
+		err = os.MkdirAll(filepath.Dir(path), os.ModeDir|0755)
 		if err != nil {
-			return nil, err
+			return
 		}
-		files[i], err = createTruncateSync(path, f.Length)
+		files[i], exists, err = openOrAllocate(path, f.Length)
 		if err != nil {
-			return nil, err
+			return
+		}
+		if exists {
+			checkHash = true
 		}
 	}
-	return files, nil
+	return
 }
 
-func createTruncateSync(path string, length int64) (*os.File, error) {
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0640)
+func openOrAllocate(path string, length int64) (f *os.File, exists bool, err error) {
+	f, err = os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0640)
 	if err != nil {
-		return nil, err
+		return
 	}
+
+	defer func() {
+		if err != nil {
+			f.Close()
+		}
+	}()
 
 	fi, err := f.Stat()
 	if err != nil {
-		return nil, err
+		return
 	}
 
-	if fi.Size() == 0 {
+	if fi.Size() == 0 && length != 0 {
 		if err = f.Truncate(length); err != nil {
-			return nil, err
+			return
 		}
 		if err = f.Sync(); err != nil {
-			return nil, err
+			return
 		}
 	} else {
 		if fi.Size() != length {
-			return nil, fmt.Errorf("%s expected to be %d bytes but it is %d bytes", path, length, fi.Size())
+			err = fmt.Errorf("%s expected to be %d bytes but it is %d bytes", path, length, fi.Size())
+			return
 		}
+		exists = true
 	}
 
-	return f, nil
+	return
 }
 
 func minInt64(a, b int64) int64 {
