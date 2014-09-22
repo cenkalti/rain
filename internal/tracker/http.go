@@ -53,7 +53,9 @@ func (t *httpTracker) Announce(transfer Transfer, e Event, cancel <-chan struct{
 	q.Set("compact", "1")
 	q.Set("no_peer_id", "1")
 	q.Set("numwant", strconv.Itoa(NumWant))
-	q.Set("event", e.String())
+	if e != None {
+		q.Set("event", e.String())
+	}
 	if t.trackerID != "" {
 		q.Set("trackerid", t.trackerID)
 	}
