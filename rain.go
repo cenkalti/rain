@@ -158,6 +158,9 @@ func (r *Rain) Add(torrentPath, where string) (*transfer, error) {
 		return nil, err
 	}
 	r.log.Debugf("Parsed torrent file: %#v", torrent)
+	if where == "" {
+		where = r.config.DownloadDir
+	}
 	return r.newTransfer(torrent, where)
 }
 
