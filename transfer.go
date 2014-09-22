@@ -24,7 +24,7 @@ type transfer struct {
 	torrent  *torrent.Torrent
 	pieces   []*piece
 	bitField bitfield.BitField // pieces that we have
-	Finished chan struct{}
+	Finished chan struct{}     // downloading finished
 	haveC    chan peerHave
 	peers    map[*peer]struct{}
 	peersM   sync.RWMutex
@@ -32,6 +32,12 @@ type transfer struct {
 }
 
 func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error) {
+	name := tor.Info.Name
+	if len(name) > 8 {
+		name = name[:8]
+	}
+	log := logger.New("download " + name)
+
 	tracker, err := tracker.New(tor.Announce, r)
 	if err != nil {
 		return nil, err
@@ -43,6 +49,7 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 	pieces := newPieces(tor.Info, files)
 	bitField := bitfield.New(uint32(len(pieces)))
 	if checkHash {
+		r.log.Notice("Doing hash check...")
 		for _, p := range pieces {
 			ok, err := p.hashCheck()
 			if err != nil {
@@ -52,10 +59,8 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 				bitField.Set(p.index)
 			}
 		}
-	}
-	name := tor.Info.Name
-	if len(name) > 8 {
-		name = name[:8]
+		percentDone := (bitField.Count() * 100) / bitField.Len()
+		r.log.Noticef("Already downloaded: %d%%", percentDone)
 	}
 	return &transfer{
 		rain:     r,
@@ -66,7 +71,7 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 		Finished: make(chan struct{}),
 		haveC:    make(chan peerHave),
 		peers:    make(map[*peer]struct{}),
-		log:      logger.New("download " + name),
+		log:      log,
 	}, nil
 }
 
