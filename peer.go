@@ -78,17 +78,16 @@ func newPeer(conn net.Conn, direction int, t *transfer) *peer {
 
 // Serve processes incoming messages after handshake.
 func (p *peer) Serve() {
-	t := p.transfer
 	defer close(p.disconnected)
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 
-	t.peersM.Lock()
-	t.peers[p] = struct{}{}
-	t.peersM.Unlock()
+	p.transfer.peersM.Lock()
+	p.transfer.peers[p] = struct{}{}
+	p.transfer.peersM.Unlock()
 	defer func() {
-		t.peersM.Lock()
-		delete(t.peers, p)
-		t.peersM.Unlock()
+		p.transfer.peersM.Lock()
+		delete(p.transfer.peers, p)
+		p.transfer.peersM.Unlock()
 	}()
 
 	first := true
@@ -152,16 +151,16 @@ func (p *peer) Serve() {
 				p.log.Error(err)
 				return
 			}
-			if i >= uint32(len(t.pieces)) {
+			if i >= uint32(len(p.transfer.pieces)) {
 				p.log.Error("unexpected piece index")
 				return
 			}
-			piece := t.pieces[i]
+			piece := p.transfer.pieces[i]
 			p.bitField.Set(i)
 			p.log.Debug("Peer ", p.conn.RemoteAddr(), " has piece #", i)
 			p.log.Debugln("new bitfield:", p.bitField.Hex())
 
-			t.haveC <- peerHave{p, piece}
+			p.transfer.haveC <- peerHave{p, piece}
 		case protocol.Bitfield:
 			if !first {
 				p.log.Error("bitfield can only be sent after handshake")
@@ -182,7 +181,7 @@ func (p *peer) Serve() {
 
 			for i := uint32(0); i < p.bitField.Len(); i++ {
 				if p.bitField.Test(i) {
-					t.haveC <- peerHave{p, t.pieces[i]}
+					p.transfer.haveC <- peerHave{p, p.transfer.pieces[i]}
 				}
 			}
 		case protocol.Request:
@@ -194,11 +193,11 @@ func (p *peer) Serve() {
 			}
 			p.log.Debugf("Request: %#v", req)
 
-			if req.Index >= uint32(len(t.pieces)) {
+			if req.Index >= uint32(len(p.transfer.pieces)) {
 				p.log.Error("invalid request: index")
 				return
 			}
-			piece := t.pieces[req.Index]
+			piece := p.transfer.pieces[req.Index]
 			if req.Begin >= piece.length {
 				p.log.Error("invalid request: begin")
 				return
@@ -219,11 +218,11 @@ func (p *peer) Serve() {
 				p.log.Error(err)
 				return
 			}
-			if msg.Index >= uint32(len(t.pieces)) {
+			if msg.Index >= uint32(len(p.transfer.pieces)) {
 				p.log.Error("unexpected piece index")
 				return
 			}
-			piece := t.pieces[msg.Index]
+			piece := p.transfer.pieces[msg.Index]
 			if msg.Begin%blockSize != 0 {
 				p.log.Error("unexpected piece offset")
 				return
