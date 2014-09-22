@@ -41,7 +41,7 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 		return nil, err
 	}
 	pieces := newPieces(tor.Info, files)
-	bitField := bitfield.New(nil, uint32(len(pieces)))
+	bitField := bitfield.New(uint32(len(pieces)))
 	if checkHash {
 		for _, p := range pieces {
 			ok, err := p.hashCheck()

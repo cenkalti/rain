@@ -1,46 +1,34 @@
 package bitfield
 
-import (
-	"encoding/hex"
-	"math"
-)
+import "encoding/hex"
 
 type BitField struct {
 	b      []byte
 	length uint32
 }
 
-// New returns a new bitField value. Bytes in buf are copied.
-// If buf is nil, a new buffer is created to store "length" bits.
-func New(buf []byte, length uint32) BitField {
-	if len(buf) > math.MaxUint32/8 {
-		panic("buffer is too big")
-	}
+// New creates a new BitField value of length bits.
+func New(length uint32) BitField {
+	return BitField{make([]byte, (length+7)/8), length}
+}
 
+// NewBytes returns a new BitField value from b.
+// Bytes in b are not copied. Unused bits in last byte are cleared.
+// Panics if b is not big enough to hold "length" bits.
+func NewBytes(b []byte, length uint32) BitField {
 	div, mod := divMod32(length, 8)
 	lastByteIncomplete := mod != 0
-
 	requiredBytes := div
 	if lastByteIncomplete {
 		requiredBytes++
 	}
-
-	if buf != nil && uint32(len(buf)) < requiredBytes {
+	if uint32(len(b)) < requiredBytes {
 		panic("not enough bytes in slice for specified length")
 	}
-
-	b := make([]byte, requiredBytes)
-
-	if buf != nil {
-		copy(b, buf)
-
-		// Truncate last byte according to length.
-		if lastByteIncomplete {
-			b[len(b)-1] &= ^(0xff >> mod)
-		}
+	if lastByteIncomplete {
+		b[len(b)-1] &= ^(0xff >> mod)
 	}
-
-	return BitField{b, length}
+	return BitField{b[:requiredBytes], length}
 }
 
 // Bytes returns bytes in b. If you modify the returned slice the bits in b are modified too.

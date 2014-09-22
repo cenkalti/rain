@@ -84,7 +84,7 @@ func (p *peer) Serve(t *transfer) {
 		}
 	}
 
-	bitField := bitfield.New(nil, t.bitField.Len())
+	bitField := bitfield.New(t.bitField.Len())
 
 	t.peersM.Lock()
 	t.peers[p] = struct{}{}

@@ -84,7 +84,7 @@ func newPieces(info *torrent.Info, osFiles []*os.File) []*piece {
 		}
 
 		p.blocks = newBlocks(p.length, p.files)
-		p.bitField = bitfield.New(nil, uint32(len(p.blocks)))
+		p.bitField = bitfield.New(uint32(len(p.blocks)))
 		pieces[i] = p
 	}
 	return pieces
