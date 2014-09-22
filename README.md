@@ -5,16 +5,16 @@ BitTorrent client/library in Go. [![Build Status](https://travis-ci.org/cenkalti
 
 Features
 --------
-- [x] BEP 3: The BitTorrent Protocol Specification
-- [ ] BEP 9: Extension for Peers to Send Metadata Files
-- [ ] BEP 10: Extension Protocol
-- [ ] BEP 12: Multitracker Metadata Extension
-- [x] BEP 15: UDP Tracker Protocol
-- [ ] BEP 23: Tracker Returns Compact Peer Lists
-- [x] BEP 24: Tracker Returns External IP
-- [x] BEP 41: UDP Tracker Protocol Extensions
-- [ ] BEP 29: uTorrent transport protocol
-- [x] Protocol Encryption
+- [x] [BEP 3: The BitTorrent Protocol Specification](http://bittorrent.org/beps/bep_0003.html)
+- [ ] [BEP 9: Extension for Peers to Send Metadata Files](http://bittorrent.org/beps/bep_0009.html)
+- [ ] [BEP 10: Extension Protocol](http://bittorrent.org/beps/bep_0010.html)
+- [ ] [BEP 12: Multitracker Metadata Extension](http://bittorrent.org/beps/bep_0012.html)
+- [x] [BEP 15: UDP Tracker Protocol](http://bittorrent.org/beps/bep_0015.html)
+- [ ] [BEP 23: Tracker Returns Compact Peer Lists](http://bittorrent.org/beps/bep_0023.html)
+- [x] [BEP 24: Tracker Returns External IP](http://bittorrent.org/beps/bep_0024.html)
+- [x] [BEP 41: UDP Tracker Protocol Extensions](http://bittorrent.org/beps/bep_0041.html)
+- [ ] [BEP 29: uTorrent transport protocol](http://bittorrent.org/beps/bep_0029.html)
+- [x] [Protocol Encryption](http://wiki.vuze.com/w/Message_Stream_Encryption)
 - [ ] Magnet links
 - [ ] DHT
 - [ ] PEX
