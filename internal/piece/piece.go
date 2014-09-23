@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"strconv"
-	// "sync"
 
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
@@ -22,10 +21,7 @@ type Piece struct {
 	files    partialfile.Files // the place to write downloaded bytes
 	blocks   []Block
 	bitField bitfield.BitField // blocks we have
-	// peers    []*peer           // contains peers that have this piece
-	// peersM   sync.Mutex
-	// blockC   chan peerBlock
-	log logger.Logger
+	log      logger.Logger
 }
 
 type Block struct {
@@ -136,12 +132,11 @@ func newBlocks(pieceLength uint32, files partialfile.Files) []Block {
 	return blocks
 }
 
-func (p *Piece) Index() uint32               { return p.index }
-func (p *Piece) Blocks() []Block             { return p.blocks }
-func (p *Piece) Length() uint32              { return p.length }
-func (p *Piece) Hash() []byte                { return p.hash }
-func (p *Piece) BitField() bitfield.BitField { return p.bitField }
-
+func (p *Piece) Index() uint32                     { return p.index }
+func (p *Piece) Blocks() []Block                   { return p.blocks }
+func (p *Piece) Length() uint32                    { return p.length }
+func (p *Piece) Hash() []byte                      { return p.hash }
+func (p *Piece) BitField() bitfield.BitField       { return p.bitField }
 func (p *Piece) Reader() io.Reader                 { return p.files.Reader() }
 func (p *Piece) Write(b []byte) (n int, err error) { return p.files.Write(b) }
 
@@ -157,12 +152,9 @@ func (p *Piece) HashCheck() (ok bool, err error) {
 	return
 }
 
-func (b *Block) Index() uint32  { return b.index }
-func (b *Block) Length() uint32 { return b.length }
-
-func (b *Block) Write(p []byte) (n int, err error) {
-	return b.files.Write(p)
-}
+func (b *Block) Index() uint32                     { return b.index }
+func (b *Block) Length() uint32                    { return b.length }
+func (b *Block) Write(p []byte) (n int, err error) { return b.files.Write(p) }
 
 func divMod32(a, b uint32) (uint32, uint32) { return a / b, a % b }
 
