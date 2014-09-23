@@ -29,8 +29,10 @@ const (
 )
 
 type Peer struct {
-	conn         net.Conn
-	disconnected chan struct{} // will be closed when peer disconnects
+	conn net.Conn
+
+	// Will be closed when peer disconnects
+	Disconnected chan struct{}
 
 	transfer   Transfer
 	downloader Downloader
@@ -45,8 +47,6 @@ type Peer struct {
 
 	// Protects "peerChoking" and broadcasts when an "unchoke" message is received.
 	unchokeCond sync.Cond
-
-	bitField bitfield.BitField
 
 	log logger.Logger
 }
@@ -78,21 +78,20 @@ func New(conn net.Conn, direction int, t Transfer) *Peer {
 	var m sync.Mutex
 	return &Peer{
 		conn:         conn,
-		disconnected: make(chan struct{}),
+		Disconnected: make(chan struct{}),
 		transfer:     t,
 		downloader:   t.Downloader(),
 		uploader:     t.Uploader(),
 		amChoking:    true,
 		peerChoking:  true,
 		unchokeCond:  sync.Cond{L: &m},
-		bitField:     bitfield.New(t.BitField().Len()),
 		log:          logger.New("peer " + arrow + conn.RemoteAddr().String()),
 	}
 }
 
 // Serve processes incoming messages after handshake.
 func (p *Peer) Serve() {
-	defer close(p.disconnected)
+	defer close(p.Disconnected)
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 
 	first := true
@@ -160,32 +159,29 @@ func (p *Peer) Serve() {
 				p.log.Error("unexpected piece index")
 				return
 			}
-			piece := p.transfer.Pieces()[i]
-			p.bitField.Set(i)
 			p.log.Debug("Peer ", p.conn.RemoteAddr(), " has piece #", i)
-			p.log.Debugln("new bitfield:", p.bitField.Hex())
-
-			p.downloader.HaveC() <- &Have{p, piece}
+			p.downloader.HaveC() <- &Have{p, p.transfer.Pieces()[i]}
 		case protocol.Bitfield:
 			if !first {
 				p.log.Error("bitfield can only be sent after handshake")
 				return
 			}
 
-			if int64(length) != int64(len(p.bitField.Bytes())) {
+			if int64(length) != int64(len(p.transfer.BitField().Bytes())) {
 				p.log.Error("invalid bitfield length")
 				return
 			}
 
-			_, err = p.conn.Read(p.bitField.Bytes())
+			bf := bitfield.New(p.transfer.BitField().Len())
+			_, err = p.conn.Read(bf.Bytes())
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
-			p.log.Debugln("Received bitfield:", p.bitField.Hex())
+			p.log.Debugln("Received bitfield:", bf.Hex())
 
-			for i := uint32(0); i < p.bitField.Len(); i++ {
-				if p.bitField.Test(i) {
+			for i := uint32(0); i < bf.Len(); i++ {
+				if bf.Test(i) {
 					p.downloader.HaveC() <- &Have{p, p.transfer.Pieces()[i]}
 				}
 			}
@@ -300,7 +296,7 @@ func (p *Peer) beInterested() error {
 	var disconnected bool
 	checkDisconnect := func() {
 		select {
-		case <-p.disconnected:
+		case <-p.Disconnected:
 			disconnected = true
 		default:
 		}
