@@ -10,6 +10,7 @@ import (
 
 	"github.com/cenkalti/rain/internal/connection"
 	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/protocol"
 	"github.com/cenkalti/rain/internal/torrent"
 )
@@ -146,13 +147,22 @@ func (r *Rain) servePeer(conn net.Conn) {
 		return
 	}
 
-	p := newPeer(encConn, incoming, t)
-	p.log.Info("Connection accepted")
+	p := peer.New(encConn, peer.Incoming, t)
+	// p.log.Info("Connection accepted")
 
-	if err = p.sendBitField(); err != nil {
-		p.log.Error(err)
+	if err = p.SendBitField(); err != nil {
+		// p.log.Error(err)
 		return
 	}
+
+	t.peersM.Lock()
+	t.peers[p] = struct{}{}
+	t.peersM.Unlock()
+	defer func() {
+		t.peersM.Lock()
+		delete(t.peers, p)
+		t.peersM.Unlock()
+	}()
 
 	p.Serve()
 }

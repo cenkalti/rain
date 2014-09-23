@@ -1,3 +1,5 @@
+// +build ignore
+
 package rain
 
 import (
@@ -16,6 +18,7 @@ import (
 
 	"github.com/cenkalti/rain/internal/connection"
 	"github.com/cenkalti/rain/internal/magnet"
+	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/protocol"
 	"github.com/cenkalti/rain/internal/torrent"
 	"github.com/cenkalti/rain/internal/tracker"
@@ -98,17 +101,17 @@ func (m *MetadataDownloader) Run(announceInterval time.Duration) {
 	}
 }
 
-func (m *MetadataDownloader) worker(peer *net.TCPAddr) {
+func (m *MetadataDownloader) worker(addr *net.TCPAddr) {
 	// Do not open multiple connections to the same peer simultaneously.
 	m.peersM.Lock()
-	if _, ok := m.peers[peer]; ok {
+	if _, ok := m.peers[addr]; ok {
 		m.peersM.Unlock()
 		return
 	}
-	m.peers[peer] = struct{}{}
+	m.peers[addr] = struct{}{}
 	defer func() {
 		m.peersM.Lock()
-		delete(m.peers, peer)
+		delete(m.peers, addr)
 		m.peersM.Unlock()
 	}()
 	m.peersM.Unlock()
@@ -120,7 +123,7 @@ func (m *MetadataDownloader) worker(peer *net.TCPAddr) {
 
 	ourExtensions := [8]byte{}
 	ourExtensions[5] |= 0x10 // BEP 10 Extension Protocol
-	conn, _, peerExtensions, _, err := connection.Dial(peer, true, false, ourExtensions, m.magnet.InfoHash, ourID)
+	conn, _, peerExtensions, _, err := connection.Dial(addr, true, false, ourExtensions, m.magnet.InfoHash, ourID)
 	if err != nil {
 		log.Error(err)
 		return
@@ -132,12 +135,12 @@ func (m *MetadataDownloader) worker(peer *net.TCPAddr) {
 		return
 	}
 
-	p := newPeer(conn, outgoing, nil)
+	p := peer.New(conn, peer.Outgoing, nil)
 
 	info, err := downloadMetadataFromPeer(m.magnet, p)
 	conn.Close()
 	if err != nil {
-		p.log.Error(err)
+		log.Error(err)
 		return
 	}
 
@@ -149,7 +152,7 @@ func (m *MetadataDownloader) worker(peer *net.TCPAddr) {
 	}
 }
 
-func downloadMetadataFromPeer(m *magnet.Magnet, p *peer) (*torrent.Info, error) {
+func downloadMetadataFromPeer(m *magnet.Magnet, p *peer.Peer) (*torrent.Info, error) {
 	d := &extensionHandshakeMessage{
 		M: extensionMapping{
 			UTMetadata: extensionMetadataID,
@@ -329,7 +332,7 @@ func downloadMetadataFromPeer(m *magnet.Magnet, p *peer) (*torrent.Info, error) 
 	}
 }
 
-func sendMetadataMessage(m *metadataMessage, p *peer, id uint8) error {
+func sendMetadataMessage(m *metadataMessage, p *peer.Peer, id uint8) error {
 	var buf bytes.Buffer
 	e := bencode.NewEncoder(&buf)
 	err := e.Encode(m)
@@ -337,15 +340,6 @@ func sendMetadataMessage(m *metadataMessage, p *peer, id uint8) error {
 		return err
 	}
 	return p.sendExtensionMessage(id, buf.Bytes())
-}
-
-type extensionHandshakeMessage struct {
-	M            extensionMapping `bencode:"m"`
-	MetadataSize uint32           `bencode:"metadata_size,omitempty"`
-}
-
-type extensionMapping struct {
-	UTMetadata uint8 `bencode:"ut_metadata"`
 }
 
 type metadataMessage struct {

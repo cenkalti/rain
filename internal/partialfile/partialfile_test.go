@@ -1,6 +1,7 @@
 package partialfile_test
 
 import (
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -40,22 +41,22 @@ func TestPartialFile(t *testing.T) {
 	}
 	pf := partialfile.Files(files)
 	b := make([]byte, 5)
-	n, err := pf.Read(b)
+	n, err := io.ReadFull(pf.Reader(), b)
 	if err != nil {
 		t.Error(err)
 	}
 	if n != 5 {
-		t.Fail()
+		t.Errorf("n == %d", n)
 	}
 	if string(b) != "dfaqw" {
-		t.Fail()
+		t.Errorf("b = %s", string(b))
 	}
-	n, err = pf.Write([]byte("12345"))
+	n, err = pf.Writer().Write([]byte("12345"))
 	if err != nil {
 		t.Error(err)
 	}
 	if n != 5 {
-		t.Fail()
+		t.Errorf("n == %d", n)
 	}
 	if content(osFiles[0]) != "as12" {
 		t.Fail()

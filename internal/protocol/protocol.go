@@ -8,8 +8,18 @@ import (
 	"strconv"
 )
 
+const (
+	// Request pieces in blocks of this size.
+	BlockSize = 16 * 1024
+	// Reject requests larger than this size.
+	MaxAllowedBlockSize = 32 * 1024
+)
+
+// InfoHash is the sha1 hash of "info" dictionary in torrent file.
 type InfoHash [sha1.Size]byte
 
+// NewInfoHashString returns a new InfoHash value from a string.
+// s must be 40 (hex encoded) or 32 (base32 encoded) characters, otherwise it returns error.
 func NewInfoHashString(s string) (InfoHash, error) {
 	var ih InfoHash
 	var b []byte
@@ -28,15 +38,22 @@ func NewInfoHashString(s string) (InfoHash, error) {
 	return ih, nil
 }
 
-func (i InfoHash) String() string               { return hex.EncodeToString(i[:]) }
+// String returns the hex represenation of i.
+func (i InfoHash) String() string { return hex.EncodeToString(i[:]) }
+
+// MarshalJSON marshals i as 40 characters hex string.
 func (i InfoHash) MarshalJSON() ([]byte, error) { return []byte(`"` + i.String() + `"`), nil }
 
+// PeerID is unique identifier for the client.
 type PeerID [20]byte
 
+// String returns the hex representation of p.
 func (p PeerID) String() string { return hex.EncodeToString(p[:]) }
 
+// MessageType is identifier for messages sent between peers.
 type MessageType uint8
 
+// Peer message types
 const (
 	Choke MessageType = iota
 	Unchoke

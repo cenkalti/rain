@@ -10,6 +10,8 @@ import (
 
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/internal/peer"
+	"github.com/cenkalti/rain/internal/piece"
 	"github.com/cenkalti/rain/internal/protocol"
 	"github.com/cenkalti/rain/internal/torrent"
 	"github.com/cenkalti/rain/internal/tracker"
@@ -17,16 +19,17 @@ import (
 
 // transfer represents an active transfer in the program.
 type transfer struct {
-	rain     *Rain
-	tracker  tracker.Tracker
-	torrent  *torrent.Torrent
-	pieces   []*piece
-	bitField bitfield.BitField // pieces that we have
-	Finished chan struct{}     // downloading finished
-	haveC    chan peerHave
-	peers    map[*peer]struct{}
-	peersM   sync.RWMutex
-	log      logger.Logger
+	rain       *Rain
+	tracker    tracker.Tracker
+	torrent    *torrent.Torrent
+	pieces     []*piece.Piece
+	bitField   bitfield.BitField // pieces that we have
+	Finished   chan struct{}     // downloading finished
+	downloader *downloader
+	uploader   *uploader
+	peers      map[*peer.Peer]struct{}
+	peersM     sync.RWMutex
+	log        logger.Logger
 }
 
 func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error) {
@@ -44,47 +47,53 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 	if err != nil {
 		return nil, err
 	}
-	pieces := newPieces(tor.Info, files)
+	pieces := piece.NewPieces(tor.Info, files)
 	bitField := bitfield.New(uint32(len(pieces)))
 	if checkHash {
 		r.log.Notice("Doing hash check...")
 		for _, p := range pieces {
-			ok, err := p.hashCheck()
+			ok, err := p.HashCheck()
 			if err != nil {
 				return nil, err
 			}
 			if ok {
-				bitField.Set(p.index)
+				bitField.Set(p.Index())
 			}
 		}
 		percentDone := (bitField.Count() * 100) / bitField.Len()
 		r.log.Noticef("Already downloaded: %d%%", percentDone)
 	}
-	return &transfer{
+	t := &transfer{
 		rain:     r,
 		tracker:  tracker,
 		torrent:  tor,
 		pieces:   pieces,
 		bitField: bitField,
 		Finished: make(chan struct{}),
-		haveC:    make(chan peerHave),
-		peers:    make(map[*peer]struct{}),
+		peers:    make(map[*peer.Peer]struct{}),
 		log:      log,
-	}, nil
+	}
+	t.downloader = newDownloader(t)
+	t.uploader = newUploader(t)
+	return t, nil
 }
 
+func (t *transfer) BitField() bitfield.BitField { return t.bitField }
+func (t *transfer) Pieces() []*piece.Piece      { return t.pieces }
 func (t *transfer) InfoHash() protocol.InfoHash { return t.torrent.Info.Hash }
 func (t *transfer) Downloaded() int64 {
 	var sum int64
 	for i := uint32(0); i < t.bitField.Len(); i++ {
 		if t.bitField.Test(i) {
-			sum += int64(t.pieces[i].length)
+			sum += int64(t.pieces[i].Length())
 		}
 	}
 	return sum
 }
-func (t *transfer) Uploaded() int64 { return 0 } // TODO
-func (t *transfer) Left() int64     { return t.torrent.Info.TotalLength - t.Downloaded() }
+func (t *transfer) Uploaded() int64             { return 0 } // TODO
+func (t *transfer) Left() int64                 { return t.torrent.Info.TotalLength - t.Downloaded() }
+func (t *transfer) Downloader() peer.Downloader { return t.downloader }
+func (t *transfer) Uploader() peer.Uploader     { return t.uploader }
 
 func (t *transfer) Run() {
 	sKey := mse.HashSKey(t.torrent.Info.Hash[:])
@@ -108,11 +117,8 @@ func (t *transfer) Run() {
 		go tracker.AnnouncePeriodically(t.tracker, t, nil, tracker.Started, nil, announceC)
 	}
 
-	downloader := newDownloader(t)
-	go downloader.Run()
-
-	uploader := newUploader(t)
-	go uploader.Run()
+	go t.downloader.Run()
+	go t.uploader.Run()
 
 	for {
 		select {
@@ -122,17 +128,7 @@ func (t *transfer) Run() {
 				break
 			}
 			t.log.Infof("Announce: %d seeder, %d leecher", announceResponse.Seeders, announceResponse.Leechers)
-			downloader.peersC <- announceResponse.Peers
-		case peerHave := <-t.haveC:
-			piece := peerHave.piece
-			piece.peersM.Lock()
-			piece.peers = append(piece.peers, peerHave.peer)
-			piece.peersM.Unlock()
-
-			select {
-			case downloader.haveNotifyC <- struct{}{}:
-			default:
-			}
+			t.downloader.peersC <- announceResponse.Peers
 		}
 	}
 }
@@ -206,18 +202,4 @@ func openOrAllocate(path string, length int64) (f *os.File, exists bool, err err
 	}
 
 	return
-}
-
-func minInt64(a, b int64) int64 {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func minUint32(a, b uint32) uint32 {
-	if a < b {
-		return a
-	}
-	return b
 }

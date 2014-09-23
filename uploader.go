@@ -1,17 +1,16 @@
 package rain
 
 import (
-	"bufio"
-	"encoding/binary"
-	"time"
+	"io"
 
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/protocol"
+	"github.com/cenkalti/rain/internal/peer"
 )
 
 type uploader struct {
 	transfer *transfer
-	requestC chan peerRequest
+	requestC chan *peer.Request
+	serveC   chan *peer.Request
 	cancelC  chan struct{}
 	log      logger.Logger
 }
@@ -19,11 +18,14 @@ type uploader struct {
 func newUploader(t *transfer) *uploader {
 	return &uploader{
 		transfer: t,
-		requestC: make(chan peerRequest),
+		requestC: make(chan *peer.Request),
+		serveC:   make(chan *peer.Request),
 		cancelC:  make(chan struct{}),
 		log:      t.log,
 	}
 }
+
+func (u *uploader) RequestC() chan *peer.Request { return u.requestC }
 
 func (u *uploader) Run() {
 	go u.requestSelector()
@@ -36,28 +38,24 @@ func (u *uploader) Run() {
 // requestSelector decides which request to serve.
 func (u *uploader) requestSelector() {
 	for {
-		var request peerRequest
+		// var request peer.Request
 
-		u.transfer.peersM.RLock()
-		for peer := range u.transfer.peers {
-			select {
-			case request = <-peer.requests:
-				break
-			default:
-			}
-		}
-		u.transfer.peersM.RUnlock()
+		// u.transfer.peersM.RLock()
+		// for peer := range u.transfer.peers {
+		// 	select {
+		// 	case request = <-peer.requests:
+		// 		break
+		// 	default:
+		// 	}
+		// }
+		// u.transfer.peersM.RUnlock()
 
-		if request.peer == nil {
-			time.Sleep(time.Second) // TODO remove sleep
-			continue
-		}
+		// if request.peer == nil {
+		// 	time.Sleep(time.Second) // TODO remove sleep
+		// 	continue
+		// }
 
-		select {
-		case u.requestC <- request:
-		case <-u.cancelC:
-			return
-		}
+		u.serveC <- <-u.requestC
 	}
 }
 
@@ -65,43 +63,21 @@ func (u *uploader) requestSelector() {
 func (u *uploader) pieceUploader() {
 	for {
 		select {
-		case req := <-u.requestC:
-			peer := req.peer
-			piece := req.piece
-
-			if peer.amChoking {
-				if err := peer.sendMessage(protocol.Unchoke); err != nil {
-					peer.log.Error(err)
-					return
-				}
-			}
+		case req := <-u.serveC:
+			peer := req.Peer
+			piece := req.Piece
 
 			// TODO do not read whole piece
-			b := make([]byte, piece.length)
-			_, err := piece.files.Read(b)
+			b := make([]byte, piece.Length())
+			_, err := io.ReadFull(piece.Reader(), b)
 			if err != nil {
-				peer.log.Error(err)
+				u.transfer.log.Error(err)
 				return
 			}
 
-			buf := bufio.NewWriterSize(peer.conn, int(13+req.length))
-			msgLen := 9 + req.length
-			if err = binary.Write(buf, binary.BigEndian, msgLen); err != nil {
-				peer.log.Error(err)
-				return
-			}
-			buf.WriteByte(byte(protocol.Piece))
-			if err = binary.Write(buf, binary.BigEndian, piece.index); err != nil {
-				peer.log.Error(err)
-				return
-			}
-			if err = binary.Write(buf, binary.BigEndian, req.begin); err != nil {
-				peer.log.Error(err)
-				return
-			}
-			buf.Write(b[req.begin : req.begin+req.length])
-			if err = buf.Flush(); err != nil {
-				peer.log.Error(err)
+			err = peer.SendPiece(piece.Index(), req.Begin, b[req.Begin:req.Begin+req.Length])
+			if err != nil {
+				u.transfer.log.Error(err)
 				return
 			}
 		case <-u.cancelC:

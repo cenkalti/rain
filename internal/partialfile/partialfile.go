@@ -1,11 +1,9 @@
 package partialfile
 
 import (
-	"errors"
+	"io"
 	"os"
 )
-
-var ErrInvalidLength = errors.New("invalid slice length")
 
 type File struct {
 	File   *os.File
@@ -13,57 +11,50 @@ type File struct {
 	Length uint32
 }
 
-func (f File) Read(b []byte) (n int, err error) {
-	if len(b) != int(f.Length) {
-		return 0, ErrInvalidLength
-	}
-	return f.File.ReadAt(b[:f.Length], f.Offset)
-}
-
-func (f File) Write(b []byte) (n int, err error) {
-	if len(b) != int(f.Length) {
-		return 0, ErrInvalidLength
-	}
-	return f.File.WriteAt(b[:f.Length], f.Offset)
-}
-
 type Files []File
 
-func (f Files) Read(b []byte) (n int, err error) {
-	var total uint32
-	for _, p := range f {
-		total += p.Length
+func (f Files) Reader() io.Reader { return &reader{files: f} }
+func (f Files) Writer() io.Writer { return &writer{files: f} }
+
+type reader struct {
+	files []File // remaining files
+	pos   int64  // position in current file
+}
+
+func (r *reader) Read(b []byte) (n int, err error) {
+	if len(r.files) == 0 {
+		err = io.EOF
+		return
 	}
-	if len(b) != int(total) {
-		return 0, ErrInvalidLength
-	}
-	for _, p := range f {
-		m, e := p.Read(b[:p.Length])
-		if e != nil {
-			err = e
-			break
+	f := r.files[0]
+	n, err = f.File.ReadAt(b, f.Offset+r.pos)
+	r.pos += int64(n)
+	if err == io.EOF {
+		r.files = r.files[1:] // advance to next file
+		r.pos = 0             // reset position
+		if len(r.files) > 0 {
+			err = nil
 		}
-		n += m
-		b = b[m:]
 	}
 	return
 }
 
-func (f Files) Write(b []byte) (n int, err error) {
-	var total uint32
-	for _, p := range f {
-		total += p.Length
-	}
-	if len(b) != int(total) {
-		return 0, ErrInvalidLength
-	}
-	for _, p := range f {
-		m, e := p.Write(b[:p.Length])
-		if e != nil {
-			err = e
-			break
-		}
+type writer struct {
+	files []File
+}
+
+func (w *writer) Write(b []byte) (n int, err error) {
+	var m int
+	for _, f := range w.files {
+		m, err = f.File.WriteAt(b[:f.Length], f.Offset)
 		n += m
+		if err != nil {
+			return
+		}
+		if uint32(m) != f.Length {
+			err = io.ErrShortWrite
+			return
+		}
 		b = b[m:]
 	}
 	return
