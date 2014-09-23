@@ -67,6 +67,25 @@ type Uploader interface {
 	RequestC() chan *Request
 }
 
+type Have struct {
+	Peer  *Peer
+	Piece *piece.Piece
+}
+
+type Block struct {
+	Peer  *Peer
+	Piece *piece.Piece
+	Block *piece.Block
+	Data  []byte
+}
+
+type Request struct {
+	Peer   *Peer
+	Piece  *piece.Piece
+	Begin  uint32
+	Length uint32
+}
+
 func New(conn net.Conn, direction int, t Transfer) *Peer {
 	var arrow string
 	switch direction {
@@ -413,9 +432,8 @@ func (p *Peer) DownloadPiece(piece *piece.Piece) error {
 	}
 
 	// Verify piece hash
-	hash := sha1.New()
-	hash.Write(pieceData)
-	if !bytes.Equal(hash.Sum(nil), piece.Hash()) {
+	hash := sha1.Sum(pieceData)
+	if !bytes.Equal(hash[:], piece.Hash()) {
 		return errors.New("received corrupt piece")
 	}
 	return nil
@@ -442,25 +460,6 @@ func (p *Peer) SendPiece(index, begin uint32, block []byte) error {
 	}
 	buf.Write(block)
 	return buf.Flush()
-}
-
-type Have struct {
-	Peer  *Peer
-	Piece *piece.Piece
-}
-
-type Block struct {
-	Peer  *Peer
-	Piece *piece.Piece
-	Block *piece.Block
-	Data  []byte
-}
-
-type Request struct {
-	Peer   *Peer
-	Piece  *piece.Piece
-	Begin  uint32
-	Length uint32
 }
 
 type requestMessage struct {
