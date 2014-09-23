@@ -5,7 +5,7 @@ import "io"
 type File struct {
 	File   readwriterAt
 	Offset int64
-	Length uint32
+	Length int64
 }
 
 type Files []File
@@ -31,7 +31,7 @@ func (f Files) Write(b []byte) (n int, err error) {
 		if err != nil {
 			return
 		}
-		if uint32(m) < file.Length {
+		if int64(m) < file.Length {
 			err = io.ErrShortWrite
 			return
 		}

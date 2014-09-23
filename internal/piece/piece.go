@@ -63,7 +63,7 @@ func NewPieces(info *torrent.Info, osFiles []*os.File) []*Piece {
 		for left := pieceLeft(); left > 0; {
 			n := uint32(minInt64(int64(left), fileLeft())) // number of bytes to write
 
-			file := partialfile.File{osFiles[fileIndex], fileOffset, n}
+			file := partialfile.File{osFiles[fileIndex], fileOffset, int64(n)}
 			p.log.Debugf("file: %#v", file)
 			p.files = append(p.files, file)
 
@@ -113,13 +113,13 @@ func newBlocks(pieceLength uint32, files partialfile.Files) []Block {
 		fileIndex++
 		fileOffset = 0
 	}
-	fileLeft := func() uint32 { return files[fileIndex].Length - fileOffset }
+	fileLeft := func() uint32 { return uint32(files[fileIndex].Length) - fileOffset }
 	for i := range blocks {
 		var blockOffset uint32 = 0
 		blockLeft := func() uint32 { return blocks[i].length - blockOffset }
 		for left := blockLeft(); left > 0 && fileIndex < len(files); {
 			n := minUint32(left, fileLeft())
-			file := partialfile.File{files[fileIndex].File, files[fileIndex].Offset + int64(fileOffset), n}
+			file := partialfile.File{files[fileIndex].File, files[fileIndex].Offset + int64(fileOffset), int64(n)}
 			blocks[i].files = append(blocks[i].files, file)
 			fileOffset += n
 			blockOffset += n
