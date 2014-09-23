@@ -14,7 +14,11 @@ Features
 - [x] [BEP 24: Tracker Returns External IP](http://bittorrent.org/beps/bep_0024.html)
 - [x] [BEP 41: UDP Tracker Protocol Extensions](http://bittorrent.org/beps/bep_0041.html)
 - [ ] [BEP 29: uTorrent transport protocol](http://bittorrent.org/beps/bep_0029.html)
-- [x] [Protocol Encryption](http://wiki.vuze.com/w/Message_Stream_Encryption)
+- [x] [Message Stream Encryption](http://wiki.vuze.com/w/Message_Stream_Encryption)
 - [ ] Magnet links
 - [ ] DHT
 - [ ] PEX
+- [ ] IPv6
+- [ ] UPnP / NAT-PMP automatic firewall configuration
+- [ ] RPC server
+- [ ] Pluggable storage backend
