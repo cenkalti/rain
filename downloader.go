@@ -27,7 +27,7 @@ type downloader struct {
 	blockC      chan *peer.Block
 	cancelC     chan struct{}
 	port        uint16
-	peers       map[uint32][]*peer.Peer
+	peers       map[uint32][]*peer.Peer // indexed by piece
 	peersM      sync.Mutex
 	log         logger.Logger
 }

@@ -1,57 +1,37 @@
 package partialfile
 
-import (
-	"io"
-	"os"
-)
+import "io"
 
 type File struct {
-	File   *os.File
+	File   readwriterAt
 	Offset int64
 	Length uint32
 }
 
 type Files []File
 
-func (f Files) Reader() io.Reader { return &reader{files: f} }
-func (f Files) Writer() io.Writer { return &writer{files: f} }
-
-type reader struct {
-	files []File // remaining files
-	pos   int64  // position in current file
+type readwriterAt interface {
+	io.ReaderAt
+	io.WriterAt
 }
 
-func (r *reader) Read(b []byte) (n int, err error) {
-	if len(r.files) == 0 {
-		err = io.EOF
-		return
+func (f Files) Reader() io.Reader {
+	readers := make([]io.Reader, len(f))
+	for i := range f {
+		readers[i] = io.NewSectionReader(f[i].File, f[i].Offset, int64(f[i].Length))
 	}
-	f := r.files[0]
-	n, err = f.File.ReadAt(b, f.Offset+r.pos)
-	r.pos += int64(n)
-	if err == io.EOF {
-		r.files = r.files[1:] // advance to next file
-		r.pos = 0             // reset position
-		if len(r.files) > 0 {
-			err = nil
-		}
-	}
-	return
+	return io.MultiReader(readers...)
 }
 
-type writer struct {
-	files []File
-}
-
-func (w *writer) Write(b []byte) (n int, err error) {
+func (f Files) Write(b []byte) (n int, err error) {
 	var m int
-	for _, f := range w.files {
-		m, err = f.File.WriteAt(b[:f.Length], f.Offset)
+	for _, file := range f {
+		m, err = file.File.WriteAt(b[:file.Length], file.Offset)
 		n += m
 		if err != nil {
 			return
 		}
-		if uint32(m) != f.Length {
+		if uint32(m) < file.Length {
 			err = io.ErrShortWrite
 			return
 		}

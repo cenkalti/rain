@@ -28,6 +28,8 @@ var Build = "0000" // zero means development version
 // http://www.bittorrent.org/beps/bep_0020.html
 var peerIDPrefix = []byte("-RN" + Build + "-")
 
+func init() { log.Warning("You are running development version of rain!") }
+
 func SetLogLevel(l log.Level) { logger.DefaultHandler.SetLevel(l) }
 
 type Rain struct {

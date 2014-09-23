@@ -51,7 +51,7 @@ func TestPartialFile(t *testing.T) {
 	if string(b) != "dfaqw" {
 		t.Errorf("b = %s", string(b))
 	}
-	n, err = pf.Writer().Write([]byte("12345"))
+	n, err = pf.Write([]byte("12345"))
 	if err != nil {
 		t.Error(err)
 	}

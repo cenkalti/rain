@@ -142,8 +142,8 @@ func (p *Piece) Length() uint32              { return p.length }
 func (p *Piece) Hash() []byte                { return p.hash }
 func (p *Piece) BitField() bitfield.BitField { return p.bitField }
 
-func (p *Piece) Reader() io.Reader { return p.files.Reader() }
-func (p *Piece) Writer() io.Writer { return p.files.Writer() }
+func (p *Piece) Reader() io.Reader                 { return p.files.Reader() }
+func (p *Piece) Write(b []byte) (n int, err error) { return p.files.Write(b) }
 
 func (p *Piece) HashCheck() (ok bool, err error) {
 	hash := sha1.New()
@@ -161,7 +161,7 @@ func (b *Block) Index() uint32  { return b.index }
 func (b *Block) Length() uint32 { return b.length }
 
 func (b *Block) Write(p []byte) (n int, err error) {
-	return b.files.Writer().Write(p)
+	return b.files.Write(p)
 }
 
 func divMod32(a, b uint32) (uint32, uint32) { return a / b, a % b }
