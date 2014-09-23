@@ -49,7 +49,7 @@ func newDownloader(t *transfer) *downloader {
 		responseC:   make(chan *piece.Piece),
 		blockC:      make(chan *peer.Block),
 		cancelC:     make(chan struct{}),
-		port:        t.rain.config.Port,
+		port:        t.rain.Port(),
 		haveC:       make(chan *peer.Have),
 		peers:       make(map[uint32][]*peer.Peer),
 		log:         t.log,
