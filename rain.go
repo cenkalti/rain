@@ -166,7 +166,7 @@ func (r *Rain) servePeer(conn net.Conn) {
 		t.peersM.Unlock()
 	}()
 
-	p.Serve()
+	p.Run()
 }
 
 func (r *Rain) Add(torrentPath, where string) (*transfer, error) {

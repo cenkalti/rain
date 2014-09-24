@@ -179,7 +179,7 @@ func (d *downloader) connect(addr *net.TCPAddr) {
 		d.transfer.peersM.Unlock()
 	}()
 
-	p.Serve()
+	p.Run()
 }
 
 // pieceRequester selects a piece to be downloaded next and sends it to d.requestC.

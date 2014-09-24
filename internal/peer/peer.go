@@ -108,8 +108,8 @@ func New(conn net.Conn, direction int, t Transfer) *Peer {
 	}
 }
 
-// Serve processes incoming messages after handshake.
-func (p *Peer) Serve() {
+// Run reads and processes incoming messages after handshake.
+func (p *Peer) Run() {
 	defer close(p.Disconnected)
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 
