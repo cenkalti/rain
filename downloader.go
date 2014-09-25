@@ -152,23 +152,25 @@ func (d *downloader) connecter() {
 }
 
 func (d *downloader) connect(addr *net.TCPAddr) {
-	t := d.transfer
-	conn, _, _, _, err := connection.Dial(addr, !t.rain.config.Encryption.DisableOutgoing, t.rain.config.Encryption.ForceOutgoing, [8]byte{}, t.torrent.Info.Hash, t.rain.peerID)
+	log := logger.New("peer -> " + addr.String())
+
+	client := d.transfer.rain
+	conn, cipher, extensions, _, err := connection.Dial(addr, !client.config.Encryption.DisableOutgoing, client.config.Encryption.ForceOutgoing, [8]byte{}, d.transfer.torrent.Info.Hash, client.peerID)
 	if err != nil {
 		if err == connection.ErrOwnConnection {
-			t.log.Debug(err)
+			log.Debug(err)
 		} else {
-			t.log.Error(err)
+			log.Error(err)
 		}
 		return
 	}
+	log.Infof("Connected to peer. (cipher=%s, extensions=%x)", cipher, extensions)
 	defer conn.Close()
 
-	p := peer.New(conn, peer.Outgoing, t)
-	t.log.Infoln("Connected to peer", addr.String())
+	p := peer.New(conn, d.transfer, log)
 
 	if err = p.SendBitField(); err != nil {
-		t.log.Error(err)
+		log.Error(err)
 		return
 	}
 

@@ -20,11 +20,6 @@ import (
 
 const connReadTimeout = 3 * time.Minute
 
-const (
-	Outgoing = iota
-	Incoming
-)
-
 type Peer struct {
 	conn net.Conn
 
@@ -78,21 +73,14 @@ type Request struct {
 	Length uint32
 }
 
-func New(conn net.Conn, direction int, t Transfer) *Peer {
-	var arrow string
-	switch direction {
-	case Outgoing:
-		arrow = "-> "
-	case Incoming:
-		arrow = "<- "
-	}
+func New(conn net.Conn, t Transfer, l logger.Logger) *Peer {
 	return &Peer{
 		conn:         conn,
 		Disconnected: make(chan struct{}),
 		transfer:     t,
 		downloader:   t.Downloader(),
 		uploader:     t.Uploader(),
-		log:          logger.New("peer " + arrow + conn.RemoteAddr().String()),
+		log:          l,
 	}
 }
 

@@ -131,7 +131,8 @@ func (r *Rain) servePeer(conn net.Conn) {
 		return ok
 	}
 
-	encConn, _, _, ih, _, err := connection.Accept(conn, getSKey, r.config.Encryption.ForceIncoming, hasInfoHash, [8]byte{}, r.peerID)
+	log := logger.New("peer <- " + conn.RemoteAddr().String())
+	encConn, cipher, extensions, ih, _, err := connection.Accept(conn, getSKey, r.config.Encryption.ForceIncoming, hasInfoHash, [8]byte{}, r.peerID)
 	if err != nil {
 		if err == connection.ErrOwnConnection {
 			r.log.Debug(err)
@@ -140,20 +141,20 @@ func (r *Rain) servePeer(conn net.Conn) {
 		}
 		return
 	}
+	log.Infof("Connection accepted. (cipher=%s extensions=%x)", cipher, extensions)
 
 	r.transfersM.Lock()
 	t, ok := r.transfers[ih]
 	r.transfersM.Unlock()
 	if !ok {
-		r.log.Debug("Transfer is removed during incoming handshake")
+		log.Debug("Transfer is removed during incoming handshake")
 		return
 	}
 
-	p := peer.New(encConn, peer.Incoming, t)
-	// p.log.Info("Connection accepted")
+	p := peer.New(encConn, t, log)
 
 	if err = p.SendBitField(); err != nil {
-		// p.log.Error(err)
+		log.Error(err)
 		return
 	}
 
