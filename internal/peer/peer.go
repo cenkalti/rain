@@ -3,10 +3,7 @@ package peer
 import (
 	"bufio"
 	"bytes"
-	"crypto/sha1"
 	"encoding/binary"
-	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -45,8 +42,8 @@ type Peer struct {
 
 	onceInterested sync.Once // for sending "interested" message only once
 
-	// Protects "peerChoking" and broadcasts when an "unchoke" message is received.
-	unchokeCond sync.Cond
+	unchokeWaiters  []chan struct{}
+	unchokeWaitersM sync.Mutex
 
 	log logger.Logger
 }
@@ -94,7 +91,6 @@ func New(conn net.Conn, direction int, t Transfer) *Peer {
 	case Incoming:
 		arrow = "<- "
 	}
-	var m sync.Mutex
 	return &Peer{
 		conn:         conn,
 		Disconnected: make(chan struct{}),
@@ -103,7 +99,6 @@ func New(conn net.Conn, direction int, t Transfer) *Peer {
 		uploader:     t.Uploader(),
 		amChoking:    true,
 		peerChoking:  true,
-		unchokeCond:  sync.Cond{L: &m},
 		log:          logger.New("peer " + arrow + conn.RemoteAddr().String()),
 	}
 }
@@ -151,14 +146,15 @@ func (p *Peer) Run() {
 
 		switch msgType {
 		case protocol.Choke:
-			p.unchokeCond.L.Lock()
 			p.peerChoking = true
-			p.unchokeCond.L.Unlock()
 		case protocol.Unchoke:
-			p.unchokeCond.L.Lock()
+			p.unchokeWaitersM.Lock()
 			p.peerChoking = false
-			p.unchokeCond.Broadcast()
-			p.unchokeCond.L.Unlock()
+			for _, ch := range p.unchokeWaiters {
+				close(ch)
+			}
+			p.unchokeWaiters = nil
+			p.unchokeWaitersM.Unlock()
 		case protocol.Interested:
 			p.peerInterested = true
 			if err := p.SendMessage(protocol.Unchoke); err != nil {
@@ -304,37 +300,22 @@ func (p *Peer) SendBitField() error {
 	return err
 }
 
-// beInterested sends "interested" message to peer (once) and
+// BeInterested sends "interested" message to peer (once) and
 // returns a channel that will be closed when an "unchoke" message is received.
-func (p *Peer) beInterested() error {
-	p.log.Debug("beInterested")
+func (p *Peer) BeInterested() (unchoke chan struct{}, err error) {
+	p.log.Debug("BeInterested")
 
-	var err error
+	p.unchokeWaitersM.Lock()
+	defer p.unchokeWaitersM.Unlock()
+
 	p.onceInterested.Do(func() { err = p.SendMessage(protocol.Interested) })
 	if err != nil {
-		return err
+		return
 	}
 
-	var disconnected bool
-	checkDisconnect := func() {
-		select {
-		case <-p.Disconnected:
-			disconnected = true
-		default:
-		}
-	}
-
-	p.unchokeCond.L.Lock()
-	for checkDisconnect(); p.peerChoking && !disconnected; {
-		p.unchokeCond.Wait()
-	}
-	p.unchokeCond.L.Unlock()
-
-	if disconnected {
-		return errors.New("peer disconnected while waiting for unchoke message")
-	}
-
-	return nil
+	unchoke = make(chan struct{})
+	p.unchokeWaiters = append(p.unchokeWaiters, unchoke)
+	return
 }
 
 func (p *Peer) SendMessage(msgType protocol.MessageType) error {
@@ -392,58 +373,13 @@ type peerRequestMessage struct {
 	Index, Begin, Length uint32
 }
 
-func newRequestMessage(index, begin, length uint32) *peerRequestMessage {
-	return &peerRequestMessage{protocol.Request, index, begin, length}
-}
-
-func (p *Peer) sendRequest(m *peerRequestMessage) error {
+func (p *Peer) SendRequest(index, begin, length uint32) error {
 	var msg = struct {
 		Length  uint32
 		Message peerRequestMessage
-	}{13, *m}
+	}{13, peerRequestMessage{protocol.Request, index, begin, length}}
 	p.log.Debugf("Sending message: %q %#v", "request", msg)
 	return binary.Write(p.conn, binary.BigEndian, &msg)
-}
-
-func (p *Peer) DownloadPiece(piece *piece.Piece) error {
-	p.log.Debugf("downloading piece #%d", piece.Index())
-
-	err := p.beInterested()
-	if err != nil {
-		return err
-	}
-
-	for _, b := range piece.Blocks() {
-		if err := p.sendRequest(newRequestMessage(piece.Index(), b.Index()*protocol.BlockSize, b.Length())); err != nil {
-			return err
-		}
-	}
-
-	pieceData := make([]byte, piece.Length())
-	for _ = range piece.Blocks() {
-		select {
-		case peerBlock := <-p.downloader.BlockC():
-			data := <-peerBlock.Data
-			if data == nil {
-				return errors.New("peer did not send block completely")
-			}
-			p.log.Debugln("Will receive block of length", len(data))
-			copy(pieceData[peerBlock.Block.Index()*protocol.BlockSize:], data)
-			if _, err = peerBlock.Block.Write(data); err != nil {
-				return err
-			}
-			piece.BitField().Set(peerBlock.Block.Index())
-		case <-time.After(time.Minute):
-			return fmt.Errorf("peer did not send piece #%d completely", piece.Index())
-		}
-	}
-
-	// Verify piece hash
-	hash := sha1.Sum(pieceData)
-	if !bytes.Equal(hash[:], piece.Hash()) {
-		return errors.New("received corrupt piece")
-	}
-	return nil
 }
 
 func (p *Peer) SendPiece(index, begin uint32, block []byte) error {

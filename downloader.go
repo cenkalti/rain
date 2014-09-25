@@ -1,7 +1,10 @@
 package rain
 
 import (
+	"bytes"
+	"crypto/sha1"
 	"errors"
+	"fmt"
 	"math/rand"
 	"net"
 	"runtime"
@@ -12,6 +15,7 @@ import (
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/piece"
+	"github.com/cenkalti/rain/internal/protocol"
 	"github.com/cenkalti/rain/internal/tracker"
 )
 
@@ -299,7 +303,7 @@ var errNoPiece = errors.New("no piece available for download")
 var errNoPeer = errors.New("no peer available for this piece")
 
 func (d *downloader) downloadPiece(p *piece.Piece) error {
-	d.transfer.log.Debug("downloading")
+	d.transfer.log.Debugln("Downloading piece", p.Index())
 
 	peer, err := d.selectPeer(p)
 	if err != nil {
@@ -307,7 +311,50 @@ func (d *downloader) downloadPiece(p *piece.Piece) error {
 	}
 	d.transfer.log.Debugln("selected peer:", peer)
 
-	return peer.DownloadPiece(p)
+	unchokeC, err := peer.BeInterested()
+	if err != nil {
+		return err
+	}
+
+	select {
+	case <-unchokeC:
+	case <-peer.Disconnected:
+		return errors.New("peer disconnected")
+	}
+
+	// Request blocks of the piece.
+	for _, b := range p.Blocks() {
+		if err := peer.SendRequest(p.Index(), b.Index()*protocol.BlockSize, b.Length()); err != nil {
+			return err
+		}
+	}
+
+	pieceData := make([]byte, p.Length())
+	for _ = range p.Blocks() {
+		select {
+		case peerBlock := <-d.blockC:
+			data := <-peerBlock.Data
+			if data == nil {
+				return errors.New("peer did not send block completely")
+			}
+			d.transfer.log.Debugln("Will receive block of length", len(data))
+			copy(pieceData[peerBlock.Block.Index()*protocol.BlockSize:], data)
+			if _, err = peerBlock.Block.Write(data); err != nil {
+				return err
+			}
+			p.BitField().Set(peerBlock.Block.Index())
+		case <-time.After(time.Minute):
+			return fmt.Errorf("peer did not send piece #%d completely", p.Index())
+		}
+	}
+
+	// Verify piece hash.
+	hash := sha1.Sum(pieceData)
+	if !bytes.Equal(hash[:], p.Hash()) {
+		return errors.New("received corrupt piece")
+	}
+
+	return nil
 }
 
 func (d *downloader) selectPeer(p *piece.Piece) (*peer.Peer, error) {
