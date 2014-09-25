@@ -35,11 +35,6 @@ type Peer struct {
 	downloader Downloader
 	uploader   Uploader
 
-	amChoking      bool // we are choking the peer
-	amInterested   bool // we are interested in the peer
-	peerChoking    bool // peer is choking us
-	peerInterested bool // peer is interested in us
-
 	onceInterested sync.Once // for sending "interested" message only once
 
 	unchokeWaiters  []chan struct{}
@@ -97,8 +92,6 @@ func New(conn net.Conn, direction int, t Transfer) *Peer {
 		transfer:     t,
 		downloader:   t.Downloader(),
 		uploader:     t.Uploader(),
-		amChoking:    true,
-		peerChoking:  true,
 		log:          logger.New("peer " + arrow + conn.RemoteAddr().String()),
 	}
 }
@@ -146,24 +139,20 @@ func (p *Peer) Run() {
 
 		switch msgType {
 		case protocol.Choke:
-			p.peerChoking = true
 		case protocol.Unchoke:
 			p.unchokeWaitersM.Lock()
-			p.peerChoking = false
 			for _, ch := range p.unchokeWaiters {
 				close(ch)
 			}
 			p.unchokeWaiters = nil
 			p.unchokeWaitersM.Unlock()
 		case protocol.Interested:
-			p.peerInterested = true
 			// TODO uploader should do this
 			if err := p.sendMessage(protocol.Unchoke, nil); err != nil {
 				p.log.Error(err)
 				return
 			}
 		case protocol.NotInterested:
-			p.peerInterested = false
 		case protocol.Have:
 			var i uint32
 			err = binary.Read(p.conn, binary.BigEndian, &i)
