@@ -10,10 +10,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cenkalti/log"
 	"github.com/zeebo/bencode"
 
 	"github.com/cenkalti/rain/internal/bitfield"
-	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/piece"
 	"github.com/cenkalti/rain/internal/protocol"
 )
@@ -35,7 +35,7 @@ type Peer struct {
 	unchokeWaiters  []chan struct{}
 	unchokeWaitersM sync.Mutex
 
-	log logger.Logger
+	log log.Logger
 }
 
 type Transfer interface {
@@ -73,7 +73,7 @@ type Request struct {
 	Length uint32
 }
 
-func New(conn net.Conn, t Transfer, l logger.Logger) *Peer {
+func New(conn net.Conn, t Transfer, l log.Logger) *Peer {
 	return &Peer{
 		conn:         conn,
 		Disconnected: make(chan struct{}),
