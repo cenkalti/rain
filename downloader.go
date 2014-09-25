@@ -30,7 +30,6 @@ type downloader struct {
 	responseC   chan *piece.Piece
 	blockC      chan *peer.Block
 	cancelC     chan struct{}
-	port        uint16
 	peers       map[uint32][]*peer.Peer // indexed by piece
 	peersM      sync.Mutex
 	log         logger.Logger
@@ -53,7 +52,6 @@ func newDownloader(t *transfer) *downloader {
 		responseC:   make(chan *piece.Piece),
 		blockC:      make(chan *peer.Block),
 		cancelC:     make(chan struct{}),
-		port:        t.rain.Port(),
 		haveC:       make(chan *peer.Have),
 		peers:       make(map[uint32][]*peer.Peer),
 		log:         t.log,
@@ -132,7 +130,7 @@ func (d *downloader) connecter() {
 			if p.Port == 0 {
 				break
 			}
-			if p.IP.IsLoopback() && p.Port == int(d.port) {
+			if p.IP.IsLoopback() && p.Port == int(d.transfer.rain.Port()) {
 				break
 			}
 
@@ -303,7 +301,7 @@ var errNoPiece = errors.New("no piece available for download")
 var errNoPeer = errors.New("no peer available for this piece")
 
 func (d *downloader) downloadPiece(p *piece.Piece) error {
-	d.transfer.log.Debugln("Downloading piece", p.Index())
+	d.transfer.log.Debugln("Downloading piece:", p.Index())
 
 	peer, err := d.selectPeer(p)
 	if err != nil {
@@ -329,6 +327,7 @@ func (d *downloader) downloadPiece(p *piece.Piece) error {
 		}
 	}
 
+	// Read blocks from peer.
 	pieceData := make([]byte, p.Length())
 	for _ = range p.Blocks() {
 		select {
