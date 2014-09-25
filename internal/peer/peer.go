@@ -76,7 +76,7 @@ type Block struct {
 	Peer  *Peer
 	Piece *piece.Piece
 	Block *piece.Block
-	Data  []byte
+	Data  chan []byte
 }
 
 type Request struct {
@@ -258,13 +258,16 @@ func (p *Peer) Run() {
 				p.log.Error("unexpected block size")
 				return
 			}
+			dataC := make(chan []byte, 1)
+			p.downloader.BlockC() <- &Block{p, receivedPiece, block, dataC}
 			data := make([]byte, length)
 			_, err = io.ReadFull(p.conn, data)
 			if err != nil {
 				p.log.Error(err)
+				dataC <- nil
 				return
 			}
-			p.downloader.BlockC() <- &Block{p, receivedPiece, block, data}
+			dataC <- data
 		case protocol.Cancel:
 		case protocol.Port:
 		default:
@@ -420,9 +423,13 @@ func (p *Peer) DownloadPiece(piece *piece.Piece) error {
 	for _ = range piece.Blocks() {
 		select {
 		case peerBlock := <-p.downloader.BlockC():
-			p.log.Debugln("received block of length", len(peerBlock.Data))
-			copy(pieceData[peerBlock.Block.Index()*protocol.BlockSize:], peerBlock.Data)
-			if _, err = peerBlock.Block.Write(peerBlock.Data); err != nil {
+			data := <-peerBlock.Data
+			if data == nil {
+				return errors.New("peer did not send block completely")
+			}
+			p.log.Debugln("Will receive block of length", len(data))
+			copy(pieceData[peerBlock.Block.Index()*protocol.BlockSize:], data)
+			if _, err = peerBlock.Block.Write(data); err != nil {
 				return err
 			}
 			piece.BitField().Set(peerBlock.Block.Index())
