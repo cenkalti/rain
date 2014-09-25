@@ -157,7 +157,7 @@ func (p *Peer) Run() {
 			p.unchokeWaitersM.Unlock()
 		case protocol.Interested:
 			p.peerInterested = true
-			if err := p.SendMessage(protocol.Unchoke); err != nil {
+			if err := p.sendMessage(protocol.Unchoke, nil); err != nil {
 				p.log.Error(err)
 				return
 			}
@@ -282,22 +282,7 @@ func (p *Peer) SendBitField() error {
 	if p.transfer.BitField().Count() == 0 {
 		return nil
 	}
-
-	buf := bytes.NewBuffer(make([]byte, 0, 5+len(p.transfer.BitField().Bytes())))
-
-	err := binary.Write(buf, binary.BigEndian, uint32(1+len(p.transfer.BitField().Bytes())))
-	if err != nil {
-		return err
-	}
-	if err = buf.WriteByte(byte(protocol.Bitfield)); err != nil {
-		return err
-	}
-	if _, err = buf.Write(p.transfer.BitField().Bytes()); err != nil {
-		return err
-	}
-	p.log.Debugf("Sending message: \"bitfield\" %#v", buf.Bytes())
-	_, err = buf.WriteTo(p.conn)
-	return err
+	return p.sendMessage(protocol.Bitfield, p.transfer.BitField().Bytes())
 }
 
 // BeInterested sends "interested" message to peer (once) and
@@ -308,7 +293,7 @@ func (p *Peer) BeInterested() (unchoke chan struct{}, err error) {
 	p.unchokeWaitersM.Lock()
 	defer p.unchokeWaitersM.Unlock()
 
-	p.onceInterested.Do(func() { err = p.SendMessage(protocol.Interested) })
+	p.onceInterested.Do(func() { err = p.sendMessage(protocol.Interested, nil) })
 	if err != nil {
 		return
 	}
@@ -318,13 +303,64 @@ func (p *Peer) BeInterested() (unchoke chan struct{}, err error) {
 	return
 }
 
-func (p *Peer) SendMessage(msgType protocol.MessageType) error {
-	var msg = struct {
-		Length      uint32
-		MessageType protocol.MessageType
-	}{1, msgType}
-	p.log.Debugf("Sending message: %q", msgType)
-	return binary.Write(p.conn, binary.BigEndian, &msg)
+func (p *Peer) Request(index, begin, length uint32) error {
+	request := requestMessage{
+		index, begin, length,
+	}
+	buf := bytes.NewBuffer(make([]byte, 0, 12))
+	binary.Write(buf, binary.BigEndian, &request)
+	return p.sendMessage(protocol.Request, buf.Bytes())
+}
+
+func (p *Peer) SendPiece(index, begin uint32, block []byte) error {
+
+	// TODO not here
+	if err := p.sendMessage(protocol.Unchoke, nil); err != nil {
+		return err
+	}
+
+	msg := &pieceMessage{index, begin}
+	buf := bytes.NewBuffer(make([]byte, 0, 8))
+	binary.Write(buf, binary.BigEndian, msg)
+	buf.Write(block)
+	return p.sendMessage(protocol.Piece, buf.Bytes())
+}
+
+func (p *Peer) sendMessage(id protocol.MessageType, payload []byte) error {
+	buf := bufio.NewWriterSize(p.conn, 4+1+len(payload))
+	var header = struct {
+		Length uint32
+		ID     protocol.MessageType
+	}{
+		uint32(1 + len(payload)),
+		id,
+	}
+	binary.Write(buf, binary.BigEndian, &header)
+	buf.Write(payload)
+	return buf.Flush()
+}
+
+type requestMessage struct {
+	Index, Begin, Length uint32
+}
+type pieceMessage struct {
+	Index, Begin uint32
+}
+
+type ExtensionHandshakeMessage struct {
+	M            map[string]uint8 `bencode:"m"`
+	MetadataSize uint32           `bencode:"metadata_size,omitempty"`
+}
+
+func (p *Peer) SendExtensionHandshake(m *ExtensionHandshakeMessage) error {
+	const extensionHandshakeID = 0
+	var buf bytes.Buffer
+	e := bencode.NewEncoder(&buf)
+	err := e.Encode(m)
+	if err != nil {
+		return err
+	}
+	return p.sendExtensionMessage(extensionHandshakeID, buf.Bytes())
 }
 
 func (p *Peer) sendExtensionMessage(id byte, payload []byte) error {
@@ -350,65 +386,4 @@ func (p *Peer) sendExtensionMessage(id byte, payload []byte) error {
 	}
 
 	return binary.Write(p.conn, binary.BigEndian, buf.Bytes())
-}
-
-type ExtensionHandshakeMessage struct {
-	M            map[string]uint8 `bencode:"m"`
-	MetadataSize uint32           `bencode:"metadata_size,omitempty"`
-}
-
-func (p *Peer) SendExtensionHandshake(m *ExtensionHandshakeMessage) error {
-	const extensionHandshakeID = 0
-	var buf bytes.Buffer
-	e := bencode.NewEncoder(&buf)
-	err := e.Encode(m)
-	if err != nil {
-		return err
-	}
-	return p.sendExtensionMessage(extensionHandshakeID, buf.Bytes())
-}
-
-type peerRequestMessage struct {
-	ID                   protocol.MessageType
-	Index, Begin, Length uint32
-}
-
-func (p *Peer) SendRequest(index, begin, length uint32) error {
-	var msg = struct {
-		Length  uint32
-		Message peerRequestMessage
-	}{13, peerRequestMessage{protocol.Request, index, begin, length}}
-	p.log.Debugf("Sending message: %q %#v", "request", msg)
-	return binary.Write(p.conn, binary.BigEndian, &msg)
-}
-
-func (p *Peer) SendPiece(index, begin uint32, block []byte) error {
-
-	// TODO not here
-	if err := p.SendMessage(protocol.Unchoke); err != nil {
-		return err
-	}
-
-	buf := bufio.NewWriterSize(p.conn, int(13+len(block)))
-	msgLen := 9 + uint32(len(block))
-	if err := binary.Write(buf, binary.BigEndian, msgLen); err != nil {
-		return err
-	}
-	buf.WriteByte(byte(protocol.Piece))
-	if err := binary.Write(buf, binary.BigEndian, index); err != nil {
-		return err
-	}
-	if err := binary.Write(buf, binary.BigEndian, begin); err != nil {
-		return err
-	}
-	buf.Write(block)
-	return buf.Flush()
-}
-
-type requestMessage struct {
-	Index, Begin, Length uint32
-}
-
-type pieceMessage struct {
-	Index, Begin uint32
 }
