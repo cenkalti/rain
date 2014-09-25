@@ -35,10 +35,10 @@ type Peer struct {
 	downloader Downloader
 	uploader   Uploader
 
-	amChoking      bool // this client is choking the peer
-	amInterested   bool // this client is interested in the peer
-	peerChoking    bool // peer is choking this client
-	peerInterested bool // peer is interested in this client
+	amChoking      bool // we are choking the peer
+	amInterested   bool // we are interested in the peer
+	peerChoking    bool // peer is choking us
+	peerInterested bool // peer is interested in us
 
 	onceInterested sync.Once // for sending "interested" message only once
 
@@ -157,6 +157,7 @@ func (p *Peer) Run() {
 			p.unchokeWaitersM.Unlock()
 		case protocol.Interested:
 			p.peerInterested = true
+			// TODO uploader should do this
 			if err := p.sendMessage(protocol.Unchoke, nil); err != nil {
 				p.log.Error(err)
 				return
@@ -303,6 +304,10 @@ func (p *Peer) BeInterested() (unchoke chan struct{}, err error) {
 	return
 }
 
+func (p *Peer) BeNotInterested() error { return p.sendMessage(protocol.NotInterested, nil) }
+func (p *Peer) Choke() error           { return p.sendMessage(protocol.Choke, nil) }
+func (p *Peer) Unchoke() error         { return p.sendMessage(protocol.Unchoke, nil) }
+
 func (p *Peer) Request(index, begin, length uint32) error {
 	request := requestMessage{
 		index, begin, length,
@@ -327,6 +332,7 @@ func (p *Peer) SendPiece(index, begin uint32, block []byte) error {
 }
 
 func (p *Peer) sendMessage(id protocol.MessageType, payload []byte) error {
+	p.log.Debugln("Sending message:", id)
 	buf := bufio.NewWriterSize(p.conn, 4+1+len(payload))
 	var header = struct {
 		Length uint32
