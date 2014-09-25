@@ -53,8 +53,7 @@ func NewPieces(info *torrent.Info, osFiles []*os.File) []*Piece {
 		p := &Piece{
 			index: i,
 			hash:  info.PieceHash(i),
-			// blockC: make(chan peerBlock),
-			log: logger.New("piece #" + strconv.Itoa(int(i))),
+			log:   logger.New("piece #" + strconv.Itoa(int(i))),
 		}
 
 		// Construct p.files
