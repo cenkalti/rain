@@ -21,10 +21,10 @@ import (
 const connReadTimeout = 3 * time.Minute
 
 type Peer struct {
-	conn net.Conn
-
 	// Will be closed when peer disconnects
 	Disconnected chan struct{}
+
+	conn net.Conn
 
 	transfer   Transfer
 	downloader Downloader
