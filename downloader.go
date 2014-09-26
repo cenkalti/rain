@@ -15,7 +15,6 @@ import (
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/piece"
-	"github.com/cenkalti/rain/internal/protocol"
 	"github.com/cenkalti/rain/internal/tracker"
 )
 
@@ -324,7 +323,7 @@ func (d *downloader) downloadPiece(p *piece.Piece) error {
 
 	// Request blocks of the piece.
 	for _, b := range p.Blocks() {
-		if err := peer.Request(p.Index(), b.Index()*protocol.BlockSize, b.Length()); err != nil {
+		if err := peer.Request(p.Index(), b.Index()*blockSize, b.Length()); err != nil {
 			return err
 		}
 	}

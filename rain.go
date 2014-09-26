@@ -17,6 +17,8 @@ import (
 
 // Limits
 const (
+	// Request pieces in blocks of this size.
+	blockSize         = 16 * 1024
 	maxPeerServe      = 200
 	maxPeerPerTorrent = 50
 	uploadSlots       = 4

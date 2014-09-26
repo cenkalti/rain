@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/cenkalti/rain/internal/partialfile"
-	"github.com/cenkalti/rain/internal/protocol"
 	"github.com/cenkalti/rain/internal/torrent"
 )
 
@@ -25,7 +24,7 @@ type Block struct {
 	files  partialfile.Files // the place to write downloaded bytes
 }
 
-func NewPieces(info *torrent.Info, osFiles []*os.File) []*Piece {
+func NewPieces(info *torrent.Info, osFiles []*os.File, blockSize uint32) []*Piece {
 	var (
 		fileIndex  int   // index of the current file in torrent
 		fileLength int64 = info.GetFiles()[0].Length
@@ -73,14 +72,14 @@ func NewPieces(info *torrent.Info, osFiles []*os.File) []*Piece {
 			}
 		}
 
-		p.blocks = newBlocks(p.length, p.files)
+		p.blocks = newBlocks(p.length, p.files, blockSize)
 		pieces[i] = p
 	}
 	return pieces
 }
 
-func newBlocks(pieceLength uint32, files partialfile.Files) []Block {
-	div, mod := divMod32(pieceLength, protocol.BlockSize)
+func newBlocks(pieceLength uint32, files partialfile.Files, blockSize uint32) []Block {
+	div, mod := divMod32(pieceLength, blockSize)
 	numBlocks := div
 	if mod != 0 {
 		numBlocks++
@@ -89,7 +88,7 @@ func newBlocks(pieceLength uint32, files partialfile.Files) []Block {
 	for j := uint32(0); j < div; j++ {
 		blocks[j] = Block{
 			index:  j,
-			length: protocol.BlockSize,
+			length: blockSize,
 		}
 	}
 	if mod != 0 {

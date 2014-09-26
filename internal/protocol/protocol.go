@@ -7,11 +7,6 @@ import (
 	"errors"
 )
 
-const (
-	// Request pieces in blocks of this size.
-	BlockSize = 16 * 1024
-)
-
 // InfoHash is the sha1 hash of "info" dictionary in torrent file.
 type InfoHash [sha1.Size]byte
 
