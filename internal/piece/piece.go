@@ -6,19 +6,17 @@ import (
 	"io"
 	"os"
 
-	"github.com/cenkalti/rain/bitfield"
 	"github.com/cenkalti/rain/internal/partialfile"
 	"github.com/cenkalti/rain/internal/protocol"
 	"github.com/cenkalti/rain/internal/torrent"
 )
 
 type Piece struct {
-	index    uint32 // piece index in whole torrent
-	hash     []byte
-	length   uint32            // last piece may not be complete
-	files    partialfile.Files // the place to write downloaded bytes
-	blocks   []Block
-	bitField bitfield.BitField // blocks we have
+	index  uint32 // piece index in whole torrent
+	hash   []byte
+	length uint32            // last piece may not be complete
+	files  partialfile.Files // the place to write downloaded bytes
+	blocks []Block
 }
 
 type Block struct {
@@ -76,7 +74,6 @@ func NewPieces(info *torrent.Info, osFiles []*os.File) []*Piece {
 		}
 
 		p.blocks = newBlocks(p.length, p.files)
-		p.bitField = bitfield.New(uint32(len(p.blocks)))
 		pieces[i] = p
 	}
 	return pieces
@@ -130,7 +127,6 @@ func (p *Piece) Index() uint32                     { return p.index }
 func (p *Piece) Blocks() []Block                   { return p.blocks }
 func (p *Piece) Length() uint32                    { return p.length }
 func (p *Piece) Hash() []byte                      { return p.hash }
-func (p *Piece) BitField() bitfield.BitField       { return p.bitField }
 func (p *Piece) Reader() io.Reader                 { return p.files.Reader() }
 func (p *Piece) Write(b []byte) (n int, err error) { return p.files.Write(b) }
 

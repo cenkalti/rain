@@ -339,11 +339,7 @@ func (d *downloader) downloadPiece(p *piece.Piece) error {
 				return errors.New("peer did not send block completely")
 			}
 			d.transfer.log.Debugln("Will receive block of length", len(data))
-			copy(pieceData[peerBlock.Block.Index()*protocol.BlockSize:], data)
-			if _, err = peerBlock.Block.Write(data); err != nil {
-				return err
-			}
-			p.BitField().Set(peerBlock.Block.Index())
+			copy(pieceData[peerBlock.Begin:], data)
 		case <-time.After(time.Minute):
 			return fmt.Errorf("peer did not send piece #%d completely", p.Index())
 		}
@@ -355,7 +351,7 @@ func (d *downloader) downloadPiece(p *piece.Piece) error {
 		return errors.New("received corrupt piece")
 	}
 
-	return nil
+	return p.Write(pieceData)
 }
 
 func (d *downloader) selectPeer(p *piece.Piece) (*peer.Peer, error) {

@@ -14,7 +14,6 @@ import (
 
 	"github.com/cenkalti/rain/bitfield"
 	"github.com/cenkalti/rain/internal/piece"
-	"github.com/cenkalti/rain/internal/protocol"
 )
 
 const connReadTimeout = 3 * time.Minute
@@ -69,7 +68,7 @@ type Have struct {
 type Block struct {
 	Peer  *Peer
 	Piece *piece.Piece
-	Block *piece.Block
+	Begin uint32
 	Data  chan []byte
 }
 
@@ -237,10 +236,8 @@ func (p *Peer) Run() {
 			delete(p.requests, req)
 			p.requestsM.Unlock()
 
-			receivedPiece := p.transfer.Pieces()[msg.Index]
-			block := &receivedPiece.Blocks()[msg.Begin/protocol.BlockSize]
 			dataC := make(chan []byte, 1)
-			p.downloader.BlockC() <- &Block{p, receivedPiece, block, dataC}
+			p.downloader.BlockC() <- &Block{p, p.transfer.Pieces()[msg.Index], msg.Begin, dataC}
 			data := make([]byte, length)
 			_, err = io.ReadFull(p.conn, data)
 			if err != nil {
