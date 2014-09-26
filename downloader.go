@@ -351,7 +351,8 @@ func (d *downloader) downloadPiece(p *piece.Piece) error {
 		return errors.New("received corrupt piece")
 	}
 
-	return p.Write(pieceData)
+	_, err = p.Write(pieceData)
+	return err
 }
 
 func (d *downloader) selectPeer(p *piece.Piece) (*peer.Peer, error) {
