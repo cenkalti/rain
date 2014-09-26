@@ -1,4 +1,4 @@
-package partialfile_test
+package piece
 
 import (
 	"io"
@@ -7,13 +7,11 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
-
-	"github.com/cenkalti/rain/internal/partialfile"
 )
 
 var data = []string{"asdf", "a", "", "qwerty"}
 
-func TestPartialFile(t *testing.T) {
+func TestFiles(t *testing.T) {
 	dir, err := ioutil.TempDir("", "partialfile-")
 	if err != nil {
 		t.Fatal(err)
@@ -33,13 +31,13 @@ func TestPartialFile(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	files := []partialfile.File{
-		partialfile.File{osFiles[0], 2, 2},
-		partialfile.File{osFiles[1], 0, 1},
-		partialfile.File{osFiles[2], 0, 0},
-		partialfile.File{osFiles[3], 0, 2},
+	files := []section{
+		section{osFiles[0], 2, 2},
+		section{osFiles[1], 0, 1},
+		section{osFiles[2], 0, 0},
+		section{osFiles[3], 0, 2},
 	}
-	pf := partialfile.Files(files)
+	pf := sections(files)
 	b := make([]byte, 5)
 	n, err := io.ReadFull(pf.Reader(), b)
 	if err != nil {

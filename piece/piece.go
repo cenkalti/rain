@@ -6,22 +6,21 @@ import (
 	"io"
 	"os"
 
-	"github.com/cenkalti/rain/internal/partialfile"
 	"github.com/cenkalti/rain/internal/torrent"
 )
 
 type Piece struct {
 	index  uint32 // piece index in whole torrent
 	hash   []byte
-	length uint32            // last piece may not be complete
-	files  partialfile.Files // the place to write downloaded bytes
+	length uint32   // last piece may not be complete
+	files  sections // the place to write downloaded bytes
 	blocks []Block
 }
 
 type Block struct {
 	index  uint32 // block index in piece
 	length uint32
-	files  partialfile.Files // the place to write downloaded bytes
+	files  sections // the place to write downloaded bytes
 }
 
 func NewPieces(info *torrent.Info, osFiles []*os.File, blockSize uint32) []*Piece {
@@ -55,7 +54,7 @@ func NewPieces(info *torrent.Info, osFiles []*os.File, blockSize uint32) []*Piec
 		for left := pieceLeft(); left > 0; {
 			n := uint32(minInt64(int64(left), fileLeft())) // number of bytes to write
 
-			file := partialfile.File{osFiles[fileIndex], fileOffset, int64(n)}
+			file := section{osFiles[fileIndex], fileOffset, int64(n)}
 			p.files = append(p.files, file)
 
 			left -= n
@@ -78,7 +77,7 @@ func NewPieces(info *torrent.Info, osFiles []*os.File, blockSize uint32) []*Piec
 	return pieces
 }
 
-func newBlocks(pieceLength uint32, files partialfile.Files, blockSize uint32) []Block {
+func newBlocks(pieceLength uint32, files sections, blockSize uint32) []Block {
 	div, mod := divMod32(pieceLength, blockSize)
 	numBlocks := div
 	if mod != 0 {
@@ -109,7 +108,7 @@ func newBlocks(pieceLength uint32, files partialfile.Files, blockSize uint32) []
 		blockLeft := func() uint32 { return blocks[i].length - blockOffset }
 		for left := blockLeft(); left > 0 && fileIndex < len(files); {
 			n := minUint32(left, fileLeft())
-			file := partialfile.File{files[fileIndex].File, files[fileIndex].Offset + int64(fileOffset), int64(n)}
+			file := section{files[fileIndex].File, files[fileIndex].Offset + int64(fileOffset), int64(n)}
 			blocks[i].files = append(blocks[i].files, file)
 			fileOffset += n
 			blockOffset += n

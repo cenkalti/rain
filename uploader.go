@@ -4,7 +4,7 @@ import (
 	"io"
 
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/peer"
+	"github.com/cenkalti/rain/peer"
 )
 
 type uploader struct {

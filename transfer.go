@@ -10,11 +10,11 @@ import (
 
 	"github.com/cenkalti/rain/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/peer"
-	"github.com/cenkalti/rain/internal/piece"
 	"github.com/cenkalti/rain/internal/protocol"
 	"github.com/cenkalti/rain/internal/torrent"
 	"github.com/cenkalti/rain/internal/tracker"
+	"github.com/cenkalti/rain/peer"
+	"github.com/cenkalti/rain/piece"
 )
 
 // transfer represents an active transfer in the program.

@@ -10,9 +10,9 @@ import (
 
 	"github.com/cenkalti/rain/internal/connection"
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/protocol"
 	"github.com/cenkalti/rain/internal/torrent"
+	"github.com/cenkalti/rain/peer"
 )
 
 // Limits

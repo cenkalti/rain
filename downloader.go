@@ -13,9 +13,9 @@ import (
 
 	"github.com/cenkalti/rain/internal/connection"
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/peer"
-	"github.com/cenkalti/rain/internal/piece"
 	"github.com/cenkalti/rain/internal/tracker"
+	"github.com/cenkalti/rain/peer"
+	"github.com/cenkalti/rain/piece"
 )
 
 type downloader struct {
