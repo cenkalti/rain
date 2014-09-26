@@ -5,14 +5,11 @@ import (
 	"encoding/base32"
 	"encoding/hex"
 	"errors"
-	"strconv"
 )
 
 const (
 	// Request pieces in blocks of this size.
 	BlockSize = 16 * 1024
-	// Reject requests larger than this size.
-	MaxAllowedBlockSize = 32 * 1024
 )
 
 // InfoHash is the sha1 hash of "info" dictionary in torrent file.
@@ -49,43 +46,3 @@ type PeerID [20]byte
 
 // String returns the hex representation of p.
 func (p PeerID) String() string { return hex.EncodeToString(p[:]) }
-
-// MessageType is identifier for messages sent between peers.
-type MessageType uint8
-
-// Peer message types
-const (
-	Choke MessageType = iota
-	Unchoke
-	Interested
-	NotInterested
-	Have
-	Bitfield
-	Request
-	Piece
-	Cancel
-	Port
-	Extension = 20
-)
-
-var messageStrings = map[MessageType]string{
-	0:  "choke",
-	1:  "unchoke",
-	2:  "interested",
-	3:  "not interested",
-	4:  "have",
-	5:  "bitfield",
-	6:  "request",
-	7:  "piece",
-	8:  "cancel",
-	9:  "port",
-	20: "extension",
-}
-
-func (m MessageType) String() string {
-	s, ok := messageStrings[m]
-	if !ok {
-		return strconv.FormatInt(int64(m), 10)
-	}
-	return s
-}
