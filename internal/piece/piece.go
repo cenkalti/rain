@@ -5,10 +5,8 @@ import (
 	"crypto/sha1"
 	"io"
 	"os"
-	"strconv"
 
 	"github.com/cenkalti/rain/internal/bitfield"
-	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/partialfile"
 	"github.com/cenkalti/rain/internal/protocol"
 	"github.com/cenkalti/rain/internal/torrent"
@@ -21,7 +19,6 @@ type Piece struct {
 	files    partialfile.Files // the place to write downloaded bytes
 	blocks   []Block
 	bitField bitfield.BitField // blocks we have
-	log      logger.Logger
 }
 
 type Block struct {
@@ -53,7 +50,6 @@ func NewPieces(info *torrent.Info, osFiles []*os.File) []*Piece {
 		p := &Piece{
 			index: i,
 			hash:  info.PieceHash(i),
-			log:   logger.New("piece #" + strconv.Itoa(int(i))),
 		}
 
 		// Construct p.files
@@ -63,7 +59,6 @@ func NewPieces(info *torrent.Info, osFiles []*os.File) []*Piece {
 			n := uint32(minInt64(int64(left), fileLeft())) // number of bytes to write
 
 			file := partialfile.File{osFiles[fileIndex], fileOffset, int64(n)}
-			p.log.Debugf("file: %#v", file)
 			p.files = append(p.files, file)
 
 			left -= n
