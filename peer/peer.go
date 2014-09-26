@@ -44,8 +44,9 @@ type Peer struct {
 }
 
 type Transfer interface {
-	BitField() bitfield.BitField
+	NumPieces() uint32
 	PieceLength(i uint32) uint32
+	PieceOK(i uint32) bool
 	Downloader() Downloader
 	Uploader() Uploader
 }
@@ -162,7 +163,7 @@ func (p *Peer) Run() {
 				p.log.Error(err)
 				return
 			}
-			if i >= p.transfer.BitField().Len() {
+			if i >= p.transfer.NumPieces() {
 				p.log.Error("unexpected piece index")
 				return
 			}
@@ -174,12 +175,13 @@ func (p *Peer) Run() {
 				return
 			}
 
-			if int64(length) != int64(len(p.transfer.BitField().Bytes())) {
+			lenBytes := uint32(p.transfer.NumPieces()+7) / 8
+			if length != lenBytes {
 				p.log.Error("invalid bitfield length")
 				return
 			}
 
-			bf := bitfield.New(p.transfer.BitField().Len())
+			bf := bitfield.New(lenBytes)
 			_, err = p.conn.Read(bf.Bytes())
 			if err != nil {
 				p.log.Error(err)
@@ -201,7 +203,7 @@ func (p *Peer) Run() {
 			}
 			p.log.Debugf("Request: %#v", req)
 
-			if req.Index >= p.transfer.BitField().Len() {
+			if req.Index >= p.transfer.NumPieces() {
 				p.log.Error("invalid request: index")
 				return
 			}
@@ -257,11 +259,19 @@ func (p *Peer) Run() {
 }
 
 func (p *Peer) SendBitField() error {
+	bf := bitfield.New(p.transfer.NumPieces())
+	for i := uint32(0); i < bf.Len(); i++ {
+		if p.transfer.PieceOK(i) {
+			bf.Set(i)
+		}
+	}
+
 	// Do not send a bitfield message if we don't have any pieces.
-	if p.transfer.BitField().Count() == 0 {
+	if bf.Count() == 0 {
 		return nil
 	}
-	return p.sendMessage(bitfieldID, p.transfer.BitField().Bytes())
+
+	return p.sendMessage(bitfieldID, bf.Bytes())
 }
 
 // BeInterested sends "interested" message to peer (once) and

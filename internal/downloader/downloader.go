@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cenkalti/rain/bitfield"
 	"github.com/cenkalti/rain/internal/connection"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/protocol"
@@ -44,19 +43,19 @@ type Downloader struct {
 
 type Transfer interface {
 	InfoHash() protocol.InfoHash
-	BitField() bitfield.BitField
+	NumPieces() uint32
 	Piece(i uint32) *piece.Piece
 	PieceLength(i uint32) uint32
+	PieceOK(i uint32) bool
 	Downloader() peer.Downloader
 	Uploader() peer.Uploader
 	Finished() chan struct{}
 }
 
 func New(t Transfer, port uint16, peerID protocol.PeerID, enableEncryption, forceEncryption bool) *Downloader {
-	numPieces := t.BitField().Len()
-	remaining := make([]uint32, 0, numPieces)
-	for i := uint32(0); i < numPieces; i++ {
-		if !t.BitField().Test(i) {
+	remaining := make([]uint32, 0, t.NumPieces())
+	for i := uint32(0); i < t.NumPieces(); i++ {
+		if !t.Piece(i).OK() {
 			remaining = append(remaining, i)
 		}
 	}
@@ -87,7 +86,6 @@ func (d *Downloader) HaveC() chan *peer.HaveMessage   { return d.haveC }
 func (d *Downloader) Finished() chan struct{}         { return d.finished }
 
 func (d *Downloader) Run() {
-	t := d.transfer
 	d.log.Debug("started downloader")
 
 	left := len(d.remaining)
@@ -103,8 +101,7 @@ func (d *Downloader) Run() {
 
 	for {
 		select {
-		case i := <-d.responseC:
-			t.BitField().Set(i) // #####
+		case <-d.responseC:
 			left--
 			if left == 0 {
 				d.log.Notice("Download finished.")
@@ -278,7 +275,6 @@ func (d *Downloader) pieceDownloader() {
 				// responseC <- nil
 				continue
 			}
-			d.transfer.BitField().Set(i)
 
 			select {
 			case d.responseC <- i:

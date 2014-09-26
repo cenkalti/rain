@@ -3,6 +3,7 @@ package piece
 import (
 	"bytes"
 	"crypto/sha1"
+	"errors"
 	"io"
 	"os"
 
@@ -10,8 +11,9 @@ import (
 )
 
 type Piece struct {
-	index  uint32 // piece index in whole torrent
-	hash   []byte
+	index  uint32   // piece index in whole torrent
+	hash   []byte   // correct hash value
+	ok     bool     // hash is correct and written to disk
 	length uint32   // last piece may not be complete
 	files  sections // the place to write downloaded bytes
 	blocks []Block
@@ -98,23 +100,29 @@ func newBlocks(pieceLength uint32, files sections, blockSize uint32) []Block {
 	return blocks
 }
 
-func (p *Piece) Index() uint32                     { return p.index }
-func (p *Piece) Blocks() []Block                   { return p.blocks }
-func (p *Piece) Length() uint32                    { return p.length }
-func (p *Piece) Hash() []byte                      { return p.hash }
-func (p *Piece) Reader() io.Reader                 { return p.files.Reader() }
-func (p *Piece) Write(b []byte) (n int, err error) { return p.files.Write(b) }
+func (p *Piece) Index() uint32     { return p.index }
+func (p *Piece) Blocks() []Block   { return p.blocks }
+func (p *Piece) Length() uint32    { return p.length }
+func (p *Piece) Hash() []byte      { return p.hash }
+func (p *Piece) OK() bool          { return p.ok }
+func (p *Piece) Reader() io.Reader { return p.files.Reader() }
 
-func (p *Piece) HashCheck() (ok bool, err error) {
+func (p *Piece) Write(b []byte) (n int, err error) {
 	hash := sha1.New()
-	_, err = io.CopyN(hash, p.files.Reader(), int64(p.Length()))
-	if err != nil {
-		return
+	hash.Write(b)
+	if !bytes.Equal(hash.Sum(nil), p.hash) {
+		return 0, errors.New("corrupt piece")
 	}
-	if bytes.Equal(hash.Sum(nil), p.hash) {
-		ok = true
+	return p.files.Write(b)
+}
+
+func (p *Piece) Verify() error {
+	hash := sha1.New()
+	if _, err := io.CopyN(hash, p.files.Reader(), int64(p.Length())); err != nil {
+		return err
 	}
-	return
+	p.ok = bytes.Equal(hash.Sum(nil), p.hash)
+	return nil
 }
 
 func divMod32(a, b uint32) (uint32, uint32) { return a / b, a % b }

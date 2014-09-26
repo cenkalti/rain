@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/cenkalti/rain/bitfield"
 	"github.com/cenkalti/rain/internal/downloader"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/protocol"
@@ -22,8 +21,7 @@ type transfer struct {
 	tracker    tracker.Tracker
 	torrent    *torrent.Torrent
 	pieces     []*piece.Piece
-	bitField   bitfield.BitField // pieces that we have
-	finished   chan struct{}     // downloading finished
+	finished   chan struct{} // downloading finished
 	downloader *downloader.Downloader
 	uploader   *uploader
 	peers      map[*peer.Peer]struct{}
@@ -47,19 +45,19 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 		return nil, err
 	}
 	pieces := piece.NewPieces(tor.Info, files, blockSize)
-	bitField := bitfield.New(uint32(len(pieces)))
 	if checkHash {
 		r.log.Notice("Doing hash check...")
+		var n int
 		for _, p := range pieces {
-			ok, err := p.HashCheck()
+			err := p.Verify()
 			if err != nil {
 				return nil, err
 			}
-			if ok {
-				bitField.Set(p.Index())
+			if p.OK() {
+				n++
 			}
 		}
-		percentDone := (bitField.Count() * 100) / bitField.Len()
+		percentDone := (n * 100) / len(pieces)
 		r.log.Noticef("Already downloaded: %d%%", percentDone)
 	}
 	t := &transfer{
@@ -67,7 +65,6 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 		tracker:  tracker,
 		torrent:  tor,
 		pieces:   pieces,
-		bitField: bitField,
 		finished: make(chan struct{}),
 		peers:    make(map[*peer.Peer]struct{}),
 		log:      log,
@@ -78,16 +75,17 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 	return t, nil
 }
 
+func (t *transfer) NumPieces() uint32           { return uint32(len(t.pieces)) }
 func (t *transfer) Finished() chan struct{}     { return t.finished }
 func (t *transfer) Piece(i uint32) *piece.Piece { return t.pieces[i] }
-func (t *transfer) BitField() bitfield.BitField { return t.bitField }
 func (t *transfer) PieceLength(i uint32) uint32 { return t.pieces[i].Length() }
+func (t *transfer) PieceOK(i uint32) bool       { return t.pieces[i].OK() }
 func (t *transfer) InfoHash() protocol.InfoHash { return t.torrent.Info.Hash }
 func (t *transfer) Downloaded() int64 {
 	var sum int64
-	for i := uint32(0); i < t.bitField.Len(); i++ {
-		if t.bitField.Test(i) {
-			sum += int64(t.pieces[i].Length())
+	for _, p := range t.pieces {
+		if p.OK() {
+			sum += int64(p.Length())
 		}
 	}
 	return sum
@@ -99,7 +97,16 @@ func (t *transfer) Uploader() peer.Uploader     { return t.uploader }
 
 func (t *transfer) Run() {
 	announceC := make(chan *tracker.AnnounceResponse)
-	if t.bitField.All() {
+
+	completed := true
+	for _, p := range t.pieces {
+		if !p.OK() {
+			completed = false
+			break
+		}
+	}
+
+	if completed {
 		go tracker.AnnouncePeriodically(t.tracker, t, nil, tracker.Completed, nil, announceC)
 	} else {
 		go tracker.AnnouncePeriodically(t.tracker, t, nil, tracker.Started, nil, announceC)
