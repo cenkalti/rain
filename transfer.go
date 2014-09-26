@@ -8,7 +8,7 @@ import (
 
 	"github.com/cenkalti/mse"
 
-	"github.com/cenkalti/rain/internal/bitfield"
+	"github.com/cenkalti/rain/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/piece"

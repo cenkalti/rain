@@ -13,7 +13,7 @@ import (
 	"github.com/cenkalti/log"
 	"github.com/zeebo/bencode"
 
-	"github.com/cenkalti/rain/internal/bitfield"
+	"github.com/cenkalti/rain/bitfield"
 	"github.com/cenkalti/rain/internal/piece"
 	"github.com/cenkalti/rain/internal/protocol"
 )

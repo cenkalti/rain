@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/cenkalti/rain/internal/bitfield"
+	"github.com/cenkalti/rain/bitfield"
 	"github.com/cenkalti/rain/internal/partialfile"
 	"github.com/cenkalti/rain/internal/protocol"
 	"github.com/cenkalti/rain/internal/torrent"
