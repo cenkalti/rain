@@ -135,6 +135,11 @@ func (p *Peer) Run() {
 
 		switch id {
 		case chokeID:
+			// Discard all pending requests.
+			p.requestsM.Lock()
+			p.requests = make(map[requestMessage]struct{})
+			p.requestsM.Unlock()
+			// TODO notify waiters
 		case unchokeID:
 			p.unchokeWaitersM.Lock()
 			for _, ch := range p.unchokeWaiters {
