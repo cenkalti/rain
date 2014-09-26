@@ -15,7 +15,6 @@ import (
 	"github.com/cenkalti/rain/internal/connection"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/protocol"
-	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/peer"
 	"github.com/cenkalti/rain/piece"
 )
@@ -69,7 +68,7 @@ func New(t Transfer, port uint16, peerID protocol.PeerID, enableEncryption, forc
 		forceEncryption:  forceEncryption,
 		remaining:        remaining,
 		peersC:           make(chan []*net.TCPAddr),
-		peerC:            make(chan *net.TCPAddr, tracker.NumWant),
+		peerC:            make(chan *net.TCPAddr, maxPeerPerTorrent),
 		haveNotifyC:      make(chan struct{}, 1),
 		requestC:         make(chan chan uint32),
 		responseC:        make(chan uint32),
@@ -127,7 +126,7 @@ func (d *Downloader) Run() {
 	}
 }
 
-// peerManager receives from d.peersC and keeps most recent tracker.NumWant peer addresses in d.peerC.
+// peerManager receives from d.peersC and keeps most recent peer addresses in d.peerC.
 func (d *Downloader) peerManager() {
 	for {
 		select {
@@ -136,6 +135,8 @@ func (d *Downloader) peerManager() {
 				d.log.Debug("Peer:", peer)
 				select {
 				case d.peerC <- peer:
+				case <-d.cancelC:
+					return
 				default:
 					<-d.peerC
 					d.peerC <- peer
