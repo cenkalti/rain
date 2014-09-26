@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/cenkalti/rain/bitfield"
+	"github.com/cenkalti/rain/internal/downloader"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/protocol"
 	"github.com/cenkalti/rain/internal/torrent"
@@ -22,8 +23,8 @@ type transfer struct {
 	torrent    *torrent.Torrent
 	pieces     []*piece.Piece
 	bitField   bitfield.BitField // pieces that we have
-	Finished   chan struct{}     // downloading finished
-	downloader *downloader
+	finished   chan struct{}     // downloading finished
+	downloader *downloader.Downloader
 	uploader   *uploader
 	peers      map[*peer.Peer]struct{}
 	peersM     sync.RWMutex
@@ -67,15 +68,18 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 		torrent:  tor,
 		pieces:   pieces,
 		bitField: bitField,
-		Finished: make(chan struct{}),
+		finished: make(chan struct{}),
 		peers:    make(map[*peer.Peer]struct{}),
 		log:      log,
 	}
-	t.downloader = newDownloader(t)
+	client := t.rain
+	t.downloader = downloader.New(t, client.Port(), client.peerID, !client.config.Encryption.DisableOutgoing, client.config.Encryption.ForceOutgoing)
 	t.uploader = newUploader(t)
 	return t, nil
 }
 
+func (t *transfer) Finished() chan struct{}     { return t.finished }
+func (t *transfer) Piece(i uint32) *piece.Piece { return t.pieces[i] }
 func (t *transfer) BitField() bitfield.BitField { return t.bitField }
 func (t *transfer) PieceLength(i uint32) uint32 { return t.pieces[i].Length() }
 func (t *transfer) InfoHash() protocol.InfoHash { return t.torrent.Info.Hash }
@@ -112,7 +116,7 @@ func (t *transfer) Run() {
 				break
 			}
 			t.log.Infof("Announce: %d seeder, %d leecher", announceResponse.Seeders, announceResponse.Leechers)
-			t.downloader.peersC <- announceResponse.Peers
+			t.downloader.PeersC() <- announceResponse.Peers
 		}
 	}
 }
