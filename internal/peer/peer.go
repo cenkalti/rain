@@ -32,10 +32,15 @@ type Peer struct {
 	downloader Downloader
 	uploader   Uploader
 
-	onceInterested sync.Once // for sending "interested" message only once
+	// for sending "interested" message only once
+	onceInterested sync.Once
 
 	unchokeWaiters  []chan struct{}
 	unchokeWaitersM sync.Mutex
+
+	// requests that we made
+	requests  map[requestMessage]struct{}
+	requestsM sync.Mutex
 
 	log log.Logger
 }
@@ -82,6 +87,7 @@ func New(conn net.Conn, t Transfer, l log.Logger) *Peer {
 		transfer:     t,
 		downloader:   t.Downloader(),
 		uploader:     t.Uploader(),
+		requests:     make(map[requestMessage]struct{}),
 		log:          l,
 	}
 }
@@ -214,27 +220,20 @@ func (p *Peer) Run() {
 				p.log.Error(err)
 				return
 			}
-			if msg.Index >= uint32(len(p.transfer.Pieces())) {
-				p.log.Error("unexpected piece index")
-				return
-			}
-			receivedPiece := p.transfer.Pieces()[msg.Index]
-			// TODO check if this is requested
-			if msg.Begin%protocol.BlockSize != 0 {
-				p.log.Error("unexpected piece offset")
-				return
-			}
-			blockIndex := msg.Begin / protocol.BlockSize
-			if blockIndex >= uint32(len(receivedPiece.Blocks())) {
-				p.log.Error("unexpected piece offset")
-				return
-			}
-			block := &receivedPiece.Blocks()[blockIndex]
 			length -= 8
-			if length != block.Length() {
-				p.log.Error("unexpected block size")
+
+			req := requestMessage{msg.Index, msg.Begin, length}
+			p.requestsM.Lock()
+			if _, ok := p.requests[req]; !ok {
+				p.log.Error("unexpected piece message")
+				p.requestsM.Unlock()
 				return
 			}
+			delete(p.requests, req)
+			p.requestsM.Unlock()
+
+			receivedPiece := p.transfer.Pieces()[msg.Index]
+			block := &receivedPiece.Blocks()[msg.Begin/protocol.BlockSize]
 			dataC := make(chan []byte, 1)
 			p.downloader.BlockC() <- &Block{p, receivedPiece, block, dataC}
 			data := make([]byte, length)
@@ -289,11 +288,13 @@ func (p *Peer) Choke() error           { return p.sendMessage(chokeID, nil) }
 func (p *Peer) Unchoke() error         { return p.sendMessage(unchokeID, nil) }
 
 func (p *Peer) Request(index, begin, length uint32) error {
-	request := requestMessage{
-		index, begin, length,
-	}
+	req := requestMessage{index, begin, length}
+	p.requestsM.Lock()
+	p.requests[req] = struct{}{}
+	p.requestsM.Unlock()
+
 	buf := bytes.NewBuffer(make([]byte, 0, 12))
-	binary.Write(buf, binary.BigEndian, &request)
+	binary.Write(buf, binary.BigEndian, &req)
 	return p.sendMessage(requestID, buf.Bytes())
 }
 
