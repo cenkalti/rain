@@ -140,9 +140,8 @@ func (p *Piece) HashCheck() (ok bool, err error) {
 	return
 }
 
-func (b *Block) Index() uint32                     { return b.index }
-func (b *Block) Length() uint32                    { return b.length }
-func (b *Block) Write(p []byte) (n int, err error) { return b.files.Write(p) }
+func (b *Block) Index() uint32  { return b.index }
+func (b *Block) Length() uint32 { return b.length }
 
 func divMod32(a, b uint32) (uint32, uint32) { return a / b, a % b }
 
