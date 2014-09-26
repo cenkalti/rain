@@ -88,7 +88,7 @@ func (d *downloader) Run() {
 			}
 		case have := <-d.haveC:
 			d.peersM.Lock()
-			d.peers[have.Piece.Index()] = append(d.peers[have.Piece.Index()], have.Peer)
+			d.peers[have.Index] = append(d.peers[have.Index], have.Peer)
 			d.peersM.Unlock()
 
 			select {

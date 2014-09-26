@@ -79,7 +79,7 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 }
 
 func (t *transfer) BitField() bitfield.BitField { return t.bitField }
-func (t *transfer) Pieces() []*piece.Piece      { return t.pieces }
+func (t *transfer) PieceLength(i uint32) uint32 { return t.pieces[i].Length() }
 func (t *transfer) InfoHash() protocol.InfoHash { return t.torrent.Info.Hash }
 func (t *transfer) Downloaded() int64 {
 	var sum int64

@@ -64,8 +64,7 @@ func (u *uploader) pieceUploader() {
 	for {
 		select {
 		case req := <-u.serveC:
-			peer := req.Peer
-			piece := req.Piece
+			piece := u.transfer.pieces[req.Index]
 
 			// TODO do not read whole piece
 			b := make([]byte, piece.Length())
@@ -75,7 +74,7 @@ func (u *uploader) pieceUploader() {
 				return
 			}
 
-			err = peer.SendPiece(piece.Index(), req.Begin, b[req.Begin:req.Begin+req.Length])
+			err = req.Peer.SendPiece(piece.Index(), req.Begin, b[req.Begin:req.Begin+req.Length])
 			if err != nil {
 				u.transfer.log.Error(err)
 				return

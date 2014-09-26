@@ -13,7 +13,6 @@ import (
 	"github.com/cenkalti/log"
 
 	"github.com/cenkalti/rain/bitfield"
-	"github.com/cenkalti/rain/internal/piece"
 )
 
 const connReadTimeout = 3 * time.Minute
@@ -46,7 +45,7 @@ type Peer struct {
 
 type Transfer interface {
 	BitField() bitfield.BitField
-	Pieces() []*piece.Piece
+	PieceLength(i uint32) uint32
 	Downloader() Downloader
 	Uploader() Uploader
 }
@@ -62,19 +61,19 @@ type Uploader interface {
 
 type Have struct {
 	Peer  *Peer
-	Piece *piece.Piece
+	Index uint32
 }
 
 type Block struct {
 	Peer  *Peer
-	Piece *piece.Piece
+	Index uint32
 	Begin uint32
 	Data  chan []byte
 }
 
 type Request struct {
 	Peer   *Peer
-	Piece  *piece.Piece
+	Index  uint32
 	Begin  uint32
 	Length uint32
 }
@@ -160,12 +159,12 @@ func (p *Peer) Run() {
 				p.log.Error(err)
 				return
 			}
-			if i >= uint32(len(p.transfer.Pieces())) {
+			if i >= p.transfer.BitField().Len() {
 				p.log.Error("unexpected piece index")
 				return
 			}
 			p.log.Debug("Peer ", p.conn.RemoteAddr(), " has piece #", i)
-			p.downloader.HaveC() <- &Have{p, p.transfer.Pieces()[i]}
+			p.downloader.HaveC() <- &Have{p, i}
 		case bitfieldID:
 			if !first {
 				p.log.Error("bitfield can only be sent after handshake")
@@ -187,7 +186,7 @@ func (p *Peer) Run() {
 
 			for i := uint32(0); i < bf.Len(); i++ {
 				if bf.Test(i) {
-					p.downloader.HaveC() <- &Have{p, p.transfer.Pieces()[i]}
+					p.downloader.HaveC() <- &Have{p, i}
 				}
 			}
 		case requestID:
@@ -199,24 +198,19 @@ func (p *Peer) Run() {
 			}
 			p.log.Debugf("Request: %#v", req)
 
-			if req.Index >= uint32(len(p.transfer.Pieces())) {
+			if req.Index >= p.transfer.BitField().Len() {
 				p.log.Error("invalid request: index")
-				return
-			}
-			requestedPiece := p.transfer.Pieces()[req.Index]
-			if req.Begin >= requestedPiece.Length() {
-				p.log.Error("invalid request: begin")
 				return
 			}
 			if req.Length > maxAllowedBlockSize {
 				p.log.Error("received a request with block size larger than allowed")
 				return
 			}
-			if req.Begin+req.Length > requestedPiece.Length() {
+			if req.Begin+req.Length > p.transfer.PieceLength(req.Index) {
 				p.log.Error("invalid request: length")
 			}
 
-			p.uploader.RequestC() <- &Request{p, requestedPiece, req.Begin, req.Length}
+			p.uploader.RequestC() <- &Request{p, req.Index, req.Begin, req.Length}
 		case pieceID:
 			var msg pieceMessage
 			err = binary.Read(p.conn, binary.BigEndian, &msg)
@@ -237,7 +231,7 @@ func (p *Peer) Run() {
 			p.requestsM.Unlock()
 
 			dataC := make(chan []byte, 1)
-			p.downloader.BlockC() <- &Block{p, p.transfer.Pieces()[msg.Index], msg.Begin, dataC}
+			p.downloader.BlockC() <- &Block{p, msg.Index, msg.Begin, dataC}
 			data := make([]byte, length)
 			_, err = io.ReadFull(p.conn, data)
 			if err != nil {
