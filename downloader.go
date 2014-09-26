@@ -23,11 +23,11 @@ type downloader struct {
 	remaining   []*piece.Piece
 	peersC      chan []*net.TCPAddr
 	peerC       chan *net.TCPAddr
-	haveC       chan *peer.Have
+	haveC       chan *peer.HaveMessage
 	haveNotifyC chan struct{}
 	requestC    chan chan *piece.Piece
 	responseC   chan *piece.Piece
-	pieceC      chan *peer.Piece
+	pieceC      chan *peer.PieceMessage
 	cancelC     chan struct{}
 	peers       map[uint32][]*peer.Peer // indexed by piece
 	peersM      sync.Mutex
@@ -49,16 +49,16 @@ func newDownloader(t *transfer) *downloader {
 		haveNotifyC: make(chan struct{}, 1),
 		requestC:    make(chan chan *piece.Piece),
 		responseC:   make(chan *piece.Piece),
-		pieceC:      make(chan *peer.Piece),
+		pieceC:      make(chan *peer.PieceMessage),
 		cancelC:     make(chan struct{}),
-		haveC:       make(chan *peer.Have),
+		haveC:       make(chan *peer.HaveMessage),
 		peers:       make(map[uint32][]*peer.Peer),
 		log:         t.log,
 	}
 }
 
-func (d *downloader) PieceC() chan *peer.Piece { return d.pieceC }
-func (d *downloader) HaveC() chan *peer.Have   { return d.haveC }
+func (d *downloader) PieceC() chan *peer.PieceMessage { return d.pieceC }
+func (d *downloader) HaveC() chan *peer.HaveMessage   { return d.haveC }
 
 func (d *downloader) Run() {
 	t := d.transfer

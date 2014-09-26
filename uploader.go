@@ -9,8 +9,8 @@ import (
 
 type uploader struct {
 	transfer *transfer
-	requestC chan *peer.Request
-	serveC   chan *peer.Request
+	requestC chan *peer.RequestMessage
+	serveC   chan *peer.RequestMessage
 	cancelC  chan struct{}
 	log      logger.Logger
 }
@@ -18,14 +18,14 @@ type uploader struct {
 func newUploader(t *transfer) *uploader {
 	return &uploader{
 		transfer: t,
-		requestC: make(chan *peer.Request),
-		serveC:   make(chan *peer.Request),
+		requestC: make(chan *peer.RequestMessage),
+		serveC:   make(chan *peer.RequestMessage),
 		cancelC:  make(chan struct{}),
 		log:      t.log,
 	}
 }
 
-func (u *uploader) RequestC() chan *peer.Request { return u.requestC }
+func (u *uploader) RequestC() chan *peer.RequestMessage { return u.requestC }
 
 func (u *uploader) Run() {
 	go u.requestSelector()
@@ -38,7 +38,7 @@ func (u *uploader) Run() {
 // requestSelector decides which request to serve.
 func (u *uploader) requestSelector() {
 	for {
-		// var request peer.Request
+		// var request peer.RequestMessage
 
 		// u.transfer.peersM.RLock()
 		// for peer := range u.transfer.peers {

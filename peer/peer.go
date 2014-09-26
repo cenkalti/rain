@@ -51,20 +51,20 @@ type Transfer interface {
 }
 
 type Downloader interface {
-	HaveC() chan *Have
-	PieceC() chan *Piece
+	HaveC() chan *HaveMessage
+	PieceC() chan *PieceMessage
 }
 
 type Uploader interface {
-	RequestC() chan *Request
+	RequestC() chan *RequestMessage
 }
 
-type Have struct {
+type HaveMessage struct {
 	Peer  *Peer
 	Index uint32
 }
 
-type Request struct {
+type RequestMessage struct {
 	Peer *Peer
 	requestMessage
 }
@@ -72,7 +72,7 @@ type requestMessage struct {
 	Index, Begin, Length uint32
 }
 
-type Piece struct {
+type PieceMessage struct {
 	Peer *Peer
 	pieceMessage
 	Data chan []byte
@@ -167,7 +167,7 @@ func (p *Peer) Run() {
 				return
 			}
 			p.log.Debug("Peer ", p.conn.RemoteAddr(), " has piece #", i)
-			p.downloader.HaveC() <- &Have{p, i}
+			p.downloader.HaveC() <- &HaveMessage{p, i}
 		case bitfieldID:
 			if !first {
 				p.log.Error("bitfield can only be sent after handshake")
@@ -189,7 +189,7 @@ func (p *Peer) Run() {
 
 			for i := uint32(0); i < bf.Len(); i++ {
 				if bf.Test(i) {
-					p.downloader.HaveC() <- &Have{p, i}
+					p.downloader.HaveC() <- &HaveMessage{p, i}
 				}
 			}
 		case requestID:
@@ -213,7 +213,7 @@ func (p *Peer) Run() {
 				p.log.Error("invalid request: length")
 			}
 
-			p.uploader.RequestC() <- &Request{p, req}
+			p.uploader.RequestC() <- &RequestMessage{p, req}
 		case pieceID:
 			var msg pieceMessage
 			err = binary.Read(p.conn, binary.BigEndian, &msg)
@@ -234,7 +234,7 @@ func (p *Peer) Run() {
 			p.requestsM.Unlock()
 
 			dataC := make(chan []byte, 1)
-			p.downloader.PieceC() <- &Piece{p, msg, dataC}
+			p.downloader.PieceC() <- &PieceMessage{p, msg, dataC}
 			data := make([]byte, length)
 			_, err = io.ReadFull(p.conn, data)
 			if err != nil {
