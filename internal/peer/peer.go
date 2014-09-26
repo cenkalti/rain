@@ -52,7 +52,7 @@ type Transfer interface {
 
 type Downloader interface {
 	HaveC() chan *Have
-	BlockC() chan *Block
+	PieceC() chan *Piece
 }
 
 type Uploader interface {
@@ -64,18 +64,21 @@ type Have struct {
 	Index uint32
 }
 
-type Block struct {
-	Peer  *Peer
-	Index uint32
-	Begin uint32
-	Data  chan []byte
+type Request struct {
+	Peer *Peer
+	requestMessage
+}
+type requestMessage struct {
+	Index, Begin, Length uint32
 }
 
-type Request struct {
-	Peer   *Peer
-	Index  uint32
-	Begin  uint32
-	Length uint32
+type Piece struct {
+	Peer *Peer
+	pieceMessage
+	Data chan []byte
+}
+type pieceMessage struct {
+	Index, Begin uint32
 }
 
 func New(conn net.Conn, t Transfer, l log.Logger) *Peer {
@@ -210,7 +213,7 @@ func (p *Peer) Run() {
 				p.log.Error("invalid request: length")
 			}
 
-			p.uploader.RequestC() <- &Request{p, req.Index, req.Begin, req.Length}
+			p.uploader.RequestC() <- &Request{p, req}
 		case pieceID:
 			var msg pieceMessage
 			err = binary.Read(p.conn, binary.BigEndian, &msg)
@@ -231,7 +234,7 @@ func (p *Peer) Run() {
 			p.requestsM.Unlock()
 
 			dataC := make(chan []byte, 1)
-			p.downloader.BlockC() <- &Block{p, msg.Index, msg.Begin, dataC}
+			p.downloader.PieceC() <- &Piece{p, msg, dataC}
 			data := make([]byte, length)
 			_, err = io.ReadFull(p.conn, data)
 			if err != nil {
@@ -321,11 +324,4 @@ func (p *Peer) sendMessage(id messageID, payload []byte) error {
 	binary.Write(buf, binary.BigEndian, &header)
 	buf.Write(payload)
 	return buf.Flush()
-}
-
-type requestMessage struct {
-	Index, Begin, Length uint32
-}
-type pieceMessage struct {
-	Index, Begin uint32
 }

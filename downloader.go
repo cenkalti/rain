@@ -27,7 +27,7 @@ type downloader struct {
 	haveNotifyC chan struct{}
 	requestC    chan chan *piece.Piece
 	responseC   chan *piece.Piece
-	blockC      chan *peer.Block
+	pieceC      chan *peer.Piece
 	cancelC     chan struct{}
 	peers       map[uint32][]*peer.Peer // indexed by piece
 	peersM      sync.Mutex
@@ -49,7 +49,7 @@ func newDownloader(t *transfer) *downloader {
 		haveNotifyC: make(chan struct{}, 1),
 		requestC:    make(chan chan *piece.Piece),
 		responseC:   make(chan *piece.Piece),
-		blockC:      make(chan *peer.Block),
+		pieceC:      make(chan *peer.Piece),
 		cancelC:     make(chan struct{}),
 		haveC:       make(chan *peer.Have),
 		peers:       make(map[uint32][]*peer.Peer),
@@ -57,7 +57,7 @@ func newDownloader(t *transfer) *downloader {
 	}
 }
 
-func (d *downloader) BlockC() chan *peer.Block { return d.blockC }
+func (d *downloader) PieceC() chan *peer.Piece { return d.pieceC }
 func (d *downloader) HaveC() chan *peer.Have   { return d.haveC }
 
 func (d *downloader) Run() {
@@ -332,7 +332,7 @@ func (d *downloader) downloadPiece(p *piece.Piece) error {
 	pieceData := make([]byte, p.Length())
 	for _ = range p.Blocks() {
 		select {
-		case peerBlock := <-d.blockC:
+		case peerBlock := <-d.pieceC:
 			data := <-peerBlock.Data
 			if data == nil {
 				return errors.New("peer did not send block completely")
