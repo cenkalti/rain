@@ -18,9 +18,8 @@ type Piece struct {
 }
 
 type Block struct {
-	index  uint32 // block index in piece
-	length uint32
-	files  sections // the place to write downloaded bytes
+	Begin  uint32
+	Length uint32
 }
 
 func NewPieces(info *torrent.Info, osFiles []*os.File, blockSize uint32) []*Piece {
@@ -86,36 +85,14 @@ func newBlocks(pieceLength uint32, files sections, blockSize uint32) []Block {
 	blocks := make([]Block, numBlocks)
 	for j := uint32(0); j < div; j++ {
 		blocks[j] = Block{
-			index:  j,
-			length: blockSize,
+			Begin:  j * blockSize,
+			Length: blockSize,
 		}
 	}
 	if mod != 0 {
 		blocks[numBlocks-1] = Block{
-			index:  numBlocks - 1,
-			length: uint32(mod),
-		}
-	}
-	var fileIndex int
-	var fileOffset uint32
-	nextFile := func() {
-		fileIndex++
-		fileOffset = 0
-	}
-	fileLeft := func() uint32 { return uint32(files[fileIndex].Length) - fileOffset }
-	for i := range blocks {
-		var blockOffset uint32 = 0
-		blockLeft := func() uint32 { return blocks[i].length - blockOffset }
-		for left := blockLeft(); left > 0 && fileIndex < len(files); {
-			n := minUint32(left, fileLeft())
-			file := section{files[fileIndex].File, files[fileIndex].Offset + int64(fileOffset), int64(n)}
-			blocks[i].files = append(blocks[i].files, file)
-			fileOffset += n
-			blockOffset += n
-			left -= n
-			if fileLeft() == 0 {
-				nextFile()
-			}
+			Begin:  (numBlocks - 1) * blockSize,
+			Length: uint32(mod),
 		}
 	}
 	return blocks
@@ -140,19 +117,9 @@ func (p *Piece) HashCheck() (ok bool, err error) {
 	return
 }
 
-func (b *Block) Index() uint32  { return b.index }
-func (b *Block) Length() uint32 { return b.length }
-
 func divMod32(a, b uint32) (uint32, uint32) { return a / b, a % b }
 
 func minInt64(a, b int64) int64 {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func minUint32(a, b uint32) uint32 {
 	if a < b {
 		return a
 	}

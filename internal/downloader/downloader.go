@@ -353,7 +353,7 @@ func (d *Downloader) downloadPiece(i uint32) error {
 
 	// Request blocks of the piece.
 	for _, b := range p.Blocks() {
-		if err := peer.Request(i, b.Index()*blockSize, b.Length()); err != nil {
+		if err := peer.Request(i, b.Begin, b.Length); err != nil {
 			return err
 		}
 	}
