@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/cenkalti/mse"
-
 	"github.com/cenkalti/rain/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/protocol"
@@ -96,20 +94,6 @@ func (t *transfer) Downloader() peer.Downloader { return t.downloader }
 func (t *transfer) Uploader() peer.Uploader     { return t.uploader }
 
 func (t *transfer) Run() {
-	sKey := mse.HashSKey(t.torrent.Info.Hash[:])
-
-	t.rain.transfersM.Lock()
-	t.rain.transfers[t.torrent.Info.Hash] = t
-	t.rain.transfersSKey[sKey] = t
-	t.rain.transfersM.Unlock()
-
-	defer func() {
-		t.rain.transfersM.Lock()
-		delete(t.rain.transfers, t.torrent.Info.Hash)
-		delete(t.rain.transfersSKey, sKey)
-		t.rain.transfersM.Unlock()
-	}()
-
 	announceC := make(chan *tracker.AnnounceResponse)
 	if t.bitField.All() {
 		go tracker.AnnouncePeriodically(t.tracker, t, nil, tracker.Completed, nil, announceC)

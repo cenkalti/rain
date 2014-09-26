@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/cenkalti/log"
+	"github.com/cenkalti/mse"
 
 	"github.com/cenkalti/rain/internal/connection"
 	"github.com/cenkalti/rain/internal/logger"
@@ -186,6 +187,28 @@ func (r *Rain) Add(torrentPath, where string) (*transfer, error) {
 
 func (r *Rain) AddMagnet(url, where string) (*transfer, error) { panic("not implemented") }
 
-func (r *Rain) Start(t *transfer)  { go t.Run() }
+func (r *Rain) Start(t *transfer) {
+	sKey := mse.HashSKey(t.torrent.Info.Hash[:])
+	r.transfersM.Lock()
+	r.transfers[t.torrent.Info.Hash] = t
+	r.transfersSKey[sKey] = t
+	r.transfersM.Unlock()
+	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				buf := make([]byte, 10000)
+				t.log.Critical(err, "\n", string(buf[:runtime.Stack(buf, false)]))
+			}
+		}()
+		defer func() {
+			r.transfersM.Lock()
+			delete(r.transfers, t.torrent.Info.Hash)
+			delete(r.transfersSKey, sKey)
+			r.transfersM.Unlock()
+		}()
+		t.Run()
+	}()
+}
+
 func (r *Rain) Stop(t *transfer)   { panic("not implemented") }
 func (r *Rain) Remove(t *transfer) { panic("not implemented") }
