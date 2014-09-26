@@ -22,9 +22,6 @@ import (
 
 const maxPeerPerTorrent = 200
 
-// TODO remove this
-const blockSize = 16 * 1024
-
 type Downloader struct {
 	transfer         Transfer
 	port             uint16
