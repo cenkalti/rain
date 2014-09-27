@@ -11,38 +11,6 @@ import (
 	"github.com/cenkalti/rain/internal/logger"
 )
 
-// // haveManager receives have messages from peers and maintains t.peers and t.pieces maps.
-// func (t *transfer) haveManager() {
-// 	for {
-// 		select {
-// 		case have := <-t.haveC:
-// 			// update t.peers and t.pieces maps
-// 			t.m.Lock()
-// 			t.peersByPiece[have.Index][have.Peer] = struct{}{}
-// 			peer := t.peers[have.Peer]
-// 			peer.pieces = append(peer.pieces, have.Index)
-
-// 			// remove from maps when peer disconnects
-// 			go func() {
-// 				<-have.Peer.Disconnected
-// 				t.m.Lock()
-// 				delete(t.peersByPiece[have.Index], have.Peer)
-// 				t.m.Unlock()
-// 			}()
-
-// 			// notify paused downloaders
-// 			select {
-// 			case peer.haveNewPiece <- struct{}{}:
-// 			default:
-// 			}
-
-// 			t.m.Unlock()
-// 		case <-t.stopC:
-// 			return
-// 		}
-// 	}
-// }
-
 // peerManager receives from t.peersC and keeps most recent peer addresses in t.peerC.
 func (t *transfer) peerManager() {
 	t.log.Debug("Started peerManager")
@@ -51,34 +19,13 @@ func (t *transfer) peerManager() {
 		case <-t.stopC:
 			return
 		case peers := <-t.peersC:
-			t.log.Debugln("peers:", peers)
 			for _, p := range peers {
-				t.log.Debug("Peer:", p)
-				// Try to put the peer into t.peerC
-				select {
-				case t.peerC <- p:
-				case <-t.stopC:
-					return
-				default:
-					// If the channel is full,
-					// discard a message from the channel...
+				go func(addr *net.TCPAddr) {
 					select {
-					case <-t.peerC:
+					case t.peerC <- addr:
 					case <-t.stopC:
-						return
-					default:
-						break
 					}
-					// ... and try to put it again.
-					select {
-					case t.peerC <- p:
-					case <-t.stopC:
-						return
-					// If channel is still full, give up.
-					default:
-						break
-					}
-				}
+				}(p)
 			}
 		}
 	}
