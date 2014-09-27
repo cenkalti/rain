@@ -7,7 +7,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/cenkalti/rain/internal/torrent"
+	"github.com/cenkalti/rain/torrent"
 )
 
 type Piece struct {

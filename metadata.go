@@ -17,10 +17,10 @@ import (
 	"github.com/zeebo/bencode"
 
 	"github.com/cenkalti/rain/internal/connection"
-	"github.com/cenkalti/rain/internal/magnet"
+	"github.com/cenkalti/rain/magnet"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/bt"
-	"github.com/cenkalti/rain/internal/torrent"
+	"github.com/cenkalti/rain/torrent"
 	"github.com/cenkalti/rain/internal/tracker"
 )
 

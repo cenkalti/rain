@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cenkalti/rain/internal/magnet"
+	"github.com/cenkalti/rain/magnet"
 )
 
 func TestParse(t *testing.T) {

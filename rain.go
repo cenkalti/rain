@@ -12,7 +12,7 @@ import (
 	"github.com/cenkalti/rain/bt"
 	"github.com/cenkalti/rain/internal/connection"
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/torrent"
+	"github.com/cenkalti/rain/torrent"
 )
 
 // Limits

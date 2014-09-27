@@ -10,7 +10,7 @@ import (
 	"github.com/cenkalti/rain/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/bt"
-	"github.com/cenkalti/rain/internal/torrent"
+	"github.com/cenkalti/rain/torrent"
 	"github.com/cenkalti/rain/internal/tracker"
 )
 
