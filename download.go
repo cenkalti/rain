@@ -20,6 +20,7 @@ func (t *transfer) peerManager() {
 			return
 		case peers := <-t.peersC:
 			for _, p := range peers {
+				t.log.Debugln("Peer:", p)
 				go func(addr *net.TCPAddr) {
 					select {
 					case t.peerC <- addr:
