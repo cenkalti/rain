@@ -32,14 +32,11 @@ type Info struct {
 	Md5sum string `bencode:"md5sum" json:"md5sum,omitempty"`
 	// Multiple File mode
 	Files []fileDict `bencode:"files" json:"files"`
-
-	Raw []byte `bencode:"-" json:"-"`
-
 	// Calculated fileds
 	Hash        bt.InfoHash `bencode:"-" json:"-"`
-	TotalLength int64             `bencode:"-" json:"-"`
-	NumPieces   uint32            `bencode:"-" json:"-"`
-	MultiFile   bool              `bencode:"-" json:"-"`
+	TotalLength int64       `bencode:"-" json:"-"`
+	NumPieces   uint32      `bencode:"-" json:"-"`
+	MultiFile   bool        `bencode:"-" json:"-"`
 }
 
 type fileDict struct {
@@ -80,8 +77,6 @@ func NewInfo(b []byte) (*Info, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	i.Raw = append([]byte(nil), b...)
 
 	hash := sha1.New()
 	hash.Write(b)
