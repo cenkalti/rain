@@ -30,12 +30,6 @@ type Peer struct {
 	downloader Downloader
 	uploader   Uploader
 
-	// for sending "interested" message only once
-	onceInterested sync.Once
-
-	unchokeWaiters  []chan struct{}
-	unchokeWaitersM sync.Mutex
-
 	// requests that we made
 	requests  map[requestMessage]struct{}
 	requestsM sync.Mutex
@@ -54,11 +48,23 @@ type Transfer interface {
 type Downloader interface {
 	HaveC() chan *HaveMessage
 	PieceC() chan *PieceMessage
+	// ChokeC() chan *ChokeMessage
 }
 
 type Uploader interface {
 	RequestC() chan *RequestMessage
+	// InterestedC() chan *InterestedMessage
 }
+
+// type ChokeMessage struct {
+// 	Peer  *Peer
+// 	Choke bool
+// }
+
+// type InterestedMessage struct {
+// 	Peer       *Peer
+// 	Interested bool
+// }
 
 type HaveMessage struct {
 	Peer  *Peer
@@ -95,6 +101,7 @@ func New(conn net.Conn, t Transfer, l log.Logger) *Peer {
 }
 
 func (p *Peer) String() string { return p.conn.RemoteAddr().String() }
+func (p *Peer) Close() error   { return p.conn.Close() }
 
 // Run reads and processes incoming messages after handshake.
 func (p *Peer) Run() {
@@ -143,20 +150,9 @@ func (p *Peer) Run() {
 			p.requestsM.Lock()
 			p.requests = make(map[requestMessage]struct{})
 			p.requestsM.Unlock()
-			// TODO notify waiters
+			// TODO send message to chokeC
 		case unchokeID:
-			p.unchokeWaitersM.Lock()
-			for _, ch := range p.unchokeWaiters {
-				close(ch)
-			}
-			p.unchokeWaiters = nil
-			p.unchokeWaitersM.Unlock()
 		case interestedID:
-			// TODO uploader should do this
-			if err := p.sendMessage(unchokeID, nil); err != nil {
-				p.log.Error(err)
-				return
-			}
 		case notInterestedID:
 		case haveID:
 			var i uint32
@@ -276,27 +272,10 @@ func (p *Peer) SendBitField() error {
 	return p.sendMessage(bitfieldID, bf.Bytes())
 }
 
-// BeInterested sends "interested" message to peer (once) and
-// returns a channel that will be closed when an "unchoke" message is received.
-func (p *Peer) BeInterested() (unchoke chan struct{}, err error) {
-	p.log.Debug("BeInterested")
-
-	p.unchokeWaitersM.Lock()
-	defer p.unchokeWaitersM.Unlock()
-
-	p.onceInterested.Do(func() { err = p.sendMessage(interestedID, nil) })
-	if err != nil {
-		return
-	}
-
-	unchoke = make(chan struct{})
-	p.unchokeWaiters = append(p.unchokeWaiters, unchoke)
-	return
-}
-
-func (p *Peer) BeNotInterested() error { return p.sendMessage(notInterestedID, nil) }
-func (p *Peer) Choke() error           { return p.sendMessage(chokeID, nil) }
-func (p *Peer) Unchoke() error         { return p.sendMessage(unchokeID, nil) }
+func (p *Peer) SendInterested() error    { return p.sendMessage(interestedID, nil) }
+func (p *Peer) SendNotInterested() error { return p.sendMessage(notInterestedID, nil) }
+func (p *Peer) Choke() error             { return p.sendMessage(chokeID, nil) }
+func (p *Peer) Unchoke() error           { return p.sendMessage(unchokeID, nil) }
 
 func (p *Peer) Request(index, begin, length uint32) error {
 	req := requestMessage{index, begin, length}

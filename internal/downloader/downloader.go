@@ -1,13 +1,11 @@
 package downloader
 
 import (
-	"bytes"
-	"crypto/sha1"
 	"errors"
-	"fmt"
 	"math/rand"
 	"net"
 	"runtime"
+	"sort"
 	"sync"
 	"time"
 
@@ -26,19 +24,31 @@ type Downloader struct {
 	peerID           protocol.PeerID
 	enableEncryption bool
 	forceEncryption  bool
-	remaining        []uint32
-	peersC           chan []*net.TCPAddr
-	peerC            chan *net.TCPAddr
-	haveC            chan *peer.HaveMessage
-	haveNotifyC      chan struct{}
-	requestC         chan chan uint32
-	responseC        chan uint32
-	pieceC           chan *peer.PieceMessage
-	cancelC          chan struct{}
-	peers            map[uint32][]*peer.Peer // indexed by piece
-	peersM           sync.Mutex
-	finished         chan struct{}
-	log              logger.Logger
+	// indexes of the pieces that needs to be downloaded
+	remaining []uint32
+	// tracker sends available peers to this channel
+	peersC chan []*net.TCPAddr
+	// pieceManager maintains most recent peers which can be connected to in this channel
+	// connecter receives from this channel and connects to new peers
+	peerC chan *net.TCPAddr
+	// peers send have messages to this channel
+	haveC chan *peer.HaveMessage
+	// used internally to notify downloaders that new have message is received from a peer
+	haveNotifyC chan struct{}
+	requestC    chan chan uint32
+	responseC   chan uint32
+	pieceC      chan *peer.PieceMessage
+	// all goroutines are stopped when this channel is closed
+	cancelC chan struct{}
+	// holds pieces are available in which peers, indexed by piece
+	peers []map[*peer.Peer]struct{}
+	// holds peers have which pieces
+	pieces map[*peer.Peer]map[uint32]struct{}
+	// protects peers and pieces
+	m sync.Mutex
+	// will be closed by main loop when all of the remaining pieces are downloaded
+	finished chan struct{}
+	log      logger.Logger
 }
 
 type Transfer interface {
@@ -59,6 +69,10 @@ func New(t Transfer, port uint16, peerID protocol.PeerID, enableEncryption, forc
 			remaining = append(remaining, i)
 		}
 	}
+	peers := make([]map[*peer.Peer]struct{}, t.NumPieces())
+	for i := range peers {
+		peers[i] = make(map[*peer.Peer]struct{})
+	}
 	return &Downloader{
 		transfer:         t,
 		port:             port,
@@ -74,7 +88,8 @@ func New(t Transfer, port uint16, peerID protocol.PeerID, enableEncryption, forc
 		pieceC:           make(chan *peer.PieceMessage),
 		cancelC:          make(chan struct{}),
 		haveC:            make(chan *peer.HaveMessage),
-		peers:            make(map[uint32][]*peer.Peer),
+		peers:            peers,
+		pieces:           make(map[*peer.Peer]map[uint32]struct{}),
 		finished:         make(chan struct{}),
 		log:              logger.New("downloader "),
 	}
@@ -92,13 +107,7 @@ func (d *Downloader) Run() {
 
 	go d.connecter()
 	go d.peerManager()
-	go d.piecePicker()
 	go d.haveManager()
-
-	// Download pieces in parallel.
-	for i := 0; i < maxPeerPerTorrent; i++ {
-		go d.pieceDownloader()
-	}
 
 	for {
 		select {
@@ -115,18 +124,37 @@ func (d *Downloader) Run() {
 	}
 }
 
+// haveManager receives have messages from peers and maintains d.peers and d.pieces maps.
 func (d *Downloader) haveManager() {
 	for {
 		select {
 		case have := <-d.haveC:
-			d.peersM.Lock()
-			d.peers[have.Index] = append(d.peers[have.Index], have.Peer)
-			d.peersM.Unlock()
+			// update d.peers and d.pieces maps
+			d.m.Lock()
+			d.peers[have.Index][have.Peer] = struct{}{}
+			if d.pieces[have.Peer] == nil {
+				d.pieces[have.Peer] = make(map[uint32]struct{})
+			}
+			d.pieces[have.Peer][have.Index] = struct{}{}
+
+			// remove from maps when peer disconnects
+			go func() {
+				<-have.Peer.Disconnected
+				d.m.Lock()
+				delete(d.peers[have.Index], have.Peer)
+				delete(d.pieces[have.Peer], have.Index)
+				if len(d.pieces[have.Peer]) == 0 {
+					delete(d.pieces, have.Peer)
+				}
+				d.m.Unlock()
+			}()
 
 			select {
 			case d.haveNotifyC <- struct{}{}:
 			default:
 			}
+
+			d.m.Unlock()
 		case <-d.cancelC:
 			return
 		}
@@ -233,184 +261,114 @@ func (d *Downloader) connect(addr *net.TCPAddr) {
 	// 	d.transfer.peersM.Unlock()
 	// }()
 
+	go d.peerDownloader(p)
 	p.Run()
 }
 
-// piecePicker selects a piece to be downloaded next and sends it to d.requestC.
-func (d *Downloader) piecePicker() {
-	const waitDuration = time.Second
-	for {
-		// sync with downloaders
-		req := make(chan uint32)
-		select {
-		case d.requestC <- req:
-		case <-d.cancelC:
-			return
-		}
-
-		// select a piece to download
-		var i uint32
-		for {
-			if len(d.remaining) == 0 {
-				return
-			}
-
-			var err error
-			i, err = d.selectPiece()
-			if err == nil {
-				break // success, selected a piece
-			}
-			d.log.Debug(err)
-
-			// Block until we have next "have" message
-			select {
-			case <-d.haveNotifyC:
-				// Do not try to select piece on first "have" message. Wait for more messages for better selection.
-				time.Sleep(waitDuration)
-				continue
-			case <-d.cancelC:
-				return
-			}
-		}
-
-		d.log.Debugln("Selected piece:", i)
-
-		// delete selected
-		d.remaining[i], d.remaining = d.remaining[len(d.remaining)-1], d.remaining[:len(d.remaining)-1]
-
-		// send piece to downloaders
-		select {
-		case req <- i:
-		case <-d.cancelC:
-			return
+func (d *Downloader) candidates(peer *peer.Peer) (candidates []uint32) {
+	pieces, ok := d.pieces[peer]
+	if !ok {
+		return
+	}
+	for _, i := range d.remaining {
+		if _, ok = pieces[i]; ok {
+			candidates = append(candidates, i)
 		}
 	}
+	return
 }
 
-// pieceDownloader receives a piece from d.requestC and downloads it.
-func (d *Downloader) pieceDownloader() {
+func (d *Downloader) peerDownloader(peer *peer.Peer) {
+	var interested bool
 	for {
-		select {
-		case req := <-d.requestC:
-			i, ok := <-req
-			if !ok {
-				continue
-			}
+		d.m.Lock()
+		candidates := d.candidates(peer)
+		if len(candidates) == 0 {
+			d.m.Unlock()
+			<-d.haveNotifyC
+			// Do not try to select piece on first "have" message. Wait for more messages for better selection.
+			time.Sleep(time.Second)
+			continue
+		}
+		selected := d.selectPiece(candidates)
+		d.m.Unlock()
+		if len(candidates) > 0 && !interested {
+			peer.SendInterested()
+			interested = true
+		} else if interested {
+			peer.SendNotInterested()
+			interested = false
+		}
+		piece := d.transfer.Piece(selected)
 
-			if err := d.downloadPiece(i); err != nil {
+		// TODO queue max 10 requests
+
+		// Request blocks of the piece.
+		for _, b := range piece.Blocks() {
+			if err := peer.Request(selected, b.Begin, b.Length); err != nil {
 				d.log.Error(err)
-				// responseC <- nil
-				continue
-			}
-
-			select {
-			case d.responseC <- i:
-			case <-d.cancelC:
 				return
 			}
-		case <-d.cancelC:
+		}
+
+		// Read blocks from peer.
+		pieceData := make([]byte, piece.Length())
+		for _, b := range piece.Blocks() {
+			select {
+			case peerBlock := <-d.pieceC:
+				data := <-peerBlock.Data
+				if data == nil {
+					d.log.Error("peer did not send block completely")
+					return
+				}
+				d.log.Debugln("Will receive block of length", len(data))
+				copy(pieceData[peerBlock.Begin:], data)
+			case <-time.After(time.Duration(b.Length) / 1024 * time.Second): // speed is below 1KBps
+				d.log.Error("piece timeout")
+				return
+			}
+		}
+
+		if _, err := piece.Write(pieceData); err != nil {
+			d.log.Error(err)
+			peer.Close()
 			return
 		}
 	}
 }
+
+// 		// delete selected
+// 		d.remaining[i], d.remaining = d.remaining[len(d.remaining)-1], d.remaining[:len(d.remaining)-1]
 
 // selectPiece returns the index of the piece in pieces.
-func (d *Downloader) selectPiece() (uint32, error) {
-	var pieces []t // pieces with peers
-	d.peersM.Lock()
-	for i, p := range d.remaining {
-		if len(d.peers[p]) > 0 {
-			pieces = append(pieces, t{uint32(i), p})
+func (d *Downloader) selectPiece(candidates []uint32) uint32 {
+	var pieces []pieceWithAvailability
+	for _, i := range candidates {
+		pieces = append(pieces, pieceWithAvailability{i, len(d.peers[i])})
+	}
+	sort.Sort(rarestFirst(pieces))
+	minRarity := pieces[0].availability
+	var rarestPieces []uint32
+	for _, r := range pieces {
+		if r.availability > minRarity {
+			break
 		}
+		rarestPieces = append(rarestPieces, r.index)
 	}
-	d.peersM.Unlock()
-	if len(pieces) == 0 {
-		return 0, errNoPiece
-	}
-	if len(pieces) == 1 {
-		return 0, nil
-	}
-	// sort.Sort(rarestFirst(pieces))
-	pieces = pieces[:len(pieces)/2]
-	return pieces[rand.Intn(len(pieces))].i, nil
+	return rarestPieces[rand.Intn(len(rarestPieces))]
 }
 
-type t struct {
-	i uint32
-	p uint32
+type pieceWithAvailability struct {
+	index        uint32
+	availability int
 }
 
-// // Implements sort.Interface based on availability of piece.
-// type rarestFirst []t
+// rarestFirst implements sort.Interface based on availability of piece.
+type rarestFirst []pieceWithAvailability
 
-// func (r rarestFirst) Len() int           { return len(r) }
-// func (r rarestFirst) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
-// func (r rarestFirst) Less(i, j int) bool { return len(r[i].p.peers) < len(r[j].p.peers) }
+func (r rarestFirst) Len() int           { return len(r) }
+func (r rarestFirst) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
+func (r rarestFirst) Less(i, j int) bool { return r[i].availability < r[j].availability }
 
-var errNoPiece = errors.New("no piece available for download")
-var errNoPeer = errors.New("no peer available for this piece")
-
-func (d *Downloader) downloadPiece(i uint32) error {
-	d.log.Debugln("Downloading piece:", i)
-
-	peer, err := d.selectPeer(i)
-	if err != nil {
-		return err
-	}
-	d.log.Debugln("selected peer:", peer)
-
-	unchokeC, err := peer.BeInterested()
-	if err != nil {
-		return err
-	}
-
-	select {
-	case <-unchokeC:
-	case <-peer.Disconnected:
-		return errors.New("peer disconnected")
-	}
-
-	p := d.transfer.Piece(i)
-
-	// Request blocks of the piece.
-	for _, b := range p.Blocks() {
-		if err := peer.Request(i, b.Begin, b.Length); err != nil {
-			return err
-		}
-	}
-
-	// Read blocks from peer.
-	pieceData := make([]byte, p.Length())
-	for _ = range p.Blocks() {
-		select {
-		case peerBlock := <-d.pieceC:
-			data := <-peerBlock.Data
-			if data == nil {
-				return errors.New("peer did not send block completely")
-			}
-			d.log.Debugln("Will receive block of length", len(data))
-			copy(pieceData[peerBlock.Begin:], data)
-		case <-time.After(time.Minute):
-			return fmt.Errorf("peer did not send piece #%d completely", p.Index())
-		}
-	}
-
-	// Verify piece hash.
-	hash := sha1.Sum(pieceData)
-	if !bytes.Equal(hash[:], p.Hash()) {
-		return errors.New("received corrupt piece")
-	}
-
-	_, err = p.Write(pieceData)
-	return err
-}
-
-func (d *Downloader) selectPeer(i uint32) (*peer.Peer, error) {
-	d.peersM.Lock()
-	defer d.peersM.Unlock()
-	peers := d.peers[i]
-	if len(peers) == 0 {
-		return nil, errNoPeer
-	}
-	return peers[rand.Intn(len(d.peers))], nil
-}
+// var errNoPiece = errors.New("no piece available for download")
+// var errNoPeer = errors.New("no peer available for this piece")
