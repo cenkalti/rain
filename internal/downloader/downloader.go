@@ -24,7 +24,8 @@ type Downloader struct {
 	enableEncryption bool
 	forceEncryption  bool
 	// indexes of the pieces that needs to be downloaded
-	remaining []uint32
+	remaining map[uint32]struct{}
+	requested map[uint32]time.Time
 	// tracker sends available peers to this channel
 	peersC chan []*net.TCPAddr
 	// pieceManager maintains most recent peers which can be connected to in this channel
@@ -32,22 +33,25 @@ type Downloader struct {
 	peerC chan *net.TCPAddr
 	// peers send have messages to this channel
 	haveC chan *peer.HaveMessage
-	// used internally to notify downloaders that new have message is received from a peer
-	haveNotifyC chan struct{}
-	requestC    chan chan uint32
-	responseC   chan uint32
-	pieceC      chan *peer.PieceMessage
+	// downloaded piece indexes are sent to this channel by peer downloaders
+	completeC chan uint32
+	pieceC    chan *peer.PieceMessage
 	// all goroutines are stopped when this channel is closed
 	cancelC chan struct{}
 	// holds pieces are available in which peers, indexed by piece
 	peersByPiece []map[*peer.Peer]struct{}
 	// holds peers have which pieces
-	piecesByPeer map[*peer.Peer]map[uint32]struct{}
-	// protects peers and pieces
+	peers map[*peer.Peer]*Peer
+	// protects peersByPiece, peers, remaining and requested fields
 	m sync.Mutex
 	// will be closed by main loop when all of the remaining pieces are downloaded
 	finished chan struct{}
 	log      logger.Logger
+}
+
+type Peer struct {
+	pieces       []uint32
+	haveNewPiece chan struct{}
 }
 
 type Transfer interface {
@@ -62,10 +66,10 @@ type Transfer interface {
 }
 
 func New(t Transfer, port uint16, peerID protocol.PeerID, enableEncryption, forceEncryption bool) *Downloader {
-	remaining := make([]uint32, 0, t.NumPieces())
+	remaining := make(map[uint32]struct{})
 	for i := uint32(0); i < t.NumPieces(); i++ {
 		if !t.Piece(i).OK() {
-			remaining = append(remaining, i)
+			remaining[i] = struct{}{}
 		}
 	}
 	peers := make([]map[*peer.Peer]struct{}, t.NumPieces())
@@ -79,16 +83,15 @@ func New(t Transfer, port uint16, peerID protocol.PeerID, enableEncryption, forc
 		enableEncryption: enableEncryption,
 		forceEncryption:  forceEncryption,
 		remaining:        remaining,
+		requested:        make(map[uint32]time.Time),
 		peersC:           make(chan []*net.TCPAddr),
 		peerC:            make(chan *net.TCPAddr, maxPeerPerTorrent),
-		haveNotifyC:      make(chan struct{}, 1),
-		requestC:         make(chan chan uint32),
-		responseC:        make(chan uint32),
+		completeC:        make(chan uint32),
 		pieceC:           make(chan *peer.PieceMessage),
 		cancelC:          make(chan struct{}),
 		haveC:            make(chan *peer.HaveMessage),
 		peersByPiece:     peers,
-		piecesByPeer:     make(map[*peer.Peer]map[uint32]struct{}),
+		peers:            make(map[*peer.Peer]*Peer),
 		finished:         make(chan struct{}),
 		log:              logger.New("downloader "),
 	}
@@ -110,7 +113,7 @@ func (d *Downloader) Run() {
 
 	for {
 		select {
-		case <-d.responseC:
+		case <-d.completeC:
 			left--
 			if left == 0 {
 				d.log.Notice("Download finished.")
@@ -131,25 +134,20 @@ func (d *Downloader) haveManager() {
 			// update d.peers and d.pieces maps
 			d.m.Lock()
 			d.peersByPiece[have.Index][have.Peer] = struct{}{}
-			if d.piecesByPeer[have.Peer] == nil {
-				d.piecesByPeer[have.Peer] = make(map[uint32]struct{})
-			}
-			d.piecesByPeer[have.Peer][have.Index] = struct{}{}
+			peer := d.peers[have.Peer]
+			peer.pieces = append(peer.pieces, have.Index)
 
 			// remove from maps when peer disconnects
 			go func() {
 				<-have.Peer.Disconnected
 				d.m.Lock()
 				delete(d.peersByPiece[have.Index], have.Peer)
-				delete(d.piecesByPeer[have.Peer], have.Index)
-				if len(d.piecesByPeer[have.Peer]) == 0 {
-					delete(d.piecesByPeer, have.Peer)
-				}
 				d.m.Unlock()
 			}()
 
+			// notify paused downloaders
 			select {
-			case d.haveNotifyC <- struct{}{}:
+			case peer.haveNewPiece <- struct{}{}:
 			default:
 			}
 
@@ -260,21 +258,17 @@ func (d *Downloader) connect(addr *net.TCPAddr) {
 	// 	d.transfer.peersM.Unlock()
 	// }()
 
+	d.m.Lock()
+	d.peers[p] = &Peer{make([]uint32, 0), make(chan struct{}, 1)}
+	d.m.Unlock()
+	go func() {
+		<-p.Disconnected
+		d.m.Lock()
+		delete(d.peers, p)
+		d.m.Unlock()
+	}()
 	go d.peerDownloader(p)
 	p.Run()
-}
-
-func (d *Downloader) candidates(peer *peer.Peer) (candidates []uint32) {
-	pieces, ok := d.piecesByPeer[peer]
-	if !ok {
-		return
-	}
-	for _, i := range d.remaining {
-		if _, ok = pieces[i]; ok {
-			candidates = append(candidates, i)
-		}
-	}
-	return
 }
 
 func (d *Downloader) peerDownloader(peer *peer.Peer) {
@@ -283,21 +277,30 @@ func (d *Downloader) peerDownloader(peer *peer.Peer) {
 		d.m.Lock()
 		candidates := d.candidates(peer)
 		if len(candidates) == 0 {
+			p := d.peers[peer]
 			d.m.Unlock()
-			<-d.haveNotifyC
-			// Do not try to select piece on first "have" message. Wait for more messages for better selection.
-			time.Sleep(time.Second)
-			continue
+			select {
+			case <-p.haveNewPiece:
+				// Do not try to select piece on first "have" message. Wait for more messages for better selection.
+				time.Sleep(time.Second)
+				continue
+			case <-peer.Disconnected:
+				return
+			}
 		}
 		selected := d.selectPiece(candidates)
+		delete(d.remaining, selected)
+		d.requested[selected] = time.Now()
 		d.m.Unlock()
-		if len(candidates) > 0 && !interested {
+
+		if !interested {
 			peer.SendInterested()
 			interested = true
 		} else if interested {
 			peer.SendNotInterested()
 			interested = false
 		}
+
 		piece := d.transfer.Piece(selected)
 
 		// TODO queue max 10 requests
@@ -312,7 +315,7 @@ func (d *Downloader) peerDownloader(peer *peer.Peer) {
 
 		// Read blocks from peer.
 		pieceData := make([]byte, piece.Length())
-		for _, b := range piece.Blocks() {
+		for _ = range piece.Blocks() { // TODO all peers send to this channel
 			select {
 			case peerBlock := <-d.pieceC:
 				data := <-peerBlock.Data
@@ -322,7 +325,7 @@ func (d *Downloader) peerDownloader(peer *peer.Peer) {
 				}
 				d.log.Debugln("Will receive block of length", len(data))
 				copy(pieceData[peerBlock.Begin:], data)
-			case <-time.After(time.Duration(b.Length) / 1024 * time.Second): // speed is below 1KBps
+			case <-time.After(16 * time.Second): // speed is below 1KBps
 				d.log.Error("piece timeout")
 				return
 			}
@@ -333,13 +336,29 @@ func (d *Downloader) peerDownloader(peer *peer.Peer) {
 			peer.Close()
 			return
 		}
+
+		d.m.Lock()
+		delete(d.requested, selected)
+		select {
+		case d.completeC <- selected:
+		case <-peer.Disconnected:
+			return
+		}
+		d.m.Unlock()
 	}
 }
 
-// 		// delete selected
-// 		d.remaining[i], d.remaining = d.remaining[len(d.remaining)-1], d.remaining[:len(d.remaining)-1]
+// candidates returns list of piece indexes which is available on the peer but not available on the client.
+func (d *Downloader) candidates(p *peer.Peer) (candidates []uint32) {
+	for _, i := range d.peers[p].pieces {
+		if _, ok := d.remaining[i]; ok {
+			candidates = append(candidates, i)
+		}
+	}
+	return
+}
 
-// selectPiece returns the index of the piece in pieces.
+// selectPiece returns the index of the selected piece from candidates.
 func (d *Downloader) selectPiece(candidates []uint32) uint32 {
 	var pieces []pieceWithAvailability
 	for _, i := range candidates {
