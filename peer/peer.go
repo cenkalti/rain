@@ -94,6 +94,8 @@ func New(conn net.Conn, t Transfer, l log.Logger) *Peer {
 	}
 }
 
+func (p *Peer) String() string { return p.conn.RemoteAddr().String() }
+
 // Run reads and processes incoming messages after handshake.
 func (p *Peer) Run() {
 	defer close(p.Disconnected)
@@ -201,7 +203,7 @@ func (p *Peer) Run() {
 				p.log.Error(err)
 				return
 			}
-			p.log.Debugf("Request: %#v", req)
+			p.log.Debugf("Request: %+v", req)
 
 			if req.Index >= p.transfer.NumPieces() {
 				p.log.Error("invalid request: index")

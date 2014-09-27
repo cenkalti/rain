@@ -92,7 +92,8 @@ func (d *Downloader) Run() {
 
 	go d.connecter()
 	go d.peerManager()
-	go d.pieceRequester()
+	go d.piecePicker()
+	go d.haveManager()
 
 	// Download pieces in parallel.
 	for i := 0; i < maxPeerPerTorrent; i++ {
@@ -106,8 +107,17 @@ func (d *Downloader) Run() {
 			if left == 0 {
 				d.log.Notice("Download finished.")
 				close(d.transfer.Finished())
-				return
+				return // TODO remove this?
 			}
+		case <-d.cancelC:
+			return
+		}
+	}
+}
+
+func (d *Downloader) haveManager() {
+	for {
+		select {
 		case have := <-d.haveC:
 			d.peersM.Lock()
 			d.peers[have.Index] = append(d.peers[have.Index], have.Peer)
@@ -127,20 +137,37 @@ func (d *Downloader) Run() {
 func (d *Downloader) peerManager() {
 	for {
 		select {
+		case <-d.cancelC:
+			return
 		case peers := <-d.peersC:
-			for _, peer := range peers {
-				d.log.Debug("Peer:", peer)
+			for _, p := range peers {
+				d.log.Debug("Peer:", p)
+				// Try to put the peer into d.peerC
 				select {
-				case d.peerC <- peer:
+				case d.peerC <- p:
 				case <-d.cancelC:
 					return
 				default:
-					<-d.peerC
-					d.peerC <- peer
+					// If the channel is full,
+					// discard a message from the channel...
+					select {
+					case <-d.peerC:
+					case <-d.cancelC:
+						return
+					default:
+						break
+					}
+					// ... and try to put it again.
+					select {
+					case d.peerC <- p:
+					case <-d.cancelC:
+						return
+					// If channel is still full, give up.
+					default:
+						break
+					}
 				}
 			}
-		case <-d.cancelC:
-			return
 		}
 	}
 }
@@ -209,8 +236,8 @@ func (d *Downloader) connect(addr *net.TCPAddr) {
 	p.Run()
 }
 
-// pieceRequester selects a piece to be downloaded next and sends it to d.requestC.
-func (d *Downloader) pieceRequester() {
+// piecePicker selects a piece to be downloaded next and sends it to d.requestC.
+func (d *Downloader) piecePicker() {
 	const waitDuration = time.Second
 	for {
 		// sync with downloaders
