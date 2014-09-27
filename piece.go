@@ -25,7 +25,7 @@ type Block struct {
 	Length uint32
 }
 
-func NewPieces(info *torrent.Info, osFiles []*os.File, blockSize uint32) []*Piece {
+func newPieces(info *torrent.Info, osFiles []*os.File, blockSize uint32) []*Piece {
 	var (
 		fileIndex  int   // index of the current file in torrent
 		fileLength int64 = info.GetFiles()[0].Length

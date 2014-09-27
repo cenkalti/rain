@@ -77,7 +77,7 @@ func (t *transfer) connect(addr *net.TCPAddr) {
 	log.Infof("Connected to peer. (cipher=%s, extensions=%x)", cipher, extensions)
 	defer conn.Close()
 
-	p := NewPeer(conn, peerID, t, log)
+	p := t.newPeer(conn, peerID, log)
 
 	t.m.Lock()
 	t.peers[peerID] = p

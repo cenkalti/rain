@@ -156,7 +156,7 @@ func (r *Rain) servePeer(conn net.Conn) {
 		return
 	}
 
-	p := NewPeer(encConn, peerID, t, log)
+	p := t.newPeer(encConn, peerID, log)
 
 	if err = p.SendBitField(); err != nil {
 		log.Error(err)

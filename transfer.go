@@ -56,7 +56,7 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 	if err != nil {
 		return nil, err
 	}
-	pieces := NewPieces(tor.Info, files, blockSize)
+	pieces := newPieces(tor.Info, files, blockSize)
 	bf := bitfield.New(tor.Info.NumPieces)
 	if checkHash {
 		r.log.Notice("Doing hash check...")
@@ -104,13 +104,13 @@ func (t *transfer) Uploaded() int64 { return 0 } // TODO
 func (t *transfer) Left() int64     { return t.torrent.Info.TotalLength - t.Downloaded() }
 
 func (t *transfer) Run() {
-	// Download workers
+	// Start download workers
 	if !t.bitfield.All() {
 		go t.connecter()
 		go t.peerManager()
 	}
 
-	// Upload workers
+	// Start upload workers
 	go t.requestSelector()
 	for i := 0; i < uploadSlots; i++ {
 		go t.pieceUploader()
@@ -120,13 +120,13 @@ func (t *transfer) Run() {
 
 	for {
 		select {
-		case announceResponse := <-t.announceC:
-			if announceResponse.Error != nil {
-				t.log.Error(announceResponse.Error)
+		case announce := <-t.announceC:
+			if announce.Error != nil {
+				t.log.Error(announce.Error)
 				break
 			}
-			t.log.Infof("Announce: %d seeder, %d leecher", announceResponse.Seeders, announceResponse.Leechers)
-			t.peersC <- announceResponse.Peers
+			t.log.Infof("Announce: %d seeder, %d leecher", announce.Seeders, announce.Leechers)
+			t.peersC <- announce.Peers
 		case <-t.stopC:
 			t.log.Notice("Transfer is stopped.")
 			return

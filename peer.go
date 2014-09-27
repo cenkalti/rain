@@ -63,7 +63,7 @@ type pieceMessage struct {
 	Index, Begin uint32
 }
 
-func NewPeer(conn net.Conn, peerID bt.PeerID, t *transfer, l log.Logger) *Peer {
+func (t *transfer) newPeer(conn net.Conn, peerID bt.PeerID, l log.Logger) *Peer {
 	return &Peer{
 		Disconnected: make(chan struct{}),
 		conn:         conn,
