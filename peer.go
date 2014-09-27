@@ -32,7 +32,8 @@ type Peer struct {
 	amInterested bool
 
 	// pieces that the peer has
-	bitfield bitfield.BitField
+	bitfield  *bitfield.BitField
+	bitfieldM sync.Mutex
 
 	// TODO write comment here
 	haveNewPiece chan struct{}
@@ -154,7 +155,9 @@ func (p *Peer) Run() {
 				return
 			}
 
+			p.bitfieldM.Lock()
 			_, err = p.conn.Read(p.bitfield.Bytes())
+			p.bitfieldM.Unlock()
 			if err != nil {
 				p.log.Error(err)
 				return

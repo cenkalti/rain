@@ -7,15 +7,15 @@ type BitField struct {
 	length uint32
 }
 
-// New creates a new BitField value of length bits.
-func New(length uint32) BitField {
-	return BitField{make([]byte, (length+7)/8), length}
+// New creates a new BitField of length bits.
+func New(length uint32) *BitField {
+	return &BitField{make([]byte, (length+7)/8), length}
 }
 
-// NewBytes returns a new BitField value from b.
+// NewBytes returns a new BitField from bytes.
 // Bytes in b are not copied. Unused bits in last byte are cleared.
 // Panics if b is not big enough to hold "length" bits.
-func NewBytes(b []byte, length uint32) BitField {
+func NewBytes(b []byte, length uint32) *BitField {
 	div, mod := divMod32(length, 8)
 	lastByteIncomplete := mod != 0
 	requiredBytes := div
@@ -28,7 +28,7 @@ func NewBytes(b []byte, length uint32) BitField {
 	if lastByteIncomplete {
 		b[len(b)-1] &= ^(0xff >> mod)
 	}
-	return BitField{b[:requiredBytes], length}
+	return &BitField{b[:requiredBytes], length}
 }
 
 // Bytes returns bytes in b. If you modify the returned slice the bits in b are modified too.

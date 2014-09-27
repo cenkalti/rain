@@ -8,10 +8,10 @@ import (
 	"sync"
 
 	"github.com/cenkalti/rain/bitfield"
-	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/bt"
-	"github.com/cenkalti/rain/torrent"
+	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/tracker"
+	"github.com/cenkalti/rain/torrent"
 )
 
 type transfer struct {
@@ -19,7 +19,7 @@ type transfer struct {
 	tracker   tracker.Tracker
 	torrent   *torrent.Torrent
 	pieces    []*Piece
-	bitfield  bitfield.BitField
+	bitfield  *bitfield.BitField
 	announceC chan *tracker.AnnounceResponse
 	peers     map[bt.PeerID]*Peer // connected peers
 	peersM    sync.RWMutex
@@ -87,8 +87,8 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 	}, nil
 }
 
-func (t *transfer) InfoHash() bt.InfoHash { return t.torrent.Info.Hash }
-func (t *transfer) Finished() chan struct{}     { return t.finished }
+func (t *transfer) InfoHash() bt.InfoHash   { return t.torrent.Info.Hash }
+func (t *transfer) Finished() chan struct{} { return t.finished }
 func (t *transfer) Downloaded() int64 {
 	t.m.Lock()
 	var sum int64

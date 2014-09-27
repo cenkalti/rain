@@ -219,11 +219,13 @@ func (t *transfer) peerDownloader(peer *Peer) {
 
 // candidates returns list of piece indexes which is available on the peer but not available on the client.
 func (t *transfer) candidates(p *Peer) (candidates []*Piece) {
+	p.bitfieldM.Lock()
 	for i := uint32(0); i < t.bitfield.Len(); i++ {
 		if !t.bitfield.Test(i) && p.bitfield.Test(i) {
 			candidates = append(candidates, t.pieces[i])
 		}
 	}
+	p.bitfieldM.Unlock()
 	return
 }
 
