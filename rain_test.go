@@ -72,7 +72,7 @@ func TestDownload(t *testing.T) {
 	select {
 	case <-t2.Finished():
 	case <-time.After(10 * time.Second):
-		t.FailNow()
+		panic("download did not finish")
 	}
 
 	cmd := exec.Command("diff", "-rq",

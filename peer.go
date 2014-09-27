@@ -82,6 +82,13 @@ func (p *Peer) Close() error   { return p.conn.Close() }
 
 // Run reads and processes incoming messages after handshake.
 func (p *Peer) Run() {
+	defer func() {
+		for i := uint32(0); i < p.bitfield.Len(); i++ {
+			if p.bitfield.Test(i) {
+				delete(p.transfer.pieces[i].peers, p)
+			}
+		}
+	}()
 	defer close(p.Disconnected)
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 
@@ -235,20 +242,13 @@ func (p *Peer) Run() {
 }
 
 func (p *Peer) handleHave(i uint32) {
-	t := p.transfer
-	t.m.Lock()
-	t.pieces[i].peers[p] = struct{}{}
+	p.transfer.m.Lock()
+	p.transfer.pieces[i].peers[p] = struct{}{}
 	select {
 	case p.haveNewPiece <- struct{}{}:
 	default:
 	}
-	t.m.Unlock()
-	go func() {
-		<-p.Disconnected
-		t.m.Lock()
-		delete(t.pieces[i].peers, p)
-		t.m.Unlock()
-	}()
+	p.transfer.m.Unlock()
 }
 
 func (p *Peer) SendBitField() error {
