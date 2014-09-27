@@ -13,7 +13,7 @@ import (
 	"github.com/cenkalti/log"
 
 	"github.com/cenkalti/rain/bitfield"
-	"github.com/cenkalti/rain/internal/protocol"
+	"github.com/cenkalti/rain/bt"
 )
 
 const connReadTimeout = 3 * time.Minute
@@ -26,7 +26,7 @@ type Peer struct {
 	Disconnected chan struct{}
 
 	conn     net.Conn
-	peerID   protocol.PeerID
+	peerID   bt.PeerID
 	transfer *transfer
 
 	amInterested bool
@@ -62,7 +62,7 @@ type pieceMessage struct {
 	Index, Begin uint32
 }
 
-func NewPeer(conn net.Conn, peerID protocol.PeerID, t *transfer, l log.Logger) *Peer {
+func NewPeer(conn net.Conn, peerID bt.PeerID, t *transfer, l log.Logger) *Peer {
 	return &Peer{
 		Disconnected: make(chan struct{}),
 		conn:         conn,

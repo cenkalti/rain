@@ -13,7 +13,7 @@ import (
 	"github.com/cenkalti/backoff"
 
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/protocol"
+	"github.com/cenkalti/rain/bt"
 )
 
 // Number of peers we want from trackers
@@ -31,7 +31,7 @@ type Tracker interface {
 }
 
 type Transfer interface {
-	InfoHash() protocol.InfoHash
+	InfoHash() bt.InfoHash
 	Downloaded() int64
 	Uploaded() int64
 	Left() int64
@@ -113,7 +113,7 @@ func AnnouncePeriodically(t Tracker, transfer Transfer, cancel <-chan struct{}, 
 type trackerBase struct {
 	url    *url.URL
 	rawurl string
-	peerID protocol.PeerID
+	peerID bt.PeerID
 	port   uint16
 	log    logger.Logger
 }
@@ -121,7 +121,7 @@ type trackerBase struct {
 func (t trackerBase) URL() string { return t.rawurl }
 
 type Client interface {
-	PeerID() protocol.PeerID
+	PeerID() bt.PeerID
 	Port() uint16
 }
 
@@ -160,7 +160,7 @@ func (e Error) Error() string { return string(e) }
 
 type Event int32
 
-// Tracker Announce Events. Numbers corresponds to constants in UDP tracker protocol.
+// Tracker Announce Events. Numbers corresponds to constants in UDP tracker bt.
 const (
 	None Event = iota
 	Completed
@@ -175,7 +175,7 @@ var eventNames = [...]string{
 	"stopped",
 }
 
-// String returns the name of event as represented in HTTP tracker protocol.
+// String returns the name of event as represented in HTTP tracker bt.
 func (e Event) String() string {
 	return eventNames[e]
 }

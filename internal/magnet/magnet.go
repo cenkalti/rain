@@ -5,11 +5,11 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/cenkalti/rain/internal/protocol"
+	"github.com/cenkalti/rain/bt"
 )
 
 type Magnet struct {
-	InfoHash protocol.InfoHash
+	InfoHash bt.InfoHash
 	Name     string
 	Trackers []string
 }
@@ -38,7 +38,7 @@ func Parse(s string) (*Magnet, error) {
 
 	var magnet Magnet
 
-	magnet.InfoHash, err = protocol.NewInfoHashString(xt)
+	magnet.InfoHash, err = bt.NewInfoHashString(xt)
 	if err != nil {
 		return nil, err
 	}

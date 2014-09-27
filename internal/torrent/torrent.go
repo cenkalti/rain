@@ -8,7 +8,7 @@ import (
 
 	"github.com/zeebo/bencode"
 
-	"github.com/cenkalti/rain/internal/protocol"
+	"github.com/cenkalti/rain/bt"
 )
 
 type Torrent struct {
@@ -36,7 +36,7 @@ type Info struct {
 	Raw []byte `bencode:"-" json:"-"`
 
 	// Calculated fileds
-	Hash        protocol.InfoHash `bencode:"-" json:"-"`
+	Hash        bt.InfoHash `bencode:"-" json:"-"`
 	TotalLength int64             `bencode:"-" json:"-"`
 	NumPieces   uint32            `bencode:"-" json:"-"`
 	MultiFile   bool              `bencode:"-" json:"-"`

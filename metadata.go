@@ -19,7 +19,7 @@ import (
 	"github.com/cenkalti/rain/internal/connection"
 	"github.com/cenkalti/rain/internal/magnet"
 	"github.com/cenkalti/rain/internal/peer"
-	"github.com/cenkalti/rain/internal/protocol"
+	"github.com/cenkalti/rain/bt"
 	"github.com/cenkalti/rain/internal/torrent"
 	"github.com/cenkalti/rain/internal/tracker"
 )
@@ -190,7 +190,7 @@ func downloadMetadataFromPeer(m *magnet.Magnet, p *peer.Peer) (*torrent.Info, er
 		}
 		p.log.Debugf("Next message length: %d", length)
 
-		var messageID protocol.MessageType
+		var messageID bt.MessageType
 		err = binary.Read(p.conn, binary.BigEndian, &messageID)
 		if err != nil {
 			return nil, err
@@ -198,7 +198,7 @@ func downloadMetadataFromPeer(m *magnet.Magnet, p *peer.Peer) (*torrent.Info, er
 		p.log.Debugf("messageID: %s\n", messageID)
 		length--
 
-		if messageID != protocol.Extension { // extension message id
+		if messageID != bt.Extension { // extension message id
 			io.CopyN(ioutil.Discard, p.conn, int64(length))
 			p.log.Debugf("Discarded %d bytes", length)
 			continue
@@ -348,7 +348,7 @@ type metadataMessage struct {
 }
 
 type dummyClient struct {
-	peerID protocol.PeerID
+	peerID bt.PeerID
 }
 
 func newDummyClient() (*dummyClient, error) {
@@ -358,13 +358,13 @@ func newDummyClient() (*dummyClient, error) {
 	return &c, err
 }
 
-func (c *dummyClient) PeerID() protocol.PeerID { return c.peerID }
+func (c *dummyClient) PeerID() bt.PeerID { return c.peerID }
 func (c *dummyClient) Port() uint16            { return 6881 }
 
 // Required to make a fake announce to tracker to get peer list for metadata download.
-type emptyTransfer protocol.InfoHash
+type emptyTransfer bt.InfoHash
 
-func (t *emptyTransfer) InfoHash() protocol.InfoHash { return protocol.InfoHash(*t) }
+func (t *emptyTransfer) InfoHash() bt.InfoHash { return protocol.InfoHash(*t) }
 func (t *emptyTransfer) Downloaded() int64           { return 0 }
 func (t *emptyTransfer) Uploaded() int64             { return 0 }
 func (t *emptyTransfer) Left() int64                 { return metadataPieceSize } // trackers don't accept 0

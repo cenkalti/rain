@@ -11,7 +11,7 @@ import (
 
 	"github.com/cenkalti/rain/internal/connection"
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/protocol"
+	"github.com/cenkalti/rain/bt"
 	"github.com/cenkalti/rain/internal/torrent"
 )
 
@@ -39,9 +39,9 @@ func SetLogLevel(l log.Level) { logger.DefaultHandler.SetLevel(l) }
 
 type Rain struct {
 	config        *Config
-	peerID        protocol.PeerID
+	peerID        bt.PeerID
 	listener      *net.TCPListener
-	transfers     map[protocol.InfoHash]*transfer // all active transfers
+	transfers     map[bt.InfoHash]*transfer // all active transfers
 	transfersSKey map[[20]byte]*transfer          // for encryption
 	transfersM    sync.Mutex
 	log           logger.Logger
@@ -56,20 +56,20 @@ func New(c *Config) (*Rain, error) {
 	return &Rain{
 		config:        c,
 		peerID:        peerID,
-		transfers:     make(map[protocol.InfoHash]*transfer),
+		transfers:     make(map[bt.InfoHash]*transfer),
 		transfersSKey: make(map[[20]byte]*transfer),
 		log:           logger.New("rain"),
 	}, nil
 }
 
-func generatePeerID() (protocol.PeerID, error) {
-	var id protocol.PeerID
+func generatePeerID() (bt.PeerID, error) {
+	var id bt.PeerID
 	copy(id[:], peerIDPrefix)
 	_, err := rand.Read(id[len(peerIDPrefix):])
 	return id, err
 }
 
-func (r *Rain) PeerID() protocol.PeerID { return r.peerID }
+func (r *Rain) PeerID() bt.PeerID { return r.peerID }
 
 // Listen peer port and accept incoming peer connections.
 func (r *Rain) Listen() error {
@@ -129,7 +129,7 @@ func (r *Rain) servePeer(conn net.Conn) {
 		return
 	}
 
-	hasInfoHash := func(ih protocol.InfoHash) bool {
+	hasInfoHash := func(ih bt.InfoHash) bool {
 		r.transfersM.Lock()
 		_, ok := r.transfers[ih]
 		r.transfersM.Unlock()

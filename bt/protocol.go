@@ -1,4 +1,4 @@
-package protocol
+package bt
 
 import (
 	"crypto/sha1"

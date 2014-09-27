@@ -7,7 +7,7 @@ import (
 	"github.com/cenkalti/mse"
 
 	"github.com/cenkalti/rain/internal/connection"
-	"github.com/cenkalti/rain/internal/protocol"
+	"github.com/cenkalti/rain/bt"
 )
 
 var addr = &net.TCPAddr{
@@ -18,9 +18,9 @@ var addr = &net.TCPAddr{
 var (
 	ext1     = [8]byte{0x0A}
 	ext2     = [8]byte{0x0B}
-	id1      = protocol.PeerID{0x0C}
-	id2      = protocol.PeerID{0x0D}
-	infoHash = protocol.InfoHash{0x0E}
+	id1      = bt.PeerID{0x0C}
+	id2      = bt.PeerID{0x0D}
+	infoHash = bt.InfoHash{0x0E}
 	sKeyHash = mse.HashSKey(infoHash[:])
 )
 
@@ -54,7 +54,7 @@ func TestUnencrypted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, cipher, ext, ih, id, err := connection.Accept(conn, nil, false, func(ih protocol.InfoHash) bool { return ih == infoHash }, ext2, id2)
+	_, cipher, ext, ih, id, err := connection.Accept(conn, nil, false, func(ih bt.InfoHash) bool { return ih == infoHash }, ext2, id2)
 	<-done
 	if err != nil {
 		t.Fatal(err)
@@ -127,7 +127,7 @@ func TestEncrypted(t *testing.T) {
 			return nil
 		},
 		false,
-		func(ih protocol.InfoHash) bool { return ih == infoHash },
+		func(ih bt.InfoHash) bool { return ih == infoHash },
 		ext2, id2)
 	if err != nil {
 		t.Fatal(err)

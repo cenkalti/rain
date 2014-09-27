@@ -10,8 +10,8 @@ import (
 	"github.com/cenkalti/mse"
 
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/protocol"
-	"github.com/cenkalti/rain/internal/protocol/handshake"
+	"github.com/cenkalti/rain/bt"
+	"github.com/cenkalti/rain/bt/handshake"
 )
 
 const handshakeDeadline = 30 * time.Second
@@ -22,8 +22,8 @@ var (
 	ErrNotEncrypted    = errors.New("connection is not encrypted")
 )
 
-func Dial(addr net.Addr, enableEncryption, forceEncryption bool, ourExtensions [8]byte, ih protocol.InfoHash, ourID protocol.PeerID) (
-	conn net.Conn, cipher mse.CryptoMethod, peerExtensions [8]byte, peerID protocol.PeerID, err error) {
+func Dial(addr net.Addr, enableEncryption, forceEncryption bool, ourExtensions [8]byte, ih bt.InfoHash, ourID bt.PeerID) (
+	conn net.Conn, cipher mse.CryptoMethod, peerExtensions [8]byte, peerID bt.PeerID, err error) {
 
 	log := logger.New("conn -> " + addr.String())
 
@@ -102,7 +102,7 @@ func Dial(addr net.Addr, enableEncryption, forceEncryption bool, ourExtensions [
 		return
 	}
 
-	var ihRead protocol.InfoHash
+	var ihRead bt.InfoHash
 	peerExtensions, ihRead, err = handshake.Read1(conn)
 	if err != nil {
 		return
@@ -129,9 +129,9 @@ func Accept(
 	conn net.Conn,
 	getSKey func(sKeyHash [20]byte) (sKey []byte),
 	forceEncryption bool,
-	hasInfoHash func(protocol.InfoHash) bool,
-	ourExtensions [8]byte, ourID protocol.PeerID) (
-	encConn net.Conn, cipher mse.CryptoMethod, peerExtensions [8]byte, ih protocol.InfoHash, peerID protocol.PeerID, err error) {
+	hasInfoHash func(bt.InfoHash) bool,
+	ourExtensions [8]byte, ourID bt.PeerID) (
+	encConn net.Conn, cipher mse.CryptoMethod, peerExtensions [8]byte, ih bt.InfoHash, peerID bt.PeerID, err error) {
 
 	log := logger.New("conn <- " + conn.RemoteAddr().String())
 

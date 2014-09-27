@@ -9,7 +9,7 @@ import (
 
 	"github.com/cenkalti/rain/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/protocol"
+	"github.com/cenkalti/rain/bt"
 	"github.com/cenkalti/rain/internal/torrent"
 	"github.com/cenkalti/rain/internal/tracker"
 )
@@ -21,7 +21,7 @@ type transfer struct {
 	pieces    []*Piece
 	bitfield  bitfield.BitField
 	announceC chan *tracker.AnnounceResponse
-	peers     map[protocol.PeerID]*Peer // connected peers
+	peers     map[bt.PeerID]*Peer // connected peers
 	peersM    sync.RWMutex
 	stopC     chan struct{} // all goroutines stop when closed
 	m         sync.Mutex    // protects map fields
@@ -76,7 +76,7 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 		pieces:    pieces,
 		bitfield:  bf,
 		announceC: make(chan *tracker.AnnounceResponse),
-		peers:     make(map[protocol.PeerID]*Peer),
+		peers:     make(map[bt.PeerID]*Peer),
 		stopC:     make(chan struct{}),
 		log:       log,
 		peersC:    make(chan []*net.TCPAddr),
@@ -87,7 +87,7 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 	}, nil
 }
 
-func (t *transfer) InfoHash() protocol.InfoHash { return t.torrent.Info.Hash }
+func (t *transfer) InfoHash() bt.InfoHash { return t.torrent.Info.Hash }
 func (t *transfer) Finished() chan struct{}     { return t.finished }
 func (t *transfer) Downloaded() int64 {
 	t.m.Lock()
