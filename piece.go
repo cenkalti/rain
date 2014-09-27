@@ -1,4 +1,4 @@
-package piece
+package rain
 
 import (
 	"bytes"
@@ -17,6 +17,7 @@ type Piece struct {
 	Blocks []Block
 	hash   []byte   // correct hash value
 	files  sections // the place to write downloaded bytes
+	peers  map[*Peer]struct{}
 }
 
 type Block struct {
@@ -100,6 +101,7 @@ func newBlocks(pieceLength uint32, files sections, blockSize uint32) []Block {
 	return blocks
 }
 
+func (p *Piece) availability() int { return len(p.peers) }
 func (p *Piece) Reader() io.Reader { return p.files.Reader() }
 
 func (p *Piece) Write(b []byte) (n int, err error) {

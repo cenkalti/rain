@@ -6,21 +6,19 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"time"
 
 	"github.com/cenkalti/rain/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/protocol"
 	"github.com/cenkalti/rain/internal/torrent"
 	"github.com/cenkalti/rain/internal/tracker"
-	"github.com/cenkalti/rain/piece"
 )
 
 type transfer struct {
 	rain      *Rain
 	tracker   tracker.Tracker
 	torrent   *torrent.Torrent
-	pieces    []*piece.Piece
+	pieces    []*Piece
 	bitfield  bitfield.BitField
 	announceC chan *tracker.AnnounceResponse
 	peers     map[protocol.PeerID]*Peer // connected peers
@@ -29,21 +27,14 @@ type transfer struct {
 	m         sync.Mutex    // protects map fields
 	log       logger.Logger
 
-	// Download related fields
-	requested map[uint32]time.Time
 	// tracker sends available peers to this channel
 	peersC chan []*net.TCPAddr
 	// pieceManager maintains most recent peers which can be connected to in this channel
 	// connecter receives from this channel and connects to new peers
 	peerC chan *net.TCPAddr
-	// downloaded piece indexes are sent to this channel by peer downloaders
-	completeC chan uint32
-	// all goroutines are stopped when this channel is closed
-	cancelC chan struct{}
-	// holds pieces are available in which peers, indexed by piece
-	peersByPiece []map[*Peer]struct{}
 	// will be closed by main loop when all of the remaining pieces are downloaded
-	finished chan struct{}
+	finished     chan struct{}
+	onceFinished sync.Once
 
 	// Upload related fields
 	requestC chan *Request
@@ -65,7 +56,7 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 	if err != nil {
 		return nil, err
 	}
-	pieces := piece.NewPieces(tor.Info, files, blockSize)
+	pieces := NewPieces(tor.Info, files, blockSize)
 	bf := bitfield.New(tor.Info.NumPieces)
 	if checkHash {
 		r.log.Notice("Doing hash check...")
@@ -85,10 +76,14 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 		pieces:    pieces,
 		bitfield:  bf,
 		announceC: make(chan *tracker.AnnounceResponse),
-		stopC:     make(chan struct{}),
 		peers:     make(map[protocol.PeerID]*Peer),
-		finished:  make(chan struct{}),
+		stopC:     make(chan struct{}),
 		log:       log,
+		peersC:    make(chan []*net.TCPAddr),
+		peerC:     make(chan *net.TCPAddr),
+		finished:  make(chan struct{}),
+		requestC:  make(chan *Request),
+		serveC:    make(chan *Request),
 	}, nil
 }
 
@@ -132,11 +127,6 @@ func (t *transfer) Run() {
 			}
 			t.log.Infof("Announce: %d seeder, %d leecher", announceResponse.Seeders, announceResponse.Leechers)
 			t.peersC <- announceResponse.Peers
-		case <-t.completeC:
-			if t.bitfield.All() {
-				t.log.Notice("Download finished.")
-				close(t.Finished())
-			}
 		case <-t.stopC:
 			t.log.Notice("Transfer is stopped.")
 			return

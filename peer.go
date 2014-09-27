@@ -37,7 +37,7 @@ type Peer struct {
 	// TODO write comment here
 	haveNewPiece chan struct{}
 
-	pieceC chan *Piece
+	pieceC chan *PieceMessage
 
 	// requests that we made
 	requests  map[requestMessage]struct{}
@@ -54,7 +54,7 @@ type requestMessage struct {
 	Index, Begin, Length uint32
 }
 
-type Piece struct {
+type PieceMessage struct {
 	pieceMessage
 	Data chan []byte
 }
@@ -70,7 +70,7 @@ func NewPeer(conn net.Conn, peerID protocol.PeerID, t *transfer, l log.Logger) *
 		transfer:     t,
 		bitfield:     bitfield.New(t.bitfield.Len()),
 		haveNewPiece: make(chan struct{}, 1),
-		pieceC:       make(chan *Piece),
+		pieceC:       make(chan *PieceMessage),
 		requests:     make(map[requestMessage]struct{}),
 		log:          l,
 	}
@@ -202,7 +202,7 @@ func (p *Peer) Run() {
 			p.requestsM.Unlock()
 
 			dataC := make(chan []byte, 1)
-			p.pieceC <- &Piece{piece, dataC}
+			p.pieceC <- &PieceMessage{piece, dataC}
 			data := make([]byte, length)
 			_, err = io.ReadFull(p.conn, data)
 			if err != nil {

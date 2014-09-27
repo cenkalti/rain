@@ -37,7 +37,7 @@ import (
 // 			}
 
 // 			t.m.Unlock()
-// 		case <-t.cancelC:
+// 		case <-t.stopC:
 // 			return
 // 		}
 // 	}
@@ -45,24 +45,26 @@ import (
 
 // peerManager receives from t.peersC and keeps most recent peer addresses in t.peerC.
 func (t *transfer) peerManager() {
+	t.log.Debug("Started peerManager")
 	for {
 		select {
-		case <-t.cancelC:
+		case <-t.stopC:
 			return
 		case peers := <-t.peersC:
+			t.log.Debugln("peers:", peers)
 			for _, p := range peers {
 				t.log.Debug("Peer:", p)
 				// Try to put the peer into t.peerC
 				select {
 				case t.peerC <- p:
-				case <-t.cancelC:
+				case <-t.stopC:
 					return
 				default:
 					// If the channel is full,
 					// discard a message from the channel...
 					select {
 					case <-t.peerC:
-					case <-t.cancelC:
+					case <-t.stopC:
 						return
 					default:
 						break
@@ -70,7 +72,7 @@ func (t *transfer) peerManager() {
 					// ... and try to put it again.
 					select {
 					case t.peerC <- p:
-					case <-t.cancelC:
+					case <-t.stopC:
 						return
 					// If channel is still full, give up.
 					default:
@@ -106,7 +108,7 @@ func (t *transfer) connecter() {
 				}()
 				t.connect(addr)
 			}(p)
-		case <-t.cancelC:
+		case <-t.stopC:
 			return
 		}
 	}
@@ -164,18 +166,16 @@ func (t *transfer) peerDownloader(peer *Peer) {
 				return
 			}
 		}
-		selected := t.selectPiece(candidates)
-		t.requested[selected] = time.Now()
+		piece := t.selectPiece(candidates)
 		t.m.Unlock()
 
 		peer.BeInterested()
-		piece := t.pieces[selected]
 
 		// TODO queue max 10 requests
 
 		// Request blocks of the piece.
 		for _, b := range piece.Blocks {
-			if err := peer.Request(selected, b.Begin, b.Length); err != nil {
+			if err := peer.Request(piece.Index, b.Begin, b.Length); err != nil {
 				t.log.Error(err)
 				return
 			}
@@ -206,55 +206,43 @@ func (t *transfer) peerDownloader(peer *Peer) {
 		}
 
 		t.m.Lock()
-		delete(t.requested, selected)
-		select {
-		case t.completeC <- selected:
-		case <-peer.Disconnected:
-			return
-		}
+		t.bitfield.Set(piece.Index)
 		t.m.Unlock()
+		t.onceFinished.Do(func() { close(t.finished) })
 	}
 }
 
 // candidates returns list of piece indexes which is available on the peer but not available on the client.
-func (t *transfer) candidates(p *Peer) (candidates []uint32) {
+func (t *transfer) candidates(p *Peer) (candidates []*Piece) {
 	for i := uint32(0); i < t.bitfield.Len(); i++ {
 		if !t.bitfield.Test(i) && p.bitfield.Test(i) {
-			candidates = append(candidates, i)
+			candidates = append(candidates, t.pieces[i])
 		}
 	}
 	return
 }
 
 // selectPiece returns the index of the selected piece from candidates.
-func (t *transfer) selectPiece(candidates []uint32) uint32 {
-	var pieces []pieceWithAvailability
-	for _, i := range candidates {
-		pieces = append(pieces, pieceWithAvailability{i, len(t.peersByPiece[i])})
-	}
-	sort.Sort(rarestFirst(pieces))
-	minRarity := pieces[0].availability
-	var rarestPieces []uint32
-	for _, r := range pieces {
-		if r.availability > minRarity {
+func (t *transfer) selectPiece(candidates []*Piece) *Piece {
+	sort.Sort(rarestFirst(candidates))
+	minAvailability := candidates[0].availability()
+	var i int
+	for _, piece := range candidates {
+		if piece.availability() > minAvailability {
 			break
 		}
-		rarestPieces = append(rarestPieces, r.index)
+		i++
 	}
-	return rarestPieces[rand.Intn(len(rarestPieces))]
-}
-
-type pieceWithAvailability struct {
-	index        uint32
-	availability int
+	candidates = candidates[:i]
+	return candidates[rand.Intn(len(candidates))]
 }
 
 // rarestFirst implements sort.Interface based on availability of piece.
-type rarestFirst []pieceWithAvailability
+type rarestFirst []*Piece
 
 func (r rarestFirst) Len() int           { return len(r) }
 func (r rarestFirst) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
-func (r rarestFirst) Less(i, j int) bool { return r[i].availability < r[j].availability }
+func (r rarestFirst) Less(i, j int) bool { return r[i].availability() < r[j].availability() }
 
 // var errNoPiece = errors.New("no piece available for download")
 // var errNoPeer = errors.New("no peer available for this piece")

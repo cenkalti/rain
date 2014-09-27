@@ -46,7 +46,7 @@ func (t *transfer) pieceUploader() {
 				t.log.Error(err)
 				return
 			}
-		case <-t.cancelC:
+		case <-t.stopC:
 			return
 		}
 	}
