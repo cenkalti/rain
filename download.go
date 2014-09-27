@@ -153,9 +153,14 @@ func (t *transfer) connect(addr *net.TCPAddr) {
 func (t *transfer) peerDownloader(peer *Peer) {
 	for {
 		t.m.Lock()
+		if t.bitfield.All() {
+			t.m.Unlock()
+			return
+		}
 		candidates := t.candidates(peer)
 		if len(candidates) == 0 {
 			t.m.Unlock()
+
 			peer.BeNotInterested()
 			select {
 			case <-peer.haveNewPiece:
