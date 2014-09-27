@@ -29,20 +29,28 @@ type Peer struct {
 	peerID   protocol.PeerID
 	transfer *transfer
 
+	amInterested bool
+
 	// pieces that the peer has
 	bitfield bitfield.BitField
 
 	// TODO write comment here
 	haveNewPiece chan struct{}
 
+	pieceC chan *Piece
+
 	// requests that we made
-	requests  map[Request]struct{}
+	requests  map[requestMessage]struct{}
 	requestsM sync.Mutex
 
 	log log.Logger
 }
 
 type Request struct {
+	Peer *Peer
+	requestMessage
+}
+type requestMessage struct {
 	Index, Begin, Length uint32
 }
 
@@ -50,7 +58,6 @@ type Piece struct {
 	pieceMessage
 	Data chan []byte
 }
-
 type pieceMessage struct {
 	Index, Begin uint32
 }
@@ -62,7 +69,9 @@ func NewPeer(conn net.Conn, peerID protocol.PeerID, t *transfer, l log.Logger) *
 		peerID:       peerID,
 		transfer:     t,
 		bitfield:     bitfield.New(t.bitfield.Len()),
-		requests:     make(map[Request]struct{}),
+		haveNewPiece: make(chan struct{}, 1),
+		pieceC:       make(chan *Piece),
+		requests:     make(map[requestMessage]struct{}),
 		log:          l,
 	}
 }
@@ -115,7 +124,7 @@ func (p *Peer) Run() {
 		case chokeID:
 			// Discard all pending requests.
 			p.requestsM.Lock()
-			p.requests = make(map[Request]struct{})
+			p.requests = make(map[requestMessage]struct{})
 			p.requestsM.Unlock()
 			// TODO send message to chokeC
 		case unchokeID:
@@ -133,14 +142,14 @@ func (p *Peer) Run() {
 				return
 			}
 			p.log.Debug("Peer ", p.conn.RemoteAddr(), " has piece #", i)
-			p.HaveC <- i
+			p.bitfield.Set(i)
 		case bitfieldID:
 			if !first {
 				p.log.Error("bitfield can only be sent after handshake")
 				return
 			}
 
-			if length != len(p.bitfield.Bytes()) {
+			if length != p.transfer.torrent.Info.NumPieces {
 				p.log.Error("invalid bitfield length")
 				return
 			}
@@ -151,14 +160,8 @@ func (p *Peer) Run() {
 				return
 			}
 			p.log.Debugln("Received bitfield:", p.bitfield.Hex())
-
-			for i := uint32(0); i < p.bitfield.Len(); i++ {
-				if p.bitfield.Test(i) {
-					p.HaveC <- i
-				}
-			}
 		case requestID:
-			var req Request
+			var req requestMessage
 			err = binary.Read(p.conn, binary.BigEndian, &req)
 			if err != nil {
 				p.log.Error(err)
@@ -178,7 +181,7 @@ func (p *Peer) Run() {
 				p.log.Error("invalid request: length")
 			}
 
-			p.RequestC <- &req
+			p.transfer.requestC <- &Request{p, req}
 		case pieceID:
 			var piece pieceMessage
 			err = binary.Read(p.conn, binary.BigEndian, &piece)
@@ -188,7 +191,7 @@ func (p *Peer) Run() {
 			}
 			length -= 8
 
-			req := Request{piece.Index, piece.Begin, length}
+			req := requestMessage{piece.Index, piece.Begin, length}
 			p.requestsM.Lock()
 			if _, ok := p.requests[req]; !ok {
 				p.log.Error("unexpected piece message")
@@ -199,7 +202,7 @@ func (p *Peer) Run() {
 			p.requestsM.Unlock()
 
 			dataC := make(chan []byte, 1)
-			p.PieceC <- &Piece{piece, dataC}
+			p.pieceC <- &Piece{piece, dataC}
 			data := make([]byte, length)
 			_, err = io.ReadFull(p.conn, data)
 			if err != nil {
@@ -229,13 +232,27 @@ func (p *Peer) SendBitField() error {
 	return p.sendMessage(bitfieldID, p.transfer.bitfield.Bytes())
 }
 
-func (p *Peer) SendInterested() error    { return p.sendMessage(interestedID, nil) }
-func (p *Peer) SendNotInterested() error { return p.sendMessage(notInterestedID, nil) }
-func (p *Peer) Choke() error             { return p.sendMessage(chokeID, nil) }
-func (p *Peer) Unchoke() error           { return p.sendMessage(unchokeID, nil) }
+func (p *Peer) BeInterested() error {
+	if p.amInterested {
+		return nil
+	}
+	p.amInterested = true
+	return p.sendMessage(interestedID, nil)
+}
+
+func (p *Peer) BeNotInterested() error {
+	if !p.amInterested {
+		return nil
+	}
+	p.amInterested = false
+	return p.sendMessage(notInterestedID, nil)
+}
+
+func (p *Peer) Choke() error   { return p.sendMessage(chokeID, nil) }
+func (p *Peer) Unchoke() error { return p.sendMessage(unchokeID, nil) }
 
 func (p *Peer) Request(index, begin, length uint32) error {
-	req := Request{index, begin, length}
+	req := requestMessage{index, begin, length}
 	p.requestsM.Lock()
 	p.requests[req] = struct{}{}
 	p.requestsM.Unlock()

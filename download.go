@@ -149,12 +149,12 @@ func (t *transfer) connect(addr *net.TCPAddr) {
 }
 
 func (t *transfer) peerDownloader(peer *Peer) {
-	var interested bool
 	for {
 		t.m.Lock()
 		candidates := t.candidates(peer)
 		if len(candidates) == 0 {
 			t.m.Unlock()
+			peer.BeNotInterested()
 			select {
 			case <-peer.haveNewPiece:
 				// Do not try to select piece on first "have" message. Wait for more messages for better selection.
@@ -168,14 +168,7 @@ func (t *transfer) peerDownloader(peer *Peer) {
 		t.requested[selected] = time.Now()
 		t.m.Unlock()
 
-		if !interested {
-			peer.SendInterested()
-			interested = true
-		} else if interested {
-			peer.SendNotInterested()
-			interested = false
-		}
-
+		peer.BeInterested()
 		piece := t.pieces[selected]
 
 		// TODO queue max 10 requests
@@ -192,7 +185,7 @@ func (t *transfer) peerDownloader(peer *Peer) {
 		pieceData := make([]byte, piece.Length)
 		for _ = range piece.Blocks { // TODO all peers send to this channel
 			select {
-			case peerBlock := <-t.pieceC:
+			case peerBlock := <-peer.pieceC:
 				data := <-peerBlock.Data
 				if data == nil {
 					t.log.Error("peer did not send block completely")

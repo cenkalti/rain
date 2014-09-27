@@ -1,8 +1,6 @@
 package rain
 
-import (
-	"io"
-)
+import "io"
 
 // requestSelector decides which request to serve.
 func (t *transfer) requestSelector() {
