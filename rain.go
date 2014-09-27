@@ -9,9 +9,9 @@ import (
 	"github.com/cenkalti/log"
 	"github.com/cenkalti/mse"
 
+	"github.com/cenkalti/rain/bt"
 	"github.com/cenkalti/rain/internal/connection"
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/bt"
 	"github.com/cenkalti/rain/internal/torrent"
 )
 
@@ -42,7 +42,7 @@ type Rain struct {
 	peerID        bt.PeerID
 	listener      *net.TCPListener
 	transfers     map[bt.InfoHash]*transfer // all active transfers
-	transfersSKey map[[20]byte]*transfer          // for encryption
+	transfersSKey map[[20]byte]*transfer    // for encryption
 	transfersM    sync.Mutex
 	log           logger.Logger
 }

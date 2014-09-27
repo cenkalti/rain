@@ -9,9 +9,9 @@ import (
 
 	"github.com/cenkalti/mse"
 
-	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/bt"
-	"github.com/cenkalti/rain/bt/handshake"
+	"github.com/cenkalti/rain/bt/bthandshake"
+	"github.com/cenkalti/rain/internal/logger"
 )
 
 const handshakeDeadline = 30 * time.Second
@@ -41,7 +41,7 @@ func Dial(addr net.Addr, enableEncryption, forceEncryption bool, ourExtensions [
 	}()
 
 	out := bytes.NewBuffer(make([]byte, 0, 68))
-	err = handshake.Write(out, ih, ourID, ourExtensions)
+	err = bthandshake.Write(out, ih, ourID, ourExtensions)
 	if err != nil {
 		return
 	}
@@ -103,7 +103,7 @@ func Dial(addr net.Addr, enableEncryption, forceEncryption bool, ourExtensions [
 	}
 
 	var ihRead bt.InfoHash
-	peerExtensions, ihRead, err = handshake.Read1(conn)
+	peerExtensions, ihRead, err = bthandshake.Read1(conn)
 	if err != nil {
 		return
 	}
@@ -112,7 +112,7 @@ func Dial(addr net.Addr, enableEncryption, forceEncryption bool, ourExtensions [
 		return
 	}
 
-	peerID, err = handshake.Read2(conn)
+	peerID, err = bthandshake.Read2(conn)
 	if err != nil {
 		return
 	}
@@ -151,10 +151,10 @@ func Accept(
 	// rwConn returns the read bytes again that is read by handshake.Read1.
 	var buf bytes.Buffer
 	var reader io.Reader = io.TeeReader(conn, &buf)
-	peerExtensions, ih, err = handshake.Read1(reader)
+	peerExtensions, ih, err = bthandshake.Read1(reader)
 	conn = &rwConn{readWriter{io.MultiReader(&buf, conn), conn}, conn}
 
-	if err == handshake.ErrInvalidProtocol && getSKey != nil {
+	if err == bthandshake.ErrInvalidProtocol && getSKey != nil {
 		mseConn := mse.WrapConn(conn)
 		payloadIn := make([]byte, 68)
 		var lenPayloadIn uint16
@@ -182,19 +182,19 @@ func Accept(
 				}
 				hasIncomingPayload = true
 				r := bytes.NewReader(payloadIn[:lenPayloadIn])
-				peerExtensions, ih, err = handshake.Read1(r)
+				peerExtensions, ih, err = bthandshake.Read1(r)
 				if err != nil {
 					return nil, err
 				}
 				if !hasInfoHash(ih) {
 					return nil, ErrInvalidInfoHash
 				}
-				peerID, err = handshake.Read2(r)
+				peerID, err = bthandshake.Read2(r)
 				if err != nil {
 					return nil, err
 				}
 				out := bytes.NewBuffer(make([]byte, 0, 68))
-				handshake.Write(out, ih, ourID, ourExtensions)
+				bthandshake.Write(out, ih, ourID, ourExtensions)
 				return out.Bytes(), nil
 			})
 		if err == nil {
@@ -215,7 +215,7 @@ func Accept(
 		if err = conn.SetReadDeadline(time.Now().Add(handshakeDeadline)); err != nil {
 			return
 		}
-		peerExtensions, ih, err = handshake.Read1(conn)
+		peerExtensions, ih, err = bthandshake.Read1(conn)
 		if err != nil {
 			return
 		}
@@ -226,11 +226,11 @@ func Accept(
 		if err = conn.SetWriteDeadline(time.Now().Add(handshakeDeadline)); err != nil {
 			return
 		}
-		err = handshake.Write(conn, ih, ourID, ourExtensions)
+		err = bthandshake.Write(conn, ih, ourID, ourExtensions)
 		if err != nil {
 			return
 		}
-		peerID, err = handshake.Read2(conn)
+		peerID, err = bthandshake.Read2(conn)
 		if err != nil {
 			return
 		}

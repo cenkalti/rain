@@ -1,4 +1,4 @@
-package handshake
+package bthandshake
 
 import (
 	"bytes"
