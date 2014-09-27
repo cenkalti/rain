@@ -102,6 +102,7 @@ func (t *transfer) peerDownloader(peer *Peer) {
 	for {
 		t.m.Lock()
 		if t.bitfield.All() {
+			t.onceFinished.Do(func() { close(t.finished) })
 			t.m.Unlock()
 			return
 		}
@@ -112,8 +113,6 @@ func (t *transfer) peerDownloader(peer *Peer) {
 			peer.BeNotInterested()
 			select {
 			case <-peer.haveNewPiece:
-				// Do not try to select piece on first "have" message. Wait for more messages for better selection.
-				time.Sleep(time.Second)
 				continue
 			case <-peer.Disconnected:
 				return
@@ -161,7 +160,6 @@ func (t *transfer) peerDownloader(peer *Peer) {
 		t.m.Lock()
 		t.bitfield.Set(piece.Index)
 		t.m.Unlock()
-		t.onceFinished.Do(func() { close(t.finished) })
 	}
 }
 

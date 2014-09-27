@@ -56,7 +56,7 @@ func TestDownload(t *testing.T) {
 	seeder.Start(t1)
 
 	// Wait for seeder to announce to tracker.
-	time.Sleep(1 * time.Second)
+	time.Sleep(100 * time.Millisecond)
 
 	where, err := ioutil.TempDir("", "rain-")
 	if err != nil {
