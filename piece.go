@@ -48,6 +48,7 @@ func NewPieces(info *torrent.Info, osFiles []*os.File, blockSize uint32) []*Piec
 		p := &Piece{
 			Index: i,
 			hash:  info.PieceHash(i),
+			peers: make(map[*Peer]struct{}),
 		}
 
 		// Construct p.files

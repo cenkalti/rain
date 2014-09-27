@@ -144,6 +144,7 @@ func (p *Peer) Run() {
 			}
 			p.log.Debug("Peer ", p.conn.RemoteAddr(), " has piece #", i)
 			p.bitfield.Set(i)
+			p.handleHave(i)
 		case bitfieldID:
 			if !first {
 				p.log.Error("bitfield can only be sent after handshake")
@@ -163,6 +164,12 @@ func (p *Peer) Run() {
 				return
 			}
 			p.log.Debugln("Received bitfield:", p.bitfield.Hex())
+
+			for i := uint32(0); i < p.bitfield.Len(); i++ {
+				if p.bitfield.Test(i) {
+					p.handleHave(i)
+				}
+			}
 		case requestID:
 			var req requestMessage
 			err = binary.Read(p.conn, binary.BigEndian, &req)
@@ -225,6 +232,23 @@ func (p *Peer) Run() {
 
 		first = false
 	}
+}
+
+func (p *Peer) handleHave(i uint32) {
+	t := p.transfer
+	t.m.Lock()
+	t.pieces[i].peers[p] = struct{}{}
+	select {
+	case p.haveNewPiece <- struct{}{}:
+	default:
+	}
+	t.m.Unlock()
+	go func() {
+		<-p.Disconnected
+		t.m.Lock()
+		delete(t.pieces[i].peers, p)
+		t.m.Unlock()
+	}()
 }
 
 func (p *Peer) SendBitField() error {
