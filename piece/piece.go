@@ -11,16 +11,16 @@ import (
 )
 
 type Piece struct {
-	index  uint32   // piece index in whole torrent
+	Index  uint32 // piece index in whole torrent
+	OK     bool   // hash is correct and written to disk, Verify() must be called to set this.
+	Length uint32 // last piece may not be complete
+	Blocks []Block
 	hash   []byte   // correct hash value
-	ok     bool     // hash is correct and written to disk
-	length uint32   // last piece may not be complete
 	files  sections // the place to write downloaded bytes
-	blocks []Block
 }
 
 type Block struct {
-	Begin  uint32
+	Begin  uint32 // offset in piece
 	Length uint32
 }
 
@@ -45,7 +45,7 @@ func NewPieces(info *torrent.Info, osFiles []*os.File, blockSize uint32) []*Piec
 	pieces := make([]*Piece, info.NumPieces)
 	for i := uint32(0); i < info.NumPieces; i++ {
 		p := &Piece{
-			index: i,
+			Index: i,
 			hash:  info.PieceHash(i),
 		}
 
@@ -59,7 +59,7 @@ func NewPieces(info *torrent.Info, osFiles []*os.File, blockSize uint32) []*Piec
 			p.files = append(p.files, file)
 
 			left -= n
-			p.length += n
+			p.Length += n
 			pieceOffset += n
 			fileOffset += int64(n)
 			total += int64(n)
@@ -72,7 +72,7 @@ func NewPieces(info *torrent.Info, osFiles []*os.File, blockSize uint32) []*Piec
 			}
 		}
 
-		p.blocks = newBlocks(p.length, p.files, blockSize)
+		p.Blocks = newBlocks(p.Length, p.files, blockSize)
 		pieces[i] = p
 	}
 	return pieces
@@ -100,11 +100,6 @@ func newBlocks(pieceLength uint32, files sections, blockSize uint32) []Block {
 	return blocks
 }
 
-func (p *Piece) Index() uint32     { return p.index }
-func (p *Piece) Blocks() []Block   { return p.blocks }
-func (p *Piece) Length() uint32    { return p.length }
-func (p *Piece) Hash() []byte      { return p.hash }
-func (p *Piece) OK() bool          { return p.ok }
 func (p *Piece) Reader() io.Reader { return p.files.Reader() }
 
 func (p *Piece) Write(b []byte) (n int, err error) {
@@ -116,12 +111,13 @@ func (p *Piece) Write(b []byte) (n int, err error) {
 	return p.files.Write(b)
 }
 
+// Verify reads from disk and sets p.OK if piece is complete.
 func (p *Piece) Verify() error {
 	hash := sha1.New()
-	if _, err := io.CopyN(hash, p.files.Reader(), int64(p.Length())); err != nil {
+	if _, err := io.CopyN(hash, p.files.Reader(), int64(p.Length)); err != nil {
 		return err
 	}
-	p.ok = bytes.Equal(hash.Sum(nil), p.hash)
+	p.OK = bytes.Equal(hash.Sum(nil), p.hash)
 	return nil
 }
 

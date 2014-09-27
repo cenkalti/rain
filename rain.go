@@ -13,15 +13,18 @@ import (
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/protocol"
 	"github.com/cenkalti/rain/internal/torrent"
-	"github.com/cenkalti/rain/peer"
 )
 
 // Limits
 const (
 	// Request pieces in blocks of this size.
-	blockSize    = 16 * 1024
+	blockSize = 16 * 1024
+	// Do not accept more than maxPeerServe connections.
 	maxPeerServe = 200
-	uploadSlots  = 4
+	// Maximum simultaneous uploads.
+	uploadSlots = 4
+	// Do not connect more than maxPeerPerTorrent peers.
+	maxPeerPerTorrent = 200
 )
 
 // Client version. Set when building: "$ go build -ldflags "-X github.com/cenkalti/rain.Build 0001" cmd/rain/rain.go"
@@ -134,7 +137,7 @@ func (r *Rain) servePeer(conn net.Conn) {
 	}
 
 	log := logger.New("peer <- " + conn.RemoteAddr().String())
-	encConn, cipher, extensions, ih, _, err := connection.Accept(conn, getSKey, r.config.Encryption.ForceIncoming, hasInfoHash, [8]byte{}, r.peerID)
+	encConn, cipher, extensions, ih, peerID, err := connection.Accept(conn, getSKey, r.config.Encryption.ForceIncoming, hasInfoHash, [8]byte{}, r.peerID)
 	if err != nil {
 		if err == connection.ErrOwnConnection {
 			r.log.Debug(err)
@@ -153,20 +156,21 @@ func (r *Rain) servePeer(conn net.Conn) {
 		return
 	}
 
-	p := peer.New(encConn, t, log)
+	p := NewPeer(encConn, peerID, t, log)
 
 	if err = p.SendBitField(); err != nil {
 		log.Error(err)
 		return
 	}
 
-	t.peersM.Lock()
-	t.peers[p] = struct{}{}
-	t.peersM.Unlock()
-	defer func() {
-		t.peersM.Lock()
-		delete(t.peers, p)
-		t.peersM.Unlock()
+	t.m.Lock()
+	t.peers[peerID] = p
+	t.m.Unlock()
+	go func() {
+		<-p.Disconnected
+		t.m.Lock()
+		delete(t.peers, peerID)
+		t.m.Unlock()
 	}()
 
 	p.Run()
@@ -209,5 +213,4 @@ func (r *Rain) Start(t *transfer) {
 	}()
 }
 
-func (r *Rain) Stop(t *transfer)   { panic("not implemented") }
-func (r *Rain) Remove(t *transfer) { panic("not implemented") }
+func (r *Rain) Stop(t *transfer) { close(t.stopC) }

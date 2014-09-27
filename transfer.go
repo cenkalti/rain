@@ -2,31 +2,52 @@ package rain
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
-	"github.com/cenkalti/rain/internal/downloader"
+	"github.com/cenkalti/rain/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/protocol"
 	"github.com/cenkalti/rain/internal/torrent"
 	"github.com/cenkalti/rain/internal/tracker"
-	"github.com/cenkalti/rain/peer"
 	"github.com/cenkalti/rain/piece"
 )
 
-// transfer represents an active transfer in the program.
 type transfer struct {
-	rain       *Rain
-	tracker    tracker.Tracker
-	torrent    *torrent.Torrent
-	pieces     []*piece.Piece
-	finished   chan struct{} // downloading finished
-	downloader *downloader.Downloader
-	uploader   *uploader
-	peers      map[*peer.Peer]struct{}
-	peersM     sync.RWMutex
-	log        logger.Logger
+	rain      *Rain
+	tracker   tracker.Tracker
+	torrent   *torrent.Torrent
+	pieces    []*piece.Piece
+	bitfield  bitfield.BitField
+	announceC chan *tracker.AnnounceResponse
+	peers     map[protocol.PeerID]*Peer // connected peers
+	peersM    sync.RWMutex
+	stopC     chan struct{} // all goroutines stop when closed
+	m         sync.Mutex    // protects map fields
+	log       logger.Logger
+
+	// Download related fields
+	requested map[uint32]time.Time
+	// tracker sends available peers to this channel
+	peersC chan []*net.TCPAddr
+	// pieceManager maintains most recent peers which can be connected to in this channel
+	// connecter receives from this channel and connects to new peers
+	peerC chan *net.TCPAddr
+	// downloaded piece indexes are sent to this channel by peer downloaders
+	completeC chan uint32
+	// all goroutines are stopped when this channel is closed
+	cancelC chan struct{}
+	// holds pieces are available in which peers, indexed by piece
+	peersByPiece []map[*Peer]struct{}
+	// will be closed by main loop when all of the remaining pieces are downloaded
+	finished chan struct{}
+
+	// Upload related fields
+	requestC chan *Request
+	serveC   chan *Request
 }
 
 func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error) {
@@ -36,7 +57,7 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 	}
 	log := logger.New("download " + name)
 
-	tracker, err := tracker.New(tor.Announce, r)
+	trk, err := tracker.New(tor.Announce, r)
 	if err != nil {
 		return nil, err
 	}
@@ -45,87 +66,92 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 		return nil, err
 	}
 	pieces := piece.NewPieces(tor.Info, files, blockSize)
+	bf := bitfield.New(tor.Info.NumPieces)
 	if checkHash {
 		r.log.Notice("Doing hash check...")
-		var n int
 		for _, p := range pieces {
-			err := p.Verify()
-			if err != nil {
+			if err := p.Verify(); err != nil {
 				return nil, err
 			}
-			if p.OK() {
-				n++
-			}
+			bf.SetTo(p.Index, p.OK)
 		}
-		percentDone := (n * 100) / len(pieces)
+		percentDone := bf.Count() * 100 / bf.Len()
 		r.log.Noticef("Already downloaded: %d%%", percentDone)
 	}
-	t := &transfer{
-		rain:     r,
-		tracker:  tracker,
-		torrent:  tor,
-		pieces:   pieces,
-		finished: make(chan struct{}),
-		peers:    make(map[*peer.Peer]struct{}),
-		log:      log,
-	}
-	client := t.rain
-	t.downloader = downloader.New(t, client.Port(), client.peerID, !client.config.Encryption.DisableOutgoing, client.config.Encryption.ForceOutgoing)
-	t.uploader = newUploader(t)
-	return t, nil
+	return &transfer{
+		rain:      r,
+		tracker:   trk,
+		torrent:   tor,
+		pieces:    pieces,
+		bitfield:  bf,
+		announceC: make(chan *tracker.AnnounceResponse),
+		stopC:     make(chan struct{}),
+		peers:     make(map[protocol.PeerID]*Peer),
+		finished:  make(chan struct{}),
+		log:       log,
+	}, nil
 }
 
-func (t *transfer) NumPieces() uint32           { return uint32(len(t.pieces)) }
-func (t *transfer) Finished() chan struct{}     { return t.finished }
-func (t *transfer) Piece(i uint32) *piece.Piece { return t.pieces[i] }
-func (t *transfer) PieceLength(i uint32) uint32 { return t.pieces[i].Length() }
-func (t *transfer) PieceOK(i uint32) bool       { return t.pieces[i].OK() }
 func (t *transfer) InfoHash() protocol.InfoHash { return t.torrent.Info.Hash }
+func (t *transfer) Finished() chan struct{}     { return t.finished }
 func (t *transfer) Downloaded() int64 {
+	t.m.Lock()
 	var sum int64
 	for _, p := range t.pieces {
-		if p.OK() {
-			sum += int64(p.Length())
+		if p.OK {
+			sum += int64(p.Length)
 		}
 	}
+	t.m.Unlock()
 	return sum
 }
-func (t *transfer) Uploaded() int64             { return 0 } // TODO
-func (t *transfer) Left() int64                 { return t.torrent.Info.TotalLength - t.Downloaded() }
-func (t *transfer) Downloader() peer.Downloader { return t.downloader }
-func (t *transfer) Uploader() peer.Uploader     { return t.uploader }
+func (t *transfer) Uploaded() int64 { return 0 } // TODO
+func (t *transfer) Left() int64     { return t.torrent.Info.TotalLength - t.Downloaded() }
 
 func (t *transfer) Run() {
-	announceC := make(chan *tracker.AnnounceResponse)
-
-	completed := true
-	for _, p := range t.pieces {
-		if !p.OK() {
-			completed = false
-			break
-		}
+	// Download workers
+	if !t.bitfield.All() {
+		go t.connecter()
+		go t.peerManager()
 	}
 
-	if completed {
-		go tracker.AnnouncePeriodically(t.tracker, t, nil, tracker.Completed, nil, announceC)
-	} else {
-		go tracker.AnnouncePeriodically(t.tracker, t, nil, tracker.Started, nil, announceC)
+	// Upload workers
+	go t.requestSelector()
+	for i := 0; i < uploadSlots; i++ {
+		go t.pieceUploader()
 	}
 
-	go t.downloader.Run()
-	go t.uploader.Run()
+	go t.announcer()
 
 	for {
 		select {
-		case announceResponse := <-announceC:
+		case announceResponse := <-t.announceC:
 			if announceResponse.Error != nil {
 				t.log.Error(announceResponse.Error)
 				break
 			}
 			t.log.Infof("Announce: %d seeder, %d leecher", announceResponse.Seeders, announceResponse.Leechers)
-			t.downloader.PeersC() <- announceResponse.Peers
+			t.peersC <- announceResponse.Peers
+		case <-t.completeC:
+			if t.bitfield.All() {
+				t.log.Notice("Download finished.")
+				close(t.Finished())
+			}
+		case <-t.stopC:
+			t.log.Notice("Transfer is stopped.")
+			return
 		}
 	}
+}
+
+func (t *transfer) announcer() {
+	var startEvent tracker.Event
+	if t.bitfield.All() {
+		startEvent = tracker.Completed
+	} else {
+		startEvent = tracker.Started
+	}
+	tracker.AnnouncePeriodically(t.tracker, t, t.stopC, startEvent, nil, t.announceC)
 }
 
 func prepareFiles(info *torrent.Info, where string) (files []*os.File, checkHash bool, err error) {
