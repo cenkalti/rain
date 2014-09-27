@@ -1,7 +1,6 @@
 package downloader
 
 import (
-	"errors"
 	"math/rand"
 	"net"
 	"runtime"
@@ -41,9 +40,9 @@ type Downloader struct {
 	// all goroutines are stopped when this channel is closed
 	cancelC chan struct{}
 	// holds pieces are available in which peers, indexed by piece
-	peers []map[*peer.Peer]struct{}
+	peersByPiece []map[*peer.Peer]struct{}
 	// holds peers have which pieces
-	pieces map[*peer.Peer]map[uint32]struct{}
+	piecesByPeer map[*peer.Peer]map[uint32]struct{}
 	// protects peers and pieces
 	m sync.Mutex
 	// will be closed by main loop when all of the remaining pieces are downloaded
@@ -88,8 +87,8 @@ func New(t Transfer, port uint16, peerID protocol.PeerID, enableEncryption, forc
 		pieceC:           make(chan *peer.PieceMessage),
 		cancelC:          make(chan struct{}),
 		haveC:            make(chan *peer.HaveMessage),
-		peers:            peers,
-		pieces:           make(map[*peer.Peer]map[uint32]struct{}),
+		peersByPiece:     peers,
+		piecesByPeer:     make(map[*peer.Peer]map[uint32]struct{}),
 		finished:         make(chan struct{}),
 		log:              logger.New("downloader "),
 	}
@@ -131,20 +130,20 @@ func (d *Downloader) haveManager() {
 		case have := <-d.haveC:
 			// update d.peers and d.pieces maps
 			d.m.Lock()
-			d.peers[have.Index][have.Peer] = struct{}{}
-			if d.pieces[have.Peer] == nil {
-				d.pieces[have.Peer] = make(map[uint32]struct{})
+			d.peersByPiece[have.Index][have.Peer] = struct{}{}
+			if d.piecesByPeer[have.Peer] == nil {
+				d.piecesByPeer[have.Peer] = make(map[uint32]struct{})
 			}
-			d.pieces[have.Peer][have.Index] = struct{}{}
+			d.piecesByPeer[have.Peer][have.Index] = struct{}{}
 
 			// remove from maps when peer disconnects
 			go func() {
 				<-have.Peer.Disconnected
 				d.m.Lock()
-				delete(d.peers[have.Index], have.Peer)
-				delete(d.pieces[have.Peer], have.Index)
-				if len(d.pieces[have.Peer]) == 0 {
-					delete(d.pieces, have.Peer)
+				delete(d.peersByPiece[have.Index], have.Peer)
+				delete(d.piecesByPeer[have.Peer], have.Index)
+				if len(d.piecesByPeer[have.Peer]) == 0 {
+					delete(d.piecesByPeer, have.Peer)
 				}
 				d.m.Unlock()
 			}()
@@ -266,7 +265,7 @@ func (d *Downloader) connect(addr *net.TCPAddr) {
 }
 
 func (d *Downloader) candidates(peer *peer.Peer) (candidates []uint32) {
-	pieces, ok := d.pieces[peer]
+	pieces, ok := d.piecesByPeer[peer]
 	if !ok {
 		return
 	}
@@ -344,7 +343,7 @@ func (d *Downloader) peerDownloader(peer *peer.Peer) {
 func (d *Downloader) selectPiece(candidates []uint32) uint32 {
 	var pieces []pieceWithAvailability
 	for _, i := range candidates {
-		pieces = append(pieces, pieceWithAvailability{i, len(d.peers[i])})
+		pieces = append(pieces, pieceWithAvailability{i, len(d.peersByPiece[i])})
 	}
 	sort.Sort(rarestFirst(pieces))
 	minRarity := pieces[0].availability
