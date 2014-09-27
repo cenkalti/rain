@@ -123,6 +123,12 @@ func (t *transfer) peerDownloader(peer *Peer) {
 
 		peer.BeInterested()
 
+		peer.chokeCond.L.Lock()
+		for peer.peerChoking {
+			peer.chokeCond.Wait()
+		}
+		peer.chokeCond.L.Unlock()
+
 		// TODO queue max 10 requests
 
 		// Request blocks of the piece.

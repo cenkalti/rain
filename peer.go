@@ -30,6 +30,8 @@ type Peer struct {
 	transfer *transfer
 
 	amInterested bool
+	peerChoking  bool
+	chokeCond    *sync.Cond
 
 	// pieces that the peer has
 	bitfield  *bitfield.BitField
@@ -41,9 +43,9 @@ type Peer struct {
 	pieceC chan *PieceMessage
 
 	// requests that we made
-	requests  map[requestMessage]struct{}
-	requestsM sync.Mutex
+	requests map[requestMessage]struct{}
 
+	m   sync.Mutex
 	log log.Logger
 }
 
@@ -64,17 +66,20 @@ type pieceMessage struct {
 }
 
 func (t *transfer) newPeer(conn net.Conn, peerID bt.PeerID, l log.Logger) *Peer {
-	return &Peer{
+	p := &Peer{
 		Disconnected: make(chan struct{}),
 		conn:         conn,
 		peerID:       peerID,
 		transfer:     t,
+		peerChoking:  true,
 		bitfield:     bitfield.New(t.bitfield.Len()),
 		haveNewPiece: make(chan struct{}, 1),
 		pieceC:       make(chan *PieceMessage),
 		requests:     make(map[requestMessage]struct{}),
 		log:          l,
 	}
+	p.chokeCond = sync.NewCond(&p.m)
+	return p
 }
 
 func (p *Peer) String() string { return p.conn.RemoteAddr().String() }
@@ -126,17 +131,27 @@ func (p *Peer) Run() {
 		}
 		length--
 
-		p.log.Debugf("Received message of type %q", id)
+		p.log.Debugf("Received message of type: %q", id)
 
 		switch id {
 		case chokeID:
+			p.chokeCond.L.Lock()
+			p.peerChoking = true
 			// Discard all pending requests.
-			p.requestsM.Lock()
 			p.requests = make(map[requestMessage]struct{})
-			p.requestsM.Unlock()
-			// TODO send message to chokeC
+			p.chokeCond.Broadcast()
+			p.chokeCond.L.Unlock()
 		case unchokeID:
+			p.chokeCond.L.Lock()
+			p.peerChoking = false
+			p.chokeCond.Broadcast()
+			p.chokeCond.L.Unlock()
 		case interestedID:
+			// TODO this should not be here
+			if err := p.Unchoke(); err != nil {
+				p.log.Error(err)
+				return
+			}
 		case notInterestedID:
 		case haveID:
 			var i uint32
@@ -209,14 +224,14 @@ func (p *Peer) Run() {
 			length -= 8
 
 			req := requestMessage{piece.Index, piece.Begin, length}
-			p.requestsM.Lock()
+			p.m.Lock()
 			if _, ok := p.requests[req]; !ok {
 				p.log.Error("unexpected piece message")
-				p.requestsM.Unlock()
+				p.m.Unlock()
 				return
 			}
 			delete(p.requests, req)
-			p.requestsM.Unlock()
+			p.m.Unlock()
 
 			dataC := make(chan []byte, 1)
 			p.pieceC <- &PieceMessage{piece, dataC}
@@ -280,9 +295,9 @@ func (p *Peer) Unchoke() error { return p.sendMessage(unchokeID, nil) }
 
 func (p *Peer) Request(index, begin, length uint32) error {
 	req := requestMessage{index, begin, length}
-	p.requestsM.Lock()
+	p.m.Lock()
 	p.requests[req] = struct{}{}
-	p.requestsM.Unlock()
+	p.m.Unlock()
 
 	buf := bytes.NewBuffer(make([]byte, 0, 12))
 	binary.Write(buf, binary.BigEndian, &req)
@@ -290,12 +305,6 @@ func (p *Peer) Request(index, begin, length uint32) error {
 }
 
 func (p *Peer) SendPiece(index, begin uint32, block []byte) error {
-
-	// TODO not here
-	if err := p.sendMessage(unchokeID, nil); err != nil {
-		return err
-	}
-
 	msg := &pieceMessage{index, begin}
 	buf := bytes.NewBuffer(make([]byte, 0, 8))
 	binary.Write(buf, binary.BigEndian, msg)
@@ -304,7 +313,7 @@ func (p *Peer) SendPiece(index, begin uint32, block []byte) error {
 }
 
 func (p *Peer) sendMessage(id messageID, payload []byte) error {
-	p.log.Debugln("Sending message:", id)
+	p.log.Debugf("Sending message of type: %q", id)
 	buf := bufio.NewWriterSize(p.conn, 4+1+len(payload))
 	var header = struct {
 		Length uint32
