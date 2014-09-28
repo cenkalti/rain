@@ -92,7 +92,6 @@ func (t *transfer) connect(addr *net.TCPAddr) {
 		return
 	}
 
-	go p.downloader()
 	p.Run()
 }
 

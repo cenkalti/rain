@@ -79,6 +79,10 @@ func (p *Peer) Close() error   { return p.conn.Close() }
 
 // Run reads and processes incoming messages after handshake.
 func (p *Peer) Run() {
+	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
+
+	go p.downloader()
+
 	defer func() {
 		for i := uint32(0); i < p.bitfield.Len(); i++ {
 			if p.bitfield.Test(i) {
@@ -86,13 +90,13 @@ func (p *Peer) Run() {
 			}
 		}
 	}()
+
 	defer func() {
 		p.m.Lock()
 		p.disconnected = true
 		p.m.Unlock()
 		p.cond.Broadcast()
 	}()
-	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 
 	first := true
 	for {
