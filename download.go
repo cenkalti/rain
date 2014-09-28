@@ -89,7 +89,7 @@ func (t *transfer) connect(addr *net.TCPAddr) {
 		t.m.Unlock()
 	}()
 
-	if err = p.SendBitField(); err != nil {
+	if err = p.SendBitfield(); err != nil {
 		log.Error(err)
 		return
 	}

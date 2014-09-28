@@ -3,7 +3,7 @@ package bitfield
 import "testing"
 
 func TestNew(t *testing.T) {
-	var v *BitField
+	var v *Bitfield
 	var buf = []byte{0x0f}
 
 	v = NewBytes(buf, 8)

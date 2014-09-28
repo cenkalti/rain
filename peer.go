@@ -34,7 +34,7 @@ type Peer struct {
 	chokeCond    *sync.Cond
 
 	// pieces that the peer has
-	bitfield  *bitfield.BitField
+	bitfield  *bitfield.Bitfield
 	bitfieldM sync.Mutex
 
 	// TODO write comment here
@@ -266,7 +266,7 @@ func (p *Peer) handleHave(i uint32) {
 	p.transfer.m.Unlock()
 }
 
-func (p *Peer) SendBitField() error {
+func (p *Peer) SendBitfield() error {
 	// Do not send a bitfield message if we don't have any pieces.
 	if p.transfer.bitfield.Count() == 0 {
 		return nil

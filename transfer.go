@@ -19,7 +19,7 @@ type transfer struct {
 	tracker   tracker.Tracker
 	torrent   *torrent.Torrent
 	pieces    []*Piece
-	bitfield  *bitfield.BitField
+	bitfield  *bitfield.Bitfield
 	announceC chan *tracker.AnnounceResponse
 	peers     map[bt.PeerID]*Peer // connected peers
 	peersM    sync.RWMutex
