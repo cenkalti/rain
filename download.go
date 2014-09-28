@@ -131,7 +131,7 @@ func (peer *Peer) downloader() {
 		t.m.Unlock()
 
 		if err := peer.BeInterested(); err != nil {
-			t.log.Error(err)
+			peer.log.Error(err)
 			return
 		}
 
@@ -153,7 +153,7 @@ func (peer *Peer) downloader() {
 				peer.m.Unlock()
 
 				if err := peer.Request(piece.Index, b.Begin, b.Length); err != nil {
-					t.log.Error(err)
+					peer.log.Error(err)
 					return
 				}
 			}
@@ -167,10 +167,10 @@ func (peer *Peer) downloader() {
 			peerBlock := <-peer.pieceC
 			data := <-peerBlock.Data
 			if data == nil {
-				t.log.Error("peer did not send block completely")
+				peer.log.Error("peer did not send block completely")
 				return
 			}
-			t.log.Debugln("Will receive block of length", len(data))
+			peer.log.Debugln("Will receive block of length", len(data))
 			copy(pieceData[peerBlock.Begin:], data)
 		}
 
