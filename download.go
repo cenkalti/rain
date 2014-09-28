@@ -1,6 +1,7 @@
 package rain
 
 import (
+	"errors"
 	"math/rand"
 	"net"
 	"runtime"
@@ -108,24 +109,14 @@ func (p *Peer) downloader() {
 		candidates := p.candidates()
 		if len(candidates) == 0 {
 			t.m.Unlock()
-
 			if err := p.BeNotInterested(); err != nil {
 				p.log.Error(err)
 				return
 			}
-
-			// Wait until new have message received.
-			p.m.Lock()
-			count := p.bitfield.Count()
-			for count == p.bitfield.Count() && !p.disconnected {
-				p.cond.Wait()
-			}
-			if p.disconnected {
-				p.log.Error("disconnected while waiting for new have message")
-				p.m.Unlock()
+			if err := p.waitForHaveMessage(); err != nil {
+				p.log.Error(err)
 				return
 			}
-			p.m.Unlock()
 			continue
 		}
 		piece := t.selectPiece(candidates)
@@ -140,26 +131,9 @@ func (p *Peer) downloader() {
 		}
 
 		// TODO queue max 10 requests
-
-		// Request blocks of the piece.
 		go func() {
-			for _, b := range piece.Blocks {
-				// Send requests only when unchoked.
-				p.m.Lock()
-				for p.peerChoking && !p.disconnected {
-					p.cond.Wait()
-				}
-				if p.disconnected {
-					p.log.Error("disconnected while waiting for unchoke message")
-					p.m.Unlock()
-					return
-				}
-				p.m.Unlock()
-
-				if err := p.Request(piece.Index, b.Begin, b.Length); err != nil {
-					p.log.Error(err)
-					return
-				}
+			if err := p.requestBlocks(piece); err != nil {
+				p.log.Error(err)
 			}
 		}()
 
@@ -189,6 +163,44 @@ func (p *Peer) downloader() {
 		delete(t.requests, piece.Index)
 		t.m.Unlock()
 	}
+}
+
+func (p *Peer) requestBlocks(piece *Piece) error {
+	for _, b := range piece.Blocks {
+		// Send requests only when unchoked.
+		if err := p.waitForUnchoke(); err != nil {
+			return err
+		}
+		if err := p.Request(piece.Index, b.Begin, b.Length); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *Peer) waitForHaveMessage() error {
+	p.m.Lock()
+	defer p.m.Unlock()
+	count := p.bitfield.Count()
+	for count == p.bitfield.Count() && !p.disconnected {
+		p.cond.Wait()
+	}
+	if p.disconnected {
+		return errors.New("disconnected while waiting for new have message")
+	}
+	return nil
+}
+
+func (p *Peer) waitForUnchoke() error {
+	p.m.Lock()
+	defer p.m.Unlock()
+	for p.peerChoking && !p.disconnected {
+		p.cond.Wait()
+	}
+	if p.disconnected {
+		return errors.New("disconnected while waiting for unchoke message")
+	}
+	return nil
 }
 
 // candidates returns list of piece indexes which is available on the peer but not available on the client.
