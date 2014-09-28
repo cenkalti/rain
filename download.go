@@ -94,11 +94,12 @@ func (t *transfer) connect(addr *net.TCPAddr) {
 		return
 	}
 
-	go t.peerDownloader(p)
+	go p.downloader()
 	p.Run()
 }
 
-func (t *transfer) peerDownloader(peer *Peer) {
+func (peer *Peer) downloader() {
+	t := peer.transfer
 	for {
 		t.m.Lock()
 		if t.bitfield.All() {
@@ -106,7 +107,7 @@ func (t *transfer) peerDownloader(peer *Peer) {
 			t.m.Unlock()
 			return
 		}
-		candidates := t.candidates(peer)
+		candidates := peer.candidates()
 		if len(candidates) == 0 {
 			t.m.Unlock()
 
@@ -170,11 +171,11 @@ func (t *transfer) peerDownloader(peer *Peer) {
 }
 
 // candidates returns list of piece indexes which is available on the peer but not available on the client.
-func (t *transfer) candidates(p *Peer) (candidates []*Piece) {
+func (p *Peer) candidates() (candidates []*Piece) {
 	p.m.Lock()
-	for i := uint32(0); i < t.bitfield.Len(); i++ {
-		if !t.bitfield.Test(i) && p.bitfield.Test(i) {
-			candidates = append(candidates, t.pieces[i])
+	for i := uint32(0); i < p.transfer.bitfield.Len(); i++ {
+		if !p.transfer.bitfield.Test(i) && p.bitfield.Test(i) {
+			candidates = append(candidates, p.transfer.pieces[i])
 		}
 	}
 	p.m.Unlock()
