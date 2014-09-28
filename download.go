@@ -98,6 +98,8 @@ func (t *transfer) connect(addr *net.TCPAddr) {
 func (peer *Peer) downloader() {
 	t := peer.transfer
 	for {
+		// TODO save requests and remove from bitfield so other downloaders do not try to download same pieces.
+
 		t.m.Lock()
 		if t.bitfield.All() {
 			t.onceFinished.Do(func() { close(t.finished) })
