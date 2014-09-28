@@ -1,3 +1,4 @@
+// Package bthandshake provides support for doing BitTorrent peer handshake.
 package bthandshake
 
 import (

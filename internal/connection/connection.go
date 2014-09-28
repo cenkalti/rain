@@ -1,3 +1,4 @@
+// Package connection provides support for dialing and accepting BitTorrent connections.
 package connection
 
 import (

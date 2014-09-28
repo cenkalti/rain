@@ -1,3 +1,4 @@
+// Package torrent provides support for reading and writing torrent files.
 package torrent
 
 import (

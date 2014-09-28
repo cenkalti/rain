@@ -1,4 +1,4 @@
-// Package tracker implements HTTP and UDP tracker clients.
+// Package tracker provides support for announcing torrents to HTTP and UDP trackers.
 package tracker
 
 import (
@@ -12,8 +12,8 @@ import (
 
 	"github.com/cenkalti/backoff"
 
-	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/bt"
+	"github.com/cenkalti/rain/internal/logger"
 )
 
 // Number of peers we want from trackers

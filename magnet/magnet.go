@@ -1,3 +1,4 @@
+// Package magnet provides support for parsing magnet links.
 package magnet
 
 import (

@@ -1,3 +1,4 @@
+// Package bt contains basic BitTorrent related types that are used in other packages.
 package bt
 
 import (

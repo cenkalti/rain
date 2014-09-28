@@ -1,3 +1,4 @@
+// Package bifield provides support for manipulating bits in a []byte.
 package bitfield
 
 import "encoding/hex"
