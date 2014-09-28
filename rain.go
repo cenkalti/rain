@@ -173,6 +173,7 @@ func (r *Rain) servePeer(conn net.Conn) {
 		t.m.Unlock()
 	}()
 
+	go p.downloader()
 	p.Run()
 }
 
