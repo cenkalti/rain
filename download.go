@@ -160,6 +160,8 @@ func (peer *Peer) downloader() {
 			}
 		}()
 
+		// TODO handle choke while receiving pieces. Re-reqeust, etc..
+
 		// Read blocks from peer.
 		pieceData := make([]byte, piece.Length)
 		for i := 0; i < len(piece.Blocks); i++ {
