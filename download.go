@@ -119,7 +119,7 @@ func (p *Peer) downloader() {
 			}
 			continue
 		}
-		piece := t.selectPiece(candidates)
+		piece := selectPiece(candidates)
 		// Save selected piece so other downloaders do not try to download the same piece.
 		// TODO remove from requests when downloader exited with error.
 		t.requests[piece.Index] = &pieceRequest{p, time.Now()}
@@ -219,7 +219,7 @@ func (p *Peer) candidates() (candidates []*Piece) {
 }
 
 // selectPiece returns the index of the selected piece from candidates.
-func (t *transfer) selectPiece(candidates []*Piece) *Piece {
+func selectPiece(candidates []*Piece) *Piece {
 	sort.Sort(rarestFirst(candidates))
 	minAvailability := candidates[0].availability()
 	var i int
