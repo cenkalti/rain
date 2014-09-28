@@ -86,7 +86,7 @@ func (p *Peer) Run() {
 	defer func() {
 		for i := uint32(0); i < p.bitfield.Len(); i++ {
 			if p.bitfield.Test(i) {
-				delete(p.transfer.pieces[i].peers, p)
+				delete(p.transfer.pieces[i].peers, p.peerID)
 			}
 		}
 	}()
@@ -259,7 +259,7 @@ func (p *Peer) Run() {
 
 func (p *Peer) handleHave(i uint32) {
 	p.transfer.m.Lock()
-	p.transfer.pieces[i].peers[p] = struct{}{}
+	p.transfer.pieces[i].peers[p.peerID] = struct{}{}
 	p.transfer.m.Unlock()
 	p.cond.Broadcast()
 }

@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/cenkalti/rain/bt"
 	"github.com/cenkalti/rain/torrent"
 )
 
@@ -17,7 +18,7 @@ type Piece struct {
 	Blocks []Block
 	hash   []byte   // correct hash value
 	files  sections // the place to write downloaded bytes
-	peers  map[*Peer]struct{}
+	peers  map[bt.PeerID]struct{}
 }
 
 type Block struct {
@@ -48,7 +49,7 @@ func newPieces(info *torrent.Info, osFiles []*os.File, blockSize uint32) []*Piec
 		p := &Piece{
 			Index: i,
 			hash:  info.PieceHash(i),
-			peers: make(map[*Peer]struct{}),
+			peers: make(map[bt.PeerID]struct{}),
 		}
 
 		// Construct p.files
