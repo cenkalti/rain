@@ -22,30 +22,25 @@ const connReadTimeout = 3 * time.Minute
 const maxAllowedBlockSize = 32 * 1024
 
 type Peer struct {
-	// Will be closed when peer disconnects
-	Disconnected chan struct{}
-
 	conn     net.Conn
 	peerID   bt.PeerID
 	transfer *transfer
 
+	disconnected bool
 	amInterested bool
 	peerChoking  bool
-	chokeCond    *sync.Cond
 
 	// pieces that the peer has
 	bitfield *bitfield.Bitfield
-
-	// TODO write comment here
-	haveNewPiece chan struct{}
 
 	pieceC chan *PieceMessage
 
 	// requests that we made
 	requests map[requestMessage]struct{}
 
-	m   sync.Mutex
-	log log.Logger
+	m    sync.Mutex
+	cond *sync.Cond
+	log  log.Logger
 }
 
 type Request struct {
@@ -66,18 +61,16 @@ type pieceMessage struct {
 
 func (t *transfer) newPeer(conn net.Conn, peerID bt.PeerID, l log.Logger) *Peer {
 	p := &Peer{
-		Disconnected: make(chan struct{}),
-		conn:         conn,
-		peerID:       peerID,
-		transfer:     t,
-		peerChoking:  true,
-		bitfield:     bitfield.New(t.bitfield.Len()),
-		haveNewPiece: make(chan struct{}, 1),
-		pieceC:       make(chan *PieceMessage),
-		requests:     make(map[requestMessage]struct{}),
-		log:          l,
+		conn:        conn,
+		peerID:      peerID,
+		transfer:    t,
+		peerChoking: true,
+		bitfield:    bitfield.New(t.bitfield.Len()),
+		pieceC:      make(chan *PieceMessage),
+		requests:    make(map[requestMessage]struct{}),
+		log:         l,
 	}
-	p.chokeCond = sync.NewCond(&p.m)
+	p.cond = sync.NewCond(&p.m)
 	return p
 }
 
@@ -93,7 +86,12 @@ func (p *Peer) Run() {
 			}
 		}
 	}()
-	defer close(p.Disconnected)
+	defer func() {
+		p.m.Lock()
+		p.disconnected = true
+		p.m.Unlock()
+		p.cond.Broadcast()
+	}()
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 
 	first := true
@@ -134,17 +132,17 @@ func (p *Peer) Run() {
 
 		switch id {
 		case chokeID:
-			p.chokeCond.L.Lock()
-			p.peerChoking = true
+			p.m.Lock()
 			// Discard all pending requests.
 			p.requests = make(map[requestMessage]struct{})
-			p.chokeCond.Broadcast()
-			p.chokeCond.L.Unlock()
+			p.peerChoking = true
+			p.m.Unlock()
+			p.cond.Broadcast()
 		case unchokeID:
-			p.chokeCond.L.Lock()
+			p.m.Lock()
 			p.peerChoking = false
-			p.chokeCond.Broadcast()
-			p.chokeCond.L.Unlock()
+			p.m.Unlock()
+			p.cond.Broadcast()
 		case interestedID:
 			// TODO this should not be here
 			if err := p.Unchoke(); err != nil {
@@ -258,11 +256,8 @@ func (p *Peer) Run() {
 func (p *Peer) handleHave(i uint32) {
 	p.transfer.m.Lock()
 	p.transfer.pieces[i].peers[p] = struct{}{}
-	select {
-	case p.haveNewPiece <- struct{}{}:
-	default:
-	}
 	p.transfer.m.Unlock()
+	p.cond.Broadcast()
 }
 
 func (p *Peer) SendBitfield() error {

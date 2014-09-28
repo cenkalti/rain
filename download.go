@@ -81,8 +81,7 @@ func (t *transfer) connect(addr *net.TCPAddr) {
 	t.m.Lock()
 	t.peers[peerID] = p
 	t.m.Unlock()
-	go func() {
-		<-p.Disconnected
+	defer func() {
 		t.m.Lock()
 		delete(t.peers, peerID)
 		t.m.Unlock()
@@ -110,32 +109,53 @@ func (peer *Peer) downloader() {
 		if len(candidates) == 0 {
 			t.m.Unlock()
 
-			peer.BeNotInterested()
-			select {
-			case <-peer.haveNewPiece:
-				continue
-			case <-peer.Disconnected:
+			if err := peer.BeNotInterested(); err != nil {
+				peer.log.Error(err)
 				return
 			}
+
+			// Wait until new have message received.
+			peer.m.Lock()
+			count := peer.bitfield.Count()
+			for count == peer.bitfield.Count() && !peer.disconnected {
+				peer.cond.Wait()
+			}
+			if peer.disconnected {
+				peer.log.Error("disconnected while waiting for new have message")
+				peer.m.Unlock()
+				return
+			}
+			peer.m.Unlock()
+			continue
 		}
 		piece := t.selectPiece(candidates)
 		t.m.Unlock()
 
-		peer.BeInterested()
-
-		peer.chokeCond.L.Lock()
-		for peer.peerChoking {
-			peer.chokeCond.Wait()
+		if err := peer.BeInterested(); err != nil {
+			t.log.Error(err)
+			return
 		}
-		peer.chokeCond.L.Unlock()
 
 		// TODO queue max 10 requests
 
 		// Request blocks of the piece.
 		go func() {
 			for _, b := range piece.Blocks {
+				// Send requests only when unchoked.
+				peer.m.Lock()
+				for peer.peerChoking && !peer.disconnected {
+					peer.cond.Wait()
+				}
+				if peer.disconnected {
+					peer.log.Error("disconnected while waiting for unchoke message")
+					peer.m.Unlock()
+					return
+				}
+				peer.m.Unlock()
+
 				if err := peer.Request(piece.Index, b.Begin, b.Length); err != nil {
 					t.log.Error(err)
+					return
 				}
 			}
 		}()

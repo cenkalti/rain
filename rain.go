@@ -166,8 +166,7 @@ func (r *Rain) servePeer(conn net.Conn) {
 	t.m.Lock()
 	t.peers[peerID] = p
 	t.m.Unlock()
-	go func() {
-		<-p.Disconnected
+	defer func() {
 		t.m.Lock()
 		delete(t.peers, peerID)
 		t.m.Unlock()
