@@ -5,7 +5,6 @@ import (
 	"net"
 	"runtime"
 	"sort"
-	"time"
 
 	"github.com/cenkalti/rain/internal/connection"
 	"github.com/cenkalti/rain/internal/logger"
@@ -133,29 +132,25 @@ func (peer *Peer) downloader() {
 		// TODO queue max 10 requests
 
 		// Request blocks of the piece.
-		for _, b := range piece.Blocks {
-			if err := peer.Request(piece.Index, b.Begin, b.Length); err != nil {
-				t.log.Error(err)
-				return
+		go func() {
+			for _, b := range piece.Blocks {
+				if err := peer.Request(piece.Index, b.Begin, b.Length); err != nil {
+					t.log.Error(err)
+				}
 			}
-		}
+		}()
 
 		// Read blocks from peer.
 		pieceData := make([]byte, piece.Length)
-		for _ = range piece.Blocks { // TODO all peers send to this channel
-			select {
-			case peerBlock := <-peer.pieceC:
-				data := <-peerBlock.Data
-				if data == nil {
-					t.log.Error("peer did not send block completely")
-					return
-				}
-				t.log.Debugln("Will receive block of length", len(data))
-				copy(pieceData[peerBlock.Begin:], data)
-			case <-time.After(16 * time.Second): // speed is below 1KBps
-				t.log.Error("piece timeout")
+		for i := 0; i < len(piece.Blocks); i++ {
+			peerBlock := <-peer.pieceC
+			data := <-peerBlock.Data
+			if data == nil {
+				t.log.Error("peer did not send block completely")
 				return
 			}
+			t.log.Debugln("Will receive block of length", len(data))
+			copy(pieceData[peerBlock.Begin:], data)
 		}
 
 		if _, err := piece.Write(pieceData); err != nil {

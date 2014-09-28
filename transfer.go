@@ -29,16 +29,16 @@ type transfer struct {
 
 	// tracker sends available peers to this channel
 	peersC chan []*net.TCPAddr
-	// pieceManager maintains most recent peers which can be connected to in this channel
 	// connecter receives from this channel and connects to new peers
 	peerC chan *net.TCPAddr
 	// will be closed by main loop when all of the remaining pieces are downloaded
-	finished     chan struct{}
+	finished chan struct{}
+	// for closing finished channel only once
 	onceFinished sync.Once
-
-	// Upload related fields
+	// peers send requests to this channel
 	requestC chan *Request
-	serveC   chan *Request
+	// uploader decides which request to serve and sends it to this channel
+	serveC chan *Request
 }
 
 func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error) {
