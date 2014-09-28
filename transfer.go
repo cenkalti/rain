@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/cenkalti/rain/bitfield"
 	"github.com/cenkalti/rain/bt"
@@ -39,6 +40,13 @@ type transfer struct {
 	requestC chan *Request
 	// uploader decides which request to serve and sends it to this channel
 	serveC chan *Request
+	// requests that we made
+	requests map[uint32]*pieceRequest
+}
+
+type pieceRequest struct {
+	peer *Peer     // requested from
+	time time.Time // requested at
 }
 
 func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error) {
@@ -84,6 +92,7 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 		finished:  make(chan struct{}),
 		requestC:  make(chan *Request),
 		serveC:    make(chan *Request),
+		requests:  make(map[uint32]*pieceRequest),
 	}, nil
 }
 

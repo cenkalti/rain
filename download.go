@@ -5,6 +5,7 @@ import (
 	"net"
 	"runtime"
 	"sort"
+	"time"
 
 	"github.com/cenkalti/rain/internal/connection"
 	"github.com/cenkalti/rain/internal/logger"
@@ -95,45 +96,46 @@ func (t *transfer) connect(addr *net.TCPAddr) {
 	p.Run()
 }
 
-func (peer *Peer) downloader() {
-	t := peer.transfer
+func (p *Peer) downloader() {
+	t := p.transfer
 	for {
-		// TODO save requests and remove from bitfield so other downloaders do not try to download same pieces.
-
 		t.m.Lock()
 		if t.bitfield.All() {
 			t.onceFinished.Do(func() { close(t.finished) })
 			t.m.Unlock()
 			return
 		}
-		candidates := peer.candidates()
+		candidates := p.candidates()
 		if len(candidates) == 0 {
 			t.m.Unlock()
 
-			if err := peer.BeNotInterested(); err != nil {
-				peer.log.Error(err)
+			if err := p.BeNotInterested(); err != nil {
+				p.log.Error(err)
 				return
 			}
 
 			// Wait until new have message received.
-			peer.m.Lock()
-			count := peer.bitfield.Count()
-			for count == peer.bitfield.Count() && !peer.disconnected {
-				peer.cond.Wait()
+			p.m.Lock()
+			count := p.bitfield.Count()
+			for count == p.bitfield.Count() && !p.disconnected {
+				p.cond.Wait()
 			}
-			if peer.disconnected {
-				peer.log.Error("disconnected while waiting for new have message")
-				peer.m.Unlock()
+			if p.disconnected {
+				p.log.Error("disconnected while waiting for new have message")
+				p.m.Unlock()
 				return
 			}
-			peer.m.Unlock()
+			p.m.Unlock()
 			continue
 		}
 		piece := t.selectPiece(candidates)
+		// Save selected piece so other downloaders do not try to download the same piece.
+		// TODO remove from requests when downloader exited with error.
+		t.requests[piece.Index] = &pieceRequest{p, time.Now()}
 		t.m.Unlock()
 
-		if err := peer.BeInterested(); err != nil {
-			peer.log.Error(err)
+		if err := p.BeInterested(); err != nil {
+			p.log.Error(err)
 			return
 		}
 
@@ -143,19 +145,19 @@ func (peer *Peer) downloader() {
 		go func() {
 			for _, b := range piece.Blocks {
 				// Send requests only when unchoked.
-				peer.m.Lock()
-				for peer.peerChoking && !peer.disconnected {
-					peer.cond.Wait()
+				p.m.Lock()
+				for p.peerChoking && !p.disconnected {
+					p.cond.Wait()
 				}
-				if peer.disconnected {
-					peer.log.Error("disconnected while waiting for unchoke message")
-					peer.m.Unlock()
+				if p.disconnected {
+					p.log.Error("disconnected while waiting for unchoke message")
+					p.m.Unlock()
 					return
 				}
-				peer.m.Unlock()
+				p.m.Unlock()
 
-				if err := peer.Request(piece.Index, b.Begin, b.Length); err != nil {
-					peer.log.Error(err)
+				if err := p.Request(piece.Index, b.Begin, b.Length); err != nil {
+					p.log.Error(err)
 					return
 				}
 			}
@@ -166,24 +168,25 @@ func (peer *Peer) downloader() {
 		// Read blocks from peer.
 		pieceData := make([]byte, piece.Length)
 		for i := 0; i < len(piece.Blocks); i++ {
-			peerBlock := <-peer.pieceC
+			peerBlock := <-p.pieceC
 			data := <-peerBlock.Data
 			if data == nil {
-				peer.log.Error("peer did not send block completely")
+				p.log.Error("peer did not send block completely")
 				return
 			}
-			peer.log.Debugln("Will receive block of length", len(data))
+			p.log.Debugln("Will receive block of length", len(data))
 			copy(pieceData[peerBlock.Begin:], data)
 		}
 
 		if _, err := piece.Write(pieceData); err != nil {
 			t.log.Error(err)
-			peer.Close()
+			p.Close()
 			return
 		}
 
 		t.m.Lock()
 		t.bitfield.Set(piece.Index)
+		delete(t.requests, piece.Index)
 		t.m.Unlock()
 	}
 }
@@ -193,7 +196,10 @@ func (p *Peer) candidates() (candidates []*Piece) {
 	p.m.Lock()
 	for i := uint32(0); i < p.transfer.bitfield.Len(); i++ {
 		if !p.transfer.bitfield.Test(i) && p.bitfield.Test(i) {
-			candidates = append(candidates, p.transfer.pieces[i])
+			piece := p.transfer.pieces[i]
+			if _, ok := p.transfer.requests[piece.Index]; !ok {
+				candidates = append(candidates, piece)
+			}
 		}
 	}
 	p.m.Unlock()
@@ -221,6 +227,3 @@ type rarestFirst []*Piece
 func (r rarestFirst) Len() int           { return len(r) }
 func (r rarestFirst) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
 func (r rarestFirst) Less(i, j int) bool { return r[i].availability() < r[j].availability() }
-
-// var errNoPiece = errors.New("no piece available for download")
-// var errNoPeer = errors.New("no peer available for this piece")
