@@ -121,12 +121,14 @@ func (p *Peer) downloader() {
 		}
 		piece := selectPiece(candidates)
 		// Save selected piece so other downloaders do not try to download the same piece.
-		// TODO remove from requests when downloader exited with error.
 		t.requests[piece.Index] = &pieceRequest{p, time.Now()}
 		t.m.Unlock()
 
 		if err := p.BeInterested(); err != nil {
 			p.log.Error(err)
+			t.m.Lock()
+			delete(t.requests, piece.Index)
+			t.m.Unlock()
 			return
 		}
 
@@ -146,6 +148,9 @@ func (p *Peer) downloader() {
 			data := <-peerBlock.Data
 			if data == nil {
 				p.log.Error("peer did not send block completely")
+				t.m.Lock()
+				delete(t.requests, piece.Index)
+				t.m.Unlock()
 				return
 			}
 			p.log.Debugln("Will receive block of length", len(data))
@@ -155,6 +160,9 @@ func (p *Peer) downloader() {
 		if _, err := piece.Write(pieceData); err != nil {
 			t.log.Error(err)
 			p.Close()
+			t.m.Lock()
+			delete(t.requests, piece.Index)
+			t.m.Unlock()
 			return
 		}
 
