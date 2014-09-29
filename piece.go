@@ -62,7 +62,7 @@ func (r *pieceRequest) resetWaitingRequests() {
 }
 
 func (p *Piece) nextBlock(id bt.PeerID) (*Block, bool) {
-	i, ok := p.requestedFrom[id].blocksRequested.NextClear(0)
+	i, ok := p.requestedFrom[id].blocksRequested.FirstClear(0)
 	if !ok {
 		return nil, false
 	}
