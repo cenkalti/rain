@@ -71,7 +71,7 @@ func TestDownload(t *testing.T) {
 
 	select {
 	case <-t2.Finished():
-	case <-time.After(10 * time.Second):
+	case <-time.After(4 * time.Second):
 		panic("download did not finish")
 	}
 

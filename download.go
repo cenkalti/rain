@@ -1,12 +1,11 @@
 package rain
 
 import (
-	"errors"
 	"math/rand"
 	"net"
 	"runtime"
 	"sort"
-	"time"
+	"sync"
 
 	"github.com/cenkalti/rain/internal/connection"
 	"github.com/cenkalti/rain/internal/logger"
@@ -97,132 +96,89 @@ func (t *transfer) connect(addr *net.TCPAddr) {
 	p.Run()
 }
 
-func (p *Peer) downloader() {
-	t := p.transfer
+func (peer *Peer) downloader() {
+	t := peer.transfer
 	for {
+		// Select next piece to download.
 		t.m.Lock()
-		if t.bitfield.All() {
-			t.onceFinished.Do(func() { close(t.finished) })
-			t.m.Unlock()
-			return
-		}
-		candidates := p.candidates()
-		if len(candidates) == 0 {
-			t.m.Unlock()
-			if err := p.BeNotInterested(); err != nil {
-				p.log.Error(err)
-				return
-			}
-			if err := p.waitForHaveMessage(); err != nil {
-				p.log.Error(err)
-				return
-			}
-			continue
-		}
-		piece := selectPiece(candidates)
-		// Save selected piece so other downloaders do not try to download the same piece.
-		t.requests[piece.Index] = &pieceRequest{p, time.Now()}
-		t.m.Unlock()
-
-		if err := p.BeInterested(); err != nil {
-			p.log.Error(err)
-			t.m.Lock()
-			delete(t.requests, piece.Index)
-			t.m.Unlock()
-			return
-		}
-
-		// TODO queue max 10 requests
-		go func() {
-			if err := p.requestBlocks(piece); err != nil {
-				p.log.Error(err)
-			}
-		}()
-
-		// TODO handle choke while receiving pieces. Re-reqeust, etc..
-
-		// Read blocks from peer.
-		pieceData := make([]byte, piece.Length)
-		for i := 0; i < len(piece.Blocks); i++ {
-			peerBlock := <-p.pieceC
-			data := <-peerBlock.Data
-			if data == nil {
-				p.log.Error("peer did not send block completely")
-				t.m.Lock()
-				delete(t.requests, piece.Index)
+		var candidates []*Piece
+		var waitNotInterested sync.WaitGroup
+		for candidates = peer.candidates(); len(candidates) == 0 && !peer.disconnected; {
+			// Stop downloader if all pieces are downloaded.
+			if t.bitfield.All() {
+				t.onceFinished.Do(func() { close(t.finished) })
 				t.m.Unlock()
 				return
 			}
-			p.log.Debugln("Will receive block of length", len(data))
-			copy(pieceData[peerBlock.Begin:], data)
-		}
 
-		if _, err := piece.Write(pieceData); err != nil {
-			t.log.Error(err)
-			p.Close()
-			t.m.Lock()
-			delete(t.requests, piece.Index)
-			t.m.Unlock()
-			return
-		}
+			// Send "not interesed" message in a goroutine here because we can't keep the mutex locked.
+			waitNotInterested.Add(1)
+			go func() {
+				peer.BeNotInterested()
+				waitNotInterested.Done()
+			}()
 
-		t.m.Lock()
-		t.bitfield.Set(piece.Index)
-		delete(t.requests, piece.Index)
+			// Wait until there is a piece that we are interested.
+			peer.cond.Wait()
+		}
+		piece := selectPiece(candidates)
+		mark := piece.markSelected(peer.id)
 		t.m.Unlock()
-	}
-}
 
-func (p *Peer) requestBlocks(piece *Piece) error {
-	for _, b := range piece.Blocks {
-		// Send requests only when unchoked.
-		if err := p.waitForUnchoke(); err != nil {
-			return err
+		// send them in order
+		waitNotInterested.Wait()
+		peer.BeInterested()
+
+		for {
+			// Stop loop if all blocks are requested/received TODO.
+			t.m.Lock()
+			if piece.requestedFrom[peer.id].blocksReceived.All() {
+				t.m.Unlock()
+				break
+			}
+
+			// Send requests only when unchoked.
+			for peer.peerChoking && !peer.disconnected {
+				mark.resetWaitingRequests()
+				peer.cond.Wait()
+			}
+
+			// Select next block that is not requested.
+			block, ok := piece.nextBlock(peer.id)
+			if !ok {
+				t.m.Unlock()
+				break
+			}
+			mark.blocksRequesting.Set(block.Index)
+			t.m.Unlock()
+
+			// Request selected block.
+			if err := peer.Request(block); err != nil {
+				peer.log.Error(err)
+				t.m.Lock()
+				piece.unmarkSelected(peer.id)
+				t.m.Unlock()
+				return
+			}
+
+			t.m.Lock()
+			mark.blocksRequested.Set(block.Index)
+			t.m.Unlock()
 		}
-		if err := p.Request(piece.Index, b.Begin, b.Length); err != nil {
-			return err
-		}
+		// TODO handle choke while receiving pieces. Re-reqeust, etc..
 	}
-	return nil
-}
-
-func (p *Peer) waitForHaveMessage() error {
-	p.m.Lock()
-	defer p.m.Unlock()
-	count := p.bitfield.Count()
-	for count == p.bitfield.Count() && !p.disconnected {
-		p.cond.Wait()
-	}
-	if p.disconnected {
-		return errors.New("disconnected while waiting for new have message")
-	}
-	return nil
-}
-
-func (p *Peer) waitForUnchoke() error {
-	p.m.Lock()
-	defer p.m.Unlock()
-	for p.peerChoking && !p.disconnected {
-		p.cond.Wait()
-	}
-	if p.disconnected {
-		return errors.New("disconnected while waiting for unchoke message")
-	}
-	return nil
 }
 
 // candidates returns list of piece indexes which is available on the peer but not available on the client.
 func (p *Peer) candidates() (candidates []*Piece) {
-	p.m.Lock()
 	for i := uint32(0); i < p.transfer.bitfield.Len(); i++ {
 		if !p.transfer.bitfield.Test(i) && p.bitfield.Test(i) {
 			piece := p.transfer.pieces[i]
-			if _, ok := p.transfer.requests[piece.Index]; !ok {
+			if _, ok := piece.requestedFrom[p.id]; !ok {
 				candidates = append(candidates, piece)
 			}
 		}
 	}
-	p.m.Unlock()
 	return
 }
 

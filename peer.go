@@ -23,7 +23,7 @@ const maxAllowedBlockSize = 32 * 1024
 
 type Peer struct {
 	conn     net.Conn
-	peerID   bt.PeerID
+	id       bt.PeerID
 	transfer *transfer
 
 	disconnected bool
@@ -33,12 +33,6 @@ type Peer struct {
 	// pieces that the peer has
 	bitfield *bitfield.Bitfield
 
-	pieceC chan *PieceMessage
-
-	// requests that we made
-	requests map[requestMessage]struct{}
-
-	m    sync.Mutex
 	cond *sync.Cond
 	log  log.Logger
 }
@@ -59,18 +53,16 @@ type pieceMessage struct {
 	Index, Begin uint32
 }
 
-func (t *transfer) newPeer(conn net.Conn, peerID bt.PeerID, l log.Logger) *Peer {
+func (t *transfer) newPeer(conn net.Conn, id bt.PeerID, l log.Logger) *Peer {
 	p := &Peer{
 		conn:        conn,
-		peerID:      peerID,
+		id:          id,
 		transfer:    t,
 		peerChoking: true,
 		bitfield:    bitfield.New(t.bitfield.Len()),
-		pieceC:      make(chan *PieceMessage),
-		requests:    make(map[requestMessage]struct{}),
 		log:         l,
 	}
-	p.cond = sync.NewCond(&p.m)
+	p.cond = sync.NewCond(&t.m)
 	return p
 }
 
@@ -86,15 +78,15 @@ func (p *Peer) Run() {
 	defer func() {
 		for i := uint32(0); i < p.bitfield.Len(); i++ {
 			if p.bitfield.Test(i) {
-				delete(p.transfer.pieces[i].peers, p.peerID)
+				delete(p.transfer.pieces[i].peers, p.id)
 			}
 		}
 	}()
 
 	defer func() {
-		p.m.Lock()
+		p.transfer.m.Lock()
 		p.disconnected = true
-		p.m.Unlock()
+		p.transfer.m.Unlock()
 		p.cond.Broadcast()
 	}()
 
@@ -136,16 +128,15 @@ func (p *Peer) Run() {
 
 		switch id {
 		case chokeID:
-			p.m.Lock()
-			// Discard all pending requests.
-			p.requests = make(map[requestMessage]struct{})
+			p.transfer.m.Lock()
+			// Discard all pending requests. TODO
 			p.peerChoking = true
-			p.m.Unlock()
+			p.transfer.m.Unlock()
 			p.cond.Broadcast()
 		case unchokeID:
-			p.m.Lock()
+			p.transfer.m.Lock()
 			p.peerChoking = false
-			p.m.Unlock()
+			p.transfer.m.Unlock()
 			p.cond.Broadcast()
 		case interestedID:
 			// TODO this should not be here
@@ -179,9 +170,9 @@ func (p *Peer) Run() {
 				return
 			}
 
-			p.m.Lock()
+			p.transfer.m.Lock()
 			_, err = p.conn.Read(p.bitfield.Bytes())
-			p.m.Unlock()
+			p.transfer.m.Unlock()
 			if err != nil {
 				p.log.Error(err)
 				return
@@ -216,34 +207,75 @@ func (p *Peer) Run() {
 
 			p.transfer.requestC <- &Request{p, req}
 		case pieceID:
-			var piece pieceMessage
-			err = binary.Read(p.conn, binary.BigEndian, &piece)
+			var msg pieceMessage
+			err = binary.Read(p.conn, binary.BigEndian, &msg)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
 			length -= 8
 
-			req := requestMessage{piece.Index, piece.Begin, length}
-			p.m.Lock()
-			if _, ok := p.requests[req]; !ok {
-				p.log.Error("unexpected piece message")
-				p.m.Unlock()
+			if msg.Index >= p.transfer.torrent.Info.NumPieces {
+				p.log.Error("invalid request: index")
 				return
 			}
-			delete(p.requests, req)
-			p.m.Unlock()
+			piece := p.transfer.pieces[msg.Index]
 
-			dataC := make(chan []byte, 1)
-			p.pieceC <- &PieceMessage{piece, dataC}
-			data := make([]byte, length)
-			_, err = io.ReadFull(p.conn, data)
-			if err != nil {
-				p.log.Error(err)
-				dataC <- nil
+			// We request only in blockSize length
+			blockIndex, mod := divMod32(msg.Begin, blockSize)
+			if mod != 0 {
+				p.log.Error("unexpected block begin")
 				return
 			}
-			dataC <- data
+			if blockIndex >= uint32(len(piece.Blocks)) {
+				p.log.Error("invalid block begin")
+				return
+			}
+			block := p.transfer.pieces[msg.Index].Blocks[blockIndex]
+			if length != block.Length {
+				p.log.Error("invalid piece block length")
+				return
+			}
+
+			p.transfer.m.Lock()
+			mark := piece.getSelected(p.id)
+			if mark == nil {
+				p.transfer.m.Unlock()
+				p.log.Warning("received a piece that is not requested")
+				continue
+			}
+
+			if mark.blocksReceiving.Test(block.Index) {
+				p.log.Warningf("Receiving duplicate block: Piece #%d Block #%d", piece.Index, block.Index)
+			} else {
+				mark.blocksReceiving.Set(block.Index)
+			}
+			p.transfer.m.Unlock()
+
+			if _, err = io.ReadFull(p.conn, mark.data[msg.Begin:msg.Begin+length]); err != nil {
+				p.log.Error(err)
+				return
+			}
+
+			p.transfer.m.Lock()
+			mark.blocksReceived.Set(block.Index)
+			if !mark.blocksReceived.All() {
+				p.transfer.m.Unlock()
+				continue
+			}
+			p.transfer.m.Unlock()
+
+			p.log.Debugf("Writing piece to disk: #%d", piece.Index)
+			if _, err = piece.Write(mark.data); err != nil {
+				p.log.Error(err)
+				p.conn.Close()
+				return
+			}
+
+			p.transfer.m.Lock()
+			p.transfer.bitfield.Set(piece.Index)
+			p.transfer.m.Unlock()
+			p.cond.Broadcast()
 		case cancelID:
 		case portID:
 		default:
@@ -259,7 +291,7 @@ func (p *Peer) Run() {
 
 func (p *Peer) handleHave(i uint32) {
 	p.transfer.m.Lock()
-	p.transfer.pieces[i].peers[p.peerID] = struct{}{}
+	p.transfer.pieces[i].peers[p.id] = struct{}{}
 	p.transfer.m.Unlock()
 	p.cond.Broadcast()
 }
@@ -291,12 +323,8 @@ func (p *Peer) BeNotInterested() error {
 func (p *Peer) Choke() error   { return p.sendMessage(chokeID, nil) }
 func (p *Peer) Unchoke() error { return p.sendMessage(unchokeID, nil) }
 
-func (p *Peer) Request(index, begin, length uint32) error {
-	req := requestMessage{index, begin, length}
-	p.m.Lock()
-	p.requests[req] = struct{}{}
-	p.m.Unlock()
-
+func (p *Peer) Request(b *Block) error {
+	req := requestMessage{b.Piece.Index, b.Begin, b.Length}
 	buf := bytes.NewBuffer(make([]byte, 0, 12))
 	binary.Write(buf, binary.BigEndian, &req)
 	return p.sendMessage(requestID, buf.Bytes())

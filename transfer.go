@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"time"
 
 	"github.com/cenkalti/rain/bitfield"
 	"github.com/cenkalti/rain/bt"
@@ -25,7 +24,7 @@ type transfer struct {
 	peers     map[bt.PeerID]*Peer // connected peers
 	peersM    sync.RWMutex
 	stopC     chan struct{} // all goroutines stop when closed
-	m         sync.Mutex    // protects map fields
+	m         sync.Mutex    // protects all state related with this transfer and it's peers
 	log       logger.Logger
 
 	// tracker sends available peers to this channel
@@ -40,13 +39,6 @@ type transfer struct {
 	requestC chan *Request
 	// uploader decides which request to serve and sends it to this channel
 	serveC chan *Request
-	// requests that we made
-	requests map[uint32]*pieceRequest
-}
-
-type pieceRequest struct {
-	peer *Peer     // requested from
-	time time.Time // requested at
 }
 
 func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error) {
@@ -64,7 +56,7 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 	if err != nil {
 		return nil, err
 	}
-	pieces := newPieces(tor.Info, files, blockSize)
+	pieces := newPieces(tor.Info, files)
 	bf := bitfield.New(tor.Info.NumPieces)
 	if checkHash {
 		r.log.Notice("Doing hash check...")
@@ -92,7 +84,6 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 		finished:  make(chan struct{}),
 		requestC:  make(chan *Request),
 		serveC:    make(chan *Request),
-		requests:  make(map[uint32]*pieceRequest),
 	}, nil
 }
 

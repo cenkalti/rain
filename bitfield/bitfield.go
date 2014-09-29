@@ -65,6 +65,26 @@ func (b *Bitfield) Clear(i uint32) {
 	b.b[div] &= ^(1 << (7 - mod))
 }
 
+// FirstSet returns the index of the first bit that is set starting from start.
+func (b *Bitfield) FirstSet(start uint32) (uint32, bool) {
+	for i := start; i < b.length; i++ {
+		if b.Test(i) {
+			return i, true
+		}
+	}
+	return 0, false
+}
+
+// FirstClear returns the index of the first bit that is not set starting from start.
+func (b *Bitfield) FirstClear(start uint32) (uint32, bool) {
+	for i := start; i < b.length; i++ {
+		if !b.Test(i) {
+			return i, true
+		}
+	}
+	return 0, false
+}
+
 // ClearAll clears all bits.
 func (b *Bitfield) ClearAll() {
 	for i := range b.b {

@@ -6,27 +6,74 @@ import (
 	"errors"
 	"io"
 	"os"
+	"time"
 
+	"github.com/cenkalti/rain/bitfield"
 	"github.com/cenkalti/rain/bt"
 	"github.com/cenkalti/rain/torrent"
 )
 
 type Piece struct {
-	Index  uint32 // piece index in whole torrent
-	OK     bool   // hash is correct and written to disk, Verify() must be called to set this.
-	Length uint32 // last piece may not be complete
-	Blocks []Block
-	hash   []byte   // correct hash value
-	files  sections // the place to write downloaded bytes
-	peers  map[bt.PeerID]struct{}
+	Index         uint32 // piece index in whole torrent
+	OK            bool   // hash is correct and written to disk, Verify() must be called to set this.
+	Length        uint32 // last piece may not be complete
+	Blocks        []Block
+	hash          []byte                      // correct hash value
+	files         sections                    // the place to write downloaded bytes
+	peers         map[bt.PeerID]struct{}      // peers which have this piece
+	requestedFrom map[bt.PeerID]*pieceRequest // peers that we have reqeusted the piece from
 }
 
 type Block struct {
+	Piece  *Piece
+	Index  uint32 // index in piece
 	Begin  uint32 // offset in piece
 	Length uint32
 }
 
-func newPieces(info *torrent.Info, osFiles []*os.File, blockSize uint32) []*Piece {
+type pieceRequest struct {
+	selectedAt       time.Time
+	blocksRequesting *bitfield.Bitfield
+	blocksRequested  *bitfield.Bitfield
+	blocksReceiving  *bitfield.Bitfield
+	blocksReceived   *bitfield.Bitfield
+	data             []byte // buffer for received blocks
+}
+
+func (p *Piece) getSelected(id bt.PeerID) *pieceRequest { return p.requestedFrom[id] }
+func (p *Piece) unmarkSelected(id bt.PeerID)            { delete(p.requestedFrom, id) }
+func (p *Piece) markSelected(id bt.PeerID) *pieceRequest {
+	r := &pieceRequest{
+		selectedAt:       time.Now(),
+		blocksRequesting: bitfield.New(uint32(len(p.Blocks))),
+		blocksRequested:  bitfield.New(uint32(len(p.Blocks))),
+		blocksReceiving:  bitfield.New(uint32(len(p.Blocks))),
+		blocksReceived:   bitfield.New(uint32(len(p.Blocks))),
+		data:             make([]byte, p.Length),
+	}
+	p.requestedFrom[id] = r
+	return r
+}
+func (r *pieceRequest) resetWaitingRequests() {
+	r.blocksRequesting.ClearAll()
+	r.blocksRequested.ClearAll()
+	copy(r.blocksRequesting.Bytes(), r.blocksReceiving.Bytes())
+	copy(r.blocksRequested.Bytes(), r.blocksReceiving.Bytes())
+}
+
+func (p *Piece) nextBlock(id bt.PeerID) (*Block, bool) {
+	i, ok := p.requestedFrom[id].blocksRequested.NextClear(0)
+	if !ok {
+		return nil, false
+	}
+	return &p.Blocks[i], true
+}
+
+func (b *Block) deleteRequested(id bt.PeerID) {
+	b.Piece.requestedFrom[id].blocksRequested.Clear(b.Index)
+}
+
+func newPieces(info *torrent.Info, osFiles []*os.File) []*Piece {
 	var (
 		fileIndex  int   // index of the current file in torrent
 		fileLength int64 = info.GetFiles()[0].Length
@@ -47,9 +94,10 @@ func newPieces(info *torrent.Info, osFiles []*os.File, blockSize uint32) []*Piec
 	pieces := make([]*Piece, info.NumPieces)
 	for i := uint32(0); i < info.NumPieces; i++ {
 		p := &Piece{
-			Index: i,
-			hash:  info.PieceHash(i),
-			peers: make(map[bt.PeerID]struct{}),
+			Index:         i,
+			hash:          info.PieceHash(i),
+			peers:         make(map[bt.PeerID]struct{}),
+			requestedFrom: make(map[bt.PeerID]*pieceRequest),
 		}
 
 		// Construct p.files
@@ -75,14 +123,14 @@ func newPieces(info *torrent.Info, osFiles []*os.File, blockSize uint32) []*Piec
 			}
 		}
 
-		p.Blocks = newBlocks(p.Length, p.files, blockSize)
+		p.Blocks = p.newBlocks()
 		pieces[i] = p
 	}
 	return pieces
 }
 
-func newBlocks(pieceLength uint32, files sections, blockSize uint32) []Block {
-	div, mod := divMod32(pieceLength, blockSize)
+func (p *Piece) newBlocks() []Block {
+	div, mod := divMod32(p.Length, blockSize)
 	numBlocks := div
 	if mod != 0 {
 		numBlocks++
@@ -90,12 +138,16 @@ func newBlocks(pieceLength uint32, files sections, blockSize uint32) []Block {
 	blocks := make([]Block, numBlocks)
 	for j := uint32(0); j < div; j++ {
 		blocks[j] = Block{
+			Piece:  p,
+			Index:  j,
 			Begin:  j * blockSize,
 			Length: blockSize,
 		}
 	}
 	if mod != 0 {
 		blocks[numBlocks-1] = Block{
+			Piece:  p,
+			Index:  numBlocks - 1,
 			Begin:  (numBlocks - 1) * blockSize,
 			Length: uint32(mod),
 		}
