@@ -165,7 +165,7 @@ func (p *Peer) Run() {
 				return
 			}
 
-			if length != p.transfer.torrent.Info.NumPieces {
+			if length != uint32(len(p.transfer.bitfield.Bytes())) {
 				p.log.Error("invalid bitfield length")
 				return
 			}
