@@ -113,12 +113,12 @@ func (r *Rain) accepter() {
 				c.Close()
 				<-limit
 			}()
-			r.servePeer(c)
+			r.acceptAndRun(c)
 		}(conn)
 	}
 }
 
-func (r *Rain) servePeer(conn net.Conn) {
+func (r *Rain) acceptAndRun(conn net.Conn) {
 	getSKey := func(sKeyHash [20]byte) (sKey []byte) {
 		r.transfersM.Lock()
 		t, ok := r.transfersSKey[sKeyHash]

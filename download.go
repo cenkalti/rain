@@ -21,6 +21,7 @@ func (t *transfer) peerManager() {
 		case peers := <-t.peersC:
 			for _, p := range peers {
 				t.log.Debugln("Peer:", p)
+				// TODO send all peers to connecter for now
 				go func(addr *net.TCPAddr) {
 					select {
 					case t.peerC <- addr:
@@ -38,9 +39,11 @@ func (t *transfer) connecter() {
 	for {
 		select {
 		case p := <-t.peerC:
+			// 0 port is invalid
 			if p.Port == 0 {
 				break
 			}
+			// Do not connect yourself
 			if p.IP.IsLoopback() && p.Port == int(t.rain.Port()) {
 				break
 			}
@@ -54,7 +57,7 @@ func (t *transfer) connecter() {
 					}
 					<-limit
 				}()
-				t.connect(addr)
+				t.connectAndRun(addr)
 			}(p)
 		case <-t.stopC:
 			return
@@ -62,7 +65,7 @@ func (t *transfer) connecter() {
 	}
 }
 
-func (t *transfer) connect(addr *net.TCPAddr) {
+func (t *transfer) connectAndRun(addr *net.TCPAddr) {
 	log := logger.New("peer -> " + addr.String())
 
 	conn, cipher, extensions, peerID, err := connection.Dial(addr, !t.rain.config.Encryption.DisableOutgoing, t.rain.config.Encryption.ForceOutgoing, [8]byte{}, t.torrent.Info.Hash, t.rain.peerID)
@@ -122,7 +125,7 @@ func (peer *Peer) downloader() {
 			peer.cond.Wait()
 		}
 		piece := selectPiece(candidates)
-		mark := piece.markSelected(peer.id)
+		request := piece.createActiveRequest(peer.id)
 		t.m.Unlock()
 
 		// send them in order
@@ -139,7 +142,7 @@ func (peer *Peer) downloader() {
 
 			// Send requests only when unchoked.
 			for peer.peerChoking && !peer.disconnected {
-				mark.resetWaitingRequests()
+				request.resetWaitingRequests()
 				peer.cond.Wait()
 			}
 
@@ -149,20 +152,20 @@ func (peer *Peer) downloader() {
 				t.m.Unlock()
 				break
 			}
-			mark.blocksRequesting.Set(block.Index)
+			request.blocksRequesting.Set(block.Index)
 			t.m.Unlock()
 
 			// Request selected block.
 			if err := peer.Request(block); err != nil {
 				peer.log.Error(err)
 				t.m.Lock()
-				piece.unmarkSelected(peer.id)
+				piece.deleteActiveRequest(peer.id)
 				t.m.Unlock()
 				return
 			}
 
 			t.m.Lock()
-			mark.blocksRequested.Set(block.Index)
+			request.blocksRequested.Set(block.Index)
 			t.m.Unlock()
 		}
 		// TODO handle choke while receiving pieces. Re-reqeust, etc..

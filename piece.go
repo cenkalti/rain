@@ -18,10 +18,10 @@ type Piece struct {
 	OK            bool   // hash is correct and written to disk, Verify() must be called to set this.
 	Length        uint32 // last piece may not be complete
 	Blocks        []Block
-	hash          []byte                      // correct hash value
-	files         sections                    // the place to write downloaded bytes
-	peers         map[bt.PeerID]struct{}      // peers which have this piece
-	requestedFrom map[bt.PeerID]*pieceRequest // peers that we have reqeusted the piece from
+	hash          []byte                       // correct hash value
+	files         sections                     // the place to write downloaded bytes
+	peers         map[bt.PeerID]struct{}       // peers which have this piece
+	requestedFrom map[bt.PeerID]*activeRequest // peers that we have reqeusted the piece from
 }
 
 type Block struct {
@@ -31,8 +31,8 @@ type Block struct {
 	Length uint32
 }
 
-type pieceRequest struct {
-	selectedAt       time.Time
+type activeRequest struct {
+	createdAt        time.Time
 	blocksRequesting *bitfield.Bitfield
 	blocksRequested  *bitfield.Bitfield
 	blocksReceiving  *bitfield.Bitfield
@@ -40,11 +40,11 @@ type pieceRequest struct {
 	data             []byte // buffer for received blocks
 }
 
-func (p *Piece) getSelected(id bt.PeerID) *pieceRequest { return p.requestedFrom[id] }
-func (p *Piece) unmarkSelected(id bt.PeerID)            { delete(p.requestedFrom, id) }
-func (p *Piece) markSelected(id bt.PeerID) *pieceRequest {
-	r := &pieceRequest{
-		selectedAt:       time.Now(),
+func (p *Piece) getActiveRequest(id bt.PeerID) *activeRequest { return p.requestedFrom[id] }
+func (p *Piece) deleteActiveRequest(id bt.PeerID)             { delete(p.requestedFrom, id) }
+func (p *Piece) createActiveRequest(id bt.PeerID) *activeRequest {
+	r := &activeRequest{
+		createdAt:        time.Now(),
 		blocksRequesting: bitfield.New(uint32(len(p.Blocks))),
 		blocksRequested:  bitfield.New(uint32(len(p.Blocks))),
 		blocksReceiving:  bitfield.New(uint32(len(p.Blocks))),
@@ -54,7 +54,7 @@ func (p *Piece) markSelected(id bt.PeerID) *pieceRequest {
 	p.requestedFrom[id] = r
 	return r
 }
-func (r *pieceRequest) resetWaitingRequests() {
+func (r *activeRequest) resetWaitingRequests() {
 	r.blocksRequesting.ClearAll()
 	r.blocksRequested.ClearAll()
 	copy(r.blocksRequesting.Bytes(), r.blocksReceiving.Bytes())
@@ -97,7 +97,7 @@ func newPieces(info *torrent.Info, osFiles []*os.File) []*Piece {
 			Index:         i,
 			hash:          info.PieceHash(i),
 			peers:         make(map[bt.PeerID]struct{}),
-			requestedFrom: make(map[bt.PeerID]*pieceRequest),
+			requestedFrom: make(map[bt.PeerID]*activeRequest),
 		}
 
 		// Construct p.files

@@ -238,35 +238,35 @@ func (p *Peer) Run() {
 			}
 
 			p.transfer.m.Lock()
-			mark := piece.getSelected(p.id)
-			if mark == nil {
+			active := piece.getActiveRequest(p.id)
+			if active == nil {
 				p.transfer.m.Unlock()
-				p.log.Warning("received a piece that is not requested")
+				p.log.Warning("received a piece that is not activeed")
 				continue
 			}
 
-			if mark.blocksReceiving.Test(block.Index) {
+			if active.blocksReceiving.Test(block.Index) {
 				p.log.Warningf("Receiving duplicate block: Piece #%d Block #%d", piece.Index, block.Index)
 			} else {
-				mark.blocksReceiving.Set(block.Index)
+				active.blocksReceiving.Set(block.Index)
 			}
 			p.transfer.m.Unlock()
 
-			if _, err = io.ReadFull(p.conn, mark.data[msg.Begin:msg.Begin+length]); err != nil {
+			if _, err = io.ReadFull(p.conn, active.data[msg.Begin:msg.Begin+length]); err != nil {
 				p.log.Error(err)
 				return
 			}
 
 			p.transfer.m.Lock()
-			mark.blocksReceived.Set(block.Index)
-			if !mark.blocksReceived.All() {
+			active.blocksReceived.Set(block.Index)
+			if !active.blocksReceived.All() {
 				p.transfer.m.Unlock()
 				continue
 			}
 			p.transfer.m.Unlock()
 
 			p.log.Debugf("Writing piece to disk: #%d", piece.Index)
-			if _, err = piece.Write(mark.data); err != nil {
+			if _, err = piece.Write(active.data); err != nil {
 				p.log.Error(err)
 				p.conn.Close()
 				return
