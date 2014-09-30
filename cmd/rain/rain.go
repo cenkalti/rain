@@ -4,7 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"math"
+	"math/rand"
 	"os"
+	"time"
 
 	"github.com/cenkalti/log"
 	"github.com/mitchellh/go-homedir"
@@ -35,6 +37,8 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Give a torrent file as first argument!")
 		os.Exit(1)
 	}
+
+	rand.Seed(time.Now().UnixNano())
 
 	if *debug {
 		rain.SetLogLevel(log.DEBUG)
