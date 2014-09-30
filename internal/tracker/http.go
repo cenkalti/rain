@@ -80,12 +80,14 @@ func (t *httpTracker) Announce(transfer Transfer, e Event, cancel <-chan struct{
 		resp, err := t.client.Do(req)
 		if err != nil {
 			errC <- err
+			return
 		}
 
 		if resp.StatusCode != 200 {
 			data, _ := ioutil.ReadAll(resp.Body)
 			resp.Body.Close()
 			errC <- fmt.Errorf("status not 200 OK (status: %d body: %q)", resp.StatusCode, string(data))
+			return
 		}
 
 		bodyC <- resp.Body

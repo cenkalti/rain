@@ -124,6 +124,9 @@ func (peer *Peer) downloader() {
 			// Wait until there is a piece that we are interested.
 			peer.cond.Wait()
 		}
+		if peer.disconnected {
+			return
+		}
 		piece := selectPiece(candidates)
 		request := piece.createActiveRequest(peer.id)
 		t.m.Unlock()
