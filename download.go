@@ -77,7 +77,7 @@ func (t *transfer) connectAndRun(addr *net.TCPAddr) {
 		}
 		return
 	}
-	log.Infof("Connected to peer. (cipher=%s, extensions=%x)", cipher, extensions)
+	log.Infof("Connected to peer. (cipher=%s extensions=%x client=%q)", cipher, extensions, peerID[:8])
 	defer conn.Close()
 
 	p := t.newPeer(conn, peerID, log)

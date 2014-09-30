@@ -146,7 +146,7 @@ func (r *Rain) acceptAndRun(conn net.Conn) {
 		}
 		return
 	}
-	log.Infof("Connection accepted. (cipher=%s extensions=%x)", cipher, extensions)
+	log.Infof("Connection accepted. (cipher=%s extensions=%x client=%q)", cipher, extensions, peerID[:8])
 
 	r.transfersM.Lock()
 	t, ok := r.transfers[ih]
