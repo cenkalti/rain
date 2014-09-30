@@ -3,13 +3,13 @@ package tracker
 import (
 	"testing"
 
-	"github.com/cenkalti/rain/internal/protocol"
+	"github.com/cenkalti/rain/bt"
 )
 
 func TestManager(t *testing.T) {
 	const url = "udp://127.0.0.1:6969"
 
-	c := &dummyClient{peerID: protocol.PeerID{}}
+	c := &dummyClient{peerID: bt.PeerID{}}
 	m := NewManager(c)
 	tr, err := m.NewTracker(url)
 	if err != nil {
@@ -39,8 +39,8 @@ func TestManager(t *testing.T) {
 }
 
 type dummyClient struct {
-	peerID protocol.PeerID
+	peerID bt.PeerID
 }
 
-func (c *dummyClient) PeerID() protocol.PeerID { return c.peerID }
+func (c *dummyClient) PeerID() bt.PeerID { return c.peerID }
 func (c *dummyClient) Port() uint16            { return 6881 }

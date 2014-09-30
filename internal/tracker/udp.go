@@ -1,8 +1,8 @@
 package tracker
 
 // http://bittorrent.org/beps/bep_0015.html
-// http://xbtt.sourceforge.net/udp_tracker_protocol.html
-// http://www.rasterbar.com/products/libtorrent/udp_tracker_protocol.html
+// http://xbtt.sourceforge.net/udp_tracker_bt.html
+// http://www.rasterbar.com/products/libtorrent/udp_tracker_bt.html
 
 import (
 	"bufio"
@@ -17,7 +17,7 @@ import (
 
 	"github.com/cenkalti/backoff"
 
-	"github.com/cenkalti/rain/internal/protocol"
+	"github.com/cenkalti/rain/bt"
 )
 
 const connectionIDMagic = 0x41727101980
@@ -378,8 +378,8 @@ type connectResponse struct {
 
 type announceRequest struct {
 	udpRequestHeader
-	InfoHash   protocol.InfoHash
-	PeerID     protocol.PeerID
+	InfoHash   bt.InfoHash
+	PeerID     bt.PeerID
 	Downloaded int64
 	Left       int64
 	Uploaded   int64

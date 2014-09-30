@@ -1,3 +1,5 @@
+// +build ignore
+
 package rain
 
 import (
@@ -15,9 +17,10 @@ import (
 	"github.com/zeebo/bencode"
 
 	"github.com/cenkalti/rain/internal/connection"
-	"github.com/cenkalti/rain/internal/magnet"
-	"github.com/cenkalti/rain/internal/protocol"
-	"github.com/cenkalti/rain/internal/torrent"
+	"github.com/cenkalti/rain/magnet"
+	"github.com/cenkalti/rain/internal/peer"
+	"github.com/cenkalti/rain/bt"
+	"github.com/cenkalti/rain/torrent"
 	"github.com/cenkalti/rain/internal/tracker"
 )
 
@@ -98,17 +101,17 @@ func (m *MetadataDownloader) Run(announceInterval time.Duration) {
 	}
 }
 
-func (m *MetadataDownloader) worker(peer *net.TCPAddr) {
+func (m *MetadataDownloader) worker(addr *net.TCPAddr) {
 	// Do not open multiple connections to the same peer simultaneously.
 	m.peersM.Lock()
-	if _, ok := m.peers[peer]; ok {
+	if _, ok := m.peers[addr]; ok {
 		m.peersM.Unlock()
 		return
 	}
-	m.peers[peer] = struct{}{}
+	m.peers[addr] = struct{}{}
 	defer func() {
 		m.peersM.Lock()
-		delete(m.peers, peer)
+		delete(m.peers, addr)
 		m.peersM.Unlock()
 	}()
 	m.peersM.Unlock()
@@ -120,7 +123,7 @@ func (m *MetadataDownloader) worker(peer *net.TCPAddr) {
 
 	ourExtensions := [8]byte{}
 	ourExtensions[5] |= 0x10 // BEP 10 Extension Protocol
-	conn, _, peerExtensions, _, err := connection.Dial(peer, true, false, ourExtensions, m.magnet.InfoHash, ourID)
+	conn, _, peerExtensions, _, err := connection.Dial(addr, true, false, ourExtensions, m.magnet.InfoHash, ourID)
 	if err != nil {
 		log.Error(err)
 		return
@@ -132,12 +135,12 @@ func (m *MetadataDownloader) worker(peer *net.TCPAddr) {
 		return
 	}
 
-	p := newPeer(conn, outgoing, nil)
+	p := peer.New(conn, peer.Outgoing, nil)
 
 	info, err := downloadMetadataFromPeer(m.magnet, p)
 	conn.Close()
 	if err != nil {
-		p.log.Error(err)
+		log.Error(err)
 		return
 	}
 
@@ -149,7 +152,7 @@ func (m *MetadataDownloader) worker(peer *net.TCPAddr) {
 	}
 }
 
-func downloadMetadataFromPeer(m *magnet.Magnet, p *peer) (*torrent.Info, error) {
+func downloadMetadataFromPeer(m *magnet.Magnet, p *peer.Peer) (*torrent.Info, error) {
 	d := &extensionHandshakeMessage{
 		M: extensionMapping{
 			UTMetadata: extensionMetadataID,
@@ -187,7 +190,7 @@ func downloadMetadataFromPeer(m *magnet.Magnet, p *peer) (*torrent.Info, error) 
 		}
 		p.log.Debugf("Next message length: %d", length)
 
-		var messageID protocol.MessageType
+		var messageID bt.MessageType
 		err = binary.Read(p.conn, binary.BigEndian, &messageID)
 		if err != nil {
 			return nil, err
@@ -195,7 +198,7 @@ func downloadMetadataFromPeer(m *magnet.Magnet, p *peer) (*torrent.Info, error) 
 		p.log.Debugf("messageID: %s\n", messageID)
 		length--
 
-		if messageID != protocol.Extension { // extension message id
+		if messageID != bt.Extension { // extension message id
 			io.CopyN(ioutil.Discard, p.conn, int64(length))
 			p.log.Debugf("Discarded %d bytes", length)
 			continue
@@ -329,7 +332,7 @@ func downloadMetadataFromPeer(m *magnet.Magnet, p *peer) (*torrent.Info, error) 
 	}
 }
 
-func sendMetadataMessage(m *metadataMessage, p *peer, id uint8) error {
+func sendMetadataMessage(m *metadataMessage, p *peer.Peer, id uint8) error {
 	var buf bytes.Buffer
 	e := bencode.NewEncoder(&buf)
 	err := e.Encode(m)
@@ -339,22 +342,13 @@ func sendMetadataMessage(m *metadataMessage, p *peer, id uint8) error {
 	return p.sendExtensionMessage(id, buf.Bytes())
 }
 
-type extensionHandshakeMessage struct {
-	M            extensionMapping `bencode:"m"`
-	MetadataSize uint32           `bencode:"metadata_size,omitempty"`
-}
-
-type extensionMapping struct {
-	UTMetadata uint8 `bencode:"ut_metadata"`
-}
-
 type metadataMessage struct {
 	MessageType uint8  `bencode:"msg_type"`
 	Piece       uint32 `bencode:"piece"`
 }
 
 type dummyClient struct {
-	peerID protocol.PeerID
+	peerID bt.PeerID
 }
 
 func newDummyClient() (*dummyClient, error) {
@@ -364,13 +358,13 @@ func newDummyClient() (*dummyClient, error) {
 	return &c, err
 }
 
-func (c *dummyClient) PeerID() protocol.PeerID { return c.peerID }
+func (c *dummyClient) PeerID() bt.PeerID { return c.peerID }
 func (c *dummyClient) Port() uint16            { return 6881 }
 
 // Required to make a fake announce to tracker to get peer list for metadata download.
-type emptyTransfer protocol.InfoHash
+type emptyTransfer bt.InfoHash
 
-func (t *emptyTransfer) InfoHash() protocol.InfoHash { return protocol.InfoHash(*t) }
+func (t *emptyTransfer) InfoHash() bt.InfoHash { return protocol.InfoHash(*t) }
 func (t *emptyTransfer) Downloaded() int64           { return 0 }
 func (t *emptyTransfer) Uploaded() int64             { return 0 }
 func (t *emptyTransfer) Left() int64                 { return metadataPieceSize } // trackers don't accept 0

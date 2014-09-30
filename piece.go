@@ -3,36 +3,84 @@ package rain
 import (
 	"bytes"
 	"crypto/sha1"
+	"errors"
+	"io"
 	"os"
-	"strconv"
-	"sync"
+	"time"
 
-	"github.com/cenkalti/rain/internal/bitfield"
-	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/partialfile"
-	"github.com/cenkalti/rain/internal/torrent"
+	"github.com/cenkalti/rain/bitfield"
+	"github.com/cenkalti/rain/bt"
+	"github.com/cenkalti/rain/torrent"
 )
 
-type piece struct {
-	index    uint32 // piece index in whole torrent
-	hash     []byte
-	length   uint32            // last piece may not be complete
-	files    partialfile.Files // the place to write downloaded bytes
-	blocks   []block
-	bitField bitfield.BitField // blocks we have
-	peers    []*peer           // contains peers that have this piece
-	peersM   sync.Mutex
-	blockC   chan peerBlock
-	log      logger.Logger
+type Piece struct {
+	Index         uint32 // piece index in whole torrent
+	OK            bool   // hash is correct and written to disk, Verify() must be called to set this.
+	Length        uint32 // last piece may not be complete
+	Blocks        []Block
+	hash          []byte                       // correct hash value
+	files         sections                     // the place to write downloaded bytes
+	peers         map[bt.PeerID]struct{}       // peers which have this piece
+	requestedFrom map[bt.PeerID]*activeRequest // peers that we have reqeusted the piece from
 }
 
-type block struct {
-	index  uint32 // block index in piece
-	length uint32
-	files  partialfile.Files // the place to write downloaded bytes
+type Block struct {
+	Piece  *Piece
+	Index  uint32 // index in piece
+	Begin  uint32 // offset in piece
+	Length uint32
 }
 
-func newPieces(info *torrent.Info, osFiles []*os.File) []*piece {
+type activeRequest struct {
+	createdAt        time.Time
+	blocksRequesting *bitfield.Bitfield
+	blocksRequested  *bitfield.Bitfield
+	blocksReceiving  *bitfield.Bitfield
+	blocksReceived   *bitfield.Bitfield
+	data             []byte // buffer for received blocks
+}
+
+func (p *Piece) getActiveRequest(id bt.PeerID) *activeRequest { return p.requestedFrom[id] }
+func (p *Piece) deleteActiveRequest(id bt.PeerID)             { delete(p.requestedFrom, id) }
+func (p *Piece) createActiveRequest(id bt.PeerID) *activeRequest {
+	r := &activeRequest{
+		createdAt:        time.Now(),
+		blocksRequesting: bitfield.New(uint32(len(p.Blocks))),
+		blocksRequested:  bitfield.New(uint32(len(p.Blocks))),
+		blocksReceiving:  bitfield.New(uint32(len(p.Blocks))),
+		blocksReceived:   bitfield.New(uint32(len(p.Blocks))),
+		data:             make([]byte, p.Length),
+	}
+	p.requestedFrom[id] = r
+	return r
+}
+func (r *activeRequest) resetWaitingRequests() {
+	r.blocksRequesting.ClearAll()
+	r.blocksRequested.ClearAll()
+	copy(r.blocksRequesting.Bytes(), r.blocksReceiving.Bytes())
+	copy(r.blocksRequested.Bytes(), r.blocksReceiving.Bytes())
+}
+func (r *activeRequest) outstanding() uint32 {
+	o := int64(r.blocksRequested.Count()) - int64(r.blocksReceiving.Count())
+	if o < 0 {
+		o = 0
+	}
+	return uint32(o)
+}
+
+func (p *Piece) nextBlock(id bt.PeerID) (*Block, bool) {
+	i, ok := p.requestedFrom[id].blocksRequested.FirstClear(0)
+	if !ok {
+		return nil, false
+	}
+	return &p.Blocks[i], true
+}
+
+func (b *Block) deleteRequested(id bt.PeerID) {
+	b.Piece.requestedFrom[id].blocksRequested.Clear(b.Index)
+}
+
+func newPieces(info *torrent.Info, osFiles []*os.File) []*Piece {
 	var (
 		fileIndex  int   // index of the current file in torrent
 		fileLength int64 = info.GetFiles()[0].Length
@@ -50,13 +98,13 @@ func newPieces(info *torrent.Info, osFiles []*os.File) []*piece {
 
 	// Construct pieces
 	var total int64
-	pieces := make([]*piece, info.NumPieces)
+	pieces := make([]*Piece, info.NumPieces)
 	for i := uint32(0); i < info.NumPieces; i++ {
-		p := &piece{
-			index:  i,
-			hash:   info.PieceHash(i),
-			blockC: make(chan peerBlock),
-			log:    logger.New("piece #" + strconv.Itoa(int(i))),
+		p := &Piece{
+			Index:         i,
+			hash:          info.PieceHash(i),
+			peers:         make(map[bt.PeerID]struct{}),
+			requestedFrom: make(map[bt.PeerID]*activeRequest),
 		}
 
 		// Construct p.files
@@ -65,12 +113,11 @@ func newPieces(info *torrent.Info, osFiles []*os.File) []*piece {
 		for left := pieceLeft(); left > 0; {
 			n := uint32(minInt64(int64(left), fileLeft())) // number of bytes to write
 
-			file := partialfile.File{osFiles[fileIndex], fileOffset, n}
-			p.log.Debugf("file: %#v", file)
+			file := section{osFiles[fileIndex], fileOffset, int64(n)}
 			p.files = append(p.files, file)
 
 			left -= n
-			p.length += n
+			p.Length += n
 			pieceOffset += n
 			fileOffset += int64(n)
 			total += int64(n)
@@ -83,69 +130,65 @@ func newPieces(info *torrent.Info, osFiles []*os.File) []*piece {
 			}
 		}
 
-		p.blocks = newBlocks(p.length, p.files)
-		p.bitField = bitfield.New(uint32(len(p.blocks)))
+		p.Blocks = p.newBlocks()
 		pieces[i] = p
 	}
 	return pieces
 }
 
-func newBlocks(pieceLength uint32, files partialfile.Files) []block {
-	div, mod := divMod32(pieceLength, blockSize)
+func (p *Piece) newBlocks() []Block {
+	div, mod := divMod32(p.Length, blockSize)
 	numBlocks := div
 	if mod != 0 {
 		numBlocks++
 	}
-	blocks := make([]block, numBlocks)
+	blocks := make([]Block, numBlocks)
 	for j := uint32(0); j < div; j++ {
-		blocks[j] = block{
-			index:  j,
-			length: blockSize,
+		blocks[j] = Block{
+			Piece:  p,
+			Index:  j,
+			Begin:  j * blockSize,
+			Length: blockSize,
 		}
 	}
 	if mod != 0 {
-		blocks[numBlocks-1] = block{
-			index:  numBlocks - 1,
-			length: uint32(mod),
-		}
-	}
-	var fileIndex int
-	var fileOffset uint32
-	nextFile := func() {
-		fileIndex++
-		fileOffset = 0
-	}
-	fileLeft := func() uint32 { return files[fileIndex].Length - fileOffset }
-	for i := range blocks {
-		var blockOffset uint32 = 0
-		blockLeft := func() uint32 { return blocks[i].length - blockOffset }
-		for left := blockLeft(); left > 0 && fileIndex < len(files); {
-			n := minUint32(left, fileLeft())
-			file := partialfile.File{files[fileIndex].File, files[fileIndex].Offset + int64(fileOffset), n}
-			blocks[i].files = append(blocks[i].files, file)
-			fileOffset += n
-			blockOffset += n
-			left -= n
-			if fileLeft() == 0 {
-				nextFile()
-			}
+		blocks[numBlocks-1] = Block{
+			Piece:  p,
+			Index:  numBlocks - 1,
+			Begin:  (numBlocks - 1) * blockSize,
+			Length: uint32(mod),
 		}
 	}
 	return blocks
 }
 
-func (p *piece) hashCheck() (ok bool, err error) {
-	b := make([]byte, p.length)
-	_, err = p.files.Read(b)
-	if err != nil {
-		return
-	}
+func (p *Piece) availability() int { return len(p.peers) }
+func (p *Piece) Reader() io.Reader { return p.files.Reader() }
+
+func (p *Piece) Write(b []byte) (n int, err error) {
 	hash := sha1.New()
 	hash.Write(b)
-	if bytes.Equal(hash.Sum(nil), p.hash) {
-		ok = true
+	if !bytes.Equal(hash.Sum(nil), p.hash) {
+		return 0, errors.New("corrupt piece")
 	}
-	return
+	return p.files.Write(b)
+}
+
+// Verify reads from disk and sets p.OK if piece is complete.
+func (p *Piece) Verify() error {
+	hash := sha1.New()
+	if _, err := io.CopyN(hash, p.files.Reader(), int64(p.Length)); err != nil {
+		return err
+	}
+	p.OK = bytes.Equal(hash.Sum(nil), p.hash)
+	return nil
 }
 
 func divMod32(a, b uint32) (uint32, uint32) { return a / b, a % b }
+
+func minInt64(a, b int64) int64 {
+	if a < b {
+		return a
+	}
+	return b
+}

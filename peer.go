@@ -1,93 +1,95 @@
 package rain
 
 import (
+	"bufio"
 	"bytes"
-	"crypto/sha1"
 	"encoding/binary"
-	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
 	"sync"
 	"time"
 
-	"github.com/zeebo/bencode"
+	"github.com/cenkalti/log"
 
-	"github.com/cenkalti/rain/internal/bitfield"
-	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/protocol"
+	"github.com/cenkalti/rain/bitfield"
+	"github.com/cenkalti/rain/bt"
 )
-
-// All current implementations use 2^14 (16 kiB), and close connections which request an amount greater than that.
-const blockSize = 16 * 1024
 
 const connReadTimeout = 3 * time.Minute
 
-const (
-	outgoing = iota
-	incoming
-)
+// Reject requests larger than this size.
+const maxAllowedBlockSize = 32 * 1024
 
-type peer struct {
-	conn         net.Conn
-	disconnected chan struct{} // will be closed when peer disconnects
-
+type Peer struct {
+	conn     net.Conn
+	id       bt.PeerID
 	transfer *transfer
 
-	amChoking      bool // this client is choking the peer
-	amInterested   bool // this client is interested in the peer
-	peerChoking    bool // peer is choking this client
-	peerInterested bool // peer is interested in this client
+	disconnected bool
+	amInterested bool
+	peerChoking  bool
 
-	onceInterested sync.Once // for sending "interested" message only once
+	amInterestedM sync.Mutex
 
-	// Protects "peerChoking" and broadcasts when an "unchoke" message is received.
-	unchokeCond sync.Cond
+	// pieces that the peer has
+	bitfield *bitfield.Bitfield
 
-	bitField bitfield.BitField
-
-	// What remote peer requested
-	requests chan peerRequest
-	// ourRequests    map[uint64]time.Time // What we requested, when we requested it
-
-	log logger.Logger
+	cond *sync.Cond
+	log  log.Logger
 }
 
-func newPeer(conn net.Conn, direction int, t *transfer) *peer {
-	var arrow string
-	switch direction {
-	case outgoing:
-		arrow = "-> "
-	case incoming:
-		arrow = "<- "
-	}
-	var m sync.Mutex
-	return &peer{
-		conn:         conn,
-		disconnected: make(chan struct{}),
-		transfer:     t,
-		amChoking:    true,
-		peerChoking:  true,
-		unchokeCond:  sync.Cond{L: &m},
-		bitField:     bitfield.New(t.bitField.Len()),
-		requests:     make(chan peerRequest, 10),
-		log:          logger.New("peer " + arrow + conn.RemoteAddr().String()),
-	}
+type Request struct {
+	Peer *Peer
+	requestMessage
+}
+type requestMessage struct {
+	Index, Begin, Length uint32
 }
 
-// Serve processes incoming messages after handshake.
-func (p *peer) Serve() {
-	defer close(p.disconnected)
+type PieceMessage struct {
+	pieceMessage
+	Data chan []byte
+}
+type pieceMessage struct {
+	Index, Begin uint32
+}
+
+func (t *transfer) newPeer(conn net.Conn, id bt.PeerID, l log.Logger) *Peer {
+	p := &Peer{
+		conn:        conn,
+		id:          id,
+		transfer:    t,
+		peerChoking: true,
+		bitfield:    bitfield.New(t.bitfield.Len()),
+		log:         l,
+	}
+	p.cond = sync.NewCond(&t.m)
+	return p
+}
+
+func (p *Peer) String() string { return p.conn.RemoteAddr().String() }
+func (p *Peer) Close() error   { return p.conn.Close() }
+
+// Run reads and processes incoming messages after handshake.
+func (p *Peer) Run() {
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 
-	p.transfer.peersM.Lock()
-	p.transfer.peers[p] = struct{}{}
-	p.transfer.peersM.Unlock()
+	go p.downloader()
+
 	defer func() {
-		p.transfer.peersM.Lock()
-		delete(p.transfer.peers, p)
-		p.transfer.peersM.Unlock()
+		for i := uint32(0); i < p.bitfield.Len(); i++ {
+			if p.bitfield.Test(i) {
+				delete(p.transfer.pieces[i].peers, p.id)
+			}
+		}
+	}()
+
+	defer func() {
+		p.transfer.m.Lock()
+		p.disconnected = true
+		p.transfer.m.Unlock()
+		p.cond.Broadcast()
 	}()
 
 	first := true
@@ -116,139 +118,171 @@ func (p *peer) Serve() {
 			continue
 		}
 
-		var msgType protocol.MessageType
-		err = binary.Read(p.conn, binary.BigEndian, &msgType)
+		var id messageID
+		err = binary.Read(p.conn, binary.BigEndian, &id)
 		if err != nil {
 			p.log.Error(err)
 			return
 		}
 		length--
 
-		p.log.Debugf("Received message of type %q", msgType)
+		p.log.Debugf("Received message of type: %q", id)
 
-		switch msgType {
-		case protocol.Choke:
-			p.unchokeCond.L.Lock()
+		switch id {
+		case chokeID:
+			p.transfer.m.Lock()
+			// Discard all pending requests. TODO
 			p.peerChoking = true
-			p.unchokeCond.L.Unlock()
-		case protocol.Unchoke:
-			p.unchokeCond.L.Lock()
+			p.transfer.m.Unlock()
+			p.cond.Broadcast()
+		case unchokeID:
+			p.transfer.m.Lock()
 			p.peerChoking = false
-			p.unchokeCond.Broadcast()
-			p.unchokeCond.L.Unlock()
-		case protocol.Interested:
-			p.peerInterested = true
-			if err := p.sendMessage(protocol.Unchoke); err != nil {
+			p.transfer.m.Unlock()
+			p.cond.Broadcast()
+		case interestedID:
+			// TODO this should not be here
+			if err := p.Unchoke(); err != nil {
 				p.log.Error(err)
 				return
 			}
-		case protocol.NotInterested:
-			p.peerInterested = false
-		case protocol.Have:
+		case notInterestedID:
+		case haveID:
 			var i uint32
 			err = binary.Read(p.conn, binary.BigEndian, &i)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
-			if i >= uint32(len(p.transfer.pieces)) {
+			if i >= p.transfer.torrent.Info.NumPieces {
 				p.log.Error("unexpected piece index")
 				return
 			}
-			piece := p.transfer.pieces[i]
-			p.bitField.Set(i)
 			p.log.Debug("Peer ", p.conn.RemoteAddr(), " has piece #", i)
-			p.log.Debugln("new bitfield:", p.bitField.Hex())
-
-			p.transfer.haveC <- peerHave{p, piece}
-		case protocol.Bitfield:
+			p.bitfield.Set(i)
+			p.handleHave(i)
+		case bitfieldID:
 			if !first {
 				p.log.Error("bitfield can only be sent after handshake")
 				return
 			}
 
-			if int64(length) != int64(len(p.bitField.Bytes())) {
+			if length != uint32(len(p.transfer.bitfield.Bytes())) {
 				p.log.Error("invalid bitfield length")
 				return
 			}
 
-			_, err = p.conn.Read(p.bitField.Bytes())
+			p.transfer.m.Lock()
+			_, err = p.conn.Read(p.bitfield.Bytes())
+			p.transfer.m.Unlock()
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
-			p.log.Debugln("Received bitfield:", p.bitField.Hex())
+			p.log.Debugln("Received bitfield:", p.bitfield.Hex())
 
-			for i := uint32(0); i < p.bitField.Len(); i++ {
-				if p.bitField.Test(i) {
-					p.transfer.haveC <- peerHave{p, p.transfer.pieces[i]}
+			for i := uint32(0); i < p.bitfield.Len(); i++ {
+				if p.bitfield.Test(i) {
+					p.handleHave(i)
 				}
 			}
-		case protocol.Request:
+		case requestID:
 			var req requestMessage
 			err = binary.Read(p.conn, binary.BigEndian, &req)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
-			p.log.Debugf("Request: %#v", req)
+			p.log.Debugf("Request: %+v", req)
 
-			if req.Index >= uint32(len(p.transfer.pieces)) {
+			if req.Index >= p.transfer.torrent.Info.NumPieces {
 				p.log.Error("invalid request: index")
 				return
 			}
-			piece := p.transfer.pieces[req.Index]
-			if req.Begin >= piece.length {
-				p.log.Error("invalid request: begin")
-				return
-			}
-			if req.Length > blockSize {
+			if req.Length > maxAllowedBlockSize {
 				p.log.Error("received a request with block size larger than allowed")
 				return
 			}
-			if req.Begin+req.Length > piece.length {
+			if req.Begin+req.Length > p.transfer.pieces[req.Index].Length {
 				p.log.Error("invalid request: length")
 			}
 
-			p.requests <- peerRequest{p, piece, req.Begin, req.Length}
-		case protocol.Piece:
+			p.transfer.requestC <- &Request{p, req}
+		case pieceID:
 			var msg pieceMessage
 			err = binary.Read(p.conn, binary.BigEndian, &msg)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
-			if msg.Index >= uint32(len(p.transfer.pieces)) {
-				p.log.Error("unexpected piece index")
+			length -= 8
+
+			if msg.Index >= p.transfer.torrent.Info.NumPieces {
+				p.log.Error("invalid request: index")
 				return
 			}
 			piece := p.transfer.pieces[msg.Index]
-			if msg.Begin%blockSize != 0 {
-				p.log.Error("unexpected piece offset")
+
+			// We request only in blockSize length
+			blockIndex, mod := divMod32(msg.Begin, blockSize)
+			if mod != 0 {
+				p.log.Error("unexpected block begin")
 				return
 			}
-			blockIndex := msg.Begin / blockSize
-			if blockIndex >= uint32(len(piece.blocks)) {
-				p.log.Error("unexpected piece offset")
+			if blockIndex >= uint32(len(piece.Blocks)) {
+				p.log.Error("invalid block begin")
 				return
 			}
-			block := &piece.blocks[blockIndex]
-			length -= 8
-			if length != block.length {
-				p.log.Error("unexpected block size")
+			block := p.transfer.pieces[msg.Index].Blocks[blockIndex]
+			if length != block.Length {
+				p.log.Error("invalid piece block length")
 				return
 			}
-			data := make([]byte, length)
-			_, err = io.ReadFull(p.conn, data)
-			if err != nil {
+
+			p.transfer.m.Lock()
+			active := piece.getActiveRequest(p.id)
+			if active == nil {
+				p.transfer.m.Unlock()
+				p.log.Warning("received a piece that is not activeed")
+				continue
+			}
+
+			if active.blocksReceiving.Test(block.Index) {
+				p.log.Warningf("Receiving duplicate block: Piece #%d Block #%d", piece.Index, block.Index)
+			} else {
+				active.blocksReceiving.Set(block.Index)
+			}
+			p.transfer.m.Unlock()
+
+			if _, err = io.ReadFull(p.conn, active.data[msg.Begin:msg.Begin+length]); err != nil {
 				p.log.Error(err)
 				return
 			}
-			piece.blockC <- peerBlock{p, block, data}
-		case protocol.Cancel:
-		case protocol.Port:
+
+			p.transfer.m.Lock()
+			active.blocksReceived.Set(block.Index)
+			if !active.blocksReceived.All() {
+				p.transfer.m.Unlock()
+				p.cond.Broadcast()
+				continue
+			}
+			p.transfer.m.Unlock()
+
+			p.log.Debugf("Writing piece to disk: #%d", piece.Index)
+			if _, err = piece.Write(active.data); err != nil {
+				p.log.Error(err)
+				p.conn.Close()
+				return
+			}
+
+			p.transfer.m.Lock()
+			p.transfer.bitfield.Set(piece.Index)
+			p.transfer.m.Unlock()
+			p.cond.Broadcast()
+		case cancelID:
+		case portID:
 		default:
-			p.log.Debugf("Unknown message type: %d", msgType)
+			p.log.Debugf("Unknown message type: %d", id)
 			p.log.Debugln("Discarding", length, "bytes...")
 			io.CopyN(ioutil.Discard, p.conn, int64(length))
 			p.log.Debug("Discarding finished.")
@@ -258,186 +292,70 @@ func (p *peer) Serve() {
 	}
 }
 
-func (p *peer) sendBitField() error {
+func (p *Peer) handleHave(i uint32) {
+	p.transfer.m.Lock()
+	p.transfer.pieces[i].peers[p.id] = struct{}{}
+	p.transfer.m.Unlock()
+	p.cond.Broadcast()
+}
+
+func (p *Peer) SendBitfield() error {
 	// Do not send a bitfield message if we don't have any pieces.
-	if p.transfer.bitField.Count() == 0 {
+	if p.transfer.bitfield.Count() == 0 {
 		return nil
 	}
-
-	buf := bytes.NewBuffer(make([]byte, 0, 5+len(p.transfer.bitField.Bytes())))
-
-	err := binary.Write(buf, binary.BigEndian, uint32(1+len(p.transfer.bitField.Bytes())))
-	if err != nil {
-		return err
-	}
-	if err = buf.WriteByte(byte(protocol.Bitfield)); err != nil {
-		return err
-	}
-	if _, err = buf.Write(p.transfer.bitField.Bytes()); err != nil {
-		return err
-	}
-	p.log.Debugf("Sending message: \"bitfield\" %#v", buf.Bytes())
-	_, err = buf.WriteTo(p.conn)
-	return err
+	return p.sendMessage(bitfieldID, p.transfer.bitfield.Bytes())
 }
 
-// beInterested sends "interested" message to peer (once) and
-// returns a channel that will be closed when an "unchoke" message is received.
-func (p *peer) beInterested() error {
-	p.log.Debug("beInterested")
-
-	var err error
-	p.onceInterested.Do(func() { err = p.sendMessage(protocol.Interested) })
-	if err != nil {
-		return err
+func (p *Peer) BeInterested() error {
+	p.amInterestedM.Lock()
+	defer p.amInterestedM.Unlock()
+	if p.amInterested {
+		return nil
 	}
-
-	var disconnected bool
-	checkDisconnect := func() {
-		select {
-		case <-p.disconnected:
-			disconnected = true
-		default:
-		}
-	}
-
-	p.unchokeCond.L.Lock()
-	for checkDisconnect(); p.peerChoking && !disconnected; {
-		p.unchokeCond.Wait()
-	}
-	p.unchokeCond.L.Unlock()
-
-	if disconnected {
-		return errors.New("peer disconnected while waiting for unchoke message")
-	}
-
-	return nil
+	p.amInterested = true
+	return p.sendMessage(interestedID, nil)
 }
 
-func (p *peer) sendMessage(msgType protocol.MessageType) error {
-	var msg = struct {
-		Length      uint32
-		MessageType protocol.MessageType
-	}{1, msgType}
-	p.log.Debugf("Sending message: %q", msgType)
-	return binary.Write(p.conn, binary.BigEndian, &msg)
+func (p *Peer) BeNotInterested() error {
+	p.amInterestedM.Lock()
+	defer p.amInterestedM.Unlock()
+	if !p.amInterested {
+		return nil
+	}
+	p.amInterested = false
+	return p.sendMessage(notInterestedID, nil)
 }
 
-func (p *peer) sendExtensionMessage(id byte, payload []byte) error {
-	msg := struct {
-		Length      uint32
-		BTID        byte
-		ExtensionID byte
+func (p *Peer) Choke() error   { return p.sendMessage(chokeID, nil) }
+func (p *Peer) Unchoke() error { return p.sendMessage(unchokeID, nil) }
+
+func (p *Peer) Request(b *Block) error {
+	req := requestMessage{b.Piece.Index, b.Begin, b.Length}
+	buf := bytes.NewBuffer(make([]byte, 0, 12))
+	binary.Write(buf, binary.BigEndian, &req)
+	return p.sendMessage(requestID, buf.Bytes())
+}
+
+func (p *Peer) SendPiece(index, begin uint32, block []byte) error {
+	msg := &pieceMessage{index, begin}
+	buf := bytes.NewBuffer(make([]byte, 0, 8))
+	binary.Write(buf, binary.BigEndian, msg)
+	buf.Write(block)
+	return p.sendMessage(pieceID, buf.Bytes())
+}
+
+func (p *Peer) sendMessage(id messageID, payload []byte) error {
+	p.log.Debugf("Sending message of type: %q", id)
+	buf := bufio.NewWriterSize(p.conn, 4+1+len(payload))
+	var header = struct {
+		Length uint32
+		ID     messageID
 	}{
-		Length:      uint32(len(payload)) + 2,
-		BTID:        protocol.Extension,
-		ExtensionID: id,
+		uint32(1 + len(payload)),
+		id,
 	}
-
-	buf := bytes.NewBuffer(make([]byte, 0, 6+len(payload)))
-	err := binary.Write(buf, binary.BigEndian, msg)
-	if err != nil {
-		return err
-	}
-
-	_, err = buf.Write(payload)
-	if err != nil {
-		return err
-	}
-
-	return binary.Write(p.conn, binary.BigEndian, buf.Bytes())
-}
-
-func (p *peer) sendExtensionHandshake(m *extensionHandshakeMessage) error {
-	var buf bytes.Buffer
-	e := bencode.NewEncoder(&buf)
-	err := e.Encode(m)
-	if err != nil {
-		return err
-	}
-	return p.sendExtensionMessage(extensionHandshakeID, buf.Bytes())
-}
-
-type peerRequestMessage struct {
-	ID                   protocol.MessageType
-	Index, Begin, Length uint32
-}
-
-func newPeerRequestMessage(index, begin, length uint32) *peerRequestMessage {
-	return &peerRequestMessage{protocol.Request, index, begin, length}
-}
-
-func (p *peer) sendRequest(m *peerRequestMessage) error {
-	var msg = struct {
-		Length  uint32
-		Message peerRequestMessage
-	}{13, *m}
-	p.log.Debugf("Sending message: %q %#v", "request", msg)
-	return binary.Write(p.conn, binary.BigEndian, &msg)
-}
-
-func (p *peer) downloadPiece(piece *piece) error {
-	p.log.Debugf("downloading piece #%d", piece.index)
-
-	err := p.beInterested()
-	if err != nil {
-		return err
-	}
-
-	for _, b := range piece.blocks {
-		if err := p.sendRequest(newPeerRequestMessage(piece.index, b.index*blockSize, b.length)); err != nil {
-			return err
-		}
-	}
-
-	pieceData := make([]byte, piece.length)
-	for _ = range piece.blocks {
-		select {
-		case peerBlock := <-piece.blockC:
-			p.log.Debugln("received block of length", len(peerBlock.data))
-			copy(pieceData[peerBlock.block.index*blockSize:], peerBlock.data)
-			if _, err = peerBlock.block.files.Write(peerBlock.data); err != nil {
-				return err
-			}
-			piece.bitField.Set(peerBlock.block.index)
-		case <-time.After(time.Minute):
-			return fmt.Errorf("peer did not send piece #%d completely", piece.index)
-		}
-	}
-
-	// Verify piece hash
-	hash := sha1.New()
-	hash.Write(pieceData)
-	if !bytes.Equal(hash.Sum(nil), piece.hash) {
-		return errors.New("received corrupt piece")
-	}
-
-	piece.log.Debug("piece written successfully")
-	return nil
-}
-
-type peerHave struct {
-	peer  *peer
-	piece *piece
-}
-
-type peerBlock struct {
-	peer  *peer
-	block *block
-	data  []byte
-}
-
-type peerRequest struct {
-	peer   *peer
-	piece  *piece
-	begin  uint32
-	length uint32
-}
-
-type requestMessage struct {
-	Index, Begin, Length uint32
-}
-
-type pieceMessage struct {
-	Index, Begin uint32
+	binary.Write(buf, binary.BigEndian, &header)
+	buf.Write(payload)
+	return buf.Flush()
 }

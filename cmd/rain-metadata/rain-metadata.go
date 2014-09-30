@@ -1,3 +1,5 @@
+// +build ignore
+
 package main
 
 import (
@@ -11,7 +13,7 @@ import (
 	"github.com/cenkalti/log"
 
 	"github.com/cenkalti/rain"
-	"github.com/cenkalti/rain/internal/magnet"
+	"github.com/cenkalti/rain/magnet"
 	"github.com/cenkalti/rain/internal/tracker"
 )
 

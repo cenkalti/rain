@@ -20,9 +20,9 @@ import (
 
 var (
 	trackerAddr    = ":5000"
-	torrentFile    = filepath.Join("testfiles", "sample_torrent.torrent")
+	torrentFile    = filepath.Join("testfiles", "10mb.torrent")
 	torrentDataDir = "testfiles"
-	torrentName    = "sample_torrent"
+	torrentName    = "10mb"
 )
 
 func init() {
@@ -56,7 +56,7 @@ func TestDownload(t *testing.T) {
 	seeder.Start(t1)
 
 	// Wait for seeder to announce to tracker.
-	time.Sleep(1 * time.Second)
+	time.Sleep(100 * time.Millisecond)
 
 	where, err := ioutil.TempDir("", "rain-")
 	if err != nil {
@@ -70,9 +70,9 @@ func TestDownload(t *testing.T) {
 	leecher.Start(t2)
 
 	select {
-	case <-t2.Finished:
-	case <-time.After(10 * time.Second):
-		t.FailNow()
+	case <-t2.Finished():
+	case <-time.After(4 * time.Second):
+		panic("download did not finish")
 	}
 
 	cmd := exec.Command("diff", "-rq",
