@@ -20,9 +20,9 @@ import (
 
 var (
 	trackerAddr    = ":5000"
-	torrentFile    = filepath.Join("testfiles", "sample_torrent.torrent")
+	torrentFile    = filepath.Join("testfiles", "10mb.torrent")
 	torrentDataDir = "testfiles"
-	torrentName    = "sample_torrent"
+	torrentName    = "10mb"
 )
 
 func init() {
