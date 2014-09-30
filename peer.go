@@ -30,6 +30,8 @@ type Peer struct {
 	amInterested bool
 	peerChoking  bool
 
+	amInterestedM sync.Mutex
+
 	// pieces that the peer has
 	bitfield *bitfield.Bitfield
 
@@ -305,6 +307,8 @@ func (p *Peer) SendBitfield() error {
 }
 
 func (p *Peer) BeInterested() error {
+	p.amInterestedM.Lock()
+	defer p.amInterestedM.Unlock()
 	if p.amInterested {
 		return nil
 	}
@@ -313,6 +317,8 @@ func (p *Peer) BeInterested() error {
 }
 
 func (p *Peer) BeNotInterested() error {
+	p.amInterestedM.Lock()
+	defer p.amInterestedM.Unlock()
 	if !p.amInterested {
 		return nil
 	}
