@@ -263,6 +263,7 @@ func (p *Peer) Run() {
 			active.blocksReceived.Set(block.Index)
 			if !active.blocksReceived.All() {
 				p.transfer.m.Unlock()
+				p.cond.Broadcast()
 				continue
 			}
 			p.transfer.m.Unlock()

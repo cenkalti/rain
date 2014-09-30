@@ -60,6 +60,13 @@ func (r *activeRequest) resetWaitingRequests() {
 	copy(r.blocksRequesting.Bytes(), r.blocksReceiving.Bytes())
 	copy(r.blocksRequested.Bytes(), r.blocksReceiving.Bytes())
 }
+func (r *activeRequest) outstanding() uint32 {
+	o := int64(r.blocksRequested.Count()) - int64(r.blocksReceiving.Count())
+	if o < 0 {
+		o = 0
+	}
+	return uint32(o)
+}
 
 func (p *Piece) nextBlock(id bt.PeerID) (*Block, bool) {
 	i, ok := p.requestedFrom[id].blocksRequested.FirstClear(0)

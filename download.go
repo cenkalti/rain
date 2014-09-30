@@ -169,6 +169,9 @@ func (peer *Peer) downloader() {
 
 			t.m.Lock()
 			request.blocksRequested.Set(block.Index)
+			for request.outstanding() >= 10 {
+				peer.cond.Wait()
+			}
 			t.m.Unlock()
 		}
 		// TODO handle choke while receiving pieces. Re-reqeust, etc..
