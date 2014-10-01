@@ -59,6 +59,7 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 	finished := make(chan struct{})
 	pieces := newPieces(tor.Info, files)
 	bf := bitfield.New(tor.Info.NumPieces)
+	var percentDone uint32
 	if checkHash {
 		r.log.Notice("Doing hash check...")
 		for _, p := range pieces {
@@ -67,13 +68,10 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 			}
 			bf.SetTo(p.Index, p.OK)
 		}
-		percentDone := bf.Count() * 100 / bf.Len()
+		percentDone = bf.Count() * 100 / bf.Len()
 		r.log.Noticef("Already downloaded: %d%%", percentDone)
-		if percentDone == 100 {
-			close(finished)
-		}
 	}
-	return &transfer{
+	t := &transfer{
 		rain:      r,
 		tracker:   trk,
 		torrent:   tor,
@@ -88,7 +86,14 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 		finished:  finished,
 		requestC:  make(chan *Request),
 		serveC:    make(chan *Request),
-	}, nil
+	}
+	if percentDone == 100 {
+		t.onceFinished.Do(func() {
+			close(t.finished)
+			t.log.Notice("Download completed")
+		})
+	}
+	return t, nil
 }
 
 func (t *transfer) InfoHash() bt.InfoHash   { return t.torrent.Info.Hash }
