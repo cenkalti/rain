@@ -277,8 +277,10 @@ func (p *Peer) Run() {
 
 			p.transfer.m.Lock()
 			p.transfer.bitfield.Set(piece.Index)
+			percentDone := p.transfer.bitfield.Count() * 100 / p.transfer.bitfield.Len()
 			p.transfer.m.Unlock()
 			p.cond.Broadcast()
+			p.transfer.log.Infof("Completed: %d%%", percentDone)
 		case cancelID:
 		case portID:
 		default:

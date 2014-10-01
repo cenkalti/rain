@@ -109,7 +109,10 @@ func (peer *Peer) downloader() {
 		for candidates = peer.candidates(); len(candidates) == 0 && !peer.disconnected; {
 			// Stop downloader if all pieces are downloaded.
 			if t.bitfield.All() {
-				t.onceFinished.Do(func() { close(t.finished) })
+				t.onceFinished.Do(func() {
+					close(t.finished)
+					t.log.Notice("Download completed")
+				})
 				t.m.Unlock()
 				return
 			}
