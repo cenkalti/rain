@@ -1,26 +1,25 @@
-// Package bthandshake provides support for doing BitTorrent peer handshake.
-package bthandshake
+// Provides support for doing BitTorrent peer handshake.
+
+package rain
 
 import (
 	"bytes"
 	"encoding/binary"
 	"errors"
 	"io"
-
-	"github.com/cenkalti/rain/bt"
 )
 
 var ErrInvalidProtocol = errors.New("invalid protocol")
 
 var pstr = [19]byte{'B', 'i', 't', 'T', 'o', 'r', 'r', 'e', 'n', 't', ' ', 'p', 'r', 'o', 't', 'o', 'c', 'o', 'l'}
 
-func Write(w io.Writer, ih bt.InfoHash, id bt.PeerID, extensions [8]byte) error {
+func WriteHandshake(w io.Writer, ih InfoHash, id PeerID, extensions [8]byte) error {
 	var h = struct {
 		Pstrlen    byte
 		Pstr       [len(pstr)]byte
 		Extensions [8]byte
-		InfoHash   bt.InfoHash
-		PeerID     bt.PeerID
+		InfoHash   InfoHash
+		PeerID     PeerID
 	}{
 		Pstrlen:    byte(len(pstr)),
 		Pstr:       pstr,
@@ -31,7 +30,7 @@ func Write(w io.Writer, ih bt.InfoHash, id bt.PeerID, extensions [8]byte) error 
 	return binary.Write(w, binary.BigEndian, h)
 }
 
-func Read1(r io.Reader) (extensions [8]byte, ih bt.InfoHash, err error) {
+func ReadHandshake1(r io.Reader) (extensions [8]byte, ih InfoHash, err error) {
 	var pstrLen byte
 	err = binary.Read(r, binary.BigEndian, &pstrLen)
 	if err != nil {
@@ -61,7 +60,7 @@ func Read1(r io.Reader) (extensions [8]byte, ih bt.InfoHash, err error) {
 	return
 }
 
-func Read2(r io.Reader) (id bt.PeerID, err error) {
+func ReadHandshake2(r io.Reader) (id PeerID, err error) {
 	_, err = io.ReadFull(r, id[:])
 	return
 }

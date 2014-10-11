@@ -1,5 +1,6 @@
-// Package torrent provides support for reading and writing torrent files.
-package torrent
+// Provides support for reading and writing torrent files.
+
+package rain
 
 import (
 	"bytes"
@@ -8,8 +9,6 @@ import (
 	"os"
 
 	"github.com/zeebo/bencode"
-
-	"github.com/cenkalti/rain/bt"
 )
 
 type Torrent struct {
@@ -34,10 +33,10 @@ type Info struct {
 	// Multiple File mode
 	Files []fileDict `bencode:"files" json:"files"`
 	// Calculated fileds
-	Hash        bt.InfoHash `bencode:"-" json:"-"`
-	TotalLength int64       `bencode:"-" json:"-"`
-	NumPieces   uint32      `bencode:"-" json:"-"`
-	MultiFile   bool        `bencode:"-" json:"-"`
+	Hash        InfoHash `bencode:"-" json:"-"`
+	TotalLength int64    `bencode:"-" json:"-"`
+	NumPieces   uint32   `bencode:"-" json:"-"`
+	MultiFile   bool     `bencode:"-" json:"-"`
 }
 
 type fileDict struct {
@@ -46,7 +45,7 @@ type fileDict struct {
 	Md5sum string   `bencode:"md5sum" json:"md5sum,omitempty"`
 }
 
-func New(path string) (*Torrent, error) {
+func NewTorrent(path string) (*Torrent, error) {
 	var t Torrent
 
 	f, err := os.Open(path)

@@ -1,4 +1,4 @@
-package logger
+package rain
 
 import (
 	"fmt"
@@ -20,7 +20,7 @@ func init() {
 	DefaultHandler = h
 }
 
-func New(name string) Logger {
+func NewLogger(name string) Logger {
 	logger := log.NewLogger(name)
 	logger.SetLevel(log.DEBUG) // forward all messages to handler
 	logger.SetHandler(DefaultHandler)

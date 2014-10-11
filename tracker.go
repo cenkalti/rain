@@ -1,5 +1,6 @@
-// Package tracker provides support for announcing torrents to HTTP and UDP trackers.
-package tracker
+// Provides support for announcing torrents to HTTP and UDP trackers.
+
+package rain
 
 import (
 	"bytes"
@@ -11,9 +12,6 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff"
-
-	"github.com/cenkalti/rain/bt"
-	"github.com/cenkalti/rain/internal/logger"
 )
 
 // Number of peers we want from trackers
@@ -31,7 +29,7 @@ type Tracker interface {
 }
 
 type Transfer interface {
-	InfoHash() bt.InfoHash
+	InfoHash() InfoHash
 	Downloaded() int64
 	Uploaded() int64
 	Left() int64
@@ -50,7 +48,7 @@ type ScrapeResponse struct {
 	// TODO not implemented
 }
 
-func New(trackerURL string, c Client) (Tracker, error) {
+func NewTracker(trackerURL string, c Client) (Tracker, error) {
 	u, err := url.Parse(trackerURL)
 	if err != nil {
 		return nil, err
@@ -61,7 +59,7 @@ func New(trackerURL string, c Client) (Tracker, error) {
 		rawurl: trackerURL,
 		peerID: c.PeerID(),
 		port:   c.Port(),
-		log:    logger.New("tracker " + trackerURL),
+		log:    NewLogger("tracker " + trackerURL),
 	}
 
 	switch u.Scheme {
@@ -113,15 +111,15 @@ func AnnouncePeriodically(t Tracker, transfer Transfer, cancel <-chan struct{}, 
 type trackerBase struct {
 	url    *url.URL
 	rawurl string
-	peerID bt.PeerID
+	peerID PeerID
 	port   uint16
-	log    logger.Logger
+	log    Logger
 }
 
 func (t trackerBase) URL() string { return t.rawurl }
 
 type Client interface {
-	PeerID() bt.PeerID
+	PeerID() PeerID
 	Port() uint16
 }
 
@@ -160,7 +158,7 @@ func (e Error) Error() string { return string(e) }
 
 type Event int32
 
-// Tracker Announce Events. Numbers corresponds to constants in UDP tracker bt.
+// Tracker Announce Events. Numbers corresponds to constants in UDP tracker protocol.
 const (
 	None Event = iota
 	Completed
@@ -175,7 +173,7 @@ var eventNames = [...]string{
 	"stopped",
 }
 
-// String returns the name of event as represented in HTTP tracker bt.
+// String returns the name of event as represented in HTTP tracker protocol.
 func (e Event) String() string {
 	return eventNames[e]
 }

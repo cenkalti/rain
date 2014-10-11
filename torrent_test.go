@@ -1,9 +1,9 @@
-package torrent
+package rain
 
 import "testing"
 
 func TestTorrent(t *testing.T) {
-	tor, err := New("test_files/ubuntu-14.04.1-server-amd64.iso.torrent")
+	tor, err := NewTorrent("testfiles/ubuntu-14.04.1-server-amd64.iso.torrent")
 	if err != nil {
 		t.Fatal(err)
 	}

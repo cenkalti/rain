@@ -1,13 +1,11 @@
-package connection_test
+package rain_test
 
 import (
 	"net"
 	"testing"
 
 	"github.com/cenkalti/mse"
-
-	"github.com/cenkalti/rain/internal/connection"
-	"github.com/cenkalti/rain/bt"
+	"github.com/cenkalti/rain"
 )
 
 var addr = &net.TCPAddr{
@@ -18,9 +16,9 @@ var addr = &net.TCPAddr{
 var (
 	ext1     = [8]byte{0x0A}
 	ext2     = [8]byte{0x0B}
-	id1      = bt.PeerID{0x0C}
-	id2      = bt.PeerID{0x0D}
-	infoHash = bt.InfoHash{0x0E}
+	id1      = rain.PeerID{0x0C}
+	id2      = rain.PeerID{0x0D}
+	infoHash = rain.InfoHash{0x0E}
 	sKeyHash = mse.HashSKey(infoHash[:])
 )
 
@@ -32,7 +30,7 @@ func TestUnencrypted(t *testing.T) {
 	defer l.Close()
 	done := make(chan struct{})
 	go func() {
-		conn, cipher, ext, id, err := connection.Dial(addr, false, false, ext1, infoHash, id1)
+		conn, cipher, ext, id, err := rain.Dial(addr, false, false, ext1, infoHash, id1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -54,7 +52,7 @@ func TestUnencrypted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, cipher, ext, ih, id, err := connection.Accept(conn, nil, false, func(ih bt.InfoHash) bool { return ih == infoHash }, ext2, id2)
+	_, cipher, ext, ih, id, err := rain.Accept(conn, nil, false, func(ih rain.InfoHash) bool { return ih == infoHash }, ext2, id2)
 	<-done
 	if err != nil {
 		t.Fatal(err)
@@ -81,7 +79,7 @@ func TestEncrypted(t *testing.T) {
 	defer l.Close()
 	done := make(chan struct{})
 	go func() {
-		conn, cipher, ext, id, err := connection.Dial(addr, true, false, ext1, infoHash, id1)
+		conn, cipher, ext, id, err := rain.Dial(addr, true, false, ext1, infoHash, id1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -118,7 +116,7 @@ func TestEncrypted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	encConn, cipher, ext, ih, id, err := connection.Accept(
+	encConn, cipher, ext, ih, id, err := rain.Accept(
 		conn,
 		func(h [20]byte) (sKey []byte) {
 			if h == sKeyHash {
@@ -127,7 +125,7 @@ func TestEncrypted(t *testing.T) {
 			return nil
 		},
 		false,
-		func(ih bt.InfoHash) bool { return ih == infoHash },
+		func(ih rain.InfoHash) bool { return ih == infoHash },
 		ext2, id2)
 	if err != nil {
 		t.Fatal(err)

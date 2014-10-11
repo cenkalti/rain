@@ -7,10 +7,6 @@ import (
 	"io"
 	"os"
 	"time"
-
-	"github.com/cenkalti/rain/bitfield"
-	"github.com/cenkalti/rain/bt"
-	"github.com/cenkalti/rain/torrent"
 )
 
 type Piece struct {
@@ -18,10 +14,10 @@ type Piece struct {
 	OK            bool   // hash is correct and written to disk, Verify() must be called to set this.
 	Length        uint32 // last piece may not be complete
 	Blocks        []Block
-	hash          []byte                       // correct hash value
-	files         sections                     // the place to write downloaded bytes
-	peers         map[bt.PeerID]struct{}       // peers which have this piece
-	requestedFrom map[bt.PeerID]*activeRequest // peers that we have reqeusted the piece from
+	hash          []byte                    // correct hash value
+	files         sections                  // the place to write downloaded bytes
+	peers         map[PeerID]struct{}       // peers which have this piece
+	requestedFrom map[PeerID]*activeRequest // peers that we have reqeusted the piece from
 }
 
 type Block struct {
@@ -33,22 +29,22 @@ type Block struct {
 
 type activeRequest struct {
 	createdAt        time.Time
-	blocksRequesting *bitfield.Bitfield
-	blocksRequested  *bitfield.Bitfield
-	blocksReceiving  *bitfield.Bitfield
-	blocksReceived   *bitfield.Bitfield
+	blocksRequesting *Bitfield
+	blocksRequested  *Bitfield
+	blocksReceiving  *Bitfield
+	blocksReceived   *Bitfield
 	data             []byte // buffer for received blocks
 }
 
-func (p *Piece) getActiveRequest(id bt.PeerID) *activeRequest { return p.requestedFrom[id] }
-func (p *Piece) deleteActiveRequest(id bt.PeerID)             { delete(p.requestedFrom, id) }
-func (p *Piece) createActiveRequest(id bt.PeerID) *activeRequest {
+func (p *Piece) getActiveRequest(id PeerID) *activeRequest { return p.requestedFrom[id] }
+func (p *Piece) deleteActiveRequest(id PeerID)             { delete(p.requestedFrom, id) }
+func (p *Piece) createActiveRequest(id PeerID) *activeRequest {
 	r := &activeRequest{
 		createdAt:        time.Now(),
-		blocksRequesting: bitfield.New(uint32(len(p.Blocks))),
-		blocksRequested:  bitfield.New(uint32(len(p.Blocks))),
-		blocksReceiving:  bitfield.New(uint32(len(p.Blocks))),
-		blocksReceived:   bitfield.New(uint32(len(p.Blocks))),
+		blocksRequesting: NewBitfield(uint32(len(p.Blocks))),
+		blocksRequested:  NewBitfield(uint32(len(p.Blocks))),
+		blocksReceiving:  NewBitfield(uint32(len(p.Blocks))),
+		blocksReceived:   NewBitfield(uint32(len(p.Blocks))),
 		data:             make([]byte, p.Length),
 	}
 	p.requestedFrom[id] = r
@@ -68,7 +64,7 @@ func (r *activeRequest) outstanding() uint32 {
 	return uint32(o)
 }
 
-func (p *Piece) nextBlock(id bt.PeerID) (*Block, bool) {
+func (p *Piece) nextBlock(id PeerID) (*Block, bool) {
 	i, ok := p.requestedFrom[id].blocksRequested.FirstClear(0)
 	if !ok {
 		return nil, false
@@ -76,11 +72,11 @@ func (p *Piece) nextBlock(id bt.PeerID) (*Block, bool) {
 	return &p.Blocks[i], true
 }
 
-func (b *Block) deleteRequested(id bt.PeerID) {
+func (b *Block) deleteRequested(id PeerID) {
 	b.Piece.requestedFrom[id].blocksRequested.Clear(b.Index)
 }
 
-func newPieces(info *torrent.Info, osFiles []*os.File) []*Piece {
+func newPieces(info *Info, osFiles []*os.File) []*Piece {
 	var (
 		fileIndex  int   // index of the current file in torrent
 		fileLength int64 = info.GetFiles()[0].Length
@@ -103,8 +99,8 @@ func newPieces(info *torrent.Info, osFiles []*os.File) []*Piece {
 		p := &Piece{
 			Index:         i,
 			hash:          info.PieceHash(i),
-			peers:         make(map[bt.PeerID]struct{}),
-			requestedFrom: make(map[bt.PeerID]*activeRequest),
+			peers:         make(map[PeerID]struct{}),
+			requestedFrom: make(map[PeerID]*activeRequest),
 		}
 
 		// Construct p.files
@@ -183,8 +179,6 @@ func (p *Piece) Verify() error {
 	p.OK = bytes.Equal(hash.Sum(nil), p.hash)
 	return nil
 }
-
-func divMod32(a, b uint32) (uint32, uint32) { return a / b, a % b }
 
 func minInt64(a, b int64) int64 {
 	if a < b {

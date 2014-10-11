@@ -6,9 +6,6 @@ import (
 	"runtime"
 	"sort"
 	"sync"
-
-	"github.com/cenkalti/rain/internal/connection"
-	"github.com/cenkalti/rain/internal/logger"
 )
 
 // peerManager receives from t.peersC and keeps most recent peer addresses in t.peerC.
@@ -66,11 +63,11 @@ func (t *transfer) connecter() {
 }
 
 func (t *transfer) connectAndRun(addr *net.TCPAddr) {
-	log := logger.New("peer -> " + addr.String())
+	log := NewLogger("peer -> " + addr.String())
 
-	conn, cipher, extensions, peerID, err := connection.Dial(addr, !t.rain.config.Encryption.DisableOutgoing, t.rain.config.Encryption.ForceOutgoing, [8]byte{}, t.torrent.Info.Hash, t.rain.peerID)
+	conn, cipher, extensions, peerID, err := Dial(addr, !t.rain.config.Encryption.DisableOutgoing, t.rain.config.Encryption.ForceOutgoing, [8]byte{}, t.torrent.Info.Hash, t.rain.peerID)
 	if err != nil {
-		if err == connection.ErrOwnConnection {
+		if err == ErrOwnConnection {
 			log.Debug(err)
 		} else {
 			log.Error(err)

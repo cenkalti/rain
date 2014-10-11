@@ -1,15 +1,11 @@
-package tracker
+package rain
 
-import (
-	"testing"
-
-	"github.com/cenkalti/rain/bt"
-)
+import "testing"
 
 func TestManager(t *testing.T) {
 	const url = "udp://127.0.0.1:6969"
 
-	c := &dummyClient{peerID: bt.PeerID{}}
+	c := &dummyClient{peerID: PeerID{}}
 	m := NewManager(c)
 	tr, err := m.NewTracker(url)
 	if err != nil {
@@ -39,8 +35,8 @@ func TestManager(t *testing.T) {
 }
 
 type dummyClient struct {
-	peerID bt.PeerID
+	peerID PeerID
 }
 
-func (c *dummyClient) PeerID() bt.PeerID { return c.peerID }
-func (c *dummyClient) Port() uint16            { return 6881 }
+func (c *dummyClient) PeerID() PeerID { return c.peerID }
+func (c *dummyClient) Port() uint16   { return 6881 }

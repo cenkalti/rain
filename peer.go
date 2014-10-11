@@ -9,11 +9,6 @@ import (
 	"net"
 	"sync"
 	"time"
-
-	"github.com/cenkalti/log"
-
-	"github.com/cenkalti/rain/bitfield"
-	"github.com/cenkalti/rain/bt"
 )
 
 const connReadTimeout = 3 * time.Minute
@@ -23,7 +18,7 @@ const maxAllowedBlockSize = 32 * 1024
 
 type Peer struct {
 	conn     net.Conn
-	id       bt.PeerID
+	id       PeerID
 	transfer *transfer
 
 	disconnected bool
@@ -33,10 +28,10 @@ type Peer struct {
 	amInterestedM sync.Mutex
 
 	// pieces that the peer has
-	bitfield *bitfield.Bitfield
+	bitfield *Bitfield
 
 	cond *sync.Cond
-	log  log.Logger
+	log  Logger
 }
 
 type Request struct {
@@ -55,13 +50,13 @@ type pieceMessage struct {
 	Index, Begin uint32
 }
 
-func (t *transfer) newPeer(conn net.Conn, id bt.PeerID, l log.Logger) *Peer {
+func (t *transfer) newPeer(conn net.Conn, id PeerID, l Logger) *Peer {
 	p := &Peer{
 		conn:        conn,
 		id:          id,
 		transfer:    t,
 		peerChoking: true,
-		bitfield:    bitfield.New(t.bitfield.Len()),
+		bitfield:    NewBitfield(t.bitfield.Len()),
 		log:         l,
 	}
 	p.cond = sync.NewCond(&t.m)

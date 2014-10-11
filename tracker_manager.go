@@ -1,4 +1,4 @@
-package tracker
+package rain
 
 import "sync"
 
@@ -29,7 +29,7 @@ func (m *Manager) NewTracker(trackerURL string) (*managedTracker, error) {
 		entry.count++
 		return entry.tracker, nil
 	}
-	t, err := New(trackerURL, m.client)
+	t, err := NewTracker(trackerURL, m.client)
 	if err != nil {
 		return nil, err
 	}

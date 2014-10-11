@@ -1,4 +1,4 @@
-package tracker
+package rain
 
 // http://bittorrent.org/beps/bep_0015.html
 // http://xbtt.sourceforge.net/udp_tracker_bt.html
@@ -16,8 +16,6 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff"
-
-	"github.com/cenkalti/rain/bt"
 )
 
 const connectionIDMagic = 0x41727101980
@@ -378,8 +376,8 @@ type connectResponse struct {
 
 type announceRequest struct {
 	udpRequestHeader
-	InfoHash   bt.InfoHash
-	PeerID     bt.PeerID
+	InfoHash   InfoHash
+	PeerID     PeerID
 	Downloaded int64
 	Left       int64
 	Uploaded   int64

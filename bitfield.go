@@ -1,5 +1,6 @@
-// Package bifield provides support for manipulating bits in a []byte.
-package bitfield
+// Provides support for manipulating bits in a []byte.
+
+package rain
 
 import "encoding/hex"
 
@@ -8,15 +9,15 @@ type Bitfield struct {
 	length uint32
 }
 
-// New creates a new Bitfield of length bits.
-func New(length uint32) *Bitfield {
+// NewBitfield creates a new Bitfield of length bits.
+func NewBitfield(length uint32) *Bitfield {
 	return &Bitfield{make([]byte, (length+7)/8), length}
 }
 
-// NewBytes returns a new Bitfield from bytes.
+// NewBitfieldBytes returns a new Bitfield from bytes.
 // Bytes in b are not copied. Unused bits in last byte are cleared.
 // Panics if b is not big enough to hold "length" bits.
-func NewBytes(b []byte, length uint32) *Bitfield {
+func NewBitfieldBytes(b []byte, length uint32) *Bitfield {
 	div, mod := divMod32(length, 8)
 	lastByteIncomplete := mod != 0
 	requiredBytes := div

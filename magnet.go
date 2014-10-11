@@ -1,21 +1,20 @@
-// Package magnet provides support for parsing magnet links.
-package magnet
+// Provides support for parsing magnet links.
+
+package rain
 
 import (
 	"errors"
 	"net/url"
 	"strings"
-
-	"github.com/cenkalti/rain/bt"
 )
 
 type Magnet struct {
-	InfoHash bt.InfoHash
+	InfoHash InfoHash
 	Name     string
 	Trackers []string
 }
 
-func Parse(s string) (*Magnet, error) {
+func ParseMagnet(s string) (*Magnet, error) {
 	u, err := url.Parse(s)
 	if err != nil {
 		return nil, err
@@ -39,7 +38,7 @@ func Parse(s string) (*Magnet, error) {
 
 	var magnet Magnet
 
-	magnet.InfoHash, err = bt.NewInfoHashString(xt)
+	magnet.InfoHash, err = NewInfoHashString(xt)
 	if err != nil {
 		return nil, err
 	}

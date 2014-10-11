@@ -1,5 +1,6 @@
-// Package bt contains basic BitTorrent related types that are used in other packages.
-package bt
+// Contains basic BitTorrent related types that are used in other packages.
+
+package rain
 
 import (
 	"crypto/sha1"

@@ -6,26 +6,20 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-
-	"github.com/cenkalti/rain/bitfield"
-	"github.com/cenkalti/rain/bt"
-	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/tracker"
-	"github.com/cenkalti/rain/torrent"
 )
 
 type transfer struct {
 	rain      *Rain
-	tracker   tracker.Tracker
-	torrent   *torrent.Torrent
+	tracker   Tracker
+	torrent   *Torrent
 	pieces    []*Piece
-	bitfield  *bitfield.Bitfield
-	announceC chan *tracker.AnnounceResponse
-	peers     map[bt.PeerID]*Peer // connected peers
+	bitfield  *Bitfield
+	announceC chan *AnnounceResponse
+	peers     map[PeerID]*Peer // connected peers
 	peersM    sync.RWMutex
 	stopC     chan struct{} // all goroutines stop when closed
 	m         sync.Mutex    // protects all state related with this transfer and it's peers
-	log       logger.Logger
+	log       Logger
 
 	// tracker sends available peers to this channel
 	peersC chan []*net.TCPAddr
@@ -41,14 +35,14 @@ type transfer struct {
 	serveC chan *Request
 }
 
-func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error) {
+func (r *Rain) newTransfer(tor *Torrent, where string) (*transfer, error) {
 	name := tor.Info.Name
 	if len(name) > 8 {
 		name = name[:8]
 	}
-	log := logger.New("download " + name)
+	log := NewLogger("download " + name)
 
-	trk, err := tracker.New(tor.Announce, r)
+	trk, err := NewTracker(tor.Announce, r)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +52,7 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 	}
 	finished := make(chan struct{})
 	pieces := newPieces(tor.Info, files)
-	bf := bitfield.New(tor.Info.NumPieces)
+	bf := NewBitfield(tor.Info.NumPieces)
 	var percentDone uint32
 	if checkHash {
 		r.log.Notice("Doing hash check...")
@@ -77,8 +71,8 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 		torrent:   tor,
 		pieces:    pieces,
 		bitfield:  bf,
-		announceC: make(chan *tracker.AnnounceResponse),
-		peers:     make(map[bt.PeerID]*Peer),
+		announceC: make(chan *AnnounceResponse),
+		peers:     make(map[PeerID]*Peer),
 		stopC:     make(chan struct{}),
 		log:       log,
 		peersC:    make(chan []*net.TCPAddr),
@@ -96,7 +90,7 @@ func (r *Rain) newTransfer(tor *torrent.Torrent, where string) (*transfer, error
 	return t, nil
 }
 
-func (t *transfer) InfoHash() bt.InfoHash   { return t.torrent.Info.Hash }
+func (t *transfer) InfoHash() InfoHash      { return t.torrent.Info.Hash }
 func (t *transfer) Finished() chan struct{} { return t.finished }
 func (t *transfer) Downloaded() int64 {
 	t.m.Lock()
@@ -144,16 +138,16 @@ func (t *transfer) Run() {
 }
 
 func (t *transfer) announcer() {
-	var startEvent tracker.Event
+	var startEvent Event
 	if t.bitfield.All() {
-		startEvent = tracker.Completed
+		startEvent = Completed
 	} else {
-		startEvent = tracker.Started
+		startEvent = Started
 	}
-	tracker.AnnouncePeriodically(t.tracker, t, t.stopC, startEvent, nil, t.announceC)
+	AnnouncePeriodically(t.tracker, t, t.stopC, startEvent, nil, t.announceC)
 }
 
-func prepareFiles(info *torrent.Info, where string) (files []*os.File, checkHash bool, err error) {
+func prepareFiles(info *Info, where string) (files []*os.File, checkHash bool, err error) {
 	var f *os.File
 	var exists bool
 
