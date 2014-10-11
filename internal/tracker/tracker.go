@@ -186,7 +186,7 @@ var defaultRetryBackoff = &backoff.ExponentialBackOff{
 	RandomizationFactor: 0.5,
 	Multiplier:          2,
 	MaxInterval:         30 * time.Minute,
-	MaxElapsedTime:      1<<63 - 1, // max duration (~290 years)
+	MaxElapsedTime:      0, // never stop
 	Clock:               backoff.SystemClock,
 }
 
