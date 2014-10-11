@@ -9,7 +9,7 @@ import (
 )
 
 type transfer struct {
-	rain      *Rain
+	rain      *Client
 	tracker   Tracker
 	torrent   *Torrent
 	pieces    []*Piece
@@ -35,7 +35,7 @@ type transfer struct {
 	serveC chan *Request
 }
 
-func (r *Rain) newTransfer(tor *Torrent, where string) (*transfer, error) {
+func (r *Client) newTransfer(tor *Torrent, where string) (*transfer, error) {
 	name := tor.Info.Name
 	if len(name) > 8 {
 		name = name[:8]
@@ -138,7 +138,7 @@ func (t *transfer) Run() {
 }
 
 func (t *transfer) announcer() {
-	var startEvent Event
+	var startEvent TrackerEvent
 	if t.bitfield.All() {
 		startEvent = Completed
 	} else {

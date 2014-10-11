@@ -132,7 +132,7 @@ func (t *udpTracker) readLoop() {
 		// Tracker has sent and error.
 		if header.Action == errorAction {
 			// The part after the header is the error message.
-			trx.err = Error(buf[binary.Size(header):])
+			trx.err = TrackerError(buf[binary.Size(header):])
 			trx.Done()
 			continue
 		}
@@ -231,7 +231,7 @@ func (t *udpTracker) sendTransaction(trx *transaction, cancel <-chan struct{}) (
 	return t.retryTransaction(f, trx, cancel)
 }
 
-func (t *udpTracker) Announce(transfer Transfer, e Event, cancel <-chan struct{}) (*AnnounceResponse, error) {
+func (t *udpTracker) Announce(transfer Transfer, e TrackerEvent, cancel <-chan struct{}) (*AnnounceResponse, error) {
 	t.dialMutex.Lock()
 	if !t.connected {
 		err := t.dial()
@@ -265,7 +265,7 @@ func (t *udpTracker) Announce(transfer Transfer, e Event, cancel <-chan struct{}
 	// t.request may block, that's why we pass cancel as argument.
 	reply, err := t.sendTransaction(trx, cancel)
 	if err != nil {
-		if err, ok := err.(Error); ok {
+		if err, ok := err.(TrackerError); ok {
 			return &AnnounceResponse{Error: err}, nil
 		}
 		return nil, err
@@ -381,7 +381,7 @@ type announceRequest struct {
 	Downloaded int64
 	Left       int64
 	Uploaded   int64
-	Event      Event
+	Event      TrackerEvent
 	IP         uint32
 	Key        uint32
 	NumWant    int32

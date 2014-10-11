@@ -41,7 +41,7 @@ func newHTTPTracker(b *trackerBase) *httpTracker {
 	}
 }
 
-func (t *httpTracker) Announce(transfer Transfer, e Event, cancel <-chan struct{}) (*AnnounceResponse, error) {
+func (t *httpTracker) Announce(transfer Transfer, e TrackerEvent, cancel <-chan struct{}) (*AnnounceResponse, error) {
 	infoHash := transfer.InfoHash()
 	q := url.Values{}
 	q.Set("info_hash", string(infoHash[:]))
@@ -114,7 +114,7 @@ func (t *httpTracker) Announce(transfer Transfer, e Event, cancel <-chan struct{
 		t.log.Warning(response.WarningMessage)
 	}
 	if response.FailureReason != "" {
-		return nil, Error(response.FailureReason)
+		return nil, TrackerError(response.FailureReason)
 	}
 
 	if response.TrackerId != "" {

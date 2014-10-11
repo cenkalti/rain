@@ -22,7 +22,7 @@ var RequestCancelled = errors.New("request cancelled")
 type Tracker interface {
 	URL() string
 	// Announce transfer to the tracker.
-	Announce(t Transfer, e Event, cancel <-chan struct{}) (*AnnounceResponse, error)
+	Announce(t Transfer, e TrackerEvent, cancel <-chan struct{}) (*AnnounceResponse, error)
 	Scrape([]Transfer) (*ScrapeResponse, error)
 	// Close must be called in order to close open connections if Announce is ever called.
 	Close() error
@@ -48,7 +48,7 @@ type ScrapeResponse struct {
 	// TODO not implemented
 }
 
-func NewTracker(trackerURL string, c Client) (Tracker, error) {
+func NewTracker(trackerURL string, c client) (Tracker, error) {
 	u, err := url.Parse(trackerURL)
 	if err != nil {
 		return nil, err
@@ -75,11 +75,11 @@ func NewTracker(trackerURL string, c Client) (Tracker, error) {
 // AnnouncePeriodically announces to the tracker periodically and adjust the interval according to the response returned by the tracker.
 // Puts responses into responseC. Blocks when sending to this channel.
 // t.Close must be called after using this function to close open connections to the tracker.
-func AnnouncePeriodically(t Tracker, transfer Transfer, cancel <-chan struct{}, startEvent Event, eventC <-chan Event, responseC chan<- *AnnounceResponse) {
+func AnnouncePeriodically(t Tracker, transfer Transfer, cancel <-chan struct{}, startEvent TrackerEvent, eventC <-chan TrackerEvent, responseC chan<- *AnnounceResponse) {
 	var nextAnnounce time.Duration
 	var retry = *defaultRetryBackoff
 
-	announce := func(e Event) {
+	announce := func(e TrackerEvent) {
 		r, err := t.Announce(transfer, e, cancel)
 		if err != nil {
 			r = &AnnounceResponse{Error: err}
@@ -118,7 +118,7 @@ type trackerBase struct {
 
 func (t trackerBase) URL() string { return t.rawurl }
 
-type Client interface {
+type client interface {
 	PeerID() PeerID
 	Port() uint16
 }
@@ -152,15 +152,15 @@ func (t *trackerBase) parsePeersBinary(r *bytes.Reader) ([]*net.TCPAddr, error) 
 }
 
 // Error is the string that is sent by the tracker from announce or scrape.
-type Error string
+type TrackerError string
 
-func (e Error) Error() string { return string(e) }
+func (e TrackerError) Error() string { return string(e) }
 
-type Event int32
+type TrackerEvent int32
 
 // Tracker Announce Events. Numbers corresponds to constants in UDP tracker protocol.
 const (
-	None Event = iota
+	None TrackerEvent = iota
 	Completed
 	Started
 	Stopped
@@ -174,7 +174,7 @@ var eventNames = [...]string{
 }
 
 // String returns the name of event as represented in HTTP tracker protocol.
-func (e Event) String() string {
+func (e TrackerEvent) String() string {
 	return eventNames[e]
 }
 

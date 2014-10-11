@@ -32,7 +32,7 @@ func init() { log.Warning("You are running development version of rain!") }
 
 func SetLogLevel(l log.Level) { DefaultHandler.SetLevel(l) }
 
-type Rain struct {
+type Client struct {
 	config        *Config
 	peerID        PeerID
 	listener      *net.TCPListener
@@ -43,12 +43,12 @@ type Rain struct {
 }
 
 // New returns a pointer to new Rain BitTorrent client.
-func New(c *Config) (*Rain, error) {
+func NewClient(c *Config) (*Client, error) {
 	peerID, err := generatePeerID()
 	if err != nil {
 		return nil, err
 	}
-	return &Rain{
+	return &Client{
 		config:        c,
 		peerID:        peerID,
 		transfers:     make(map[InfoHash]*transfer),
@@ -64,10 +64,10 @@ func generatePeerID() (PeerID, error) {
 	return id, err
 }
 
-func (r *Rain) PeerID() PeerID { return r.peerID }
+func (r *Client) PeerID() PeerID { return r.peerID }
 
 // Listen peer port and accept incoming peer connections.
-func (r *Rain) Listen() error {
+func (r *Client) Listen() error {
 	var err error
 	addr := &net.TCPAddr{Port: int(r.config.Port)}
 	r.listener, err = net.ListenTCP("tcp4", addr)
@@ -81,16 +81,16 @@ func (r *Rain) Listen() error {
 
 // Port returns the port number that the client is listening.
 // If the client does not listen any port, returns 0.
-func (r *Rain) Port() uint16 {
+func (r *Client) Port() uint16 {
 	if r.listener != nil {
 		return uint16(r.listener.Addr().(*net.TCPAddr).Port)
 	}
 	return 0
 }
 
-func (r *Rain) Close() error { return r.listener.Close() }
+func (r *Client) Close() error { return r.listener.Close() }
 
-func (r *Rain) accepter() {
+func (r *Client) accepter() {
 	limit := make(chan struct{}, maxPeerServe)
 	for {
 		conn, err := r.listener.Accept()
@@ -113,7 +113,7 @@ func (r *Rain) accepter() {
 	}
 }
 
-func (r *Rain) acceptAndRun(conn net.Conn) {
+func (r *Client) acceptAndRun(conn net.Conn) {
 	getSKey := func(sKeyHash [20]byte) (sKey []byte) {
 		r.transfersM.Lock()
 		t, ok := r.transfersSKey[sKeyHash]
@@ -170,7 +170,7 @@ func (r *Rain) acceptAndRun(conn net.Conn) {
 	p.Run()
 }
 
-func (r *Rain) Add(torrentPath, where string) (*transfer, error) {
+func (r *Client) Add(torrentPath, where string) (*transfer, error) {
 	torrent, err := NewTorrent(torrentPath)
 	if err != nil {
 		return nil, err
@@ -182,9 +182,9 @@ func (r *Rain) Add(torrentPath, where string) (*transfer, error) {
 	return r.newTransfer(torrent, where)
 }
 
-func (r *Rain) AddMagnet(url, where string) (*transfer, error) { panic("not implemented") }
+func (r *Client) AddMagnet(url, where string) (*transfer, error) { panic("not implemented") }
 
-func (r *Rain) Start(t *transfer) {
+func (r *Client) Start(t *transfer) {
 	sKey := mse.HashSKey(t.torrent.Info.Hash[:])
 	r.transfersM.Lock()
 	r.transfers[t.torrent.Info.Hash] = t
@@ -207,4 +207,4 @@ func (r *Rain) Start(t *transfer) {
 	}()
 }
 
-func (r *Rain) Stop(t *transfer) { close(t.stopC) }
+func (r *Client) Stop(t *transfer) { close(t.stopC) }

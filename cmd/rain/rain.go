@@ -72,7 +72,7 @@ func main() {
 		c.DownloadDir = *where
 	}
 
-	r, err := rain.New(c)
+	r, err := rain.NewClient(c)
 	if err != nil {
 		log.Fatal(err)
 	}

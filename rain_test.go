@@ -32,7 +32,7 @@ func init() {
 func TestDownload(t *testing.T) {
 	c1 := rain.DefaultConfig
 	c1.Port = 0 // pick a random port
-	seeder, err := rain.New(&c1)
+	seeder, err := rain.NewClient(&c1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +42,7 @@ func TestDownload(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	leecher, err := rain.New(&rain.DefaultConfig)
+	leecher, err := rain.NewClient(&rain.DefaultConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
