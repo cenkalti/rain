@@ -13,8 +13,8 @@ import (
 	"github.com/cenkalti/log"
 
 	"github.com/cenkalti/rain"
-	"github.com/cenkalti/rain/magnet"
 	"github.com/cenkalti/rain/internal/tracker"
+	"github.com/cenkalti/rain/magnet"
 )
 
 var (
@@ -42,7 +42,7 @@ func main() {
 
 	// Be more aggressive than normal.
 	tracker.HTTPTimeout = time.Duration(*timeout) * time.Millisecond
-	tracker.UDPBackOff = func() backoff.BackOff { return &backoff.ConstantBackOff{time.Duration(*timeout) * time.Millisecond} }
+	tracker.UDPBackOff = func() backoff.BackOff { return backoff.NewConstantBackOff(time.Duration(*timeout) * time.Millisecond) }
 
 	d, err := rain.NewMetadataDownloader(magnet)
 	if err != nil {
