@@ -18,7 +18,7 @@ var HTTPTimeout = 30 * time.Second
 
 type httpTracker struct {
 	*trackerBase
-	client    *http.Client
+	http      *http.Client
 	transport *http.Transport
 	trackerID string
 }
@@ -33,7 +33,7 @@ func newHTTPTracker(b *trackerBase) *httpTracker {
 	}
 	return &httpTracker{
 		trackerBase: b,
-		client: &http.Client{
+		http: &http.Client{
 			Timeout:   HTTPTimeout,
 			Transport: transport,
 		},
@@ -45,8 +45,8 @@ func (t *httpTracker) Announce(transfer *transfer, e trackerEvent, cancel <-chan
 	infoHash := transfer.InfoHash()
 	q := url.Values{}
 	q.Set("info_hash", string(infoHash[:]))
-	q.Set("peer_id", string(t.trackerBase.client.peerID[:]))
-	q.Set("port", strconv.FormatUint(uint64(t.trackerBase.client.Port()), 10))
+	q.Set("peer_id", string(t.client.peerID[:]))
+	q.Set("port", strconv.FormatUint(uint64(t.client.Port()), 10))
 	q.Set("uploaded", strconv.FormatInt(transfer.Uploaded(), 10))
 	q.Set("downloaded", strconv.FormatInt(transfer.Downloaded(), 10))
 	q.Set("left", strconv.FormatInt(transfer.Left(), 10))
@@ -77,7 +77,7 @@ func (t *httpTracker) Announce(transfer *transfer, e trackerEvent, cancel <-chan
 	bodyC := make(chan io.ReadCloser, 1)
 	errC := make(chan error, 1)
 	go func() {
-		resp, err := t.client.Do(req)
+		resp, err := t.http.Do(req)
 		if err != nil {
 			errC <- err
 			return

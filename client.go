@@ -57,7 +57,7 @@ func NewClient(c *Config) (*Client, error) {
 		peerID:        peerID,
 		transfers:     make(map[InfoHash]*transfer),
 		transfersSKey: make(map[[20]byte]*transfer),
-		log:           newLogger("rain"),
+		log:           newLogger("client"),
 	}, nil
 }
 

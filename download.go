@@ -41,7 +41,7 @@ func (t *transfer) connecter() {
 				break
 			}
 			// Do not connect yourself
-			if p.IP.IsLoopback() && p.Port == int(t.rain.Port()) {
+			if p.IP.IsLoopback() && p.Port == int(t.client.Port()) {
 				break
 			}
 
@@ -65,7 +65,7 @@ func (t *transfer) connecter() {
 func (t *transfer) connectAndRun(addr *net.TCPAddr) {
 	log := newLogger("peer -> " + addr.String())
 
-	conn, cipher, extensions, peerID, err := dial(addr, !t.rain.config.Encryption.DisableOutgoing, t.rain.config.Encryption.ForceOutgoing, [8]byte{}, t.torrent.Info.Hash, t.rain.peerID)
+	conn, cipher, extensions, peerID, err := dial(addr, !t.client.config.Encryption.DisableOutgoing, t.client.config.Encryption.ForceOutgoing, [8]byte{}, t.torrent.Info.Hash, t.client.peerID)
 	if err != nil {
 		if err == errOwnConnection {
 			log.Debug(err)

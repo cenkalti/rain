@@ -9,7 +9,7 @@ import (
 )
 
 type transfer struct {
-	rain      *Client
+	client    *Client
 	tracker   tracker
 	torrent   *torrent
 	pieces    []*piece
@@ -66,7 +66,7 @@ func (r *Client) newTransfer(tor *torrent, where string) (*transfer, error) {
 		r.log.Noticef("Already downloaded: %d%%", percentDone)
 	}
 	t := &transfer{
-		rain:      r,
+		client:    r,
 		tracker:   trk,
 		torrent:   tor,
 		pieces:    pieces,
