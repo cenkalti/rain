@@ -5,7 +5,10 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
+
+	"github.com/cenkalti/mse"
 )
 
 type Transfer struct {
@@ -217,3 +220,28 @@ func openOrAllocate(path string, length int64) (f *os.File, exists bool, err err
 
 	return
 }
+
+func (t *Transfer) Start() {
+	sKey := mse.HashSKey(t.torrent.Info.Hash[:])
+	t.client.transfersM.Lock()
+	t.client.transfers[t.torrent.Info.Hash] = t
+	t.client.transfersSKey[sKey] = t
+	t.client.transfersM.Unlock()
+	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				buf := make([]byte, 10000)
+				t.log.Critical(err, "\n", string(buf[:runtime.Stack(buf, false)]))
+			}
+		}()
+		defer func() {
+			t.client.transfersM.Lock()
+			delete(t.client.transfers, t.torrent.Info.Hash)
+			delete(t.client.transfersSKey, sKey)
+			t.client.transfersM.Unlock()
+		}()
+		t.run()
+	}()
+}
+
+func (t *Transfer) Stop() { close(t.stopC) }

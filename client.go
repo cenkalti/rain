@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/cenkalti/log"
-	"github.com/cenkalti/mse"
 )
 
 // Limits
@@ -187,28 +186,3 @@ func (r *Client) Add(torrentPath, where string) (*Transfer, error) {
 }
 
 func (r *Client) AddMagnet(url, where string) (*Transfer, error) { panic("not implemented") }
-
-func (r *Client) Start(t *Transfer) {
-	sKey := mse.HashSKey(t.torrent.Info.Hash[:])
-	r.transfersM.Lock()
-	r.transfers[t.torrent.Info.Hash] = t
-	r.transfersSKey[sKey] = t
-	r.transfersM.Unlock()
-	go func() {
-		defer func() {
-			if err := recover(); err != nil {
-				buf := make([]byte, 10000)
-				t.log.Critical(err, "\n", string(buf[:runtime.Stack(buf, false)]))
-			}
-		}()
-		defer func() {
-			r.transfersM.Lock()
-			delete(r.transfers, t.torrent.Info.Hash)
-			delete(r.transfersSKey, sKey)
-			r.transfersM.Unlock()
-		}()
-		t.run()
-	}()
-}
-
-func (r *Client) Stop(t *Transfer) { close(t.stopC) }

@@ -83,6 +83,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	r.Start(t)
+	t.Start()
 	<-t.CompleteNotify()
 }
