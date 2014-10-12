@@ -70,7 +70,7 @@ func TestDownload(t *testing.T) {
 	leecher.Start(t2)
 
 	select {
-	case <-t2.Finished():
+	case <-t2.CompleteNotify():
 	case <-time.After(4 * time.Second):
 		panic("download did not finish")
 	}

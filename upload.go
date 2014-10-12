@@ -3,7 +3,7 @@ package rain
 import "io"
 
 // requestSelector decides which request to serve.
-func (t *transfer) requestSelector() {
+func (t *Transfer) requestSelector() {
 	for {
 		// var request peer.RequestMessage
 
@@ -27,7 +27,7 @@ func (t *transfer) requestSelector() {
 }
 
 // pieceUploader uploads single piece to a peer.
-func (t *transfer) pieceUploader() {
+func (t *Transfer) pieceUploader() {
 	for {
 		select {
 		case req := <-t.serveC:

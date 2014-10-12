@@ -8,7 +8,7 @@ import (
 	"sync"
 )
 
-type transfer struct {
+type Transfer struct {
 	client    *Client
 	tracker   tracker
 	torrent   *torrent
@@ -26,16 +26,16 @@ type transfer struct {
 	// connecter receives from this channel and connects to new peers
 	peerC chan *net.TCPAddr
 	// will be closed by main loop when all of the remaining pieces are downloaded
-	finished chan struct{}
-	// for closing finished channel only once
-	onceFinished sync.Once
+	completed chan struct{}
+	// for closing completed channel only once
+	onceCompleted sync.Once
 	// peers send requests to this channel
 	requestC chan *peerRequest
 	// uploader decides which request to serve and sends it to this channel
 	serveC chan *peerRequest
 }
 
-func (r *Client) newTransfer(tor *torrent, where string) (*transfer, error) {
+func (r *Client) newTransfer(tor *torrent, where string) (*Transfer, error) {
 	name := tor.Info.Name
 	if len(name) > 8 {
 		name = name[:8]
@@ -65,7 +65,7 @@ func (r *Client) newTransfer(tor *torrent, where string) (*transfer, error) {
 		percentDone = bf.Count() * 100 / bf.Len()
 		r.log.Noticef("Already downloaded: %d%%", percentDone)
 	}
-	t := &transfer{
+	t := &Transfer{
 		client:    r,
 		tracker:   trk,
 		torrent:   tor,
@@ -77,22 +77,22 @@ func (r *Client) newTransfer(tor *torrent, where string) (*transfer, error) {
 		log:       log,
 		peersC:    make(chan []*net.TCPAddr),
 		peerC:     make(chan *net.TCPAddr),
-		finished:  finished,
+		completed: finished,
 		requestC:  make(chan *peerRequest),
 		serveC:    make(chan *peerRequest),
 	}
 	if percentDone == 100 {
-		t.onceFinished.Do(func() {
-			close(t.finished)
+		t.onceCompleted.Do(func() {
+			close(t.completed)
 			t.log.Notice("Download completed")
 		})
 	}
 	return t, nil
 }
 
-func (t *transfer) InfoHash() InfoHash      { return t.torrent.Info.Hash }
-func (t *transfer) Finished() chan struct{} { return t.finished }
-func (t *transfer) Downloaded() int64 {
+func (t *Transfer) InfoHash() InfoHash            { return t.torrent.Info.Hash }
+func (t *Transfer) CompleteNotify() chan struct{} { return t.completed }
+func (t *Transfer) Downloaded() int64 {
 	t.m.Lock()
 	var sum int64
 	for _, p := range t.pieces {
@@ -103,10 +103,10 @@ func (t *transfer) Downloaded() int64 {
 	t.m.Unlock()
 	return sum
 }
-func (t *transfer) Uploaded() int64 { return 0 } // TODO
-func (t *transfer) Left() int64     { return t.torrent.Info.TotalLength - t.Downloaded() }
+func (t *Transfer) Uploaded() int64 { return 0 } // TODO
+func (t *Transfer) Left() int64     { return t.torrent.Info.TotalLength - t.Downloaded() }
 
-func (t *transfer) Run() {
+func (t *Transfer) run() {
 	// Start download workers
 	if !t.bitfield.All() {
 		go t.connecter()
@@ -137,7 +137,7 @@ func (t *transfer) Run() {
 	}
 }
 
-func (t *transfer) announcer() {
+func (t *Transfer) announcer() {
 	var startEvent trackerEvent
 	if t.bitfield.All() {
 		startEvent = eventCompleted

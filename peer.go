@@ -19,7 +19,7 @@ const maxAllowedBlockSize = 32 * 1024
 type peer struct {
 	conn     net.Conn
 	id       PeerID
-	transfer *transfer
+	transfer *Transfer
 
 	disconnected bool
 	amInterested bool
@@ -50,7 +50,7 @@ type pieceMessage struct {
 	Index, Begin uint32
 }
 
-func (t *transfer) newPeer(conn net.Conn, id PeerID, l logger) *peer {
+func (t *Transfer) newPeer(conn net.Conn, id PeerID, l logger) *peer {
 	p := &peer{
 		conn:        conn,
 		id:          id,

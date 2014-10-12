@@ -9,7 +9,7 @@ import (
 )
 
 // peerManager receives from t.peersC and keeps most recent peer addresses in t.peerC.
-func (t *transfer) peerManager() {
+func (t *Transfer) peerManager() {
 	t.log.Debug("Started peerManager")
 	for {
 		select {
@@ -31,7 +31,7 @@ func (t *transfer) peerManager() {
 }
 
 // connecter connects to peers coming from t. peerC.
-func (t *transfer) connecter() {
+func (t *Transfer) connecter() {
 	limit := make(chan struct{}, maxPeerPerTorrent)
 	for {
 		select {
@@ -62,7 +62,7 @@ func (t *transfer) connecter() {
 	}
 }
 
-func (t *transfer) connectAndRun(addr *net.TCPAddr) {
+func (t *Transfer) connectAndRun(addr *net.TCPAddr) {
 	log := newLogger("peer -> " + addr.String())
 
 	conn, cipher, extensions, peerID, err := dial(addr, !t.client.config.Encryption.DisableOutgoing, t.client.config.Encryption.ForceOutgoing, [8]byte{}, t.torrent.Info.Hash, t.client.peerID)
@@ -106,8 +106,8 @@ func (peer *peer) downloader() {
 		for candidates = peer.candidates(); len(candidates) == 0 && !peer.disconnected; {
 			// Stop downloader if all pieces are downloaded.
 			if t.bitfield.All() {
-				t.onceFinished.Do(func() {
-					close(t.finished)
+				t.onceCompleted.Do(func() {
+					close(t.completed)
 					t.log.Notice("Download completed")
 				})
 				t.m.Unlock()

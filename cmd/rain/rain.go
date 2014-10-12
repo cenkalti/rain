@@ -84,5 +84,5 @@ func main() {
 	}
 
 	r.Start(t)
-	<-t.Finished()
+	<-t.CompleteNotify()
 }

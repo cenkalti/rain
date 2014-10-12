@@ -36,8 +36,8 @@ type Client struct {
 	config        *Config
 	peerID        PeerID
 	listener      *net.TCPListener
-	transfers     map[InfoHash]*transfer // all active transfers
-	transfersSKey map[[20]byte]*transfer // for encryption
+	transfers     map[InfoHash]*Transfer // all active transfers
+	transfersSKey map[[20]byte]*Transfer // for encryption
 	transfersM    sync.Mutex
 	log           logger
 }
@@ -55,8 +55,8 @@ func NewClient(c *Config) (*Client, error) {
 	return &Client{
 		config:        c,
 		peerID:        peerID,
-		transfers:     make(map[InfoHash]*transfer),
-		transfersSKey: make(map[[20]byte]*transfer),
+		transfers:     make(map[InfoHash]*Transfer),
+		transfersSKey: make(map[[20]byte]*Transfer),
 		log:           newLogger("client"),
 	}, nil
 }
@@ -174,7 +174,7 @@ func (r *Client) acceptAndRun(conn net.Conn) {
 	p.Run()
 }
 
-func (r *Client) Add(torrentPath, where string) (*transfer, error) {
+func (r *Client) Add(torrentPath, where string) (*Transfer, error) {
 	torrent, err := newTorrent(torrentPath)
 	if err != nil {
 		return nil, err
@@ -186,9 +186,9 @@ func (r *Client) Add(torrentPath, where string) (*transfer, error) {
 	return r.newTransfer(torrent, where)
 }
 
-func (r *Client) AddMagnet(url, where string) (*transfer, error) { panic("not implemented") }
+func (r *Client) AddMagnet(url, where string) (*Transfer, error) { panic("not implemented") }
 
-func (r *Client) Start(t *transfer) {
+func (r *Client) Start(t *Transfer) {
 	sKey := mse.HashSKey(t.torrent.Info.Hash[:])
 	r.transfersM.Lock()
 	r.transfers[t.torrent.Info.Hash] = t
@@ -207,8 +207,8 @@ func (r *Client) Start(t *transfer) {
 			delete(r.transfersSKey, sKey)
 			r.transfersM.Unlock()
 		}()
-		t.Run()
+		t.run()
 	}()
 }
 
-func (r *Client) Stop(t *transfer) { close(t.stopC) }
+func (r *Client) Stop(t *Transfer) { close(t.stopC) }

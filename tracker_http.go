@@ -41,7 +41,7 @@ func newHTTPTracker(b *trackerBase) *httpTracker {
 	}
 }
 
-func (t *httpTracker) Announce(transfer *transfer, e trackerEvent, cancel <-chan struct{}) (*announceResponse, error) {
+func (t *httpTracker) Announce(transfer *Transfer, e trackerEvent, cancel <-chan struct{}) (*announceResponse, error) {
 	infoHash := transfer.InfoHash()
 	q := url.Values{}
 	q.Set("info_hash", string(infoHash[:]))
@@ -177,7 +177,7 @@ func (t *httpTracker) parsePeersDictionary(b bencode.RawMessage) ([]*net.TCPAddr
 	return addrs, err
 }
 
-func (t *httpTracker) Scrape(transfers []*transfer) (*scrapeResponse, error) { return nil, nil }
+func (t *httpTracker) Scrape(transfers []*Transfer) (*scrapeResponse, error) { return nil, nil }
 
 func (t *httpTracker) Close() error {
 	t.transport.CloseIdleConnections()
