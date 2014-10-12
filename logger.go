@@ -11,19 +11,19 @@ import (
 
 type logger log.Logger
 
-var DefaultHandler log.Handler
+var DefaultLogHandler log.Handler
 
 func init() {
 	h := log.NewWriterHandler(os.Stderr)
 	h.SetFormatter(logFormatter{})
 	h.Colorize = true
-	DefaultHandler = h
+	DefaultLogHandler = h
 }
 
 func newLogger(name string) logger {
 	logger := log.NewLogger(name)
 	logger.SetLevel(log.DEBUG) // forward all messages to handler
-	logger.SetHandler(DefaultHandler)
+	logger.SetHandler(DefaultLogHandler)
 	return logger
 }
 

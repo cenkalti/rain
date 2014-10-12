@@ -14,7 +14,7 @@ type InfoHash [sha1.Size]byte
 
 // NewInfoHashString returns a new InfoHash value from a string.
 // s must be 40 (hex encoded) or 32 (base32 encoded) characters, otherwise it returns error.
-func NewInfoHashString(s string) (InfoHash, error) {
+func infoHashString(s string) (InfoHash, error) {
 	var ih InfoHash
 	var b []byte
 	var err error

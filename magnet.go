@@ -8,13 +8,13 @@ import (
 	"strings"
 )
 
-type Magnet struct {
+type magnet struct {
 	InfoHash InfoHash
 	Name     string
 	Trackers []string
 }
 
-func ParseMagnet(s string) (*Magnet, error) {
+func parseMagnet(s string) (*magnet, error) {
 	u, err := url.Parse(s)
 	if err != nil {
 		return nil, err
@@ -36,9 +36,9 @@ func ParseMagnet(s string) (*Magnet, error) {
 	}
 	xt = xt[9:]
 
-	var magnet Magnet
+	var magnet magnet
 
-	magnet.InfoHash, err = NewInfoHashString(xt)
+	magnet.InfoHash, err = infoHashString(xt)
 	if err != nil {
 		return nil, err
 	}

@@ -140,9 +140,9 @@ func (t *transfer) Run() {
 func (t *transfer) announcer() {
 	var startEvent trackerEvent
 	if t.bitfield.All() {
-		startEvent = Completed
+		startEvent = eventCompleted
 	} else {
-		startEvent = Started
+		startEvent = eventStarted
 	}
 	announcePeriodically(t.tracker, t, t.stopC, startEvent, nil, t.announceC)
 }

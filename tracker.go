@@ -99,7 +99,7 @@ func announcePeriodically(t tracker, transfer Transfer, cancel <-chan struct{}, 
 	for {
 		select {
 		case <-time.After(nextAnnounce):
-			announce(None)
+			announce(eventNone)
 		case e := <-eventC:
 			announce(e)
 		case <-cancel:
@@ -160,10 +160,10 @@ type trackerEvent int32
 
 // Tracker Announce Events. Numbers corresponds to constants in UDP tracker protocol.
 const (
-	None trackerEvent = iota
-	Completed
-	Started
-	Stopped
+	eventNone trackerEvent = iota
+	eventCompleted
+	eventStarted
+	eventStopped
 )
 
 var eventNames = [...]string{
