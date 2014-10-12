@@ -53,7 +53,7 @@ func TestDownload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	seeder.Start(t1)
+	t1.Start()
 
 	// Wait for seeder to announce to tracker.
 	time.Sleep(100 * time.Millisecond)
@@ -67,7 +67,7 @@ func TestDownload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	leecher.Start(t2)
+	t2.Start()
 
 	select {
 	case <-t2.CompleteNotify():
