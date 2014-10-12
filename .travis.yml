@@ -1,6 +1,6 @@
 language: go
 go: 1.3.3
 install:
-  - go get -t -gcflags=-e
+  - go get -v -t -gcflags=-e
 script:
-  - go test -race
+  - go test -v -race
