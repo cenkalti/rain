@@ -1,9 +1,6 @@
 language: go
-go: 1.3.1
+go: 1.3.3
 install:
-  - go get -v -d -t ./...
-  - go build -v ./...
-before_script:
-  - go test -v -i ./...
+  - make install
 script:
   - make test
