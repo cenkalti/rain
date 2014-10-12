@@ -29,7 +29,7 @@ func (m *trackerManager) NewTracker(trackerURL string) (*managedTracker, error) 
 		entry.count++
 		return entry.tracker, nil
 	}
-	t, err := newTracker(trackerURL, m.client)
+	t, err := m.client.newTracker(trackerURL)
 	if err != nil {
 		return nil, err
 	}

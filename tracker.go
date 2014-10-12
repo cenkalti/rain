@@ -41,7 +41,7 @@ type scrapeResponse struct {
 	// TODO not implemented
 }
 
-func newTracker(trackerURL string, c *Client) (tracker, error) {
+func (c *Client) newTracker(trackerURL string) (tracker, error) {
 	u, err := url.Parse(trackerURL)
 	if err != nil {
 		return nil, err
@@ -50,8 +50,7 @@ func newTracker(trackerURL string, c *Client) (tracker, error) {
 	base := &trackerBase{
 		url:    u,
 		rawurl: trackerURL,
-		peerID: c.PeerID(),
-		port:   c.Port(),
+		client: c,
 		log:    newLogger("tracker " + trackerURL),
 	}
 
@@ -104,8 +103,7 @@ func announcePeriodically(t tracker, transfer *transfer, cancel <-chan struct{},
 type trackerBase struct {
 	url    *url.URL
 	rawurl string
-	peerID PeerID
-	port   uint16
+	client *Client
 	log    logger
 }
 

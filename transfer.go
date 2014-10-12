@@ -42,7 +42,7 @@ func (r *Client) newTransfer(tor *torrent, where string) (*transfer, error) {
 	}
 	log := newLogger("download " + name)
 
-	trk, err := newTracker(tor.Announce, r)
+	trk, err := r.newTracker(tor.Announce)
 	if err != nil {
 		return nil, err
 	}

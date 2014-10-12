@@ -4,8 +4,10 @@ import "testing"
 
 func TestManager(t *testing.T) {
 	const url = "udp://127.0.0.1:6969"
-
-	c := &dummyClient{peerID: PeerID{}}
+	c, err := NewClient(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	m := newManager(c)
 	tr, err := m.NewTracker(url)
 	if err != nil {
@@ -33,10 +35,3 @@ func TestManager(t *testing.T) {
 		t.Fatal("ok")
 	}
 }
-
-type dummyClient struct {
-	peerID PeerID
-}
-
-func (c *dummyClient) PeerID() PeerID { return c.peerID }
-func (c *dummyClient) Port() uint16   { return 6881 }

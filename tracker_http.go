@@ -45,8 +45,8 @@ func (t *httpTracker) Announce(transfer *transfer, e trackerEvent, cancel <-chan
 	infoHash := transfer.InfoHash()
 	q := url.Values{}
 	q.Set("info_hash", string(infoHash[:]))
-	q.Set("peer_id", string(t.peerID[:]))
-	q.Set("port", strconv.FormatUint(uint64(t.port), 10))
+	q.Set("peer_id", string(t.trackerBase.client.peerID[:]))
+	q.Set("port", strconv.FormatUint(uint64(t.trackerBase.client.Port()), 10))
 	q.Set("uploaded", strconv.FormatInt(transfer.Uploaded(), 10))
 	q.Set("downloaded", strconv.FormatInt(transfer.Downloaded(), 10))
 	q.Set("left", strconv.FormatInt(transfer.Left(), 10))

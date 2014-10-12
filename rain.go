@@ -44,6 +44,10 @@ type Client struct {
 
 // New returns a pointer to new Rain BitTorrent client.
 func NewClient(c *Config) (*Client, error) {
+	if c == nil {
+		c = new(Config)
+		*c = DefaultConfig
+	}
 	peerID, err := generatePeerID()
 	if err != nil {
 		return nil, err

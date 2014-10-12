@@ -245,12 +245,12 @@ func (t *udpTracker) Announce(transfer *transfer, e trackerEvent, cancel <-chan 
 
 	request := &announceRequest{
 		InfoHash:   transfer.InfoHash(),
-		PeerID:     t.peerID,
+		PeerID:     t.client.peerID,
 		Event:      e,
 		IP:         0, // Tracker uses sender of this UDP packet.
 		Key:        0, // TODO set it
 		NumWant:    numWant,
-		Port:       t.port,
+		Port:       t.client.Port(),
 		Extensions: 0,
 	}
 	request.SetAction(actionAnnounce)
