@@ -3,12 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"time"
 
 	"github.com/cenkalti/log"
 	"github.com/mitchellh/go-homedir"
+	"gopkg.in/yaml.v2"
 
 	"github.com/cenkalti/rain"
 )
@@ -57,7 +59,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	c, err := rain.LoadConfig(configFile)
+	c, err := LoadConfig(configFile)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -85,4 +87,19 @@ func main() {
 
 	t.Start()
 	<-t.CompleteNotify()
+}
+
+func LoadConfig(filename string) (*rain.Config, error) {
+	c := rain.DefaultConfig
+	b, err := ioutil.ReadFile(filename)
+	if os.IsNotExist(err) {
+		return &c, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if err = yaml.Unmarshal(b, &c); err != nil {
+		return nil, err
+	}
+	return &c, nil
 }

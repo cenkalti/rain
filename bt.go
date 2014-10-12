@@ -35,9 +35,6 @@ func infoHashString(s string) (InfoHash, error) {
 // String returns the hex represenation of i.
 func (i InfoHash) String() string { return hex.EncodeToString(i[:]) }
 
-// MarshalJSON marshals i as 40 characters hex string.
-func (i InfoHash) MarshalJSON() ([]byte, error) { return []byte(`"` + i.String() + `"`), nil }
-
 // PeerID is unique identifier for the client.
 type PeerID [20]byte
 

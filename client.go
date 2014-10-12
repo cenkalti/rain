@@ -41,6 +41,21 @@ type Client struct {
 	log           logger
 }
 
+type Config struct {
+	Port        int
+	DownloadDir string `yaml:"download_dir"`
+	Encryption  struct {
+		DisableOutgoing bool `yaml:"disable_outgoing"`
+		ForceOutgoing   bool `yaml:"force_outgoing"`
+		ForceIncoming   bool `yaml:"force_incoming"`
+	}
+}
+
+var DefaultConfig = Config{
+	Port:        6881,
+	DownloadDir: ".",
+}
+
 // New returns a pointer to new Rain BitTorrent client.
 func NewClient(c *Config) (*Client, error) {
 	if c == nil {
