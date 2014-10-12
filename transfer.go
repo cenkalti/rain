@@ -10,12 +10,12 @@ import (
 
 type transfer struct {
 	rain      *Client
-	tracker   Tracker
-	torrent   *Torrent
-	pieces    []*Piece
-	bitfield  *Bitfield
-	announceC chan *AnnounceResponse
-	peers     map[PeerID]*Peer // connected peers
+	tracker   tracker
+	torrent   *torrent
+	pieces    []*piece
+	bitfield  *bitfield
+	announceC chan *announceResponse
+	peers     map[PeerID]*peer // connected peers
 	peersM    sync.RWMutex
 	stopC     chan struct{} // all goroutines stop when closed
 	m         sync.Mutex    // protects all state related with this transfer and it's peers
@@ -30,19 +30,19 @@ type transfer struct {
 	// for closing finished channel only once
 	onceFinished sync.Once
 	// peers send requests to this channel
-	requestC chan *Request
+	requestC chan *peerRequest
 	// uploader decides which request to serve and sends it to this channel
-	serveC chan *Request
+	serveC chan *peerRequest
 }
 
-func (r *Client) newTransfer(tor *Torrent, where string) (*transfer, error) {
+func (r *Client) newTransfer(tor *torrent, where string) (*transfer, error) {
 	name := tor.Info.Name
 	if len(name) > 8 {
 		name = name[:8]
 	}
 	log := NewLogger("download " + name)
 
-	trk, err := NewTracker(tor.Announce, r)
+	trk, err := newTracker(tor.Announce, r)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func (r *Client) newTransfer(tor *Torrent, where string) (*transfer, error) {
 	}
 	finished := make(chan struct{})
 	pieces := newPieces(tor.Info, files)
-	bf := NewBitfield(tor.Info.NumPieces)
+	bf := newBitfield(tor.Info.NumPieces)
 	var percentDone uint32
 	if checkHash {
 		r.log.Notice("Doing hash check...")
@@ -71,15 +71,15 @@ func (r *Client) newTransfer(tor *Torrent, where string) (*transfer, error) {
 		torrent:   tor,
 		pieces:    pieces,
 		bitfield:  bf,
-		announceC: make(chan *AnnounceResponse),
-		peers:     make(map[PeerID]*Peer),
+		announceC: make(chan *announceResponse),
+		peers:     make(map[PeerID]*peer),
 		stopC:     make(chan struct{}),
 		log:       log,
 		peersC:    make(chan []*net.TCPAddr),
 		peerC:     make(chan *net.TCPAddr),
 		finished:  finished,
-		requestC:  make(chan *Request),
-		serveC:    make(chan *Request),
+		requestC:  make(chan *peerRequest),
+		serveC:    make(chan *peerRequest),
 	}
 	if percentDone == 100 {
 		t.onceFinished.Do(func() {
@@ -138,16 +138,16 @@ func (t *transfer) Run() {
 }
 
 func (t *transfer) announcer() {
-	var startEvent TrackerEvent
+	var startEvent trackerEvent
 	if t.bitfield.All() {
 		startEvent = Completed
 	} else {
 		startEvent = Started
 	}
-	AnnouncePeriodically(t.tracker, t, t.stopC, startEvent, nil, t.announceC)
+	announcePeriodically(t.tracker, t, t.stopC, startEvent, nil, t.announceC)
 }
 
-func prepareFiles(info *Info, where string) (files []*os.File, checkHash bool, err error) {
+func prepareFiles(info *info, where string) (files []*os.File, checkHash bool, err error) {
 	var f *os.File
 	var exists bool
 

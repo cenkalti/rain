@@ -3,7 +3,7 @@ package rain
 import "sync"
 
 // Manager returns the same instance for same URLs.
-type Manager struct {
+type trackerManager struct {
 	trackers map[string]*trackerAndCount
 	client   client
 	m        sync.Mutex
@@ -14,14 +14,14 @@ type trackerAndCount struct {
 	count   uint
 }
 
-func NewManager(c client) *Manager {
-	return &Manager{
+func NewManager(c client) *trackerManager {
+	return &trackerManager{
 		trackers: make(map[string]*trackerAndCount),
 		client:   c,
 	}
 }
 
-func (m *Manager) NewTracker(trackerURL string) (*managedTracker, error) {
+func (m *trackerManager) NewTracker(trackerURL string) (*managedTracker, error) {
 	m.m.Lock()
 	defer m.m.Unlock()
 	entry, ok := m.trackers[trackerURL]
@@ -29,18 +29,18 @@ func (m *Manager) NewTracker(trackerURL string) (*managedTracker, error) {
 		entry.count++
 		return entry.tracker, nil
 	}
-	t, err := NewTracker(trackerURL, m.client)
+	t, err := newTracker(trackerURL, m.client)
 	if err != nil {
 		return nil, err
 	}
-	mt := &managedTracker{manager: m, Tracker: t}
+	mt := &managedTracker{manager: m, tracker: t}
 	m.trackers[trackerURL] = &trackerAndCount{tracker: mt, count: 1}
 	return mt, nil
 }
 
 type managedTracker struct {
-	manager *Manager
-	Tracker
+	manager *trackerManager
+	tracker
 }
 
 func (t *managedTracker) Close() error {
@@ -50,7 +50,7 @@ func (t *managedTracker) Close() error {
 	if entry.count == 0 {
 		delete(t.manager.trackers, t.URL())
 		t.manager.m.Unlock()
-		return entry.tracker.Tracker.Close()
+		return entry.tracker.tracker.Close()
 	}
 	t.manager.m.Unlock()
 	return nil

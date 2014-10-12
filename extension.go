@@ -7,12 +7,12 @@ import (
 	"github.com/zeebo/bencode"
 )
 
-type ExtensionHandshakeMessage struct {
+type extensionHandshakeMessage struct {
 	M            map[string]uint8 `bencode:"m"`
 	MetadataSize uint32           `bencode:"metadata_size,omitempty"`
 }
 
-func (p *Peer) SendExtensionHandshake(m *ExtensionHandshakeMessage) error {
+func (p *peer) SendExtensionHandshake(m *extensionHandshakeMessage) error {
 	const extensionHandshakeID = 0
 	var buf bytes.Buffer
 	e := bencode.NewEncoder(&buf)
@@ -23,7 +23,7 @@ func (p *Peer) SendExtensionHandshake(m *ExtensionHandshakeMessage) error {
 	return p.sendExtensionMessage(extensionHandshakeID, buf.Bytes())
 }
 
-func (p *Peer) sendExtensionMessage(id byte, payload []byte) error {
+func (p *peer) sendExtensionMessage(id byte, payload []byte) error {
 	msg := struct {
 		Length      uint32
 		BTID        byte

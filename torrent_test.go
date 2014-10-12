@@ -3,7 +3,7 @@ package rain
 import "testing"
 
 func TestTorrent(t *testing.T) {
-	tor, err := NewTorrent("testfiles/ubuntu-14.04.1-server-amd64.iso.torrent")
+	tor, err := newTorrent("testfiles/ubuntu-14.04.1-server-amd64.iso.torrent")
 	if err != nil {
 		t.Fatal(err)
 	}

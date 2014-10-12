@@ -9,11 +9,11 @@ import (
 	"io"
 )
 
-var ErrInvalidProtocol = errors.New("invalid protocol")
+var errInvalidProtocol = errors.New("invalid protocol")
 
 var pstr = [19]byte{'B', 'i', 't', 'T', 'o', 'r', 'r', 'e', 'n', 't', ' ', 'p', 'r', 'o', 't', 'o', 'c', 'o', 'l'}
 
-func WriteHandshake(w io.Writer, ih InfoHash, id PeerID, extensions [8]byte) error {
+func writeHandshake(w io.Writer, ih InfoHash, id PeerID, extensions [8]byte) error {
 	var h = struct {
 		Pstrlen    byte
 		Pstr       [len(pstr)]byte
@@ -30,14 +30,14 @@ func WriteHandshake(w io.Writer, ih InfoHash, id PeerID, extensions [8]byte) err
 	return binary.Write(w, binary.BigEndian, h)
 }
 
-func ReadHandshake1(r io.Reader) (extensions [8]byte, ih InfoHash, err error) {
+func readHandshake1(r io.Reader) (extensions [8]byte, ih InfoHash, err error) {
 	var pstrLen byte
 	err = binary.Read(r, binary.BigEndian, &pstrLen)
 	if err != nil {
 		return
 	}
 	if pstrLen != byte(len(pstr)) {
-		err = ErrInvalidProtocol
+		err = errInvalidProtocol
 		return
 	}
 
@@ -47,7 +47,7 @@ func ReadHandshake1(r io.Reader) (extensions [8]byte, ih InfoHash, err error) {
 		return
 	}
 	if !bytes.Equal(pstr, pstr) {
-		err = ErrInvalidProtocol
+		err = errInvalidProtocol
 		return
 	}
 
@@ -60,7 +60,7 @@ func ReadHandshake1(r io.Reader) (extensions [8]byte, ih InfoHash, err error) {
 	return
 }
 
-func ReadHandshake2(r io.Reader) (id PeerID, err error) {
+func readHandshake2(r io.Reader) (id PeerID, err error) {
 	_, err = io.ReadFull(r, id[:])
 	return
 }

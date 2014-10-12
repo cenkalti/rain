@@ -28,7 +28,7 @@ func main() {
 	flag.Parse()
 
 	if *version == true {
-		fmt.Println(rain.Build)
+		fmt.Println(rain.Version)
 		os.Exit(0)
 	}
 

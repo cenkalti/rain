@@ -11,8 +11,8 @@ import (
 	"github.com/zeebo/bencode"
 )
 
-type Torrent struct {
-	Info         *Info              `bencode:"-"`
+type torrent struct {
+	Info         *info              `bencode:"-"`
 	RawInfo      bencode.RawMessage `bencode:"info" json:"-"`
 	Announce     string             `bencode:"announce"`
 	AnnounceList [][]string         `bencode:"announce-list"`
@@ -22,7 +22,7 @@ type Torrent struct {
 	Encoding     string             `bencode:"encoding"`
 }
 
-type Info struct {
+type info struct {
 	PieceLength uint32 `bencode:"piece length" json:"piece_length"`
 	Pieces      []byte `bencode:"pieces" json:"pieces"`
 	Private     byte   `bencode:"private" json:"private"`
@@ -45,8 +45,8 @@ type fileDict struct {
 	Md5sum string   `bencode:"md5sum" json:"md5sum,omitempty"`
 }
 
-func NewTorrent(path string) (*Torrent, error) {
-	var t Torrent
+func newTorrent(path string) (*torrent, error) {
+	var t torrent
 
 	f, err := os.Open(path)
 	if err != nil {
@@ -64,12 +64,12 @@ func NewTorrent(path string) (*Torrent, error) {
 		return nil, errors.New("no info dict in torrent file")
 	}
 
-	t.Info, err = NewInfo(t.RawInfo)
+	t.Info, err = newInfo(t.RawInfo)
 	return &t, err
 }
 
-func NewInfo(b []byte) (*Info, error) {
-	var i Info
+func newInfo(b []byte) (*info, error) {
+	var i info
 
 	r := bytes.NewReader(b)
 	d := bencode.NewDecoder(r)
@@ -97,7 +97,7 @@ func NewInfo(b []byte) (*Info, error) {
 	return &i, nil
 }
 
-func (i *Info) PieceHash(index uint32) []byte {
+func (i *info) PieceHash(index uint32) []byte {
 	if index >= i.NumPieces {
 		panic("piece index out of range")
 	}
@@ -107,7 +107,7 @@ func (i *Info) PieceHash(index uint32) []byte {
 }
 
 // GetFiles returns the files in torrent as a slice, even if there is a single file.
-func (i *Info) GetFiles() []fileDict {
+func (i *info) GetFiles() []fileDict {
 	if i.MultiFile {
 		return i.Files
 	} else {

@@ -16,7 +16,7 @@ const connReadTimeout = 3 * time.Minute
 // Reject requests larger than this size.
 const maxAllowedBlockSize = 32 * 1024
 
-type Peer struct {
+type peer struct {
 	conn     net.Conn
 	id       PeerID
 	transfer *transfer
@@ -28,21 +28,21 @@ type Peer struct {
 	amInterestedM sync.Mutex
 
 	// pieces that the peer has
-	bitfield *Bitfield
+	bitfield *bitfield
 
 	cond *sync.Cond
 	log  Logger
 }
 
-type Request struct {
-	Peer *Peer
+type peerRequest struct {
+	Peer *peer
 	requestMessage
 }
 type requestMessage struct {
 	Index, Begin, Length uint32
 }
 
-type PieceMessage struct {
+type pieceData struct {
 	pieceMessage
 	Data chan []byte
 }
@@ -50,24 +50,24 @@ type pieceMessage struct {
 	Index, Begin uint32
 }
 
-func (t *transfer) newPeer(conn net.Conn, id PeerID, l Logger) *Peer {
-	p := &Peer{
+func (t *transfer) newPeer(conn net.Conn, id PeerID, l Logger) *peer {
+	p := &peer{
 		conn:        conn,
 		id:          id,
 		transfer:    t,
 		peerChoking: true,
-		bitfield:    NewBitfield(t.bitfield.Len()),
+		bitfield:    newBitfield(t.bitfield.Len()),
 		log:         l,
 	}
 	p.cond = sync.NewCond(&t.m)
 	return p
 }
 
-func (p *Peer) String() string { return p.conn.RemoteAddr().String() }
-func (p *Peer) Close() error   { return p.conn.Close() }
+func (p *peer) String() string { return p.conn.RemoteAddr().String() }
+func (p *peer) Close() error   { return p.conn.Close() }
 
 // Run reads and processes incoming messages after handshake.
-func (p *Peer) Run() {
+func (p *peer) Run() {
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 
 	go p.downloader()
@@ -202,7 +202,7 @@ func (p *Peer) Run() {
 				p.log.Error("invalid request: length")
 			}
 
-			p.transfer.requestC <- &Request{p, req}
+			p.transfer.requestC <- &peerRequest{p, req}
 		case pieceID:
 			var msg pieceMessage
 			err = binary.Read(p.conn, binary.BigEndian, &msg)
@@ -289,14 +289,14 @@ func (p *Peer) Run() {
 	}
 }
 
-func (p *Peer) handleHave(i uint32) {
+func (p *peer) handleHave(i uint32) {
 	p.transfer.m.Lock()
 	p.transfer.pieces[i].peers[p.id] = struct{}{}
 	p.transfer.m.Unlock()
 	p.cond.Broadcast()
 }
 
-func (p *Peer) SendBitfield() error {
+func (p *peer) SendBitfield() error {
 	// Do not send a bitfield message if we don't have any pieces.
 	if p.transfer.bitfield.Count() == 0 {
 		return nil
@@ -304,7 +304,7 @@ func (p *Peer) SendBitfield() error {
 	return p.sendMessage(bitfieldID, p.transfer.bitfield.Bytes())
 }
 
-func (p *Peer) BeInterested() error {
+func (p *peer) BeInterested() error {
 	p.amInterestedM.Lock()
 	defer p.amInterestedM.Unlock()
 	if p.amInterested {
@@ -314,7 +314,7 @@ func (p *Peer) BeInterested() error {
 	return p.sendMessage(interestedID, nil)
 }
 
-func (p *Peer) BeNotInterested() error {
+func (p *peer) BeNotInterested() error {
 	p.amInterestedM.Lock()
 	defer p.amInterestedM.Unlock()
 	if !p.amInterested {
@@ -324,17 +324,17 @@ func (p *Peer) BeNotInterested() error {
 	return p.sendMessage(notInterestedID, nil)
 }
 
-func (p *Peer) Choke() error   { return p.sendMessage(chokeID, nil) }
-func (p *Peer) Unchoke() error { return p.sendMessage(unchokeID, nil) }
+func (p *peer) Choke() error   { return p.sendMessage(chokeID, nil) }
+func (p *peer) Unchoke() error { return p.sendMessage(unchokeID, nil) }
 
-func (p *Peer) Request(b *Block) error {
+func (p *peer) Request(b *block) error {
 	req := requestMessage{b.Piece.Index, b.Begin, b.Length}
 	buf := bytes.NewBuffer(make([]byte, 0, 12))
 	binary.Write(buf, binary.BigEndian, &req)
 	return p.sendMessage(requestID, buf.Bytes())
 }
 
-func (p *Peer) SendPiece(index, begin uint32, block []byte) error {
+func (p *peer) SendPiece(index, begin uint32, block []byte) error {
 	msg := &pieceMessage{index, begin}
 	buf := bytes.NewBuffer(make([]byte, 0, 8))
 	binary.Write(buf, binary.BigEndian, msg)
@@ -342,7 +342,7 @@ func (p *Peer) SendPiece(index, begin uint32, block []byte) error {
 	return p.sendMessage(pieceID, buf.Bytes())
 }
 
-func (p *Peer) sendMessage(id messageID, payload []byte) error {
+func (p *peer) sendMessage(id messageID, payload []byte) error {
 	p.log.Debugf("Sending message of type: %q", id)
 	buf := bufio.NewWriterSize(p.conn, 4+1+len(payload))
 	var header = struct {

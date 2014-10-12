@@ -3,15 +3,15 @@ package rain
 import "testing"
 
 func TestNew(t *testing.T) {
-	var v *Bitfield
+	var v *bitfield
 	var buf = []byte{0x0f}
 
-	v = NewBitfieldBytes(buf, 8)
+	v = newBitfieldBytes(buf, 8)
 	if v.Hex() != "0f" {
 		t.Errorf("invalid value: %s", v.Hex())
 	}
 
-	v = NewBitfieldBytes(buf, 7)
+	v = newBitfieldBytes(buf, 7)
 	if v.Hex() != "0e" {
 		t.Errorf("invalid value: %s", v.Hex())
 	}
@@ -22,10 +22,10 @@ func TestNew(t *testing.T) {
 				t.Error("expected panic but not found")
 			}
 		}()
-		NewBitfieldBytes(buf, 9)
+		newBitfieldBytes(buf, 9)
 	}()
 
-	v = NewBitfield(10)
+	v = newBitfield(10)
 	if v.Hex() != "0000" {
 		t.Errorf("invalid value: %s", v.Hex())
 	}

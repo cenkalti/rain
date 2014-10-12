@@ -22,11 +22,11 @@ const (
 	maxPeerPerTorrent = 200
 )
 
-// Client version. Set when building: "$ go build -ldflags "-X github.com/cenkalti/rain.Build 0001" cmd/rain/rain.go"
-var Build = "0000" // zero means development version
+// Client version. Set when building: "$ go build -ldflags "-X github.com/cenkalti/rain.Version 0001" cmd/rain/rain.go"
+var Version = "0000" // zero means development version
 
 // http://www.bittorrent.org/beps/bep_0020.html
-var peerIDPrefix = []byte("-RN" + Build + "-")
+var peerIDPrefix = []byte("-RN" + Version + "-")
 
 func init() { log.Warning("You are running development version of rain!") }
 
@@ -132,9 +132,9 @@ func (r *Client) acceptAndRun(conn net.Conn) {
 	}
 
 	log := NewLogger("peer <- " + conn.RemoteAddr().String())
-	encConn, cipher, extensions, ih, peerID, err := Accept(conn, getSKey, r.config.Encryption.ForceIncoming, hasInfoHash, [8]byte{}, r.peerID)
+	encConn, cipher, extensions, ih, peerID, err := accept(conn, getSKey, r.config.Encryption.ForceIncoming, hasInfoHash, [8]byte{}, r.peerID)
 	if err != nil {
-		if err == ErrOwnConnection {
+		if err == errOwnConnection {
 			r.log.Debug(err)
 		} else {
 			r.log.Error(err)
@@ -171,7 +171,7 @@ func (r *Client) acceptAndRun(conn net.Conn) {
 }
 
 func (r *Client) Add(torrentPath, where string) (*transfer, error) {
-	torrent, err := NewTorrent(torrentPath)
+	torrent, err := newTorrent(torrentPath)
 	if err != nil {
 		return nil, err
 	}

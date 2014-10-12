@@ -41,7 +41,7 @@ func newHTTPTracker(b *trackerBase) *httpTracker {
 	}
 }
 
-func (t *httpTracker) Announce(transfer Transfer, e TrackerEvent, cancel <-chan struct{}) (*AnnounceResponse, error) {
+func (t *httpTracker) Announce(transfer Transfer, e trackerEvent, cancel <-chan struct{}) (*announceResponse, error) {
 	infoHash := transfer.InfoHash()
 	q := url.Values{}
 	q.Set("info_hash", string(infoHash[:]))
@@ -52,7 +52,7 @@ func (t *httpTracker) Announce(transfer Transfer, e TrackerEvent, cancel <-chan 
 	q.Set("left", strconv.FormatInt(transfer.Left(), 10))
 	q.Set("compact", "1")
 	q.Set("no_peer_id", "1")
-	q.Set("numwant", strconv.Itoa(NumWant))
+	q.Set("numwant", strconv.Itoa(numWant))
 	if e != None {
 		q.Set("event", e.String())
 	}
@@ -100,7 +100,7 @@ func (t *httpTracker) Announce(transfer Transfer, e TrackerEvent, cancel <-chan 
 		return nil, err
 	case <-cancel:
 		t.transport.CancelRequest(req)
-		return nil, RequestCancelled
+		return nil, requestCancelledErr
 	case body := <-bodyC:
 		d := bencode.NewDecoder(body)
 		err := d.Decode(&response)
@@ -114,7 +114,7 @@ func (t *httpTracker) Announce(transfer Transfer, e TrackerEvent, cancel <-chan 
 		t.log.Warning(response.WarningMessage)
 	}
 	if response.FailureReason != "" {
-		return nil, TrackerError(response.FailureReason)
+		return nil, trackerError(response.FailureReason)
 	}
 
 	if response.TrackerId != "" {
@@ -150,7 +150,7 @@ func (t *httpTracker) Announce(transfer Transfer, e TrackerEvent, cancel <-chan 
 		}
 	}
 
-	return &AnnounceResponse{
+	return &announceResponse{
 		Interval:   time.Duration(response.Interval) * time.Second,
 		Leechers:   response.Incomplete,
 		Seeders:    response.Complete,
@@ -177,7 +177,7 @@ func (t *httpTracker) parsePeersDictionary(b bencode.RawMessage) ([]*net.TCPAddr
 	return addrs, err
 }
 
-func (t *httpTracker) Scrape(transfers []Transfer) (*ScrapeResponse, error) { return nil, nil }
+func (t *httpTracker) Scrape(transfers []Transfer) (*scrapeResponse, error) { return nil, nil }
 
 func (t *httpTracker) Close() error {
 	t.transport.CloseIdleConnections()

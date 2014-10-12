@@ -132,7 +132,7 @@ func (t *udpTracker) readLoop() {
 		// Tracker has sent and error.
 		if header.Action == errorAction {
 			// The part after the header is the error message.
-			trx.err = TrackerError(buf[binary.Size(header):])
+			trx.err = trackerError(buf[binary.Size(header):])
 			trx.Done()
 			continue
 		}
@@ -221,7 +221,7 @@ func (t *udpTracker) retryTransaction(f func(*transaction), trx *transaction, ca
 			t.transactionsM.Lock()
 			delete(t.transactions, trx.ID())
 			t.transactionsM.Unlock()
-			return nil, RequestCancelled
+			return nil, requestCancelledErr
 		}
 	}
 }
@@ -231,7 +231,7 @@ func (t *udpTracker) sendTransaction(trx *transaction, cancel <-chan struct{}) (
 	return t.retryTransaction(f, trx, cancel)
 }
 
-func (t *udpTracker) Announce(transfer Transfer, e TrackerEvent, cancel <-chan struct{}) (*AnnounceResponse, error) {
+func (t *udpTracker) Announce(transfer Transfer, e trackerEvent, cancel <-chan struct{}) (*announceResponse, error) {
 	t.dialMutex.Lock()
 	if !t.connected {
 		err := t.dial()
@@ -249,7 +249,7 @@ func (t *udpTracker) Announce(transfer Transfer, e TrackerEvent, cancel <-chan s
 		Event:      e,
 		IP:         0, // Tracker uses sender of this UDP packet.
 		Key:        0, // TODO set it
-		NumWant:    NumWant,
+		NumWant:    numWant,
 		Port:       t.port,
 		Extensions: 0,
 	}
@@ -265,8 +265,8 @@ func (t *udpTracker) Announce(transfer Transfer, e TrackerEvent, cancel <-chan s
 	// t.request may block, that's why we pass cancel as argument.
 	reply, err := t.sendTransaction(trx, cancel)
 	if err != nil {
-		if err, ok := err.(TrackerError); ok {
-			return &AnnounceResponse{Error: err}, nil
+		if err, ok := err.(trackerError); ok {
+			return &announceResponse{Error: err}, nil
 		}
 		return nil, err
 	}
@@ -277,7 +277,7 @@ func (t *udpTracker) Announce(transfer Transfer, e TrackerEvent, cancel <-chan s
 	}
 	t.log.Debugf("Announce response: %#v", response)
 
-	return &AnnounceResponse{
+	return &announceResponse{
 		Interval: time.Duration(response.Interval) * time.Second,
 		Leechers: response.Leechers,
 		Seeders:  response.Seeders,
@@ -285,8 +285,8 @@ func (t *udpTracker) Announce(transfer Transfer, e TrackerEvent, cancel <-chan s
 	}, nil
 }
 
-func (t *udpTracker) parseAnnounceResponse(data []byte) (*announceResponse, []*net.TCPAddr, error) {
-	response := new(announceResponse)
+func (t *udpTracker) parseAnnounceResponse(data []byte) (*udpAnnounceResponse, []*net.TCPAddr, error) {
+	response := new(udpAnnounceResponse)
 	if len(data) < binary.Size(response) {
 		return nil, nil, errors.New("response is too small")
 	}
@@ -311,7 +311,7 @@ func (t *udpTracker) parseAnnounceResponse(data []byte) (*announceResponse, []*n
 	return response, peers, nil
 }
 
-func (t *udpTracker) Scrape(transfers []Transfer) (*ScrapeResponse, error) { return nil, nil }
+func (t *udpTracker) Scrape(transfers []Transfer) (*scrapeResponse, error) { return nil, nil }
 
 type udpBackOff int
 
@@ -381,7 +381,7 @@ type announceRequest struct {
 	Downloaded int64
 	Left       int64
 	Uploaded   int64
-	Event      TrackerEvent
+	Event      trackerEvent
 	IP         uint32
 	Key        uint32
 	NumWant    int32
@@ -425,7 +425,7 @@ func (r *transferAnnounceRequest) WriteTo(w io.Writer) (int64, error) {
 	return int64(buf.Buffered()), buf.Flush()
 }
 
-type announceResponse struct {
+type udpAnnounceResponse struct {
 	udpMessageHeader
 	Interval int32
 	Leechers int32

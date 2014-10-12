@@ -15,15 +15,15 @@ import (
 )
 
 // Number of peers we want from trackers
-const NumWant = 50
+const numWant = 50
 
-var RequestCancelled = errors.New("request cancelled")
+var requestCancelledErr = errors.New("request cancelled")
 
-type Tracker interface {
+type tracker interface {
 	URL() string
 	// Announce transfer to the tracker.
-	Announce(t Transfer, e TrackerEvent, cancel <-chan struct{}) (*AnnounceResponse, error)
-	Scrape([]Transfer) (*ScrapeResponse, error)
+	Announce(t Transfer, e trackerEvent, cancel <-chan struct{}) (*announceResponse, error)
+	Scrape([]Transfer) (*scrapeResponse, error)
 	// Close must be called in order to close open connections if Announce is ever called.
 	Close() error
 }
@@ -35,7 +35,7 @@ type Transfer interface {
 	Left() int64
 }
 
-type AnnounceResponse struct {
+type announceResponse struct {
 	Error      error
 	Interval   time.Duration
 	Leechers   int32
@@ -44,11 +44,11 @@ type AnnounceResponse struct {
 	ExternalIP net.IP
 }
 
-type ScrapeResponse struct {
+type scrapeResponse struct {
 	// TODO not implemented
 }
 
-func NewTracker(trackerURL string, c client) (Tracker, error) {
+func newTracker(trackerURL string, c client) (tracker, error) {
 	u, err := url.Parse(trackerURL)
 	if err != nil {
 		return nil, err
@@ -75,14 +75,14 @@ func NewTracker(trackerURL string, c client) (Tracker, error) {
 // AnnouncePeriodically announces to the tracker periodically and adjust the interval according to the response returned by the tracker.
 // Puts responses into responseC. Blocks when sending to this channel.
 // t.Close must be called after using this function to close open connections to the tracker.
-func AnnouncePeriodically(t Tracker, transfer Transfer, cancel <-chan struct{}, startEvent TrackerEvent, eventC <-chan TrackerEvent, responseC chan<- *AnnounceResponse) {
+func announcePeriodically(t tracker, transfer Transfer, cancel <-chan struct{}, startEvent trackerEvent, eventC <-chan trackerEvent, responseC chan<- *announceResponse) {
 	var nextAnnounce time.Duration
 	var retry = *defaultRetryBackoff
 
-	announce := func(e TrackerEvent) {
+	announce := func(e trackerEvent) {
 		r, err := t.Announce(transfer, e, cancel)
 		if err != nil {
-			r = &AnnounceResponse{Error: err}
+			r = &announceResponse{Error: err}
 			nextAnnounce = retry.NextBackOff()
 		} else {
 			retry.Reset()
@@ -152,15 +152,15 @@ func (t *trackerBase) parsePeersBinary(r *bytes.Reader) ([]*net.TCPAddr, error) 
 }
 
 // Error is the string that is sent by the tracker from announce or scrape.
-type TrackerError string
+type trackerError string
 
-func (e TrackerError) Error() string { return string(e) }
+func (e trackerError) Error() string { return string(e) }
 
-type TrackerEvent int32
+type trackerEvent int32
 
 // Tracker Announce Events. Numbers corresponds to constants in UDP tracker protocol.
 const (
-	None TrackerEvent = iota
+	None trackerEvent = iota
 	Completed
 	Started
 	Stopped
@@ -174,7 +174,7 @@ var eventNames = [...]string{
 }
 
 // String returns the name of event as represented in HTTP tracker protocol.
-func (e TrackerEvent) String() string {
+func (e trackerEvent) String() string {
 	return eventNames[e]
 }
 

@@ -65,9 +65,9 @@ func (t *transfer) connecter() {
 func (t *transfer) connectAndRun(addr *net.TCPAddr) {
 	log := NewLogger("peer -> " + addr.String())
 
-	conn, cipher, extensions, peerID, err := Dial(addr, !t.rain.config.Encryption.DisableOutgoing, t.rain.config.Encryption.ForceOutgoing, [8]byte{}, t.torrent.Info.Hash, t.rain.peerID)
+	conn, cipher, extensions, peerID, err := dial(addr, !t.rain.config.Encryption.DisableOutgoing, t.rain.config.Encryption.ForceOutgoing, [8]byte{}, t.torrent.Info.Hash, t.rain.peerID)
 	if err != nil {
-		if err == ErrOwnConnection {
+		if err == errOwnConnection {
 			log.Debug(err)
 		} else {
 			log.Error(err)
@@ -96,12 +96,12 @@ func (t *transfer) connectAndRun(addr *net.TCPAddr) {
 	p.Run()
 }
 
-func (peer *Peer) downloader() {
+func (peer *peer) downloader() {
 	t := peer.transfer
 	for {
 		// Select next piece to download.
 		t.m.Lock()
-		var candidates []*Piece
+		var candidates []*piece
 		var waitNotInterested sync.WaitGroup
 		for candidates = peer.candidates(); len(candidates) == 0 && !peer.disconnected; {
 			// Stop downloader if all pieces are downloaded.
@@ -179,7 +179,7 @@ func (peer *Peer) downloader() {
 }
 
 // candidates returns list of piece indexes which is available on the peer but not available on the client.
-func (p *Peer) candidates() (candidates []*Piece) {
+func (p *peer) candidates() (candidates []*piece) {
 	for i := uint32(0); i < p.transfer.bitfield.Len(); i++ {
 		if !p.transfer.bitfield.Test(i) && p.bitfield.Test(i) {
 			piece := p.transfer.pieces[i]
@@ -192,7 +192,7 @@ func (p *Peer) candidates() (candidates []*Piece) {
 }
 
 // selectPiece returns the index of the selected piece from candidates.
-func selectPiece(candidates []*Piece) *Piece {
+func selectPiece(candidates []*piece) *piece {
 	sort.Sort(rarestFirst(candidates))
 	minAvailability := candidates[0].availability()
 	var i int
@@ -207,7 +207,7 @@ func selectPiece(candidates []*Piece) *Piece {
 }
 
 // rarestFirst implements sort.Interface based on availability of piece.
-type rarestFirst []*Piece
+type rarestFirst []*piece
 
 func (r rarestFirst) Len() int           { return len(r) }
 func (r rarestFirst) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
