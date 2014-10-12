@@ -14,7 +14,7 @@ type trackerAndCount struct {
 	count   uint
 }
 
-func NewManager(c client) *trackerManager {
+func newManager(c client) *trackerManager {
 	return &trackerManager{
 		trackers: make(map[string]*trackerAndCount),
 		client:   c,
