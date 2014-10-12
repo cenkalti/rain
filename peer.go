@@ -31,7 +31,7 @@ type peer struct {
 	bitfield *bitfield
 
 	cond *sync.Cond
-	log  Logger
+	log  logger
 }
 
 type peerRequest struct {
@@ -50,7 +50,7 @@ type pieceMessage struct {
 	Index, Begin uint32
 }
 
-func (t *transfer) newPeer(conn net.Conn, id PeerID, l Logger) *peer {
+func (t *transfer) newPeer(conn net.Conn, id PeerID, l logger) *peer {
 	p := &peer{
 		conn:        conn,
 		id:          id,

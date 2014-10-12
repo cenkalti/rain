@@ -19,7 +19,7 @@ type transfer struct {
 	peersM    sync.RWMutex
 	stopC     chan struct{} // all goroutines stop when closed
 	m         sync.Mutex    // protects all state related with this transfer and it's peers
-	log       Logger
+	log       logger
 
 	// tracker sends available peers to this channel
 	peersC chan []*net.TCPAddr
@@ -40,7 +40,7 @@ func (r *Client) newTransfer(tor *torrent, where string) (*transfer, error) {
 	if len(name) > 8 {
 		name = name[:8]
 	}
-	log := NewLogger("download " + name)
+	log := newLogger("download " + name)
 
 	trk, err := newTracker(tor.Announce, r)
 	if err != nil {

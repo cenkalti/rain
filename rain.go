@@ -39,7 +39,7 @@ type Client struct {
 	transfers     map[InfoHash]*transfer // all active transfers
 	transfersSKey map[[20]byte]*transfer // for encryption
 	transfersM    sync.Mutex
-	log           Logger
+	log           logger
 }
 
 // New returns a pointer to new Rain BitTorrent client.
@@ -53,7 +53,7 @@ func NewClient(c *Config) (*Client, error) {
 		peerID:        peerID,
 		transfers:     make(map[InfoHash]*transfer),
 		transfersSKey: make(map[[20]byte]*transfer),
-		log:           NewLogger("rain"),
+		log:           newLogger("rain"),
 	}, nil
 }
 
@@ -131,7 +131,7 @@ func (r *Client) acceptAndRun(conn net.Conn) {
 		return ok
 	}
 
-	log := NewLogger("peer <- " + conn.RemoteAddr().String())
+	log := newLogger("peer <- " + conn.RemoteAddr().String())
 	encConn, cipher, extensions, ih, peerID, err := accept(conn, getSKey, r.config.Encryption.ForceIncoming, hasInfoHash, [8]byte{}, r.peerID)
 	if err != nil {
 		if err == errOwnConnection {

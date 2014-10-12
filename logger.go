@@ -9,7 +9,7 @@ import (
 	"github.com/cenkalti/log"
 )
 
-type Logger log.Logger
+type logger log.Logger
 
 var DefaultHandler log.Handler
 
@@ -20,7 +20,7 @@ func init() {
 	DefaultHandler = h
 }
 
-func NewLogger(name string) Logger {
+func newLogger(name string) logger {
 	logger := log.NewLogger(name)
 	logger.SetLevel(log.DEBUG) // forward all messages to handler
 	logger.SetHandler(DefaultHandler)

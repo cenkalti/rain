@@ -63,7 +63,7 @@ func (t *transfer) connecter() {
 }
 
 func (t *transfer) connectAndRun(addr *net.TCPAddr) {
-	log := NewLogger("peer -> " + addr.String())
+	log := newLogger("peer -> " + addr.String())
 
 	conn, cipher, extensions, peerID, err := dial(addr, !t.rain.config.Encryption.DisableOutgoing, t.rain.config.Encryption.ForceOutgoing, [8]byte{}, t.torrent.Info.Hash, t.rain.peerID)
 	if err != nil {

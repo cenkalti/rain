@@ -59,7 +59,7 @@ func newTracker(trackerURL string, c client) (tracker, error) {
 		rawurl: trackerURL,
 		peerID: c.PeerID(),
 		port:   c.Port(),
-		log:    NewLogger("tracker " + trackerURL),
+		log:    newLogger("tracker " + trackerURL),
 	}
 
 	switch u.Scheme {
@@ -113,7 +113,7 @@ type trackerBase struct {
 	rawurl string
 	peerID PeerID
 	port   uint16
-	log    Logger
+	log    logger
 }
 
 func (t trackerBase) URL() string { return t.rawurl }
