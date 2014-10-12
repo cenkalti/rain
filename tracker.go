@@ -41,7 +41,7 @@ type scrapeResponse struct {
 	// TODO not implemented
 }
 
-func newTracker(trackerURL string, c client) (tracker, error) {
+func newTracker(trackerURL string, c *Client) (tracker, error) {
 	u, err := url.Parse(trackerURL)
 	if err != nil {
 		return nil, err
@@ -110,11 +110,6 @@ type trackerBase struct {
 }
 
 func (t trackerBase) URL() string { return t.rawurl }
-
-type client interface {
-	PeerID() PeerID
-	Port() uint16
-}
 
 // parsePeersBinary parses compact representation of peer list.
 func (t *trackerBase) parsePeersBinary(r *bytes.Reader) ([]*net.TCPAddr, error) {

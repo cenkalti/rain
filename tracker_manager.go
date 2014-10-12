@@ -5,7 +5,7 @@ import "sync"
 // Manager returns the same instance for same URLs.
 type trackerManager struct {
 	trackers map[string]*trackerAndCount
-	client   client
+	client   *Client
 	m        sync.Mutex
 }
 
@@ -14,7 +14,7 @@ type trackerAndCount struct {
 	count   uint
 }
 
-func newManager(c client) *trackerManager {
+func newManager(c *Client) *trackerManager {
 	return &trackerManager{
 		trackers: make(map[string]*trackerAndCount),
 		client:   c,
