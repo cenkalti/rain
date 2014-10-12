@@ -85,9 +85,9 @@ func (r *Client) Listen() error {
 
 // Port returns the port number that the client is listening.
 // If the client does not listen any port, returns 0.
-func (r *Client) Port() uint16 {
+func (r *Client) Port() int {
 	if r.listener != nil {
-		return uint16(r.listener.Addr().(*net.TCPAddr).Port)
+		return r.listener.Addr().(*net.TCPAddr).Port
 	}
 	return 0
 }

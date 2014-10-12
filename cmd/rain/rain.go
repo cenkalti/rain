@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"math"
 	"math/rand"
 	"os"
 	"time"
@@ -63,10 +62,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if *port > math.MaxUint16 {
-		log.Fatal("invalid port number")
-	}
-	c.Port = uint16(*port)
+	c.Port = *port
 
 	if *where != rain.DefaultConfig.DownloadDir {
 		c.DownloadDir = *where

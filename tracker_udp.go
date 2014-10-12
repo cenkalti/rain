@@ -250,7 +250,7 @@ func (t *udpTracker) Announce(transfer *transfer, e trackerEvent, cancel <-chan 
 		IP:         0, // Tracker uses sender of this UDP packet.
 		Key:        0, // TODO set it
 		NumWant:    numWant,
-		Port:       t.client.Port(),
+		Port:       uint16(t.client.Port()),
 		Extensions: 0,
 	}
 	request.SetAction(actionAnnounce)
