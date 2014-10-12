@@ -15,7 +15,7 @@ import (
 	"github.com/cenkalti/rain"
 )
 
-const defaultConfig = "~/.rain.yaml"
+const defaultConfig = "~/.rain.yml"
 
 var (
 	config  = flag.String("c", defaultConfig, "config file")
