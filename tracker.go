@@ -22,17 +22,10 @@ var requestCancelledErr = errors.New("request cancelled")
 type tracker interface {
 	URL() string
 	// Announce transfer to the tracker.
-	Announce(t Transfer, e trackerEvent, cancel <-chan struct{}) (*announceResponse, error)
-	Scrape([]Transfer) (*scrapeResponse, error)
+	Announce(t *transfer, e trackerEvent, cancel <-chan struct{}) (*announceResponse, error)
+	Scrape([]*transfer) (*scrapeResponse, error)
 	// Close must be called in order to close open connections if Announce is ever called.
 	Close() error
-}
-
-type Transfer interface {
-	InfoHash() InfoHash
-	Downloaded() int64
-	Uploaded() int64
-	Left() int64
 }
 
 type announceResponse struct {
@@ -75,7 +68,7 @@ func newTracker(trackerURL string, c client) (tracker, error) {
 // AnnouncePeriodically announces to the tracker periodically and adjust the interval according to the response returned by the tracker.
 // Puts responses into responseC. Blocks when sending to this channel.
 // t.Close must be called after using this function to close open connections to the tracker.
-func announcePeriodically(t tracker, transfer Transfer, cancel <-chan struct{}, startEvent trackerEvent, eventC <-chan trackerEvent, responseC chan<- *announceResponse) {
+func announcePeriodically(t tracker, transfer *transfer, cancel <-chan struct{}, startEvent trackerEvent, eventC <-chan trackerEvent, responseC chan<- *announceResponse) {
 	var nextAnnounce time.Duration
 	var retry = *defaultRetryBackoff
 

@@ -231,7 +231,7 @@ func (t *udpTracker) sendTransaction(trx *transaction, cancel <-chan struct{}) (
 	return t.retryTransaction(f, trx, cancel)
 }
 
-func (t *udpTracker) Announce(transfer Transfer, e trackerEvent, cancel <-chan struct{}) (*announceResponse, error) {
+func (t *udpTracker) Announce(transfer *transfer, e trackerEvent, cancel <-chan struct{}) (*announceResponse, error) {
 	t.dialMutex.Lock()
 	if !t.connected {
 		err := t.dial()
@@ -311,7 +311,7 @@ func (t *udpTracker) parseAnnounceResponse(data []byte) (*udpAnnounceResponse, [
 	return response, peers, nil
 }
 
-func (t *udpTracker) Scrape(transfers []Transfer) (*scrapeResponse, error) { return nil, nil }
+func (t *udpTracker) Scrape(transfers []*transfer) (*scrapeResponse, error) { return nil, nil }
 
 type udpBackOff int
 
@@ -390,7 +390,7 @@ type announceRequest struct {
 }
 
 type transferAnnounceRequest struct {
-	transfer Transfer
+	transfer *transfer
 	*announceRequest
 	urlData string
 }
