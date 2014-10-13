@@ -149,7 +149,7 @@ func (p *peer) Run() {
 				p.log.Error(err)
 				return
 			}
-			if i >= p.transfer.torrent.Info.NumPieces {
+			if i >= p.transfer.info.NumPieces {
 				p.log.Error("unexpected piece index")
 				return
 			}
@@ -190,7 +190,7 @@ func (p *peer) Run() {
 			}
 			p.log.Debugf("Request: %+v", req)
 
-			if req.Index >= p.transfer.torrent.Info.NumPieces {
+			if req.Index >= p.transfer.info.NumPieces {
 				p.log.Error("invalid request: index")
 				return
 			}
@@ -212,7 +212,7 @@ func (p *peer) Run() {
 			}
 			length -= 8
 
-			if msg.Index >= p.transfer.torrent.Info.NumPieces {
+			if msg.Index >= p.transfer.info.NumPieces {
 				p.log.Error("invalid request: index")
 				return
 			}

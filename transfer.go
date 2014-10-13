@@ -13,8 +13,8 @@ import (
 
 type Transfer struct {
 	client    *Client
+	info      *info
 	tracker   tracker
-	torrent   *torrent
 	pieces    []*piece
 	bitfield  *bitfield
 	announceC chan *announceResponse
@@ -70,7 +70,7 @@ func (r *Client) newTransfer(tor *torrent) (*Transfer, error) {
 	t := &Transfer{
 		client:    r,
 		tracker:   trk,
-		torrent:   tor,
+		info:      tor.Info,
 		pieces:    pieces,
 		bitfield:  bf,
 		announceC: make(chan *announceResponse),
@@ -92,7 +92,7 @@ func (r *Client) newTransfer(tor *torrent) (*Transfer, error) {
 	return t, nil
 }
 
-func (t *Transfer) InfoHash() [sha1.Size]byte     { return t.torrent.Info.Hash }
+func (t *Transfer) InfoHash() [sha1.Size]byte     { return t.info.Hash }
 func (t *Transfer) CompleteNotify() chan struct{} { return t.completed }
 func (t *Transfer) Downloaded() int64 {
 	t.m.Lock()
@@ -106,7 +106,7 @@ func (t *Transfer) Downloaded() int64 {
 	return sum
 }
 func (t *Transfer) Uploaded() int64 { return 0 } // TODO
-func (t *Transfer) Left() int64     { return t.torrent.Info.TotalLength - t.Downloaded() }
+func (t *Transfer) Left() int64     { return t.info.TotalLength - t.Downloaded() }
 
 func (t *Transfer) run() {
 	// Start download workers
@@ -221,15 +221,15 @@ func openOrAllocate(path string, length int64) (f *os.File, exists bool, err err
 }
 
 func (t *Transfer) Start() {
-	sKey := mse.HashSKey(t.torrent.Info.Hash[:])
+	sKey := mse.HashSKey(t.info.Hash[:])
 	t.client.transfersM.Lock()
-	t.client.transfers[t.torrent.Info.Hash] = t
+	t.client.transfers[t.info.Hash] = t
 	t.client.transfersSKey[sKey] = t
 	t.client.transfersM.Unlock()
 	go func() {
 		defer func() {
 			t.client.transfersM.Lock()
-			delete(t.client.transfers, t.torrent.Info.Hash)
+			delete(t.client.transfers, t.info.Hash)
 			delete(t.client.transfersSKey, sKey)
 			t.client.transfersM.Unlock()
 		}()

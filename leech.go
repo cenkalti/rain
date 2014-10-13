@@ -58,7 +58,7 @@ func (t *Transfer) connecter() {
 func (t *Transfer) connectAndRun(addr *net.TCPAddr) {
 	log := newLogger("peer -> " + addr.String())
 
-	conn, cipher, extensions, peerID, err := dial(addr, !t.client.config.Encryption.DisableOutgoing, t.client.config.Encryption.ForceOutgoing, [8]byte{}, t.torrent.Info.Hash, t.client.peerID)
+	conn, cipher, extensions, peerID, err := dial(addr, !t.client.config.Encryption.DisableOutgoing, t.client.config.Encryption.ForceOutgoing, [8]byte{}, t.info.Hash, t.client.peerID)
 	if err != nil {
 		if err == errOwnConnection {
 			log.Debug(err)

@@ -125,7 +125,7 @@ func (r *Client) acceptAndRun(conn net.Conn) {
 		t, ok := r.transfersSKey[sKeyHash]
 		r.transfersM.Unlock()
 		if ok {
-			sKey = t.torrent.Info.Hash[:]
+			sKey = t.info.Hash[:]
 		}
 		return
 	}
