@@ -32,6 +32,7 @@ func init() {
 func TestDownload(t *testing.T) {
 	c1 := rain.DefaultConfig
 	c1.Port = 0 // pick a random port
+	c1.DownloadDir = torrentDataDir
 	seeder, err := rain.NewClient(&c1)
 	if err != nil {
 		t.Fatal(err)
@@ -42,14 +43,21 @@ func TestDownload(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	leecher, err := rain.NewClient(&rain.DefaultConfig)
+	where, err := ioutil.TempDir("", "rain-")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	c2 := rain.DefaultConfig
+	c2.DownloadDir = where
+	leecher, err := rain.NewClient(&c2)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	startTracker(t)
 
-	t1, err := seeder.Add(torrentFile, torrentDataDir)
+	t1, err := seeder.Add(torrentFile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,12 +66,7 @@ func TestDownload(t *testing.T) {
 	// Wait for seeder to announce to tracker.
 	time.Sleep(100 * time.Millisecond)
 
-	where, err := ioutil.TempDir("", "rain-")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t2, err := leecher.Add(torrentFile, where)
+	t2, err := leecher.Add(torrentFile)
 	if err != nil {
 		t.Fatal(err)
 	}

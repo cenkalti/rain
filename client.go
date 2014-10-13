@@ -182,18 +182,15 @@ func (r *Client) acceptAndRun(conn net.Conn) {
 	p.Run()
 }
 
-func (r *Client) Add(torrentPath, where string) (*Transfer, error) {
+func (r *Client) Add(torrentPath string) (*Transfer, error) {
 	torrent, err := newTorrent(torrentPath)
 	if err != nil {
 		return nil, err
 	}
 	r.log.Debugf("Parsed torrent file: %#v", torrent)
-	if where == "" {
-		where = r.config.DownloadDir
-	}
-	return r.newTransfer(torrent, where)
+	return r.newTransfer(torrent)
 }
 
-func (r *Client) AddMagnet(url, where string) (*Transfer, error) { panic("not implemented") }
+func (r *Client) AddMagnet(url string) (*Transfer, error) { panic("not implemented") }
 
 func (r *Client) Remove(t *Transfer) { panic("not implemented") }
