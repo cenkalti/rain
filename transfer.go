@@ -1,6 +1,7 @@
 package rain
 
 import (
+	"crypto/sha1"
 	"fmt"
 	"net"
 	"os"
@@ -92,7 +93,7 @@ func (r *Client) newTransfer(tor *torrent) (*Transfer, error) {
 	return t, nil
 }
 
-func (t *Transfer) InfoHash() [20]byte            { return t.torrent.Info.Hash }
+func (t *Transfer) InfoHash() [sha1.Size]byte     { return t.torrent.Info.Hash }
 func (t *Transfer) CompleteNotify() chan struct{} { return t.completed }
 func (t *Transfer) Downloaded() int64 {
 	t.m.Lock()
@@ -244,3 +245,5 @@ func (t *Transfer) Start() {
 }
 
 func (t *Transfer) Stop() { close(t.stopC) }
+
+func (t *Transfer) Remove() error { panic("not implemented") }

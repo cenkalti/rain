@@ -80,7 +80,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	t, err := r.Add(args[0])
+	f, err := os.Open(args[0])
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	t, err := r.AddTorrent(f)
 	if err != nil {
 		log.Fatal(err)
 	}

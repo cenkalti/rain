@@ -3,10 +3,9 @@
 package rain
 
 import (
-	"bytes"
 	"crypto/sha1"
 	"errors"
-	"os"
+	"io"
 
 	"github.com/zeebo/bencode"
 )
@@ -45,17 +44,9 @@ type fileDict struct {
 	Md5sum string   `bencode:"md5sum" json:"md5sum,omitempty"`
 }
 
-func newTorrent(path string) (*torrent, error) {
+func newTorrent(r io.Reader) (*torrent, error) {
 	var t torrent
-
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-
-	d := bencode.NewDecoder(f)
-	err = d.Decode(&t)
-	f.Close()
+	err := bencode.NewDecoder(r).Decode(&t)
 	if err != nil {
 		return nil, err
 	}
@@ -70,11 +61,7 @@ func newTorrent(path string) (*torrent, error) {
 
 func newInfo(b []byte) (*info, error) {
 	var i info
-
-	r := bytes.NewReader(b)
-	d := bencode.NewDecoder(r)
-	err := d.Decode(&i)
-	if err != nil {
+	if err := bencode.DecodeBytes(b, &i); err != nil {
 		return nil, err
 	}
 

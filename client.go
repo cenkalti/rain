@@ -2,6 +2,7 @@ package rain
 
 import (
 	"crypto/rand"
+	"io"
 	"net"
 	"runtime"
 	"sync"
@@ -182,15 +183,13 @@ func (r *Client) acceptAndRun(conn net.Conn) {
 	p.Run()
 }
 
-func (r *Client) Add(torrentPath string) (*Transfer, error) {
-	torrent, err := newTorrent(torrentPath)
+func (c *Client) AddTorrent(r io.Reader) (*Transfer, error) {
+	torrent, err := newTorrent(r)
 	if err != nil {
 		return nil, err
 	}
-	r.log.Debugf("Parsed torrent file: %#v", torrent)
-	return r.newTransfer(torrent)
+	c.log.Debugf("Parsed torrent file: %#v", torrent)
+	return c.newTransfer(torrent)
 }
 
-func (r *Client) AddMagnet(url string) (*Transfer, error) { panic("not implemented") }
-
-func (r *Client) Remove(t *Transfer) { panic("not implemented") }
+func (c *Client) AddMagnet(uri string) (*Transfer, error) { panic("not implemented") }
