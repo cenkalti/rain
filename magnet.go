@@ -22,6 +22,10 @@ func parseMagnet(s string) (*magnet, error) {
 		return nil, err
 	}
 
+	if u.Scheme != "magnet" {
+		return nil, errors.New("not a magnet link")
+	}
+
 	params := u.Query()
 
 	xts, ok := params["xt"]
