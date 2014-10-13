@@ -13,14 +13,14 @@ var DefaultLogHandler log.Handler
 
 func SetLogLevel(l log.Level) { DefaultLogHandler.SetLevel(l) }
 
-type logger log.Logger
-
 func init() {
 	h := log.NewWriterHandler(os.Stderr)
 	h.SetFormatter(logFormatter{})
 	h.Colorize = true
 	DefaultLogHandler = h
 }
+
+type logger log.Logger
 
 func newLogger(name string) logger {
 	logger := log.NewLogger(name)
