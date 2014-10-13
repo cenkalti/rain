@@ -5,8 +5,6 @@ import (
 	"net"
 	"runtime"
 	"sync"
-
-	"github.com/cenkalti/log"
 )
 
 // Limits
@@ -26,10 +24,6 @@ var Version = "0000" // zero means development version
 
 // http://www.bittorrent.org/beps/bep_0020.html
 var peerIDPrefix = []byte("-RN" + Version + "-")
-
-func init() { log.Warning("You are running development version of rain!") }
-
-func SetLogLevel(l log.Level) { DefaultLogHandler.SetLevel(l) }
 
 type Client struct {
 	config        *Config

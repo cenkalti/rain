@@ -9,9 +9,11 @@ import (
 	"github.com/cenkalti/log"
 )
 
-type logger log.Logger
-
 var DefaultLogHandler log.Handler
+
+func SetLogLevel(l log.Level) { DefaultLogHandler.SetLevel(l) }
+
+type logger log.Logger
 
 func init() {
 	h := log.NewWriterHandler(os.Stderr)
