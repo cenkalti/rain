@@ -14,7 +14,7 @@ import (
 	"github.com/zeebo/bencode"
 )
 
-var HTTPTimeout = 30 * time.Second
+var httpTimeout = 30 * time.Second
 
 type httpTracker struct {
 	*trackerBase
@@ -26,15 +26,15 @@ type httpTracker struct {
 func newHTTPTracker(b *trackerBase) *httpTracker {
 	transport := &http.Transport{
 		Dial: (&net.Dialer{
-			Timeout: HTTPTimeout,
+			Timeout: httpTimeout,
 		}).Dial,
-		TLSHandshakeTimeout: HTTPTimeout,
+		TLSHandshakeTimeout: httpTimeout,
 		DisableKeepAlives:   true,
 	}
 	return &httpTracker{
 		trackerBase: b,
 		http: &http.Client{
-			Timeout:   HTTPTimeout,
+			Timeout:   httpTimeout,
 			Transport: transport,
 		},
 		transport: transport,

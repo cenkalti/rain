@@ -208,7 +208,7 @@ func (t *udpTracker) retryTransaction(f func(*transaction), trx *transaction, ca
 	t.transactions[trx.ID()] = trx
 	t.transactionsM.Unlock()
 
-	ticker := backoff.NewTicker(UDPBackOff())
+	ticker := backoff.NewTicker(new(udpBackOff))
 	defer ticker.Stop()
 	for {
 		select {
@@ -324,8 +324,6 @@ func (b *udpBackOff) NextBackOff() time.Duration {
 }
 
 func (b *udpBackOff) Reset() { *b = 0 }
-
-var UDPBackOff = func() backoff.BackOff { return new(udpBackOff) }
 
 type udpMessage interface {
 	GetAction() action
