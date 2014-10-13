@@ -13,13 +13,13 @@ var errInvalidProtocol = errors.New("invalid protocol")
 
 var pstr = [19]byte{'B', 'i', 't', 'T', 'o', 'r', 'r', 'e', 'n', 't', ' ', 'p', 'r', 'o', 't', 'o', 'c', 'o', 'l'}
 
-func writeHandshake(w io.Writer, ih InfoHash, id PeerID, extensions [8]byte) error {
+func writeHandshake(w io.Writer, ih [20]byte, id [20]byte, extensions [8]byte) error {
 	var h = struct {
 		Pstrlen    byte
 		Pstr       [len(pstr)]byte
 		Extensions [8]byte
-		InfoHash   InfoHash
-		PeerID     PeerID
+		InfoHash   [20]byte
+		PeerID     [20]byte
 	}{
 		Pstrlen:    byte(len(pstr)),
 		Pstr:       pstr,
@@ -30,7 +30,7 @@ func writeHandshake(w io.Writer, ih InfoHash, id PeerID, extensions [8]byte) err
 	return binary.Write(w, binary.BigEndian, h)
 }
 
-func readHandshake1(r io.Reader) (extensions [8]byte, ih InfoHash, err error) {
+func readHandshake1(r io.Reader) (extensions [8]byte, ih [20]byte, err error) {
 	var pstrLen byte
 	err = binary.Read(r, binary.BigEndian, &pstrLen)
 	if err != nil {
@@ -60,7 +60,7 @@ func readHandshake1(r io.Reader) (extensions [8]byte, ih InfoHash, err error) {
 	return
 }
 
-func readHandshake2(r io.Reader) (id PeerID, err error) {
+func readHandshake2(r io.Reader) (id [20]byte, err error) {
 	_, err = io.ReadFull(r, id[:])
 	return
 }

@@ -15,9 +15,9 @@ var addr = &net.TCPAddr{
 var (
 	ext1     = [8]byte{0x0A}
 	ext2     = [8]byte{0x0B}
-	id1      = PeerID{0x0C}
-	id2      = PeerID{0x0D}
-	infoHash = InfoHash{0x0E}
+	id1      = [20]byte{0x0C}
+	id2      = [20]byte{0x0D}
+	infoHash = [20]byte{0x0E}
 	sKeyHash = mse.HashSKey(infoHash[:])
 )
 
@@ -51,7 +51,7 @@ func TestUnencrypted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, cipher, ext, ih, id, err := accept(conn, nil, false, func(ih InfoHash) bool { return ih == infoHash }, ext2, id2)
+	_, cipher, ext, ih, id, err := accept(conn, nil, false, func(ih [20]byte) bool { return ih == infoHash }, ext2, id2)
 	<-done
 	if err != nil {
 		t.Fatal(err)
@@ -124,7 +124,7 @@ func TestEncrypted(t *testing.T) {
 			return nil
 		},
 		false,
-		func(ih InfoHash) bool { return ih == infoHash },
+		func(ih [20]byte) bool { return ih == infoHash },
 		ext2, id2)
 	if err != nil {
 		t.Fatal(err)

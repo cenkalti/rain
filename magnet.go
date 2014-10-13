@@ -3,13 +3,15 @@
 package rain
 
 import (
+	"encoding/base32"
+	"encoding/hex"
 	"errors"
 	"net/url"
 	"strings"
 )
 
 type magnet struct {
-	InfoHash InfoHash
+	InfoHash [20]byte
 	Name     string
 	Trackers []string
 }
@@ -51,4 +53,24 @@ func parseMagnet(s string) (*magnet, error) {
 	magnet.Trackers = params["tr"]
 
 	return &magnet, nil
+}
+
+// infoHashString returns a new info hash value from a string.
+// s must be 40 (hex encoded) or 32 (base32 encoded) characters, otherwise it returns error.
+func infoHashString(s string) ([20]byte, error) {
+	var ih [20]byte
+	var b []byte
+	var err error
+	if len(s) == 40 {
+		b, err = hex.DecodeString(s)
+	} else if len(s) == 32 {
+		b, err = base32.StdEncoding.DecodeString(s)
+	} else {
+		return ih, errors.New("info hash must be 32 or 40 characters")
+	}
+	if err != nil {
+		return ih, err
+	}
+	copy(ih[:], b)
+	return ih, nil
 }

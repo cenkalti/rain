@@ -376,8 +376,8 @@ type connectResponse struct {
 
 type announceRequest struct {
 	udpRequestHeader
-	InfoHash   InfoHash
-	PeerID     PeerID
+	InfoHash   [20]byte
+	PeerID     [20]byte
 	Downloaded int64
 	Left       int64
 	Uploaded   int64

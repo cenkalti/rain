@@ -1,6 +1,9 @@
 package rain
 
-import "testing"
+import (
+	"encoding/hex"
+	"testing"
+)
 
 func TestTorrent(t *testing.T) {
 	tor, err := newTorrent("testfiles/ubuntu-14.04.1-server-amd64.iso.torrent")
@@ -16,7 +19,7 @@ func TestTorrent(t *testing.T) {
 		t.Errorf("invalid length: %d", tor.Info.Length)
 	}
 
-	if tor.Info.Hash.String() != "2d066c94480adcf52bfd1185a75eb4ddc1777673" {
+	if hex.EncodeToString(tor.Info.Hash[:]) != "2d066c94480adcf52bfd1185a75eb4ddc1777673" {
 		t.Errorf("invalid info hash: %q must be '2d066c94480adcf52bfd1185a75eb4ddc1777673'", tor.Info.Hash)
 	}
 }

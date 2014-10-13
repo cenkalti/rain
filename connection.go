@@ -20,8 +20,8 @@ var (
 	errNotEncrypted    = errors.New("connection is not encrypted")
 )
 
-func dial(addr net.Addr, enableEncryption, forceEncryption bool, ourExtensions [8]byte, ih InfoHash, ourID PeerID) (
-	conn net.Conn, cipher mse.CryptoMethod, peerExtensions [8]byte, peerID PeerID, err error) {
+func dial(addr net.Addr, enableEncryption, forceEncryption bool, ourExtensions [8]byte, ih [20]byte, ourID [20]byte) (
+	conn net.Conn, cipher mse.CryptoMethod, peerExtensions [8]byte, peerID [20]byte, err error) {
 
 	log := newLogger("conn -> " + addr.String())
 
@@ -100,7 +100,7 @@ func dial(addr net.Addr, enableEncryption, forceEncryption bool, ourExtensions [
 		return
 	}
 
-	var ihRead InfoHash
+	var ihRead [20]byte
 	peerExtensions, ihRead, err = readHandshake1(conn)
 	if err != nil {
 		return
@@ -127,9 +127,9 @@ func accept(
 	conn net.Conn,
 	getSKey func(sKeyHash [20]byte) (sKey []byte),
 	forceEncryption bool,
-	hasInfoHash func(InfoHash) bool,
-	ourExtensions [8]byte, ourID PeerID) (
-	encConn net.Conn, cipher mse.CryptoMethod, peerExtensions [8]byte, ih InfoHash, peerID PeerID, err error) {
+	hasInfoHash func([20]byte) bool,
+	ourExtensions [8]byte, ourID [20]byte) (
+	encConn net.Conn, cipher mse.CryptoMethod, peerExtensions [8]byte, ih [20]byte, peerID [20]byte, err error) {
 
 	log := newLogger("conn <- " + conn.RemoteAddr().String())
 

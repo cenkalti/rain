@@ -14,10 +14,10 @@ type piece struct {
 	OK            bool   // hash is correct and written to disk, Verify() must be called to set this.
 	Length        uint32 // last piece may not be complete
 	Blocks        []block
-	hash          []byte                    // correct hash value
-	files         sections                  // the place to write downloaded bytes
-	peers         map[PeerID]struct{}       // peers which have this piece
-	requestedFrom map[PeerID]*activeRequest // peers that we have reqeusted the piece from
+	hash          []byte                      // correct hash value
+	files         sections                    // the place to write downloaded bytes
+	peers         map[[20]byte]struct{}       // peers which have this piece, indexed by peer id
+	requestedFrom map[[20]byte]*activeRequest // peers that we have reqeusted the piece from, indexed by peer id
 }
 
 type block struct {
@@ -36,9 +36,9 @@ type activeRequest struct {
 	data             []byte // buffer for received blocks
 }
 
-func (p *piece) getActiveRequest(id PeerID) *activeRequest { return p.requestedFrom[id] }
-func (p *piece) deleteActiveRequest(id PeerID)             { delete(p.requestedFrom, id) }
-func (p *piece) createActiveRequest(id PeerID) *activeRequest {
+func (p *piece) getActiveRequest(id [20]byte) *activeRequest { return p.requestedFrom[id] }
+func (p *piece) deleteActiveRequest(id [20]byte)             { delete(p.requestedFrom, id) }
+func (p *piece) createActiveRequest(id [20]byte) *activeRequest {
 	r := &activeRequest{
 		createdAt:        time.Now(),
 		blocksRequesting: newBitfield(uint32(len(p.Blocks))),
@@ -64,7 +64,7 @@ func (r *activeRequest) outstanding() uint32 {
 	return uint32(o)
 }
 
-func (p *piece) nextBlock(id PeerID) (*block, bool) {
+func (p *piece) nextBlock(id [20]byte) (*block, bool) {
 	i, ok := p.requestedFrom[id].blocksRequested.FirstClear(0)
 	if !ok {
 		return nil, false
@@ -72,7 +72,7 @@ func (p *piece) nextBlock(id PeerID) (*block, bool) {
 	return &p.Blocks[i], true
 }
 
-func (b *block) deleteRequested(id PeerID) {
+func (b *block) deleteRequested(id [20]byte) {
 	b.Piece.requestedFrom[id].blocksRequested.Clear(b.Index)
 }
 
@@ -99,8 +99,8 @@ func newPieces(info *info, osFiles []*os.File) []*piece {
 		p := &piece{
 			Index:         i,
 			hash:          info.PieceHash(i),
-			peers:         make(map[PeerID]struct{}),
-			requestedFrom: make(map[PeerID]*activeRequest),
+			peers:         make(map[[20]byte]struct{}),
+			requestedFrom: make(map[[20]byte]*activeRequest),
 		}
 
 		// Construct p.files

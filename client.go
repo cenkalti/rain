@@ -33,9 +33,9 @@ func SetLogLevel(l log.Level) { DefaultLogHandler.SetLevel(l) }
 
 type Client struct {
 	config        *Config
-	peerID        PeerID
+	peerID        [20]byte
 	listener      *net.TCPListener
-	transfers     map[InfoHash]*Transfer // all active transfers
+	transfers     map[[20]byte]*Transfer // all active transfers
 	transfersSKey map[[20]byte]*Transfer // for encryption
 	transfersM    sync.Mutex
 	log           logger
@@ -69,20 +69,20 @@ func NewClient(c *Config) (*Client, error) {
 	return &Client{
 		config:        c,
 		peerID:        peerID,
-		transfers:     make(map[InfoHash]*Transfer),
+		transfers:     make(map[[20]byte]*Transfer),
 		transfersSKey: make(map[[20]byte]*Transfer),
 		log:           newLogger("client"),
 	}, nil
 }
 
-func generatePeerID() (PeerID, error) {
-	var id PeerID
+func generatePeerID() ([20]byte, error) {
+	var id [20]byte
 	copy(id[:], peerIDPrefix)
 	_, err := rand.Read(id[len(peerIDPrefix):])
 	return id, err
 }
 
-func (r *Client) PeerID() PeerID { return r.peerID }
+func (r *Client) PeerID() [20]byte { return r.peerID }
 
 // Listen peer port and accept incoming peer connections.
 func (r *Client) Listen() error {
@@ -142,7 +142,7 @@ func (r *Client) acceptAndRun(conn net.Conn) {
 		return
 	}
 
-	hasInfoHash := func(ih InfoHash) bool {
+	hasInfoHash := func(ih [20]byte) bool {
 		r.transfersM.Lock()
 		_, ok := r.transfers[ih]
 		r.transfersM.Unlock()

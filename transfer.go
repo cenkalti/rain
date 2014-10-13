@@ -18,7 +18,7 @@ type Transfer struct {
 	pieces    []*piece
 	bitfield  *bitfield
 	announceC chan *announceResponse
-	peers     map[PeerID]*peer // connected peers
+	peers     map[[20]byte]*peer // connected peers
 	peersM    sync.RWMutex
 	stopC     chan struct{} // all goroutines stop when closed
 	m         sync.Mutex    // protects all state related with this transfer and it's peers
@@ -75,7 +75,7 @@ func (r *Client) newTransfer(tor *torrent, where string) (*Transfer, error) {
 		pieces:    pieces,
 		bitfield:  bf,
 		announceC: make(chan *announceResponse),
-		peers:     make(map[PeerID]*peer),
+		peers:     make(map[[20]byte]*peer),
 		stopC:     make(chan struct{}),
 		log:       log,
 		peersC:    make(chan []*net.TCPAddr),
@@ -93,7 +93,7 @@ func (r *Client) newTransfer(tor *torrent, where string) (*Transfer, error) {
 	return t, nil
 }
 
-func (t *Transfer) InfoHash() InfoHash            { return t.torrent.Info.Hash }
+func (t *Transfer) InfoHash() [20]byte            { return t.torrent.Info.Hash }
 func (t *Transfer) CompleteNotify() chan struct{} { return t.completed }
 func (t *Transfer) Downloaded() int64 {
 	t.m.Lock()

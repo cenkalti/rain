@@ -1,6 +1,7 @@
 package rain
 
 import (
+	"encoding/hex"
 	"strings"
 	"testing"
 )
@@ -11,7 +12,7 @@ func TestParse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if m.InfoHash.String() != strings.ToLower("F60CC95E3566AF84C1AB223FD4CE80FA88E6438A") {
+	if hex.EncodeToString(m.InfoHash[:]) != strings.ToLower("F60CC95E3566AF84C1AB223FD4CE80FA88E6438A") {
 		t.Fatal("invalid info hash")
 	}
 	if m.Name != "sample_torrent" {
