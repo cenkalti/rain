@@ -182,7 +182,7 @@ func (c *Client) AddTorrent(r io.Reader) (*Transfer, error) {
 		return nil, err
 	}
 	c.log.Debugf("Parsed torrent file: %#v", torrent)
-	return c.newTransfer(torrent)
+	return c.newTransferTorrent(torrent)
 }
 
 func (c *Client) AddMagnet(uri string) (*Transfer, error) { panic("not implemented") }

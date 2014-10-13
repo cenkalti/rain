@@ -37,7 +37,7 @@ type Transfer struct {
 	serveC chan *peerRequest
 }
 
-func (r *Client) newTransfer(tor *torrent) (*Transfer, error) {
+func (r *Client) newTransferTorrent(tor *torrent) (*Transfer, error) {
 	name := tor.Info.Name
 	if len(name) > 8 {
 		name = name[:8]
