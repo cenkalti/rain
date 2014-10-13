@@ -57,7 +57,12 @@ func TestDownload(t *testing.T) {
 
 	startTracker(t)
 
-	t1, err := seeder.Add(torrentFile)
+	f, err := os.Open(torrentFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t1, err := seeder.AddTorrent(f)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +71,8 @@ func TestDownload(t *testing.T) {
 	// Wait for seeder to announce to tracker.
 	time.Sleep(100 * time.Millisecond)
 
-	t2, err := leecher.Add(torrentFile)
+	f.Seek(0, os.SEEK_SET)
+	t2, err := leecher.AddTorrent(f)
 	if err != nil {
 		t.Fatal(err)
 	}

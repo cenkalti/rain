@@ -2,11 +2,17 @@ package rain
 
 import (
 	"encoding/hex"
+	"os"
 	"testing"
 )
 
 func TestTorrent(t *testing.T) {
-	tor, err := newTorrent("testfiles/ubuntu-14.04.1-server-amd64.iso.torrent")
+	f, err := os.Open("testfiles/ubuntu-14.04.1-server-amd64.iso.torrent")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tor, err := newTorrent(f)
 	if err != nil {
 		t.Fatal(err)
 	}
