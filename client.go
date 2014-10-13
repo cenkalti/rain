@@ -195,3 +195,5 @@ func (r *Client) Add(torrentPath, where string) (*Transfer, error) {
 }
 
 func (r *Client) AddMagnet(url, where string) (*Transfer, error) { panic("not implemented") }
+
+func (r *Client) Remove(t *Transfer) { panic("not implemented") }
