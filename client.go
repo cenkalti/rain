@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"io"
 	"net"
-	"runtime"
 	"sync"
 )
 
@@ -113,14 +112,8 @@ func (r *Client) accepter() {
 		}
 		limit <- struct{}{}
 		go func(c net.Conn) {
-			defer func() {
-				if err := recover(); err != nil {
-					buf := make([]byte, 10000)
-					r.log.Critical(err, "\n", string(buf[:runtime.Stack(buf, false)]))
-				}
-				c.Close()
-				<-limit
-			}()
+			defer func() { <-limit }()
+			defer c.Close()
 			r.acceptAndRun(c)
 		}(conn)
 	}

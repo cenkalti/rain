@@ -3,7 +3,6 @@ package rain
 import (
 	"math/rand"
 	"net"
-	"runtime"
 	"sort"
 	"sync"
 )
@@ -47,13 +46,7 @@ func (t *Transfer) connecter() {
 
 			limit <- struct{}{}
 			go func(addr *net.TCPAddr) {
-				defer func() {
-					if err := recover(); err != nil {
-						buf := make([]byte, 10000)
-						t.log.Critical(err, "\n", string(buf[:runtime.Stack(buf, false)]))
-					}
-					<-limit
-				}()
+				defer func() { <-limit }()
 				t.connectAndRun(addr)
 			}(p)
 		case <-t.stopC:

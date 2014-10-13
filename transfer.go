@@ -6,7 +6,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sync"
 
 	"github.com/cenkalti/mse"
@@ -228,12 +227,6 @@ func (t *Transfer) Start() {
 	t.client.transfersSKey[sKey] = t
 	t.client.transfersM.Unlock()
 	go func() {
-		defer func() {
-			if err := recover(); err != nil {
-				buf := make([]byte, 10000)
-				t.log.Critical(err, "\n", string(buf[:runtime.Stack(buf, false)]))
-			}
-		}()
 		defer func() {
 			t.client.transfersM.Lock()
 			delete(t.client.transfers, t.torrent.Info.Hash)

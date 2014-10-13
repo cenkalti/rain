@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 
 	"github.com/cenkalti/log"
@@ -39,4 +40,11 @@ func (f logFormatter) Format(rec *log.Record) string {
 		rec.LoggerName,
 		filepath.Base(rec.Filename)+":"+strconv.Itoa(rec.Line),
 		rec.Message)
+}
+
+func recoverAndLog(l logger) {
+	if err := recover(); err != nil {
+		buf := make([]byte, 10000)
+		l.Critical(err, "\n", string(buf[:runtime.Stack(buf, false)]))
+	}
 }
