@@ -159,7 +159,6 @@ func (p *piece) newBlocks() []block {
 }
 
 func (p *piece) availability() int { return len(p.peers) }
-func (p *piece) Reader() io.Reader { return p.files.Reader() }
 
 func (p *piece) Write(b []byte) (n int, err error) {
 	hash := sha1.New()
