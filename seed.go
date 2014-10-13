@@ -4,24 +4,8 @@ import "io"
 
 // requestSelector decides which request to serve.
 func (t *Transfer) requestSelector() {
+	// TODO We respond to upload requests in FIFO order for now.
 	for {
-		// var request peer.RequestMessage
-
-		// t.peersM.RLock()
-		// for peer := range t.peers {
-		// 	select {
-		// 	case request = <-peer.requests:
-		// 		break
-		// 	default:
-		// 	}
-		// }
-		// t.peersM.RUnlock()
-
-		// if request.peer == nil {
-		// 	time.Sleep(time.Second) // TODO remove sleep
-		// 	continue
-		// }
-
 		t.serveC <- <-t.requestC
 	}
 }
