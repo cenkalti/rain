@@ -18,11 +18,12 @@ import (
 const defaultConfig = "~/.rain.yml"
 
 var (
-	config  = flag.String("c", defaultConfig, "config file")
-	where   = flag.String("w", "", "where to download")
-	port    = flag.Int("p", int(rain.DefaultConfig.Port), "listen port for incoming peer connections")
-	debug   = flag.Bool("d", false, "enable debug log")
-	version = flag.Bool("v", false, "version")
+	config             = flag.String("c", defaultConfig, "config file")
+	where              = flag.String("w", "", "where to download")
+	port               = flag.Int("p", int(rain.DefaultConfig.Port), "listen port for incoming peer connections")
+	debug              = flag.Bool("d", false, "enable debug log")
+	version            = flag.Bool("v", false, "version")
+	exitAfterCompleted = flag.Bool("e", false, "exit after files are downloaded")
 )
 
 func main() {
@@ -85,7 +86,12 @@ func main() {
 	}
 
 	t.Start()
-	<-t.CompleteNotify()
+
+	if *exitAfterCompleted {
+		<-t.CompleteNotify()
+	} else {
+		select {}
+	}
 }
 
 func LoadConfig(filename string) (*rain.Config, error) {
