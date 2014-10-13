@@ -80,7 +80,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	t, err := r.Add(args[0], "")
+	t, err := r.Add(args[0])
 	if err != nil {
 		log.Fatal(err)
 	}
