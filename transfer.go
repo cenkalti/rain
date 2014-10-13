@@ -2,6 +2,8 @@ package rain
 
 import (
 	"crypto/sha1"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -13,6 +15,7 @@ import (
 
 type Transfer struct {
 	client    *Client
+	hash      [20]byte
 	info      *info
 	tracker   tracker
 	pieces    []*piece
@@ -37,51 +40,55 @@ type Transfer struct {
 	serveC chan *peerRequest
 }
 
-func (r *Client) newTransferTorrent(tor *torrent) (*Transfer, error) {
-	name := tor.Info.Name
+func (c *Client) newTransfer(hash [20]byte, tracker string, name string) (*Transfer, error) {
+	trk, err := c.newTracker(tracker)
+	if err != nil {
+		return nil, err
+	}
 	if len(name) > 8 {
 		name = name[:8]
 	}
-	log := newLogger("download " + name)
-
-	trk, err := r.newTracker(tor.Announce)
-	if err != nil {
-		return nil, err
-	}
-	files, checkHash, err := prepareFiles(tor.Info, r.config.DownloadDir)
-	if err != nil {
-		return nil, err
-	}
-	finished := make(chan struct{})
-	pieces := newPieces(tor.Info, files)
-	bf := newBitfield(tor.Info.NumPieces)
-	var percentDone uint32
-	if checkHash {
-		r.log.Notice("Doing hash check...")
-		for _, p := range pieces {
-			if err := p.Verify(); err != nil {
-				return nil, err
-			}
-			bf.SetTo(p.Index, p.OK)
-		}
-		percentDone = bf.Count() * 100 / bf.Len()
-		r.log.Noticef("Already downloaded: %d%%", percentDone)
-	}
-	t := &Transfer{
-		client:    r,
+	return &Transfer{
+		client:    c,
+		hash:      hash,
 		tracker:   trk,
-		info:      tor.Info,
-		pieces:    pieces,
-		bitfield:  bf,
 		announceC: make(chan *announceResponse),
 		peers:     make(map[[20]byte]*peer),
 		stopC:     make(chan struct{}),
-		log:       log,
 		peersC:    make(chan []*net.TCPAddr),
 		peerC:     make(chan *net.TCPAddr),
-		completed: finished,
+		completed: make(chan struct{}),
 		requestC:  make(chan *peerRequest),
 		serveC:    make(chan *peerRequest),
+		log:       newLogger("download " + name),
+	}, nil
+}
+
+func (c *Client) newTransferTorrent(tor *torrent) (*Transfer, error) {
+	t, err := c.newTransfer(tor.Info.Hash, tor.Announce, tor.Info.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	t.info = tor.Info
+
+	files, checkHash, err := prepareFiles(tor.Info, c.config.DownloadDir)
+	if err != nil {
+		return nil, err
+	}
+	t.pieces = newPieces(tor.Info, files)
+	t.bitfield = newBitfield(tor.Info.NumPieces)
+	var percentDone uint32
+	if checkHash {
+		c.log.Notice("Doing hash check...")
+		for _, p := range t.pieces {
+			if err := p.Verify(); err != nil {
+				return nil, err
+			}
+			t.bitfield.SetTo(p.Index, p.OK)
+		}
+		percentDone = t.bitfield.Count() * 100 / t.bitfield.Len()
+		c.log.Noticef("Already downloaded: %d%%", percentDone)
 	}
 	if percentDone == 100 {
 		t.onceCompleted.Do(func() {
@@ -90,6 +97,19 @@ func (r *Client) newTransferTorrent(tor *torrent) (*Transfer, error) {
 		})
 	}
 	return t, nil
+}
+
+func (c *Client) newTransferMagnet(m *magnet) (*Transfer, error) {
+	if len(m.Trackers) == 0 {
+		return nil, errors.New("no tracker in magnet link")
+	}
+	var name string
+	if m.Name != "" {
+		name = m.Name
+	} else {
+		name = hex.EncodeToString(m.InfoHash[:])
+	}
+	return c.newTransfer(m.InfoHash, m.Trackers[0], name)
 }
 
 func (t *Transfer) InfoHash() [sha1.Size]byte     { return t.info.Hash }

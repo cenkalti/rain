@@ -185,4 +185,10 @@ func (c *Client) AddTorrent(r io.Reader) (*Transfer, error) {
 	return c.newTransferTorrent(torrent)
 }
 
-func (c *Client) AddMagnet(uri string) (*Transfer, error) { panic("not implemented") }
+func (c *Client) AddMagnet(uri string) (*Transfer, error) {
+	m, err := newMagnet(uri)
+	if err != nil {
+		return nil, err
+	}
+	return c.newTransferMagnet(m)
+}

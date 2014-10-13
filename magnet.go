@@ -16,7 +16,7 @@ type magnet struct {
 	Trackers []string
 }
 
-func parseMagnet(s string) (*magnet, error) {
+func newMagnet(s string) (*magnet, error) {
 	u, err := url.Parse(s)
 	if err != nil {
 		return nil, err
