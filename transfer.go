@@ -19,9 +19,8 @@ type Transfer struct {
 	bitfield  *bitfield
 	announceC chan *announceResponse
 	peers     map[[20]byte]*peer // connected peers
-	peersM    sync.RWMutex
-	stopC     chan struct{} // all goroutines stop when closed
-	m         sync.Mutex    // protects all state related with this transfer and it's peers
+	stopC     chan struct{}      // all goroutines stop when closed
+	m         sync.Mutex         // protects all state related with this transfer and it's peers
 	log       logger
 
 	// tracker sends available peers to this channel
