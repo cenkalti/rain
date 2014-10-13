@@ -239,4 +239,4 @@ func (t *Transfer) Start() {
 
 func (t *Transfer) Stop() { close(t.stopC) }
 
-func (t *Transfer) Remove() error { panic("not implemented") }
+func (t *Transfer) Remove(deleteFiles bool) error { panic("not implemented") }
