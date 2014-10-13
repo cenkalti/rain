@@ -10,23 +10,20 @@ func (t *Transfer) requestSelector() {
 
 // pieceUploader uploads single piece to a peer.
 func (t *Transfer) pieceUploader() {
+	b := make([]byte, maxAllowedBlockSize)
 	for {
 		select {
 		case req := <-t.serveC:
 			piece := t.pieces[req.Index]
+			data := b[:req.Length]
 
-			// TODO Copy directly to conn
-			b := make([]byte, req.Length)
-			_, err := piece.files.ReadAt(b, int64(req.Begin))
-			if err != nil {
+			if _, err := piece.files.ReadAt(data, int64(req.Begin)); err != nil {
 				t.log.Error(err)
-				return
+				break
 			}
-
-			err = req.Peer.SendPiece(piece.Index, req.Begin, b)
-			if err != nil {
+			if err := req.Peer.SendPiece(piece.Index, req.Begin, data); err != nil {
 				t.log.Error(err)
-				return
+				break
 			}
 		case <-t.stopC:
 			return
