@@ -239,7 +239,7 @@ func (p *peer) Run() {
 			active := piece.getActiveRequest(p.id)
 			if active == nil {
 				p.transfer.m.Unlock()
-				p.log.Warning("received a piece that is not activeed")
+				p.log.Warning("received a piece that is not active")
 				continue
 			}
 
