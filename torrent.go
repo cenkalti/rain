@@ -10,6 +10,7 @@ import (
 	"github.com/zeebo/bencode"
 )
 
+// torrent file dictionary
 type torrent struct {
 	Info         *info              `bencode:"-"`
 	RawInfo      bencode.RawMessage `bencode:"info" json:"-"`
@@ -21,6 +22,7 @@ type torrent struct {
 	Encoding     string             `bencode:"encoding"`
 }
 
+// info contains the metadata of torrent.
 type info struct {
 	PieceLength uint32 `bencode:"piece length" json:"piece_length"`
 	Pieces      []byte `bencode:"pieces" json:"pieces"`
@@ -44,6 +46,7 @@ type fileDict struct {
 	Md5sum string   `bencode:"md5sum" json:"md5sum,omitempty"`
 }
 
+// newTorrent returns a torrent from bencoded stream.
 func newTorrent(r io.Reader) (*torrent, error) {
 	var t torrent
 	err := bencode.NewDecoder(r).Decode(&t)
@@ -59,6 +62,7 @@ func newTorrent(r io.Reader) (*torrent, error) {
 	return &t, err
 }
 
+// newInfo returns info from bencoded bytes in b.
 func newInfo(b []byte) (*info, error) {
 	var i info
 	if err := bencode.DecodeBytes(b, &i); err != nil {

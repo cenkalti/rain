@@ -2,6 +2,7 @@ package rain
 
 import "io"
 
+// section of a file.
 type section struct {
 	File   readwriterAt
 	Offset int64
@@ -13,8 +14,11 @@ type readwriterAt interface {
 	io.WriterAt
 }
 
+// sections is contigious sections of files. When piece hashes in torrent file is being calculated
+// all files are concatenated and splitted into pieces in length specified in the torrent file.
 type sections []section
 
+// Reader returns a io.Reader for reading all the partial files in s.
 func (s sections) Reader() io.Reader {
 	readers := make([]io.Reader, len(s))
 	for i := range s {
@@ -23,7 +27,9 @@ func (s sections) Reader() io.Reader {
 	return io.MultiReader(readers...)
 }
 
-// ReadAt is used when uploading blocks of a piece.
+// ReadAt implements io.ReaderAt interface.
+// It reads bytes from s at given offset into p.
+// Used when uploading blocks of a piece.
 func (s sections) ReadAt(p []byte, off int64) (n int, err error) {
 	var readers []io.Reader
 	var i int
@@ -49,7 +55,11 @@ func (s sections) ReadAt(p []byte, off int64) (n int, err error) {
 	return io.ReadFull(io.MultiReader(readers...), p)
 }
 
-// Write is used when writing a downloaded piece (all blocks) after hash check is done.
+// Write implements io.Writer interface.
+// It writes the bytes in p into files in s.
+// Used when writing a downloaded piece (all blocks) after hash check is done.
+// Calling write does not change the current position in s,
+// so len(p) must be equal to total length of the all files in s in order to issue a full write.
 func (s sections) Write(p []byte) (n int, err error) {
 	var m int
 	for _, sec := range s {

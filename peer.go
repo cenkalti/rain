@@ -67,6 +67,7 @@ func (p *peer) String() string { return p.conn.RemoteAddr().String() }
 func (p *peer) Close() error   { return p.conn.Close() }
 
 // Run reads and processes incoming messages after handshake.
+// TODO send keep-alive messages to peers at interval.
 func (p *peer) Run() {
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 
