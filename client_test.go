@@ -12,7 +12,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/cenkalti/log"
-	"github.com/crosbymichael/tracker"
+	"github.com/crosbymichael/tracker/registry/inmem"
 	"github.com/crosbymichael/tracker/server"
 
 	"github.com/cenkalti/rain"
@@ -101,7 +101,7 @@ func TestDownload(t *testing.T) {
 func startTracker(t *testing.T) {
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
-	registry := tracker.NewInMemoryRegistry()
+	registry := inmem.New()
 	s := server.New(120, 30, registry, logger)
 	l, err := net.Listen("tcp", trackerAddr)
 	if err != nil {
