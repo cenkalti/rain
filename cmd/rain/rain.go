@@ -29,9 +29,9 @@ var (
 func main() {
 	flag.Parse()
 
-	if *version == true {
+	if *version {
 		fmt.Println(rain.Version)
-		os.Exit(0)
+		return
 	}
 
 	args := flag.Args()
