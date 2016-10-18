@@ -1,4 +1,4 @@
-rain (IN DEVELOPMENT)
+rain (ABANDONED)
 =====================
 
 BitTorrent client/library in Go. [![Build Status](https://travis-ci.org/cenkalti/rain.svg?branch=master)](https://travis-ci.org/cenkalti/rain) [![GoDoc](https://godoc.org/github.com/cenkalti/rain?status.svg)](https://godoc.org/github.com/cenkalti/rain)
