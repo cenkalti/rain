@@ -4,7 +4,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/cenkalti/mse"
+	"github.com/cenkalti/rain/mse"
 )
 
 var addr = &net.TCPAddr{

@@ -9,7 +9,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/cenkalti/mse"
+	"github.com/cenkalti/rain/mse"
 )
 
 const handshakeDeadline = 30 * time.Second

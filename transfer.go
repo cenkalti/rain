@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/cenkalti/mse"
+	"github.com/cenkalti/rain/mse"
 )
 
 type Transfer struct {
