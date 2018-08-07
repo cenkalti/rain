@@ -17,7 +17,6 @@ func SetLogLevel(l log.Level) { DefaultLogHandler.SetLevel(l) }
 func init() {
 	h := log.NewWriterHandler(os.Stderr)
 	h.SetFormatter(logFormatter{})
-	h.Colorize = true
 	DefaultLogHandler = h
 }
 
@@ -36,7 +35,7 @@ type logFormatter struct{}
 func (f logFormatter) Format(rec *log.Record) string {
 	return fmt.Sprintf("%s %-8s [%s] %-8s %s",
 		fmt.Sprint(rec.Time)[:19],
-		log.LevelNames[rec.Level],
+		rec.Level,
 		rec.LoggerName,
 		filepath.Base(rec.Filename)+":"+strconv.Itoa(rec.Line),
 		rec.Message)
