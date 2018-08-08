@@ -10,7 +10,7 @@ import (
 
 	"github.com/cenkalti/rain/bitfield"
 	"github.com/cenkalti/rain/filesection"
-	"github.com/cenkalti/rain/torrent"
+	"github.com/cenkalti/rain/metainfo"
 )
 
 type piece struct {

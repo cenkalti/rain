@@ -13,8 +13,8 @@ import (
 	"github.com/cenkalti/rain/bitfield"
 	"github.com/cenkalti/rain/logger"
 	"github.com/cenkalti/rain/magnet"
+	"github.com/cenkalti/rain/metainfo"
 	"github.com/cenkalti/rain/mse"
-	"github.com/cenkalti/rain/torrent"
 	"github.com/cenkalti/rain/tracker"
 )
 
@@ -69,7 +69,7 @@ func (c *Client) newTransfer(hash [20]byte, trackerString string, name string) (
 	}, nil
 }
 
-func (c *Client) newTransferTorrent(tor *torrent.Torrent) (*Transfer, error) {
+func (c *Client) newTransferTorrent(tor *torrent.MetaInfo) (*Transfer, error) {
 	t, err := c.newTransfer(tor.Info.Hash, tor.Announce, tor.Info.Name)
 	if err != nil {
 		return nil, err

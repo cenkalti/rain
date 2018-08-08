@@ -9,8 +9,8 @@ import (
 	"github.com/zeebo/bencode"
 )
 
-// Torrent file dictionary
-type Torrent struct {
+// MetaInfo file dictionary
+type MetaInfo struct {
 	Info         *Info              `bencode:"-"`
 	RawInfo      bencode.RawMessage `bencode:"info" json:"-"`
 	Announce     string             `bencode:"announce"`
@@ -46,8 +46,8 @@ type FileDict struct {
 }
 
 // New returns a torrent from bencoded stream.
-func New(r io.Reader) (*Torrent, error) {
-	var t Torrent
+func New(r io.Reader) (*MetaInfo, error) {
+	var t MetaInfo
 	err := bencode.NewDecoder(r).Decode(&t)
 	if err != nil {
 		return nil, err

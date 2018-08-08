@@ -11,7 +11,7 @@ import (
 	"github.com/cenkalti/rain/btconn"
 	"github.com/cenkalti/rain/logger"
 	"github.com/cenkalti/rain/magnet"
-	"github.com/cenkalti/rain/torrent"
+	"github.com/cenkalti/rain/metainfo"
 	"github.com/cenkalti/rain/tracker"
 )
 
