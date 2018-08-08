@@ -2,12 +2,15 @@ package rain
 
 import (
 	"crypto/rand"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/url"
 	"sync"
 
+	"github.com/cenkalti/rain/bitfield"
 	"github.com/cenkalti/rain/btconn"
 	"github.com/cenkalti/rain/logger"
 	"github.com/cenkalti/rain/magnet"
@@ -222,4 +225,76 @@ func (c *Client) newTracker(trackerURL string) (tracker.Tracker, error) {
 	default:
 		return nil, fmt.Errorf("unsupported tracker scheme: %s", u.Scheme)
 	}
+}
+
+func (c *Client) newTransfer(hash [20]byte, trackerString string, name string) (*Torrent, error) {
+	trk, err := c.newTracker(trackerString)
+	if err != nil {
+		return nil, err
+	}
+	if len(name) > 8 {
+		name = name[:8]
+	}
+	return &Torrent{
+		client:    c,
+		hash:      hash,
+		tracker:   trk,
+		announceC: make(chan *tracker.AnnounceResponse),
+		peers:     make(map[[20]byte]*peer),
+		stopC:     make(chan struct{}),
+		peersC:    make(chan []*net.TCPAddr),
+		peerC:     make(chan *net.TCPAddr),
+		completed: make(chan struct{}),
+		requestC:  make(chan *peerRequest),
+		serveC:    make(chan *peerRequest),
+		log:       logger.New("download " + name),
+	}, nil
+}
+
+func (c *Client) newTransferTorrent(tor *torrent.MetaInfo) (*Torrent, error) {
+	t, err := c.newTransfer(tor.Info.Hash, tor.Announce, tor.Info.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	t.info = tor.Info
+
+	files, checkHash, err := prepareFiles(tor.Info, c.config.DownloadDir)
+	if err != nil {
+		return nil, err
+	}
+	t.pieces = newPieces(tor.Info, files)
+	t.bitfield = bitfield.New(tor.Info.NumPieces)
+	var percentDone uint32
+	if checkHash {
+		c.log.Notice("Doing hash check...")
+		for _, p := range t.pieces {
+			if err := p.Verify(); err != nil {
+				return nil, err
+			}
+			t.bitfield.SetTo(p.Index, p.OK)
+		}
+		percentDone = t.bitfield.Count() * 100 / t.bitfield.Len()
+		c.log.Noticef("Already downloaded: %d%%", percentDone)
+	}
+	if percentDone == 100 {
+		t.onceCompleted.Do(func() {
+			close(t.completed)
+			t.log.Notice("Download completed")
+		})
+	}
+	return t, nil
+}
+
+func (c *Client) newTransferMagnet(m *magnet.Magnet) (*Torrent, error) {
+	if len(m.Trackers) == 0 {
+		return nil, errors.New("no tracker in magnet link")
+	}
+	var name string
+	if m.Name != "" {
+		name = m.Name
+	} else {
+		name = hex.EncodeToString(m.InfoHash[:])
+	}
+	return c.newTransfer(m.InfoHash, m.Trackers[0], name)
 }
