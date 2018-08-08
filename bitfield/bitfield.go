@@ -3,6 +3,7 @@ package bitfield
 
 import "encoding/hex"
 
+// Bitfield is described in BEP 3.
 type Bitfield struct {
 	b      []byte
 	length uint32

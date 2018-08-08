@@ -24,8 +24,10 @@ func TestNew(t *testing.T) {
 		}()
 		NewBytes(buf, 9)
 	}()
+}
 
-	v = New(10)
+func TestSet(t *testing.T) {
+	v := New(10)
 	if v.Hex() != "0000" {
 		t.Errorf("invalid value: %s", v.Hex())
 	}
@@ -48,7 +50,12 @@ func TestNew(t *testing.T) {
 		}()
 		v.Set(10)
 	}()
+}
 
+func TestClear(t *testing.T) {
+	v := New(10)
+	v.Set(0)
+	v.Set(9)
 	v.Clear(0)
 	if v.Hex() != "0040" {
 		t.Errorf("invalid value: %s", v.Hex())
