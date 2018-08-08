@@ -18,6 +18,7 @@ import (
 type Torrent struct {
 	client    *Client
 	hash      [20]byte
+	dest      string
 	info      *torrent.Info
 	tracker   tracker.Tracker
 	pieces    []*piece

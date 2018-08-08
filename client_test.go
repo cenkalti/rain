@@ -39,7 +39,7 @@ func TestDownload(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = seeder.Listen()
+	err = seeder.Start()
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -52,7 +52,9 @@ func NewClient(c *Config) (*Client, error) {
 	if c == nil {
 		c = NewConfig()
 	}
-	peerID, err := generatePeerID()
+	var peerID [20]byte
+	copy(peerID[:], peerIDPrefix)
+	_, err := rand.Read(peerID[len(peerIDPrefix):]) // nolint: gosec
 	if err != nil {
 		return nil, err
 	}
@@ -65,17 +67,10 @@ func NewClient(c *Config) (*Client, error) {
 	}, nil
 }
 
-func generatePeerID() ([20]byte, error) {
-	var id [20]byte
-	copy(id[:], peerIDPrefix)
-	_, err := rand.Read(id[len(peerIDPrefix):]) // nolint: gosec
-	return id, err
-}
-
 func (c *Client) PeerID() [20]byte { return c.peerID }
 
-// Listen peer port and accept incoming peer connections.
-func (c *Client) Listen() error {
+// Start listening peer port and accepting incoming peer connections.
+func (c *Client) Start() error {
 	var err error
 	addr := &net.TCPAddr{Port: c.config.Port}
 	c.listener, err = net.ListenTCP("tcp4", addr)
@@ -134,7 +129,7 @@ func (c *Client) acceptAndRun(conn net.Conn) {
 	}
 
 	log := logger.New("peer <- " + conn.RemoteAddr().String())
-	encConn, cipher, extensions, ih, peerID, err := btconn.Accept(conn, getSKey, c.config.Encryption.ForceIncoming, hasInfoHash, [8]byte{}, c.peerID)
+	encConn, cipher, extensions, peerID, ih, err := btconn.Accept(conn, getSKey, c.config.Encryption.ForceIncoming, hasInfoHash, [8]byte{}, c.peerID)
 	if err != nil {
 		if err == btconn.ErrOwnConnection {
 			c.log.Debug(err)
