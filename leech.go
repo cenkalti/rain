@@ -46,7 +46,6 @@ func (t *Torrent) connecter() {
 			if p.IP.IsLoopback() && p.Port == t.client.Port() {
 				break
 			}
-
 			limit <- struct{}{}
 			go func(addr *net.TCPAddr) {
 				defer func() { <-limit }()

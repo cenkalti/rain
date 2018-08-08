@@ -43,6 +43,11 @@ type Torrent struct {
 	serveC chan *peerRequest
 }
 
+func (t *Torrent) Close() error {
+	// TODO not implemented
+	return nil
+}
+
 func (t *Torrent) InfoHash() [sha1.Size]byte     { return t.info.Hash }
 func (t *Torrent) CompleteNotify() chan struct{} { return t.completed }
 func (t *Torrent) Downloaded() int64 {
@@ -173,16 +178,16 @@ func openOrAllocate(path string, length int64) (f *os.File, exists bool, err err
 
 func (t *Torrent) Start() {
 	sKey := mse.HashSKey(t.info.Hash[:])
-	t.client.transfersM.Lock()
-	t.client.transfers[t.info.Hash] = t
-	t.client.transfersSKey[sKey] = t
-	t.client.transfersM.Unlock()
+	t.client.m.Lock()
+	t.client.torrents[t.info.Hash] = t
+	t.client.torrentsSKey[sKey] = t
+	t.client.m.Unlock()
 	go func() {
 		defer func() {
-			t.client.transfersM.Lock()
-			delete(t.client.transfers, t.info.Hash)
-			delete(t.client.transfersSKey, sKey)
-			t.client.transfersM.Unlock()
+			t.client.m.Lock()
+			delete(t.client.torrents, t.info.Hash)
+			delete(t.client.torrentsSKey, sKey)
+			t.client.m.Unlock()
 		}()
 		t.run()
 	}()

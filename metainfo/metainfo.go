@@ -52,11 +52,9 @@ func New(r io.Reader) (*MetaInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	if len(t.RawInfo) == 0 {
 		return nil, errors.New("no info dict in torrent file")
 	}
-
 	t.Info, err = NewInfo(t.RawInfo)
 	return &t, err
 }
@@ -67,15 +65,11 @@ func NewInfo(b []byte) (*Info, error) {
 	if err := bencode.DecodeBytes(b, &i); err != nil {
 		return nil, err
 	}
-
 	hash := sha1.New()
 	hash.Write(b) // nolint: gosec
 	copy(i.Hash[:], hash.Sum(nil))
-
-	i.MultiFile = len(i.Files) != 0
-
 	i.NumPieces = uint32(len(i.Pieces)) / sha1.Size
-
+	i.MultiFile = len(i.Files) != 0
 	if !i.MultiFile {
 		i.TotalLength = i.Length
 	} else {
@@ -83,7 +77,6 @@ func NewInfo(b []byte) (*Info, error) {
 			i.TotalLength += f.Length
 		}
 	}
-
 	return &i, nil
 }
 
