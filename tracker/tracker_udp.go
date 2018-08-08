@@ -1,4 +1,4 @@
-package rain
+package tracker
 
 // http://bittorrent.org/beps/bep_0015.html
 // http://xbtt.sourceforge.net/udp_tracker_bt.html
@@ -50,7 +50,7 @@ func (t *transaction) ID() int32 { return t.request.GetTransactionID() }
 func (t *transaction) Done()     { close(t.done) }
 
 type udpTracker struct {
-	*trackerBase
+	*TrackerBase
 	conn          *net.UDPConn
 	dialMutex     sync.Mutex
 	connected     bool
@@ -59,16 +59,16 @@ type udpTracker struct {
 	writeC        chan *transaction
 }
 
-func newUDPTracker(b *trackerBase) *udpTracker {
+func NewUDPTracker(b *TrackerBase) *udpTracker {
 	return &udpTracker{
-		trackerBase:  b,
+		TrackerBase:  b,
 		transactions: make(map[int32]*transaction),
 		writeC:       make(chan *transaction),
 	}
 }
 
 func (t *udpTracker) dial() error {
-	serverAddr, err := net.ResolveUDPAddr("udp", t.url.Host)
+	serverAddr, err := net.ResolveUDPAddr("udp", t.Url.Host)
 	if err != nil {
 		return err
 	}
@@ -99,24 +99,24 @@ func (t *udpTracker) readLoop() {
 	for {
 		n, err := t.conn.Read(buf)
 		if err != nil {
-			t.log.Error(err)
+			t.Log.Error(err)
 			if nerr, ok := err.(net.Error); ok && !nerr.Temporary() {
-				t.log.Debug("End of tracker read loop")
+				t.Log.Debug("End of tracker read loop")
 				return
 			}
 			continue
 		}
-		t.log.Debug("Read ", n, " bytes")
+		t.Log.Debug("Read ", n, " bytes")
 
 		var header udpMessageHeader
 		if n < binary.Size(header) {
-			t.log.Error("response is too small")
+			t.Log.Error("response is too small")
 			continue
 		}
 
 		err = binary.Read(bytes.NewReader(buf), binary.BigEndian, &header)
 		if err != nil {
-			t.log.Error(err)
+			t.Log.Error(err)
 			continue
 		}
 
@@ -125,7 +125,7 @@ func (t *udpTracker) readLoop() {
 		delete(t.transactions, header.TransactionID)
 		t.transactionsM.Unlock()
 		if !ok {
-			t.log.Errorln("unexpected transaction_id:", header.TransactionID)
+			t.Log.Errorln("unexpected transaction_id:", header.TransactionID)
 			continue
 		}
 
@@ -162,10 +162,10 @@ func (t *udpTracker) writeLoop() {
 }
 
 func (t *udpTracker) writeTrx(trx *transaction) {
-	t.log.Debugln("Writing transaction. ID:", trx.ID())
+	t.Log.Debugln("Writing transaction. ID:", trx.ID())
 	_, err := trx.request.WriteTo(t.conn)
 	if err != nil {
-		t.log.Error(err)
+		t.Log.Error(err)
 	}
 }
 
@@ -182,23 +182,23 @@ func (t *udpTracker) connect() int64 {
 	for {
 		data, err := t.retryTransaction(t.writeTrx, trx, nil) // Does not return until transaction is completed.
 		if err != nil {
-			t.log.Error(err)
+			t.Log.Error(err)
 			continue
 		}
 
 		var response connectResponse
 		err = binary.Read(bytes.NewReader(data), binary.BigEndian, &response)
 		if err != nil {
-			t.log.Error(err)
+			t.Log.Error(err)
 			continue
 		}
 
 		if response.Action != actionConnect {
-			t.log.Error("invalid action in connect response")
+			t.Log.Error("invalid action in connect response")
 			continue
 		}
 
-		t.log.Debugf("connect Response: %#v\n", response)
+		t.Log.Debugf("connect Response: %#v\n", response)
 		return response.ConnectionID
 	}
 }
@@ -231,7 +231,7 @@ func (t *udpTracker) sendTransaction(trx *transaction, cancel <-chan struct{}) (
 	return t.retryTransaction(f, trx, cancel)
 }
 
-func (t *udpTracker) Announce(transfer *Transfer, e trackerEvent, cancel <-chan struct{}) (*announceResponse, error) {
+func (t *udpTracker) Announce(transfer Transfer, e TrackerEvent, cancel <-chan struct{}) (*AnnounceResponse, error) {
 	t.dialMutex.Lock()
 	if !t.connected {
 		err := t.dial()
@@ -245,12 +245,12 @@ func (t *udpTracker) Announce(transfer *Transfer, e trackerEvent, cancel <-chan 
 
 	request := &announceRequest{
 		InfoHash:   transfer.InfoHash(),
-		PeerID:     t.client.peerID,
+		PeerID:     t.Client.PeerID(),
 		Event:      e,
 		IP:         0, // Tracker uses sender of this UDP packet.
 		Key:        0, // TODO set it
 		NumWant:    numWant,
-		Port:       uint16(t.client.Port()),
+		Port:       uint16(t.Client.Port()),
 		Extensions: 0,
 	}
 	request.SetAction(actionAnnounce)
@@ -258,7 +258,7 @@ func (t *udpTracker) Announce(transfer *Transfer, e trackerEvent, cancel <-chan 
 	request2 := &transferAnnounceRequest{
 		transfer:        transfer,
 		announceRequest: request,
-		urlData:         t.url.RequestURI(),
+		urlData:         t.Url.RequestURI(),
 	}
 	trx := newTransaction(request2)
 
@@ -266,7 +266,7 @@ func (t *udpTracker) Announce(transfer *Transfer, e trackerEvent, cancel <-chan 
 	reply, err := t.sendTransaction(trx, cancel)
 	if err != nil {
 		if err, ok := err.(trackerError); ok {
-			return &announceResponse{Error: err}, nil
+			return &AnnounceResponse{Error: err}, nil
 		}
 		return nil, err
 	}
@@ -275,9 +275,9 @@ func (t *udpTracker) Announce(transfer *Transfer, e trackerEvent, cancel <-chan 
 	if err != nil {
 		return nil, err
 	}
-	t.log.Debugf("Announce response: %#v", response)
+	t.Log.Debugf("Announce response: %#v", response)
 
-	return &announceResponse{
+	return &AnnounceResponse{
 		Interval: time.Duration(response.Interval) * time.Second,
 		Leechers: response.Leechers,
 		Seeders:  response.Seeders,
@@ -297,7 +297,7 @@ func (t *udpTracker) parseAnnounceResponse(data []byte) (*udpAnnounceResponse, [
 	if err != nil {
 		return nil, nil, err
 	}
-	t.log.Debugf("annouceResponse: %#v", response)
+	t.Log.Debugf("annouceResponse: %#v", response)
 
 	if response.Action != actionAnnounce {
 		return nil, nil, errors.New("invalid action")
@@ -379,7 +379,7 @@ type announceRequest struct {
 	Downloaded int64
 	Left       int64
 	Uploaded   int64
-	Event      trackerEvent
+	Event      TrackerEvent
 	IP         uint32
 	Key        uint32
 	NumWant    int32
@@ -388,7 +388,7 @@ type announceRequest struct {
 }
 
 type transferAnnounceRequest struct {
-	transfer *Transfer
+	transfer Transfer
 	*announceRequest
 	urlData string
 }

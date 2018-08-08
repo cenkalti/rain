@@ -141,8 +141,8 @@ func (p *peer) Run() {
 			p.cond.Broadcast()
 		case interestedID:
 			// TODO this should not be here
-			if err := p.Unchoke(); err != nil {
-				p.log.Error(err)
+			if err2 := p.Unchoke(); err2 != nil {
+				p.log.Error(err2)
 				return
 			}
 		case notInterestedID:

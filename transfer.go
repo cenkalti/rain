@@ -15,16 +15,17 @@ import (
 	"github.com/cenkalti/rain/magnet"
 	"github.com/cenkalti/rain/mse"
 	"github.com/cenkalti/rain/torrent"
+	"github.com/cenkalti/rain/tracker"
 )
 
 type Transfer struct {
 	client    *Client
 	hash      [20]byte
 	info      *torrent.Info
-	tracker   tracker
+	tracker   tracker.Tracker
 	pieces    []*piece
 	bitfield  *bitfield.Bitfield
-	announceC chan *announceResponse
+	announceC chan *tracker.AnnounceResponse
 	peers     map[[20]byte]*peer // connected peers
 	stopC     chan struct{}      // all goroutines stop when closed
 	m         sync.Mutex         // protects all state related with this transfer and it's peers
@@ -44,8 +45,8 @@ type Transfer struct {
 	serveC chan *peerRequest
 }
 
-func (c *Client) newTransfer(hash [20]byte, tracker string, name string) (*Transfer, error) {
-	trk, err := c.newTracker(tracker)
+func (c *Client) newTransfer(hash [20]byte, trackerString string, name string) (*Transfer, error) {
+	trk, err := c.newTracker(trackerString)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +57,7 @@ func (c *Client) newTransfer(hash [20]byte, tracker string, name string) (*Trans
 		client:    c,
 		hash:      hash,
 		tracker:   trk,
-		announceC: make(chan *announceResponse),
+		announceC: make(chan *tracker.AnnounceResponse),
 		peers:     make(map[[20]byte]*peer),
 		stopC:     make(chan struct{}),
 		peersC:    make(chan []*net.TCPAddr),
@@ -164,13 +165,13 @@ func (t *Transfer) run() {
 }
 
 func (t *Transfer) announcer() {
-	var startEvent trackerEvent
+	var startEvent tracker.TrackerEvent
 	if t.bitfield.All() {
-		startEvent = eventCompleted
+		startEvent = tracker.EventCompleted
 	} else {
-		startEvent = eventStarted
+		startEvent = tracker.EventStarted
 	}
-	announcePeriodically(t.tracker, t, t.stopC, startEvent, nil, t.announceC)
+	tracker.AnnouncePeriodically(t.tracker, t, t.stopC, startEvent, nil, t.announceC)
 }
 
 func prepareFiles(info *torrent.Info, where string) (files []*os.File, checkHash bool, err error) {

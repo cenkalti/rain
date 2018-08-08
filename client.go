@@ -2,14 +2,17 @@ package rain
 
 import (
 	"crypto/rand"
+	"fmt"
 	"io"
 	"net"
+	"net/url"
 	"sync"
 
 	"github.com/cenkalti/rain/btconn"
 	"github.com/cenkalti/rain/logger"
 	"github.com/cenkalti/rain/magnet"
 	"github.com/cenkalti/rain/torrent"
+	"github.com/cenkalti/rain/tracker"
 )
 
 // Limits
@@ -55,7 +58,7 @@ var DefaultConfig = Config{
 	DownloadDir: ".",
 }
 
-// New returns a pointer to new Rain BitTorrent client.
+// NewClient returns a pointer to new Rain BitTorrent client.
 func NewClient(c *Config) (*Client, error) {
 	if c == nil {
 		c = new(Config)
@@ -81,54 +84,54 @@ func generatePeerID() ([20]byte, error) {
 	return id, err
 }
 
-func (r *Client) PeerID() [20]byte { return r.peerID }
+func (c *Client) PeerID() [20]byte { return c.peerID }
 
 // Listen peer port and accept incoming peer connections.
-func (r *Client) Listen() error {
+func (c *Client) Listen() error {
 	var err error
-	addr := &net.TCPAddr{Port: int(r.config.Port)}
-	r.listener, err = net.ListenTCP("tcp4", addr)
+	addr := &net.TCPAddr{Port: int(c.config.Port)}
+	c.listener, err = net.ListenTCP("tcp4", addr)
 	if err != nil {
 		return err
 	}
-	r.log.Notice("Listening peers on tcp://" + r.listener.Addr().String())
-	go r.accepter()
+	c.log.Notice("Listening peers on tcp://" + c.listener.Addr().String())
+	go c.accepter()
 	return nil
 }
 
 // Port returns the port number that the client is listening.
 // If the client does not listen any port, returns 0.
-func (r *Client) Port() int {
-	if r.listener != nil {
-		return r.listener.Addr().(*net.TCPAddr).Port
+func (c *Client) Port() int {
+	if c.listener != nil {
+		return c.listener.Addr().(*net.TCPAddr).Port
 	}
 	return 0
 }
 
-func (r *Client) Close() error { return r.listener.Close() }
+func (c *Client) Close() error { return c.listener.Close() }
 
-func (r *Client) accepter() {
+func (c *Client) accepter() {
 	limit := make(chan struct{}, maxPeerServe)
 	for {
-		conn, err := r.listener.Accept()
+		conn, err := c.listener.Accept()
 		if err != nil {
-			r.log.Error(err)
+			c.log.Error(err)
 			return
 		}
 		limit <- struct{}{}
-		go func(c net.Conn) {
+		go func(c2 net.Conn) {
 			defer func() { <-limit }()
-			defer c.Close()
-			r.acceptAndRun(c)
+			defer c2.Close()
+			c.acceptAndRun(c2)
 		}(conn)
 	}
 }
 
-func (r *Client) acceptAndRun(conn net.Conn) {
+func (c *Client) acceptAndRun(conn net.Conn) {
 	getSKey := func(sKeyHash [20]byte) (sKey []byte) {
-		r.transfersM.Lock()
-		t, ok := r.transfersSKey[sKeyHash]
-		r.transfersM.Unlock()
+		c.transfersM.Lock()
+		t, ok := c.transfersSKey[sKeyHash]
+		c.transfersM.Unlock()
 		if ok {
 			sKey = t.info.Hash[:]
 		}
@@ -136,27 +139,27 @@ func (r *Client) acceptAndRun(conn net.Conn) {
 	}
 
 	hasInfoHash := func(ih [20]byte) bool {
-		r.transfersM.Lock()
-		_, ok := r.transfers[ih]
-		r.transfersM.Unlock()
+		c.transfersM.Lock()
+		_, ok := c.transfers[ih]
+		c.transfersM.Unlock()
 		return ok
 	}
 
 	log := logger.New("peer <- " + conn.RemoteAddr().String())
-	encConn, cipher, extensions, ih, peerID, err := btconn.Accept(conn, getSKey, r.config.Encryption.ForceIncoming, hasInfoHash, [8]byte{}, r.peerID)
+	encConn, cipher, extensions, ih, peerID, err := btconn.Accept(conn, getSKey, c.config.Encryption.ForceIncoming, hasInfoHash, [8]byte{}, c.peerID)
 	if err != nil {
 		if err == btconn.ErrOwnConnection {
-			r.log.Debug(err)
+			c.log.Debug(err)
 		} else {
-			r.log.Error(err)
+			c.log.Error(err)
 		}
 		return
 	}
 	log.Infof("Connection accepted. (cipher=%s extensions=%x client=%q)", cipher, extensions, peerID[:8])
 
-	r.transfersM.Lock()
-	t, ok := r.transfers[ih]
-	r.transfersM.Unlock()
+	c.transfersM.Lock()
+	t, ok := c.transfers[ih]
+	c.transfersM.Unlock()
 	if !ok {
 		log.Debug("Transfer is removed during incoming handshake")
 		return
@@ -196,4 +199,27 @@ func (c *Client) AddMagnet(uri string) (*Transfer, error) {
 		return nil, err
 	}
 	return c.newTransferMagnet(m)
+}
+
+func (c *Client) newTracker(trackerURL string) (tracker.Tracker, error) {
+	u, err := url.Parse(trackerURL)
+	if err != nil {
+		return nil, err
+	}
+
+	base := &tracker.TrackerBase{
+		Url:    u,
+		Rawurl: trackerURL,
+		Client: c,
+		Log:    logger.New("tracker " + trackerURL),
+	}
+
+	switch u.Scheme {
+	case "http", "https":
+		return tracker.NewHTTPTracker(base), nil
+	case "udp":
+		return tracker.NewUDPTracker(base), nil
+	default:
+		return nil, fmt.Errorf("unsupported tracker scheme: %s", u.Scheme)
+	}
 }

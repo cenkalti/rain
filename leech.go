@@ -92,14 +92,14 @@ func (t *Transfer) connectAndRun(addr *net.TCPAddr) {
 	p.Run()
 }
 
-func (peer *peer) downloader() {
-	t := peer.transfer
+func (p *peer) downloader() {
+	t := p.transfer
 	for {
 		// Select next piece to download.
 		t.m.Lock()
 		var candidates []*piece
 		var waitNotInterested sync.WaitGroup
-		for candidates = peer.candidates(); len(candidates) == 0 && !peer.disconnected; {
+		for candidates = p.candidates(); len(candidates) == 0 && !p.disconnected; {
 			// Stop downloader if all pieces are downloaded.
 			if t.bitfield.All() {
 				t.onceCompleted.Do(func() {
@@ -113,40 +113,40 @@ func (peer *peer) downloader() {
 			// Send "not interesed" message in a goroutine here because we can't keep the mutex locked.
 			waitNotInterested.Add(1)
 			go func() {
-				peer.BeNotInterested()
+				p.BeNotInterested()
 				waitNotInterested.Done()
 			}()
 
 			// Wait until there is a piece that we are interested.
-			peer.cond.Wait()
+			p.cond.Wait()
 		}
-		if peer.disconnected {
+		if p.disconnected {
 			return
 		}
 		piece := selectPiece(candidates)
-		request := piece.createActiveRequest(peer.id)
+		request := piece.createActiveRequest(p.id)
 		t.m.Unlock()
 
 		// send them in order
 		waitNotInterested.Wait()
-		peer.BeInterested()
+		p.BeInterested()
 
 		for {
 			// Stop loop if all blocks are requested/received TODO.
 			t.m.Lock()
-			if piece.requestedFrom[peer.id].blocksReceived.All() {
+			if piece.requestedFrom[p.id].blocksReceived.All() {
 				t.m.Unlock()
 				break
 			}
 
 			// Send requests only when unchoked.
-			for peer.peerChoking && !peer.disconnected {
+			for p.peerChoking && !p.disconnected {
 				request.resetWaitingRequests()
-				peer.cond.Wait()
+				p.cond.Wait()
 			}
 
 			// Select next block that is not requested.
-			block, ok := piece.nextBlock(peer.id)
+			block, ok := piece.nextBlock(p.id)
 			if !ok {
 				t.m.Unlock()
 				break
@@ -155,10 +155,10 @@ func (peer *peer) downloader() {
 			t.m.Unlock()
 
 			// Request selected block.
-			if err := peer.Request(block); err != nil {
-				peer.log.Error(err)
+			if err := p.Request(block); err != nil {
+				p.log.Error(err)
 				t.m.Lock()
-				piece.deleteActiveRequest(peer.id)
+				piece.deleteActiveRequest(p.id)
 				t.m.Unlock()
 				return
 			}
@@ -166,7 +166,7 @@ func (peer *peer) downloader() {
 			t.m.Lock()
 			request.blocksRequested.Set(block.Index)
 			for request.outstanding() >= 10 {
-				peer.cond.Wait()
+				p.cond.Wait()
 			}
 			t.m.Unlock()
 		}

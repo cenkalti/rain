@@ -1,12 +1,10 @@
-// Provides support for announcing torrents to HTTP and UDP trackers.
-
-package rain
+// Package tracker provides support for announcing torrents to HTTP and UDP trackers.
+package tracker
 
 import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"net"
 	"net/url"
 	"time"
@@ -20,16 +18,16 @@ const numWant = 50
 
 var requestCancelledErr = errors.New("request cancelled")
 
-type tracker interface {
+type Tracker interface {
 	URL() string
 	// Announce transfer to the tracker.
-	Announce(t *Transfer, e trackerEvent, cancel <-chan struct{}) (*announceResponse, error)
+	Announce(t Transfer, e TrackerEvent, cancel <-chan struct{}) (*AnnounceResponse, error)
 	Scrape([]*Transfer) (*scrapeResponse, error)
 	// Close must be called in order to close open connections if Announce is ever called.
 	Close() error
 }
 
-type announceResponse struct {
+type AnnounceResponse struct {
 	Error      error
 	Interval   time.Duration
 	Leechers   int32
@@ -42,40 +40,17 @@ type scrapeResponse struct {
 	// TODO not implemented
 }
 
-func (c *Client) newTracker(trackerURL string) (tracker, error) {
-	u, err := url.Parse(trackerURL)
-	if err != nil {
-		return nil, err
-	}
-
-	base := &trackerBase{
-		url:    u,
-		rawurl: trackerURL,
-		client: c,
-		log:    logger.New("tracker " + trackerURL),
-	}
-
-	switch u.Scheme {
-	case "http", "https":
-		return newHTTPTracker(base), nil
-	case "udp":
-		return newUDPTracker(base), nil
-	default:
-		return nil, fmt.Errorf("unsupported tracker scheme: %s", u.Scheme)
-	}
-}
-
 // AnnouncePeriodically announces to the tracker periodically and adjust the interval according to the response returned by the tracker.
 // Puts responses into responseC. Blocks when sending to this channel.
 // t.Close must be called after using this function to close open connections to the tracker.
-func announcePeriodically(t tracker, transfer *Transfer, cancel <-chan struct{}, startEvent trackerEvent, eventC <-chan trackerEvent, responseC chan<- *announceResponse) {
+func AnnouncePeriodically(t Tracker, transfer Transfer, cancel <-chan struct{}, StartEvent TrackerEvent, eventC <-chan TrackerEvent, responseC chan<- *AnnounceResponse) {
 	var nextAnnounce time.Duration
 	var retry = *defaultRetryBackoff
 
-	announce := func(e trackerEvent) {
+	announce := func(e TrackerEvent) {
 		r, err := t.Announce(transfer, e, cancel)
 		if err != nil {
-			r = &announceResponse{Error: err}
+			r = &AnnounceResponse{Error: err}
 			nextAnnounce = retry.NextBackOff()
 		} else {
 			retry.Reset()
@@ -88,11 +63,11 @@ func announcePeriodically(t tracker, transfer *Transfer, cancel <-chan struct{},
 		}
 	}
 
-	announce(startEvent)
+	announce(StartEvent)
 	for {
 		select {
 		case <-time.After(nextAnnounce):
-			announce(eventNone)
+			announce(EventNone)
 		case e := <-eventC:
 			announce(e)
 		case <-cancel:
@@ -101,27 +76,27 @@ func announcePeriodically(t tracker, transfer *Transfer, cancel <-chan struct{},
 	}
 }
 
-type trackerBase struct {
-	url    *url.URL
-	rawurl string
-	client *Client
-	log    logger.Logger
+type TrackerBase struct {
+	Url    *url.URL
+	Rawurl string
+	Client Client
+	Log    logger.Logger
 }
 
-func (t trackerBase) URL() string { return t.rawurl }
+func (t TrackerBase) URL() string { return t.Rawurl }
 
 // parsePeersBinary parses compact representation of peer list.
-func (t *trackerBase) parsePeersBinary(r *bytes.Reader) ([]*net.TCPAddr, error) {
-	t.log.Debugf("len(rest): %#v", r.Len())
+func (t *TrackerBase) parsePeersBinary(r *bytes.Reader) ([]*net.TCPAddr, error) {
+	t.Log.Debugf("len(rest): %#v", r.Len())
 	if r.Len()%6 != 0 {
 		b := make([]byte, r.Len())
 		r.Read(b)
-		t.log.Debugf("Peers: %q", b)
+		t.Log.Debugf("Peers: %q", b)
 		return nil, errors.New("invalid peer list")
 	}
 
 	count := r.Len() / 6
-	t.log.Debugf("count of peers: %#v", count)
+	t.Log.Debugf("count of peers: %#v", count)
 	peers := make([]*net.TCPAddr, count)
 	for i := 0; i < count; i++ {
 		var peer struct {
@@ -134,7 +109,7 @@ func (t *trackerBase) parsePeersBinary(r *bytes.Reader) ([]*net.TCPAddr, error) 
 		peers[i] = &net.TCPAddr{IP: peer.IP[:], Port: int(peer.Port)}
 	}
 
-	t.log.Debugf("peers: %#v\n", peers)
+	t.Log.Debugf("peers: %#v\n", peers)
 	return peers, nil
 }
 
@@ -143,14 +118,14 @@ type trackerError string
 
 func (e trackerError) Error() string { return string(e) }
 
-type trackerEvent int32
+type TrackerEvent int32
 
 // Tracker Announce Events. Numbers corresponds to constants in UDP tracker protocol.
 const (
-	eventNone trackerEvent = iota
-	eventCompleted
-	eventStarted
-	eventStopped
+	EventNone TrackerEvent = iota
+	EventCompleted
+	EventStarted
+	EventStopped
 )
 
 var eventNames = [...]string{
@@ -161,7 +136,7 @@ var eventNames = [...]string{
 }
 
 // String returns the name of event as represented in HTTP tracker protocol.
-func (e trackerEvent) String() string {
+func (e TrackerEvent) String() string {
 	return eventNames[e]
 }
 

@@ -1,4 +1,4 @@
-package rain
+package tracker
 
 import (
 	"bytes"
@@ -17,13 +17,13 @@ import (
 var httpTimeout = 30 * time.Second
 
 type httpTracker struct {
-	*trackerBase
+	*TrackerBase
 	http      *http.Client
 	transport *http.Transport
 	trackerID string
 }
 
-func newHTTPTracker(b *trackerBase) *httpTracker {
+func NewHTTPTracker(b *TrackerBase) *httpTracker {
 	transport := &http.Transport{
 		Dial: (&net.Dialer{
 			Timeout: httpTimeout,
@@ -32,7 +32,7 @@ func newHTTPTracker(b *trackerBase) *httpTracker {
 		DisableKeepAlives:   true,
 	}
 	return &httpTracker{
-		trackerBase: b,
+		TrackerBase: b,
 		http: &http.Client{
 			Timeout:   httpTimeout,
 			Transport: transport,
@@ -41,28 +41,29 @@ func newHTTPTracker(b *trackerBase) *httpTracker {
 	}
 }
 
-func (t *httpTracker) Announce(transfer *Transfer, e trackerEvent, cancel <-chan struct{}) (*announceResponse, error) {
+func (t *httpTracker) Announce(transfer Transfer, e TrackerEvent, cancel <-chan struct{}) (*AnnounceResponse, error) {
+	peerID := t.Client.PeerID()
 	infoHash := transfer.InfoHash()
 	q := url.Values{}
 	q.Set("info_hash", string(infoHash[:]))
-	q.Set("peer_id", string(t.client.peerID[:]))
-	q.Set("port", strconv.FormatUint(uint64(t.client.Port()), 10))
+	q.Set("peer_id", string(peerID[:]))
+	q.Set("port", strconv.FormatUint(uint64(t.Client.Port()), 10))
 	q.Set("uploaded", strconv.FormatInt(transfer.Uploaded(), 10))
 	q.Set("downloaded", strconv.FormatInt(transfer.Downloaded(), 10))
 	q.Set("left", strconv.FormatInt(transfer.Left(), 10))
 	q.Set("compact", "1")
 	q.Set("no_peer_id", "1")
 	q.Set("numwant", strconv.Itoa(numWant))
-	if e != eventNone {
+	if e != EventNone {
 		q.Set("event", e.String())
 	}
 	if t.trackerID != "" {
 		q.Set("trackerid", t.trackerID)
 	}
 
-	u := t.url
+	u := t.Url
 	u.RawQuery = q.Encode()
-	t.log.Debugf("u.String(): %q", u.String())
+	t.Log.Debugf("u.String(): %q", u.String())
 
 	req := &http.Request{
 		Method:     "GET",
@@ -111,7 +112,7 @@ func (t *httpTracker) Announce(transfer *Transfer, e trackerEvent, cancel <-chan
 	}
 
 	if response.WarningMessage != "" {
-		t.log.Warning(response.WarningMessage)
+		t.Log.Warning(response.WarningMessage)
 	}
 	if response.FailureReason != "" {
 		return nil, trackerError(response.FailureReason)
@@ -150,7 +151,7 @@ func (t *httpTracker) Announce(transfer *Transfer, e trackerEvent, cancel <-chan
 		}
 	}
 
-	return &announceResponse{
+	return &AnnounceResponse{
 		Interval:   time.Duration(response.Interval) * time.Second,
 		Leechers:   response.Incomplete,
 		Seeders:    response.Complete,
