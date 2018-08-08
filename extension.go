@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 
+	"github.com/cenkalti/rain/messageid"
 	"github.com/zeebo/bencode"
 )
 
@@ -30,7 +31,7 @@ func (p *peer) sendExtensionMessage(id byte, payload []byte) error {
 		ExtensionID byte
 	}{
 		Length:      uint32(len(payload)) + 2,
-		BTID:        extensionID,
+		BTID:        messageid.Extension,
 		ExtensionID: id,
 	}
 

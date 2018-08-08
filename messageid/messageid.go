@@ -1,26 +1,26 @@
-package rain
+package messageid
 
 import "strconv"
 
-// messageID is identifier for messages sent between peers.
-type messageID uint8
+// MessageID is identifier for messages sent between peers.
+type MessageID uint8
 
 // Peer message types
 const (
-	chokeID messageID = iota
-	unchokeID
-	interestedID
-	notInterestedID
-	haveID
-	bitfieldID
-	requestID
-	pieceID
-	cancelID
-	portID
-	extensionID = 20
+	Choke MessageID = iota
+	Unchoke
+	Interested
+	NotInterested
+	Have
+	Bitfield
+	Request
+	Piece
+	Cancel
+	Port
+	Extension = 20
 )
 
-var messageIDStrings = map[messageID]string{
+var messageIDStrings = map[MessageID]string{
 	0:  "choke",
 	1:  "unchoke",
 	2:  "interested",
@@ -34,7 +34,7 @@ var messageIDStrings = map[messageID]string{
 	20: "extension",
 }
 
-func (m messageID) String() string {
+func (m MessageID) String() string {
 	s, ok := messageIDStrings[m]
 	if !ok {
 		return strconv.FormatInt(int64(m), 10)

@@ -12,6 +12,7 @@ import (
 
 	"github.com/cenkalti/rain/bitfield"
 	"github.com/cenkalti/rain/logger"
+	"github.com/cenkalti/rain/messageid"
 )
 
 const connReadTimeout = 3 * time.Minute
@@ -117,7 +118,7 @@ func (p *peer) Run() {
 			continue
 		}
 
-		var id messageID
+		var id messageid.MessageID
 		err = binary.Read(p.conn, binary.BigEndian, &id)
 		if err != nil {
 			p.log.Error(err)
@@ -128,25 +129,25 @@ func (p *peer) Run() {
 		p.log.Debugf("Received message of type: %q", id)
 
 		switch id {
-		case chokeID:
+		case messageid.Choke:
 			p.transfer.m.Lock()
 			// Discard all pending requests. TODO
 			p.peerChoking = true
 			p.transfer.m.Unlock()
 			p.cond.Broadcast()
-		case unchokeID:
+		case messageid.Unchoke:
 			p.transfer.m.Lock()
 			p.peerChoking = false
 			p.transfer.m.Unlock()
 			p.cond.Broadcast()
-		case interestedID:
+		case messageid.Interested:
 			// TODO this should not be here
 			if err2 := p.Unchoke(); err2 != nil {
 				p.log.Error(err2)
 				return
 			}
-		case notInterestedID:
-		case haveID:
+		case messageid.NotInterested:
+		case messageid.Have:
 			var i uint32
 			err = binary.Read(p.conn, binary.BigEndian, &i)
 			if err != nil {
@@ -160,7 +161,7 @@ func (p *peer) Run() {
 			p.log.Debug("Peer ", p.conn.RemoteAddr(), " has piece #", i)
 			p.bitfield.Set(i)
 			p.handleHave(i)
-		case bitfieldID:
+		case messageid.Bitfield:
 			if !first {
 				p.log.Error("bitfield can only be sent after handshake")
 				return
@@ -185,7 +186,7 @@ func (p *peer) Run() {
 					p.handleHave(i)
 				}
 			}
-		case requestID:
+		case messageid.Request:
 			var req requestMessage
 			err = binary.Read(p.conn, binary.BigEndian, &req)
 			if err != nil {
@@ -207,7 +208,7 @@ func (p *peer) Run() {
 			}
 
 			p.transfer.requestC <- &peerRequest{p, req}
-		case pieceID:
+		case messageid.Piece:
 			var msg pieceMessage
 			err = binary.Read(p.conn, binary.BigEndian, &msg)
 			if err != nil {
@@ -280,8 +281,8 @@ func (p *peer) Run() {
 			p.transfer.m.Unlock()
 			p.cond.Broadcast()
 			p.transfer.log.Infof("Completed: %d%%", percentDone)
-		case cancelID:
-		case portID:
+		case messageid.Cancel:
+		case messageid.Port:
 		default:
 			p.log.Debugf("Unknown message type: %d", id)
 			p.log.Debugln("Discarding", length, "bytes...")
@@ -305,7 +306,7 @@ func (p *peer) SendBitfield() error {
 	if p.transfer.bitfield.Count() == 0 {
 		return nil
 	}
-	return p.sendMessage(bitfieldID, p.transfer.bitfield.Bytes())
+	return p.sendMessage(messageid.Bitfield, p.transfer.bitfield.Bytes())
 }
 
 func (p *peer) BeInterested() error {
@@ -315,7 +316,7 @@ func (p *peer) BeInterested() error {
 		return nil
 	}
 	p.amInterested = true
-	return p.sendMessage(interestedID, nil)
+	return p.sendMessage(messageid.Interested, nil)
 }
 
 func (p *peer) BeNotInterested() error {
@@ -325,17 +326,17 @@ func (p *peer) BeNotInterested() error {
 		return nil
 	}
 	p.amInterested = false
-	return p.sendMessage(notInterestedID, nil)
+	return p.sendMessage(messageid.NotInterested, nil)
 }
 
-func (p *peer) Choke() error   { return p.sendMessage(chokeID, nil) }
-func (p *peer) Unchoke() error { return p.sendMessage(unchokeID, nil) }
+func (p *peer) Choke() error   { return p.sendMessage(messageid.Choke, nil) }
+func (p *peer) Unchoke() error { return p.sendMessage(messageid.Unchoke, nil) }
 
 func (p *peer) Request(b *block) error {
 	req := requestMessage{b.Piece.Index, b.Begin, b.Length}
 	buf := bytes.NewBuffer(make([]byte, 0, 12))
 	binary.Write(buf, binary.BigEndian, &req)
-	return p.sendMessage(requestID, buf.Bytes())
+	return p.sendMessage(messageid.Request, buf.Bytes())
 }
 
 func (p *peer) SendPiece(index, begin uint32, block []byte) error {
@@ -343,15 +344,15 @@ func (p *peer) SendPiece(index, begin uint32, block []byte) error {
 	buf := bytes.NewBuffer(make([]byte, 0, 8))
 	binary.Write(buf, binary.BigEndian, msg)
 	buf.Write(block)
-	return p.sendMessage(pieceID, buf.Bytes())
+	return p.sendMessage(messageid.Piece, buf.Bytes())
 }
 
-func (p *peer) sendMessage(id messageID, payload []byte) error {
+func (p *peer) sendMessage(id messageid.MessageID, payload []byte) error {
 	p.log.Debugf("Sending message of type: %q", id)
 	buf := bufio.NewWriterSize(p.conn, 4+1+len(payload))
 	var header = struct {
 		Length uint32
-		ID     messageID
+		ID     messageid.MessageID
 	}{
 		uint32(1 + len(payload)),
 		id,
