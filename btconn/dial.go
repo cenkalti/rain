@@ -9,7 +9,13 @@ import (
 	"github.com/cenkalti/rain/mse"
 )
 
-func Dial(addr net.Addr, enableEncryption, forceEncryption bool, ourExtensions [8]byte, ih [20]byte, ourID [20]byte) (
+func Dial(
+	addr net.Addr,
+	enableEncryption,
+	forceEncryption bool,
+	ourExtensions [8]byte,
+	ih [20]byte,
+	ourID [20]byte) (
 	conn net.Conn, cipher mse.CryptoMethod, peerExtensions [8]byte, peerID [20]byte, err error) {
 
 	log := logger.New("conn -> " + addr.String())

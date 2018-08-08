@@ -16,7 +16,7 @@ func Accept(
 	forceEncryption bool,
 	hasInfoHash func([20]byte) bool,
 	ourExtensions [8]byte, ourID [20]byte) (
-	encConn net.Conn, cipher mse.CryptoMethod, peerExtensions [8]byte, ih [20]byte, peerID [20]byte, err error) {
+	encConn net.Conn, cipher mse.CryptoMethod, peerExtensions [8]byte, peerID [20]byte, infoHash [20]byte, err error) {
 
 	log := logger.New("conn <- " + conn.RemoteAddr().String())
 
@@ -36,7 +36,7 @@ func Accept(
 	// rwConn returns the read bytes again that is read by handshake.Read1.
 	var buf bytes.Buffer
 	var reader = io.TeeReader(conn, &buf)
-	peerExtensions, ih, err = readHandshake1(reader)
+	peerExtensions, infoHash, err = readHandshake1(reader)
 	conn = &rwConn{readWriter{io.MultiReader(&buf, conn), conn}, conn}
 
 	if err == errInvalidProtocol && getSKey != nil {
@@ -67,11 +67,11 @@ func Accept(
 				}
 				hasIncomingPayload = true
 				r := bytes.NewReader(payloadIn[:lenPayloadIn])
-				peerExtensions, ih, err = readHandshake1(r)
+				peerExtensions, infoHash, err = readHandshake1(r)
 				if err != nil {
 					return nil, err
 				}
-				if !hasInfoHash(ih) {
+				if !hasInfoHash(infoHash) {
 					return nil, errInvalidInfoHash
 				}
 				peerID, err = readHandshake2(r)
@@ -79,7 +79,7 @@ func Accept(
 					return nil, err
 				}
 				out := bytes.NewBuffer(make([]byte, 0, 68))
-				err = writeHandshake(out, ih, ourID, ourExtensions)
+				err = writeHandshake(out, infoHash, ourID, ourExtensions)
 				return out.Bytes(), err
 			})
 		if err == nil {
@@ -100,18 +100,18 @@ func Accept(
 		if err = conn.SetReadDeadline(time.Now().Add(handshakeDeadline)); err != nil {
 			return
 		}
-		peerExtensions, ih, err = readHandshake1(conn)
+		peerExtensions, infoHash, err = readHandshake1(conn)
 		if err != nil {
 			return
 		}
-		if !hasInfoHash(ih) {
+		if !hasInfoHash(infoHash) {
 			err = errInvalidInfoHash
 			return
 		}
 		if err = conn.SetWriteDeadline(time.Now().Add(handshakeDeadline)); err != nil {
 			return
 		}
-		err = writeHandshake(conn, ih, ourID, ourExtensions)
+		err = writeHandshake(conn, infoHash, ourID, ourExtensions)
 		if err != nil {
 			return
 		}
