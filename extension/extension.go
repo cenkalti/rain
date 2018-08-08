@@ -1,19 +1,20 @@
-package rain
+package extension
 
 import (
 	"bytes"
 	"encoding/binary"
+	"io"
 
 	"github.com/cenkalti/rain/messageid"
 	"github.com/zeebo/bencode"
 )
 
-type extensionHandshakeMessage struct {
+type HandshakeMessage struct {
 	M            map[string]uint8 `bencode:"m"`
 	MetadataSize uint32           `bencode:"metadata_size,omitempty"`
 }
 
-func (p *peer) SendExtensionHandshake(m *extensionHandshakeMessage) error {
+func (m *HandshakeMessage) WriteHandshake(w io.Writer) error {
 	const extensionHandshakeID = 0
 	var buf bytes.Buffer
 	e := bencode.NewEncoder(&buf)
@@ -21,10 +22,10 @@ func (p *peer) SendExtensionHandshake(m *extensionHandshakeMessage) error {
 	if err != nil {
 		return err
 	}
-	return p.sendExtensionMessage(extensionHandshakeID, buf.Bytes())
+	return WriteExtensionMessage(extensionHandshakeID, buf.Bytes(), w)
 }
 
-func (p *peer) sendExtensionMessage(id byte, payload []byte) error {
+func WriteExtensionMessage(id byte, payload []byte, w io.Writer) error {
 	msg := struct {
 		Length      uint32
 		BTID        byte
@@ -46,5 +47,5 @@ func (p *peer) sendExtensionMessage(id byte, payload []byte) error {
 		return err
 	}
 
-	return binary.Write(p.conn, binary.BigEndian, buf.Bytes())
+	return binary.Write(w, binary.BigEndian, buf.Bytes())
 }
