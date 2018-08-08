@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"time"
+
+	"github.com/cenkalti/rain/bitfield"
 )
 
 type piece struct {
@@ -29,10 +31,10 @@ type block struct {
 
 type activeRequest struct {
 	createdAt        time.Time
-	blocksRequesting *bitfield
-	blocksRequested  *bitfield
-	blocksReceiving  *bitfield
-	blocksReceived   *bitfield
+	blocksRequesting *bitfield.Bitfield
+	blocksRequested  *bitfield.Bitfield
+	blocksReceiving  *bitfield.Bitfield
+	blocksReceived   *bitfield.Bitfield
 	data             []byte // buffer for received blocks
 }
 
@@ -41,10 +43,10 @@ func (p *piece) deleteActiveRequest(id [20]byte)             { delete(p.requeste
 func (p *piece) createActiveRequest(id [20]byte) *activeRequest {
 	r := &activeRequest{
 		createdAt:        time.Now(),
-		blocksRequesting: newBitfield(uint32(len(p.Blocks))),
-		blocksRequested:  newBitfield(uint32(len(p.Blocks))),
-		blocksReceiving:  newBitfield(uint32(len(p.Blocks))),
-		blocksReceived:   newBitfield(uint32(len(p.Blocks))),
+		blocksRequesting: bitfield.New(uint32(len(p.Blocks))),
+		blocksRequested:  bitfield.New(uint32(len(p.Blocks))),
+		blocksReceiving:  bitfield.New(uint32(len(p.Blocks))),
+		blocksReceived:   bitfield.New(uint32(len(p.Blocks))),
 		data:             make([]byte, p.Length),
 	}
 	p.requestedFrom[id] = r
@@ -185,3 +187,5 @@ func minInt64(a, b int64) int64 {
 	}
 	return b
 }
+
+func divMod32(a, b uint32) (uint32, uint32) { return a / b, a % b }

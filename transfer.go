@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/cenkalti/rain/bitfield"
 	"github.com/cenkalti/rain/magnet"
 	"github.com/cenkalti/rain/mse"
 )
@@ -20,7 +21,7 @@ type Transfer struct {
 	info      *info
 	tracker   tracker
 	pieces    []*piece
-	bitfield  *bitfield
+	bitfield  *bitfield.Bitfield
 	announceC chan *announceResponse
 	peers     map[[20]byte]*peer // connected peers
 	stopC     chan struct{}      // all goroutines stop when closed
@@ -78,7 +79,7 @@ func (c *Client) newTransferTorrent(tor *torrent) (*Transfer, error) {
 		return nil, err
 	}
 	t.pieces = newPieces(tor.Info, files)
-	t.bitfield = newBitfield(tor.Info.NumPieces)
+	t.bitfield = bitfield.New(tor.Info.NumPieces)
 	var percentDone uint32
 	if checkHash {
 		c.log.Notice("Doing hash check...")

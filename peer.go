@@ -9,6 +9,8 @@ import (
 	"net"
 	"sync"
 	"time"
+
+	"github.com/cenkalti/rain/bitfield"
 )
 
 const connReadTimeout = 3 * time.Minute
@@ -28,7 +30,7 @@ type peer struct {
 	amInterestedM sync.Mutex
 
 	// pieces that the peer has
-	bitfield *bitfield
+	bitfield *bitfield.Bitfield
 
 	cond *sync.Cond
 	log  logger
@@ -56,7 +58,7 @@ func (t *Transfer) newPeer(conn net.Conn, id [20]byte, l logger) *peer {
 		id:          id,
 		transfer:    t,
 		peerChoking: true,
-		bitfield:    newBitfield(t.bitfield.Len()),
+		bitfield:    bitfield.New(t.bitfield.Len()),
 		log:         l,
 	}
 	p.cond = sync.NewCond(&t.m)
