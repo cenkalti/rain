@@ -1,4 +1,4 @@
-package tracker
+package httptracker
 
 import (
 	"bytes"
@@ -11,19 +11,23 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/cenkalti/rain/logger"
+	"github.com/cenkalti/rain/tracker"
 	"github.com/zeebo/bencode"
 )
 
 var httpTimeout = 30 * time.Second
 
-type httpTracker struct {
-	*TrackerBase
+type HTTPTracker struct {
+	URL       *url.URL
+	Client    tracker.Client
+	Log       logger.Logger
 	http      *http.Client
 	transport *http.Transport
 	trackerID string
 }
 
-func NewHTTPTracker(b *TrackerBase) *httpTracker {
+func New(u *url.URL, c tracker.Client, l logger.Logger) *HTTPTracker {
 	transport := &http.Transport{
 		Dial: (&net.Dialer{
 			Timeout: httpTimeout,
@@ -31,8 +35,10 @@ func NewHTTPTracker(b *TrackerBase) *httpTracker {
 		TLSHandshakeTimeout: httpTimeout,
 		DisableKeepAlives:   true,
 	}
-	return &httpTracker{
-		TrackerBase: b,
+	return &HTTPTracker{
+		URL:    u,
+		Client: c,
+		Log:    l,
 		http: &http.Client{
 			Timeout:   httpTimeout,
 			Transport: transport,
@@ -41,7 +47,7 @@ func NewHTTPTracker(b *TrackerBase) *httpTracker {
 	}
 }
 
-func (t *httpTracker) Announce(transfer Transfer, e Event, cancel <-chan struct{}) (*AnnounceResponse, error) {
+func (t *HTTPTracker) Announce(transfer tracker.Transfer, e tracker.Event, cancel <-chan struct{}) (*tracker.AnnounceResponse, error) {
 	peerID := t.Client.PeerID()
 	infoHash := transfer.InfoHash()
 	q := url.Values{}
@@ -53,8 +59,8 @@ func (t *httpTracker) Announce(transfer Transfer, e Event, cancel <-chan struct{
 	q.Set("left", strconv.FormatInt(transfer.Left(), 10))
 	q.Set("compact", "1")
 	q.Set("no_peer_id", "1")
-	q.Set("numwant", strconv.Itoa(numWant))
-	if e != EventNone {
+	q.Set("numwant", strconv.Itoa(tracker.NumWant))
+	if e != tracker.EventNone {
 		q.Set("event", e.String())
 	}
 	if t.trackerID != "" {
@@ -94,14 +100,14 @@ func (t *httpTracker) Announce(transfer Transfer, e Event, cancel <-chan struct{
 		bodyC <- resp.Body
 	}()
 
-	var response = new(httpTrackerAnnounceResponse)
+	var response = new(announceResponse)
 
 	select {
 	case err := <-errC:
 		return nil, err
 	case <-cancel:
 		t.transport.CancelRequest(req)
-		return nil, errRequestCancelled
+		return nil, tracker.ErrRequestCancelled
 	case body := <-bodyC:
 		d := bencode.NewDecoder(body)
 		err := d.Decode(&response)
@@ -115,11 +121,11 @@ func (t *httpTracker) Announce(transfer Transfer, e Event, cancel <-chan struct{
 		t.Log.Warning(response.WarningMessage)
 	}
 	if response.FailureReason != "" {
-		return nil, trackerError(response.FailureReason)
+		return nil, tracker.Error(response.FailureReason)
 	}
 
-	if response.TrackerId != "" {
-		t.trackerID = response.TrackerId
+	if response.TrackerID != "" {
+		t.trackerID = response.TrackerID
 	}
 
 	// Peers may be in binary or dictionary model.
@@ -134,7 +140,7 @@ func (t *httpTracker) Announce(transfer Transfer, e Event, cancel <-chan struct{
 			if err != nil {
 				return nil, err
 			}
-			peers, err = parsePeersBinary(bytes.NewReader(b), t.Log)
+			peers, err = tracker.ParsePeersBinary(bytes.NewReader(b), t.Log)
 		}
 	}
 	if err != nil {
@@ -151,7 +157,7 @@ func (t *httpTracker) Announce(transfer Transfer, e Event, cancel <-chan struct{
 		}
 	}
 
-	return &AnnounceResponse{
+	return &tracker.AnnounceResponse{
 		Interval:   time.Duration(response.Interval) * time.Second,
 		Leechers:   response.Incomplete,
 		Seeders:    response.Complete,
@@ -160,7 +166,7 @@ func (t *httpTracker) Announce(transfer Transfer, e Event, cancel <-chan struct{
 	}, nil
 }
 
-func (t *httpTracker) parsePeersDictionary(b bencode.RawMessage) ([]*net.TCPAddr, error) {
+func (t *HTTPTracker) parsePeersDictionary(b bencode.RawMessage) ([]*net.TCPAddr, error) {
 	var peers []struct {
 		IP   string `bencode:"ip"`
 		Port uint16 `bencode:"port"`
@@ -178,20 +184,7 @@ func (t *httpTracker) parsePeersDictionary(b bencode.RawMessage) ([]*net.TCPAddr
 	return addrs, err
 }
 
-func (t *httpTracker) Close() error {
+func (t *HTTPTracker) Close() error {
 	t.transport.CloseIdleConnections()
 	return nil
-}
-
-type httpTrackerAnnounceResponse struct {
-	FailureReason  string             `bencode:"failure reason"`
-	WarningMessage string             `bencode:"warning message"`
-	Interval       int32              `bencode:"interval"`
-	MinInterval    int32              `bencode:"min interval"`
-	TrackerId      string             `bencode:"tracker id"`
-	Complete       int32              `bencode:"complete"`
-	Incomplete     int32              `bencode:"incomplete"`
-	Peers          bencode.RawMessage `bencode:"peers"`
-	Peers6         string             `bencode:"peers6"`
-	ExternalIP     []byte             `bencode:"external ip"`
 }

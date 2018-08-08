@@ -6,17 +6,16 @@ import (
 	"encoding/binary"
 	"errors"
 	"net"
-	"net/url"
 	"time"
 
 	"github.com/cenkalti/backoff"
 	"github.com/cenkalti/rain/logger"
 )
 
-// Number of peers we want from trackers
-const numWant = 50
+// NumWant is the number of peers we want from trackers.
+const NumWant = 50
 
-var errRequestCancelled = errors.New("request cancelled")
+var ErrRequestCancelled = errors.New("request cancelled")
 
 type Tracker interface {
 	// Announce transfer to the tracker.
@@ -71,14 +70,8 @@ func AnnouncePeriodically(t Tracker, transfer Transfer, cancel <-chan struct{}, 
 	}
 }
 
-type TrackerBase struct {
-	URL    *url.URL
-	Client Client
-	Log    logger.Logger
-}
-
-// parsePeersBinary parses compact representation of peer list.
-func parsePeersBinary(r *bytes.Reader, l logger.Logger) ([]*net.TCPAddr, error) {
+// ParsePeersBinary parses compact representation of peer list.
+func ParsePeersBinary(r *bytes.Reader, l logger.Logger) ([]*net.TCPAddr, error) {
 	l.Debugf("len(rest): %#v", r.Len())
 	if r.Len()%6 != 0 {
 		b := make([]byte, r.Len())
@@ -106,31 +99,9 @@ func parsePeersBinary(r *bytes.Reader, l logger.Logger) ([]*net.TCPAddr, error) 
 }
 
 // Error is the string that is sent by the tracker from announce or scrape.
-type trackerError string
+type Error string
 
-func (e trackerError) Error() string { return string(e) }
-
-type Event int32
-
-// Tracker Announce Events. Numbers corresponds to constants in UDP tracker protocol.
-const (
-	EventNone Event = iota
-	EventCompleted
-	EventStarted
-	EventStopped
-)
-
-var eventNames = [...]string{
-	"empty",
-	"completed",
-	"started",
-	"stopped",
-}
-
-// String returns the name of event as represented in HTTP tracker protocol.
-func (e Event) String() string {
-	return eventNames[e]
-}
+func (e Error) Error() string { return string(e) }
 
 // defaultRetryBackoff is the back-off algorithm to use before retrying failed announce and scrape operations.
 var defaultRetryBackoff = &backoff.ExponentialBackOff{

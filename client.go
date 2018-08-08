@@ -16,6 +16,8 @@ import (
 	"github.com/cenkalti/rain/magnet"
 	"github.com/cenkalti/rain/metainfo"
 	"github.com/cenkalti/rain/tracker"
+	"github.com/cenkalti/rain/tracker/httptracker"
+	"github.com/cenkalti/rain/tracker/udptracker"
 	"github.com/hashicorp/go-multierror"
 )
 
@@ -203,18 +205,12 @@ func (c *Client) newTracker(trackerURL string) (tracker.Tracker, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	base := &tracker.TrackerBase{
-		URL:    u,
-		Client: c,
-		Log:    logger.New("tracker " + trackerURL),
-	}
-
+	l := logger.New("tracker " + trackerURL)
 	switch u.Scheme {
 	case "http", "https":
-		return tracker.NewHTTPTracker(base), nil
+		return httptracker.New(u, c, l), nil
 	case "udp":
-		return tracker.NewUDPTracker(base), nil
+		return udptracker.New(u, c, l), nil
 	default:
 		return nil, fmt.Errorf("unsupported tracker scheme: %s", u.Scheme)
 	}
