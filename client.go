@@ -177,7 +177,6 @@ func (c *Client) AddTorrent(r io.Reader, dest string) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
-	c.log.Debugf("Parsed torrent file: %#v", t)
 	return c.newTransferTorrent(t, dest)
 }
 

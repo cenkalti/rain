@@ -30,6 +30,7 @@ func TestUnencrypted(t *testing.T) {
 	done := make(chan struct{})
 	var gerr error
 	go func() {
+		defer close(done)
 		conn, cipher, ext, id, err2 := Dial(addr, false, false, ext1, infoHash, id1)
 		if err2 != nil {
 			gerr = err2
@@ -47,7 +48,6 @@ func TestUnencrypted(t *testing.T) {
 		if id != id2 {
 			t.Errorf("id: %s", id)
 		}
-		close(done)
 	}()
 	conn, err := l.Accept()
 	if err != nil {
@@ -84,6 +84,7 @@ func TestEncrypted(t *testing.T) {
 	done := make(chan struct{})
 	var gerr error
 	go func() {
+		defer close(done)
 		conn, cipher, ext, id, err2 := Dial(addr, true, false, ext1, infoHash, id1)
 		if err2 != nil {
 			gerr = err2
@@ -116,7 +117,6 @@ func TestEncrypted(t *testing.T) {
 		if string(b[:8]) != "hello in" {
 			t.Fail()
 		}
-		close(done)
 	}()
 	conn, err := l.Accept()
 	if err != nil {
@@ -134,10 +134,6 @@ func TestEncrypted(t *testing.T) {
 		func(ih [20]byte) bool { return ih == infoHash },
 		ext2, id2)
 	if err != nil {
-		t.Fatal(err)
-	}
-	<-done
-	if gerr != nil {
 		t.Fatal(err)
 	}
 	if cipher != mse.RC4 {
@@ -166,5 +162,9 @@ func TestEncrypted(t *testing.T) {
 	_, err = encConn.Write([]byte("hello in"))
 	if err != nil {
 		t.Fail()
+	}
+	<-done
+	if gerr != nil {
+		t.Fatal(err)
 	}
 }

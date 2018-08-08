@@ -17,7 +17,7 @@
   branch = "master"
   name = "github.com/cenkalti/log"
   packages = ["."]
-  revision = "c88a46e9edcea06a3f3e33d7885a979c50eb2039"
+  revision = "e1cf6d40cbc30759a410e0552991897df9a91189"
 
 [[projects]]
   branch = "master"
