@@ -1,6 +1,4 @@
-// Provides support for doing BitTorrent peer handshake.
-
-package rain
+package btconn
 
 import (
 	"bytes"

@@ -16,6 +16,7 @@ import (
 	"github.com/crosbymichael/tracker/server"
 
 	"github.com/cenkalti/rain"
+	"github.com/cenkalti/rain/logger"
 )
 
 var (
@@ -26,7 +27,7 @@ var (
 )
 
 func init() {
-	rain.SetLogLevel(log.DEBUG)
+	logger.SetLogLevel(log.DEBUG)
 }
 
 func TestDownload(t *testing.T) {

@@ -1,4 +1,4 @@
-package rain
+package btconn
 
 import (
 	"net"
@@ -29,9 +29,9 @@ func TestUnencrypted(t *testing.T) {
 	defer l.Close()
 	done := make(chan struct{})
 	go func() {
-		conn, cipher, ext, id, err := dial(addr, false, false, ext1, infoHash, id1)
-		if err != nil {
-			t.Fatal(err)
+		conn, cipher, ext, id, err2 := Dial(addr, false, false, ext1, infoHash, id1)
+		if err2 != nil {
+			t.Fatal(err2)
 		}
 		if conn == nil {
 			t.Errorf("conn: %s", conn)
@@ -51,7 +51,7 @@ func TestUnencrypted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, cipher, ext, ih, id, err := accept(conn, nil, false, func(ih [20]byte) bool { return ih == infoHash }, ext2, id2)
+	_, cipher, ext, ih, id, err := Accept(conn, nil, false, func(ih [20]byte) bool { return ih == infoHash }, ext2, id2)
 	<-done
 	if err != nil {
 		t.Fatal(err)
@@ -78,9 +78,9 @@ func TestEncrypted(t *testing.T) {
 	defer l.Close()
 	done := make(chan struct{})
 	go func() {
-		conn, cipher, ext, id, err := dial(addr, true, false, ext1, infoHash, id1)
-		if err != nil {
-			t.Fatal(err)
+		conn, cipher, ext, id, err2 := Dial(addr, true, false, ext1, infoHash, id1)
+		if err2 != nil {
+			t.Fatal(err2)
 		}
 		if conn == nil {
 			t.Errorf("conn: %s", conn)
@@ -94,14 +94,14 @@ func TestEncrypted(t *testing.T) {
 		if id != id2 {
 			t.Errorf("id: %s", id)
 		}
-		_, err = conn.Write([]byte("hello out"))
-		if err != nil {
+		_, err2 = conn.Write([]byte("hello out"))
+		if err2 != nil {
 			t.Fail()
 		}
 		b := make([]byte, 10)
-		n, err := conn.Read(b)
-		if err != nil {
-			t.Error(err)
+		n, err2 := conn.Read(b)
+		if err2 != nil {
+			t.Error(err2)
 		}
 		if n != 8 {
 			t.Fail()
@@ -115,7 +115,7 @@ func TestEncrypted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	encConn, cipher, ext, ih, id, err := accept(
+	encConn, cipher, ext, ih, id, err := Accept(
 		conn,
 		func(h [20]byte) (sKey []byte) {
 			if h == sKeyHash {

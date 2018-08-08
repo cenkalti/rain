@@ -13,6 +13,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/cenkalti/rain"
+	"github.com/cenkalti/rain/logger"
 )
 
 const defaultConfig = "~/.rain.yml"
@@ -43,7 +44,7 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	if *debug {
-		rain.SetLogLevel(log.DEBUG)
+		logger.SetLogLevel(log.DEBUG)
 	}
 
 	var configFile string

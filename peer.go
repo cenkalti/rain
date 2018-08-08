@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/rain/bitfield"
+	"github.com/cenkalti/rain/logger"
 )
 
 const connReadTimeout = 3 * time.Minute
@@ -33,7 +34,7 @@ type peer struct {
 	bitfield *bitfield.Bitfield
 
 	cond *sync.Cond
-	log  logger
+	log  logger.Logger
 }
 
 type peerRequest struct {
@@ -52,7 +53,7 @@ type pieceMessage struct {
 	Index, Begin uint32
 }
 
-func (t *Transfer) newPeer(conn net.Conn, id [20]byte, l logger) *peer {
+func (t *Transfer) newPeer(conn net.Conn, id [20]byte, l logger.Logger) *peer {
 	p := &peer{
 		conn:        conn,
 		id:          id,

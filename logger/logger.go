@@ -1,10 +1,9 @@
-package rain
+package logger
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 
 	"github.com/cenkalti/log"
@@ -20,9 +19,9 @@ func init() {
 	DefaultLogHandler = h
 }
 
-type logger log.Logger
+type Logger log.Logger
 
-func newLogger(name string) logger {
+func New(name string) Logger {
 	logger := log.NewLogger(name)
 	logger.SetLevel(log.DEBUG) // forward all messages to handler
 	logger.SetHandler(DefaultLogHandler)
@@ -39,11 +38,4 @@ func (f logFormatter) Format(rec *log.Record) string {
 		rec.LoggerName,
 		filepath.Base(rec.Filename)+":"+strconv.Itoa(rec.Line),
 		rec.Message)
-}
-
-func recoverAndLog(l logger) {
-	if err := recover(); err != nil {
-		buf := make([]byte, 10000)
-		l.Critical(err, "\n", string(buf[:runtime.Stack(buf, false)]))
-	}
 }

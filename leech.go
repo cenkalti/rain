@@ -5,6 +5,9 @@ import (
 	"net"
 	"sort"
 	"sync"
+
+	"github.com/cenkalti/rain/btconn"
+	"github.com/cenkalti/rain/logger"
 )
 
 // peerManager receives from t.peersC and keeps most recent peer addresses in t.peerC.
@@ -56,11 +59,11 @@ func (t *Transfer) connecter() {
 }
 
 func (t *Transfer) connectAndRun(addr *net.TCPAddr) {
-	log := newLogger("peer -> " + addr.String())
+	log := logger.New("peer -> " + addr.String())
 
-	conn, cipher, extensions, peerID, err := dial(addr, !t.client.config.Encryption.DisableOutgoing, t.client.config.Encryption.ForceOutgoing, [8]byte{}, t.info.Hash, t.client.peerID)
+	conn, cipher, extensions, peerID, err := btconn.Dial(addr, !t.client.config.Encryption.DisableOutgoing, t.client.config.Encryption.ForceOutgoing, [8]byte{}, t.info.Hash, t.client.peerID)
 	if err != nil {
-		if err == errOwnConnection {
+		if err == btconn.ErrOwnConnection {
 			log.Debug(err)
 		} else {
 			log.Error(err)

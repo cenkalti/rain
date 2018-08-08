@@ -6,6 +6,8 @@ import (
 	"net"
 	"sync"
 
+	"github.com/cenkalti/rain/btconn"
+	"github.com/cenkalti/rain/logger"
 	"github.com/cenkalti/rain/magnet"
 	"github.com/cenkalti/rain/torrent"
 )
@@ -35,7 +37,7 @@ type Client struct {
 	transfers     map[[20]byte]*Transfer // all active transfers
 	transfersSKey map[[20]byte]*Transfer // for encryption
 	transfersM    sync.Mutex
-	log           logger
+	log           logger.Logger
 }
 
 type Config struct {
@@ -68,7 +70,7 @@ func NewClient(c *Config) (*Client, error) {
 		peerID:        peerID,
 		transfers:     make(map[[20]byte]*Transfer),
 		transfersSKey: make(map[[20]byte]*Transfer),
-		log:           newLogger("client"),
+		log:           logger.New("client"),
 	}, nil
 }
 
@@ -140,10 +142,10 @@ func (r *Client) acceptAndRun(conn net.Conn) {
 		return ok
 	}
 
-	log := newLogger("peer <- " + conn.RemoteAddr().String())
-	encConn, cipher, extensions, ih, peerID, err := accept(conn, getSKey, r.config.Encryption.ForceIncoming, hasInfoHash, [8]byte{}, r.peerID)
+	log := logger.New("peer <- " + conn.RemoteAddr().String())
+	encConn, cipher, extensions, ih, peerID, err := btconn.Accept(conn, getSKey, r.config.Encryption.ForceIncoming, hasInfoHash, [8]byte{}, r.peerID)
 	if err != nil {
-		if err == errOwnConnection {
+		if err == btconn.ErrOwnConnection {
 			r.log.Debug(err)
 		} else {
 			r.log.Error(err)

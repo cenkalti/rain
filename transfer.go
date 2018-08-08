@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/cenkalti/rain/bitfield"
+	"github.com/cenkalti/rain/logger"
 	"github.com/cenkalti/rain/magnet"
 	"github.com/cenkalti/rain/mse"
 	"github.com/cenkalti/rain/torrent"
@@ -27,7 +28,7 @@ type Transfer struct {
 	peers     map[[20]byte]*peer // connected peers
 	stopC     chan struct{}      // all goroutines stop when closed
 	m         sync.Mutex         // protects all state related with this transfer and it's peers
-	log       logger
+	log       logger.Logger
 
 	// tracker sends available peers to this channel
 	peersC chan []*net.TCPAddr
@@ -63,7 +64,7 @@ func (c *Client) newTransfer(hash [20]byte, tracker string, name string) (*Trans
 		completed: make(chan struct{}),
 		requestC:  make(chan *peerRequest),
 		serveC:    make(chan *peerRequest),
-		log:       newLogger("download " + name),
+		log:       logger.New("download " + name),
 	}, nil
 }
 

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff"
+	"github.com/cenkalti/rain/logger"
 )
 
 // Number of peers we want from trackers
@@ -51,7 +52,7 @@ func (c *Client) newTracker(trackerURL string) (tracker, error) {
 		url:    u,
 		rawurl: trackerURL,
 		client: c,
-		log:    newLogger("tracker " + trackerURL),
+		log:    logger.New("tracker " + trackerURL),
 	}
 
 	switch u.Scheme {
@@ -104,7 +105,7 @@ type trackerBase struct {
 	url    *url.URL
 	rawurl string
 	client *Client
-	log    logger
+	log    logger.Logger
 }
 
 func (t trackerBase) URL() string { return t.rawurl }
