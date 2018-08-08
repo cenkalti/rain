@@ -1,0 +1,9 @@
+{
+  "Vendor": true,
+  "Disable": [
+    "golint",
+    "gocyclo",
+    "aligncheck",
+    "maligned"
+  ]
+}
