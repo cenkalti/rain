@@ -1,6 +1,7 @@
 package rain_test
 
 import (
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -72,7 +73,7 @@ func TestDownload(t *testing.T) {
 	// Wait for seeder to announce to tracker.
 	time.Sleep(100 * time.Millisecond)
 
-	f.Seek(0, os.SEEK_SET)
+	f.Seek(0, io.SeekStart)
 	t2, err := leecher.AddTorrent(f)
 	if err != nil {
 		t.Fatal(err)
@@ -108,9 +109,5 @@ func startTracker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	go func() {
-		if err := http.Serve(l, s); err != nil {
-			t.Fatal(err)
-		}
-	}()
+	go http.Serve(l, s)
 }

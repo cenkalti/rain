@@ -46,10 +46,6 @@ type requestMessage struct {
 	Index, Begin, Length uint32
 }
 
-type pieceData struct {
-	pieceMessage
-	Data chan []byte
-}
 type pieceMessage struct {
 	Index, Begin uint32
 }
@@ -271,7 +267,8 @@ func (p *peer) Run() {
 			p.log.Debugf("Writing piece to disk: #%d", piece.Index)
 			if _, err = piece.Write(active.data); err != nil {
 				p.log.Error(err)
-				p.conn.Close()
+				// TODO remove errcheck ignore
+				p.conn.Close() // nolint: errcheck
 				return
 			}
 
@@ -286,7 +283,8 @@ func (p *peer) Run() {
 		default:
 			p.log.Debugf("Unknown message type: %d", id)
 			p.log.Debugln("Discarding", length, "bytes...")
-			io.CopyN(ioutil.Discard, p.conn, int64(length))
+			// TODO remove errcheck ignore
+			io.CopyN(ioutil.Discard, p.conn, int64(length)) // nolint: errcheck
 			p.log.Debug("Discarding finished.")
 		}
 
@@ -335,14 +333,16 @@ func (p *peer) Unchoke() error { return p.sendMessage(messageid.Unchoke, nil) }
 func (p *peer) Request(b *block) error {
 	req := requestMessage{b.Piece.Index, b.Begin, b.Length}
 	buf := bytes.NewBuffer(make([]byte, 0, 12))
-	binary.Write(buf, binary.BigEndian, &req)
+	// TODO remove errcheck ignore
+	binary.Write(buf, binary.BigEndian, &req) // nolint: errcheck
 	return p.sendMessage(messageid.Request, buf.Bytes())
 }
 
 func (p *peer) SendPiece(index, begin uint32, block []byte) error {
 	msg := &pieceMessage{index, begin}
 	buf := bytes.NewBuffer(make([]byte, 0, 8))
-	binary.Write(buf, binary.BigEndian, msg)
+	// TODO remove errcheck ignore
+	binary.Write(buf, binary.BigEndian, msg) // nolint: errcheck
 	buf.Write(block)
 	return p.sendMessage(messageid.Piece, buf.Bytes())
 }
@@ -357,7 +357,8 @@ func (p *peer) sendMessage(id messageid.MessageID, payload []byte) error {
 		uint32(1 + len(payload)),
 		id,
 	}
-	binary.Write(buf, binary.BigEndian, &header)
-	buf.Write(payload)
+	// TODO remove errcheck ignore
+	binary.Write(buf, binary.BigEndian, &header) // nolint: errcheck
+	buf.Write(payload)                           // nolint: errcheck
 	return buf.Flush()
 }

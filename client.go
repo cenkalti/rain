@@ -80,7 +80,7 @@ func NewClient(c *Config) (*Client, error) {
 func generatePeerID() ([20]byte, error) {
 	var id [20]byte
 	copy(id[:], peerIDPrefix)
-	_, err := rand.Read(id[len(peerIDPrefix):])
+	_, err := rand.Read(id[len(peerIDPrefix):]) // nolint: gosec
 	return id, err
 }
 
@@ -89,7 +89,7 @@ func (c *Client) PeerID() [20]byte { return c.peerID }
 // Listen peer port and accept incoming peer connections.
 func (c *Client) Listen() error {
 	var err error
-	addr := &net.TCPAddr{Port: int(c.config.Port)}
+	addr := &net.TCPAddr{Port: c.config.Port}
 	c.listener, err = net.ListenTCP("tcp4", addr)
 	if err != nil {
 		return err
@@ -121,7 +121,7 @@ func (c *Client) accepter() {
 		limit <- struct{}{}
 		go func(c2 net.Conn) {
 			defer func() { <-limit }()
-			defer c2.Close()
+			defer c2.Close() // nolint: errcheck
 			c.acceptAndRun(c2)
 		}(conn)
 	}

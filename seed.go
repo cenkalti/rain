@@ -23,7 +23,7 @@ func (t *Transfer) pieceUploader() {
 			}
 			if err := req.Peer.SendPiece(piece.Index, req.Begin, data); err != nil {
 				t.log.Error(err)
-				break
+				break // nolint: megacheck
 			}
 		case <-t.stopC:
 			return

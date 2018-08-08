@@ -211,14 +211,14 @@ func prepareFiles(info *torrent.Info, where string) (files []*os.File, checkHash
 }
 
 func openOrAllocate(path string, length int64) (f *os.File, exists bool, err error) {
-	f, err = os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0640)
+	f, err = os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0640) // nolint: gosec
 	if err != nil {
 		return
 	}
 
 	defer func() {
 		if err != nil {
-			f.Close()
+			_ = f.Close()
 		}
 	}()
 

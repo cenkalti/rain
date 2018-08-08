@@ -76,9 +76,9 @@ func (p *piece) nextBlock(id [20]byte) (*block, bool) {
 	return &p.Blocks[i], true
 }
 
-func (b *block) deleteRequested(id [20]byte) {
-	b.Piece.requestedFrom[id].blocksRequested.Clear(b.Index)
-}
+// func (b *block) deleteRequested(id [20]byte) {
+// 	b.Piece.requestedFrom[id].blocksRequested.Clear(b.Index)
+// }
 
 func newPieces(info *torrent.Info, osFiles []*os.File) []*piece {
 	var (
@@ -113,7 +113,11 @@ func newPieces(info *torrent.Info, osFiles []*os.File) []*piece {
 		for left := pieceLeft(); left > 0; {
 			n := uint32(minInt64(int64(left), fileLeft())) // number of bytes to write
 
-			file := filesection.Section{osFiles[fileIndex], fileOffset, int64(n)}
+			file := filesection.Section{
+				File:   osFiles[fileIndex],
+				Offset: fileOffset,
+				Length: int64(n),
+			}
 			p.files = append(p.files, file)
 
 			left -= n
@@ -156,7 +160,7 @@ func (p *piece) newBlocks() []block {
 			Piece:  p,
 			Index:  numBlocks - 1,
 			Begin:  (numBlocks - 1) * blockSize,
-			Length: uint32(mod),
+			Length: mod,
 		}
 	}
 	return blocks

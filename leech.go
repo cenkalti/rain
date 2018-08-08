@@ -43,7 +43,7 @@ func (t *Transfer) connecter() {
 				break
 			}
 			// Do not connect yourself
-			if p.IP.IsLoopback() && p.Port == int(t.client.Port()) {
+			if p.IP.IsLoopback() && p.Port == t.client.Port() {
 				break
 			}
 
@@ -58,7 +58,7 @@ func (t *Transfer) connecter() {
 	}
 }
 
-func (t *Transfer) connectAndRun(addr *net.TCPAddr) {
+func (t *Transfer) connectAndRun(addr net.Addr) {
 	log := logger.New("peer -> " + addr.String())
 
 	conn, cipher, extensions, peerID, err := btconn.Dial(addr, !t.client.config.Encryption.DisableOutgoing, t.client.config.Encryption.ForceOutgoing, [8]byte{}, t.info.Hash, t.client.peerID)
@@ -71,7 +71,7 @@ func (t *Transfer) connectAndRun(addr *net.TCPAddr) {
 		return
 	}
 	log.Infof("Connected to peer. (cipher=%s extensions=%x client=%q)", cipher, extensions, peerID[:8])
-	defer conn.Close()
+	defer conn.Close() // nolint: errcheck
 
 	p := t.newPeer(conn, peerID, log)
 
@@ -113,7 +113,7 @@ func (p *peer) downloader() {
 			// Send "not interesed" message in a goroutine here because we can't keep the mutex locked.
 			waitNotInterested.Add(1)
 			go func() {
-				p.BeNotInterested()
+				p.BeNotInterested() // nolint TODO
 				waitNotInterested.Done()
 			}()
 
@@ -129,7 +129,7 @@ func (p *peer) downloader() {
 
 		// send them in order
 		waitNotInterested.Wait()
-		p.BeInterested()
+		p.BeInterested() // nolint TODO
 
 		for {
 			// Stop loop if all blocks are requested/received TODO.
