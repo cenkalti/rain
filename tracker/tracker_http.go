@@ -178,8 +178,6 @@ func (t *httpTracker) parsePeersDictionary(b bencode.RawMessage) ([]*net.TCPAddr
 	return addrs, err
 }
 
-func (t *httpTracker) Scrape(transfers []*Transfer) (*scrapeResponse, error) { return nil, nil }
-
 func (t *httpTracker) Close() error {
 	t.transport.CloseIdleConnections()
 	return nil

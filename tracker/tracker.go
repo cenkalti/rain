@@ -19,11 +19,10 @@ const numWant = 50
 var errRequestCancelled = errors.New("request cancelled")
 
 type Tracker interface {
-	URL() string
 	// Announce transfer to the tracker.
 	Announce(t Transfer, e TrackerEvent, cancel <-chan struct{}) (*AnnounceResponse, error)
-	Scrape([]*Transfer) (*scrapeResponse, error)
-	// Close must be called in order to close open connections if Announce is ever called.
+	// TODO implement scrape
+	// Close open connections to the tracker.
 	Close() error
 }
 
@@ -34,10 +33,6 @@ type AnnounceResponse struct {
 	Seeders    int32
 	Peers      []*net.TCPAddr
 	ExternalIP net.IP
-}
-
-type scrapeResponse struct {
-	// TODO not implemented
 }
 
 // AnnouncePeriodically announces to the tracker periodically and adjust the interval according to the response returned by the tracker.

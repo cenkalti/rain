@@ -311,8 +311,6 @@ func (t *udpTracker) parseAnnounceResponse(data []byte) (*udpAnnounceResponse, [
 	return response, peers, nil
 }
 
-func (t *udpTracker) Scrape(transfers []*Transfer) (*scrapeResponse, error) { return nil, nil }
-
 type udpBackOff int
 
 func (b *udpBackOff) NextBackOff() time.Duration {
