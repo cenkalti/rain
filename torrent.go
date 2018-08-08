@@ -43,6 +43,25 @@ type Torrent struct {
 	serveC chan *peerRequest
 }
 
+func (t *Torrent) Start() {
+	sKey := mse.HashSKey(t.info.Hash[:])
+	t.client.m.Lock()
+	t.client.torrents[t.info.Hash] = t
+	t.client.torrentsSKey[sKey] = t
+	t.client.m.Unlock()
+	go func() {
+		defer func() {
+			t.client.m.Lock()
+			delete(t.client.torrents, t.info.Hash)
+			delete(t.client.torrentsSKey, sKey)
+			t.client.m.Unlock()
+		}()
+		t.run()
+	}()
+}
+
+func (t *Torrent) Stop() { close(t.stopC) }
+
 func (t *Torrent) Close() error {
 	// TODO not implemented
 	return nil
@@ -175,24 +194,3 @@ func openOrAllocate(path string, length int64) (f *os.File, exists bool, err err
 
 	return
 }
-
-func (t *Torrent) Start() {
-	sKey := mse.HashSKey(t.info.Hash[:])
-	t.client.m.Lock()
-	t.client.torrents[t.info.Hash] = t
-	t.client.torrentsSKey[sKey] = t
-	t.client.m.Unlock()
-	go func() {
-		defer func() {
-			t.client.m.Lock()
-			delete(t.client.torrents, t.info.Hash)
-			delete(t.client.torrentsSKey, sKey)
-			t.client.m.Unlock()
-		}()
-		t.run()
-	}()
-}
-
-func (t *Torrent) Stop() { close(t.stopC) }
-
-func (t *Torrent) Remove(deleteFiles bool) error { panic("not implemented") }
