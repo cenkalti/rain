@@ -84,7 +84,7 @@ func newPieces(info *torrent.Info, osFiles []*os.File) []*piece {
 	var (
 		fileIndex  int   // index of the current file in torrent
 		fileLength int64 = info.GetFiles()[0].Length
-		fileEnd    int64 = fileLength // absolute position of end of the file among all pieces
+		fileEnd          = fileLength // absolute position of end of the file among all pieces
 		fileOffset int64              // offset in file: [0, fileLength)
 	)
 
