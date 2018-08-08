@@ -22,7 +22,7 @@ type Sections []Section
 func (s Sections) Reader() io.Reader {
 	readers := make([]io.Reader, len(s))
 	for i := range s {
-		readers[i] = io.NewSectionReader(s[i].File, s[i].Offset, int64(s[i].Length))
+		readers[i] = io.NewSectionReader(s[i].File, s[i].Offset, s[i].Length)
 	}
 	return io.MultiReader(readers...)
 }
@@ -45,12 +45,12 @@ func (s Sections) ReadAt(p []byte, off int64) (n int, err error) {
 	// Add half section
 	if sec.File != nil {
 		advance := sec.Length - (pos - off)
-		sr := io.NewSectionReader(sec.File, sec.Offset+advance, int64(sec.Length-advance))
+		sr := io.NewSectionReader(sec.File, sec.Offset+advance, sec.Length-advance)
 		readers = append(readers, sr)
 	}
 	// Add remaining sections
 	for i++; i < len(s); i++ {
-		readers[i] = io.NewSectionReader(s[i].File, s[i].Offset, int64(s[i].Length))
+		readers[i] = io.NewSectionReader(s[i].File, s[i].Offset, s[i].Length)
 	}
 	return io.ReadFull(io.MultiReader(readers...), p)
 }
