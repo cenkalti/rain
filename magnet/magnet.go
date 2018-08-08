@@ -1,6 +1,5 @@
-// Provides support for parsing magnet links.
-
-package rain
+// Package magnet provides support for parsing magnet links.
+package magnet
 
 import (
 	"encoding/base32"
@@ -10,13 +9,13 @@ import (
 	"strings"
 )
 
-type magnet struct {
+type Magnet struct {
 	InfoHash [20]byte
 	Name     string
 	Trackers []string
 }
 
-func newMagnet(s string) (*magnet, error) {
+func New(s string) (*Magnet, error) {
 	u, err := url.Parse(s)
 	if err != nil {
 		return nil, err
@@ -42,7 +41,7 @@ func newMagnet(s string) (*magnet, error) {
 	}
 	xt = xt[9:]
 
-	var magnet magnet
+	var magnet Magnet
 
 	magnet.InfoHash, err = infoHashString(xt)
 	if err != nil {

@@ -5,6 +5,8 @@ import (
 	"io"
 	"net"
 	"sync"
+
+	"github.com/cenkalti/rain/magnet"
 )
 
 // Limits
@@ -186,7 +188,7 @@ func (c *Client) AddTorrent(r io.Reader) (*Transfer, error) {
 }
 
 func (c *Client) AddMagnet(uri string) (*Transfer, error) {
-	m, err := newMagnet(uri)
+	m, err := magnet.New(uri)
 	if err != nil {
 		return nil, err
 	}

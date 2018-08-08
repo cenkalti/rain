@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/cenkalti/rain/magnet"
 	"github.com/cenkalti/rain/mse"
 )
 
@@ -99,7 +100,7 @@ func (c *Client) newTransferTorrent(tor *torrent) (*Transfer, error) {
 	return t, nil
 }
 
-func (c *Client) newTransferMagnet(m *magnet) (*Transfer, error) {
+func (c *Client) newTransferMagnet(m *magnet.Magnet) (*Transfer, error) {
 	if len(m.Trackers) == 0 {
 		return nil, errors.New("no tracker in magnet link")
 	}
