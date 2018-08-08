@@ -205,8 +205,7 @@ func (c *Client) newTracker(trackerURL string) (tracker.Tracker, error) {
 	}
 
 	base := &tracker.TrackerBase{
-		Url:    u,
-		Rawurl: trackerURL,
+		URL:    u,
 		Client: c,
 		Log:    logger.New("tracker " + trackerURL),
 	}

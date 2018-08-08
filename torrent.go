@@ -96,7 +96,7 @@ func (t *Torrent) run() {
 }
 
 func (t *Torrent) announcer() {
-	var startEvent tracker.TrackerEvent
+	var startEvent tracker.Event
 	if t.bitfield.All() {
 		startEvent = tracker.EventCompleted
 	} else {

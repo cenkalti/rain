@@ -42,24 +42,24 @@ func main() {
 		logger.SetLogLevel(log.DEBUG)
 	}
 
-	c := rain.NewConfig()
+	cfg := rain.NewConfig()
 	if *configPath != "" {
 		cp, err := homedir.Expand(*configPath)
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = c.LoadFile(cp)
+		err = cfg.LoadFile(cp)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
 
-	r, err := rain.NewClient(c)
+	clt, err := rain.NewClient(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = r.Listen()
+	err = clt.Start()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -69,7 +69,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	t, err := r.AddTorrent(f, *dest)
+	t, err := clt.AddTorrent(f, *dest)
 	if err != nil {
 		log.Fatal(err)
 	}

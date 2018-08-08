@@ -41,7 +41,7 @@ func NewHTTPTracker(b *TrackerBase) *httpTracker {
 	}
 }
 
-func (t *httpTracker) Announce(transfer Transfer, e TrackerEvent, cancel <-chan struct{}) (*AnnounceResponse, error) {
+func (t *httpTracker) Announce(transfer Transfer, e Event, cancel <-chan struct{}) (*AnnounceResponse, error) {
 	peerID := t.Client.PeerID()
 	infoHash := transfer.InfoHash()
 	q := url.Values{}
@@ -61,7 +61,7 @@ func (t *httpTracker) Announce(transfer Transfer, e TrackerEvent, cancel <-chan 
 		q.Set("trackerid", t.trackerID)
 	}
 
-	u := t.Url
+	u := t.URL
 	u.RawQuery = q.Encode()
 	t.Log.Debugf("u.String(): %q", u.String())
 
@@ -134,7 +134,7 @@ func (t *httpTracker) Announce(transfer Transfer, e TrackerEvent, cancel <-chan 
 			if err != nil {
 				return nil, err
 			}
-			peers, err = t.parsePeersBinary(bytes.NewReader(b))
+			peers, err = parsePeersBinary(bytes.NewReader(b), t.Log)
 		}
 	}
 	if err != nil {

@@ -68,7 +68,7 @@ func NewUDPTracker(b *TrackerBase) *udpTracker {
 }
 
 func (t *udpTracker) dial() error {
-	serverAddr, err := net.ResolveUDPAddr("udp", t.Url.Host)
+	serverAddr, err := net.ResolveUDPAddr("udp", t.URL.Host)
 	if err != nil {
 		return err
 	}
@@ -231,7 +231,7 @@ func (t *udpTracker) sendTransaction(trx *transaction, cancel <-chan struct{}) (
 	return t.retryTransaction(f, trx, cancel)
 }
 
-func (t *udpTracker) Announce(transfer Transfer, e TrackerEvent, cancel <-chan struct{}) (*AnnounceResponse, error) {
+func (t *udpTracker) Announce(transfer Transfer, e Event, cancel <-chan struct{}) (*AnnounceResponse, error) {
 	t.dialMutex.Lock()
 	if !t.connected {
 		err := t.dial()
@@ -258,7 +258,7 @@ func (t *udpTracker) Announce(transfer Transfer, e TrackerEvent, cancel <-chan s
 	request2 := &transferAnnounceRequest{
 		transfer:        transfer,
 		announceRequest: request,
-		urlData:         t.Url.RequestURI(),
+		urlData:         t.URL.RequestURI(),
 	}
 	trx := newTransaction(request2)
 
@@ -303,7 +303,7 @@ func (t *udpTracker) parseAnnounceResponse(data []byte) (*udpAnnounceResponse, [
 		return nil, nil, errors.New("invalid action")
 	}
 
-	peers, err := t.parsePeersBinary(reader)
+	peers, err := parsePeersBinary(reader, t.Log)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -377,7 +377,7 @@ type announceRequest struct {
 	Downloaded int64
 	Left       int64
 	Uploaded   int64
-	Event      TrackerEvent
+	Event      Event
 	IP         uint32
 	Key        uint32
 	NumWant    int32
