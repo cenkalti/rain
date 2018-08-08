@@ -69,7 +69,7 @@ func NewInfo(b []byte) (*Info, error) {
 	}
 
 	hash := sha1.New()
-	hash.Write(b)
+	hash.Write(b) // nolint: gosec
 	copy(i.Hash[:], hash.Sum(nil))
 
 	i.MultiFile = len(i.Files) != 0
