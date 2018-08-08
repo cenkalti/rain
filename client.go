@@ -37,8 +37,8 @@ type Client struct {
 	config        *Config
 	peerID        [20]byte
 	listener      *net.TCPListener
-	transfers     map[[20]byte]*Transfer // all active transfers
-	transfersSKey map[[20]byte]*Transfer // for encryption
+	transfers     map[[20]byte]*Torrent // all active transfers
+	transfersSKey map[[20]byte]*Torrent // for encryption
 	transfersM    sync.Mutex
 	log           logger.Logger
 }
@@ -71,8 +71,8 @@ func NewClient(c *Config) (*Client, error) {
 	return &Client{
 		config:        c,
 		peerID:        peerID,
-		transfers:     make(map[[20]byte]*Transfer),
-		transfersSKey: make(map[[20]byte]*Transfer),
+		transfers:     make(map[[20]byte]*Torrent),
+		transfersSKey: make(map[[20]byte]*Torrent),
 		log:           logger.New("client"),
 	}, nil
 }
@@ -184,7 +184,7 @@ func (c *Client) acceptAndRun(conn net.Conn) {
 	p.Run()
 }
 
-func (c *Client) AddTorrent(r io.Reader) (*Transfer, error) {
+func (c *Client) AddTorrent(r io.Reader) (*Torrent, error) {
 	t, err := torrent.New(r)
 	if err != nil {
 		return nil, err
@@ -193,7 +193,7 @@ func (c *Client) AddTorrent(r io.Reader) (*Transfer, error) {
 	return c.newTransferTorrent(t)
 }
 
-func (c *Client) AddMagnet(uri string) (*Transfer, error) {
+func (c *Client) AddMagnet(uri string) (*Torrent, error) {
 	m, err := magnet.New(uri)
 	if err != nil {
 		return nil, err

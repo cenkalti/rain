@@ -18,7 +18,7 @@ import (
 	"github.com/cenkalti/rain/tracker"
 )
 
-type Transfer struct {
+type Torrent struct {
 	client    *Client
 	hash      [20]byte
 	info      *torrent.Info
@@ -45,7 +45,7 @@ type Transfer struct {
 	serveC chan *peerRequest
 }
 
-func (c *Client) newTransfer(hash [20]byte, trackerString string, name string) (*Transfer, error) {
+func (c *Client) newTransfer(hash [20]byte, trackerString string, name string) (*Torrent, error) {
 	trk, err := c.newTracker(trackerString)
 	if err != nil {
 		return nil, err
@@ -53,7 +53,7 @@ func (c *Client) newTransfer(hash [20]byte, trackerString string, name string) (
 	if len(name) > 8 {
 		name = name[:8]
 	}
-	return &Transfer{
+	return &Torrent{
 		client:    c,
 		hash:      hash,
 		tracker:   trk,
@@ -69,7 +69,7 @@ func (c *Client) newTransfer(hash [20]byte, trackerString string, name string) (
 	}, nil
 }
 
-func (c *Client) newTransferTorrent(tor *torrent.MetaInfo) (*Transfer, error) {
+func (c *Client) newTransferTorrent(tor *torrent.MetaInfo) (*Torrent, error) {
 	t, err := c.newTransfer(tor.Info.Hash, tor.Announce, tor.Info.Name)
 	if err != nil {
 		return nil, err
@@ -104,7 +104,7 @@ func (c *Client) newTransferTorrent(tor *torrent.MetaInfo) (*Transfer, error) {
 	return t, nil
 }
 
-func (c *Client) newTransferMagnet(m *magnet.Magnet) (*Transfer, error) {
+func (c *Client) newTransferMagnet(m *magnet.Magnet) (*Torrent, error) {
 	if len(m.Trackers) == 0 {
 		return nil, errors.New("no tracker in magnet link")
 	}
@@ -117,9 +117,9 @@ func (c *Client) newTransferMagnet(m *magnet.Magnet) (*Transfer, error) {
 	return c.newTransfer(m.InfoHash, m.Trackers[0], name)
 }
 
-func (t *Transfer) InfoHash() [sha1.Size]byte     { return t.info.Hash }
-func (t *Transfer) CompleteNotify() chan struct{} { return t.completed }
-func (t *Transfer) Downloaded() int64 {
+func (t *Torrent) InfoHash() [sha1.Size]byte     { return t.info.Hash }
+func (t *Torrent) CompleteNotify() chan struct{} { return t.completed }
+func (t *Torrent) Downloaded() int64 {
 	t.m.Lock()
 	var sum int64
 	for _, p := range t.pieces {
@@ -130,10 +130,10 @@ func (t *Transfer) Downloaded() int64 {
 	t.m.Unlock()
 	return sum
 }
-func (t *Transfer) Uploaded() int64 { return 0 } // TODO
-func (t *Transfer) Left() int64     { return t.info.TotalLength - t.Downloaded() }
+func (t *Torrent) Uploaded() int64 { return 0 } // TODO
+func (t *Torrent) Left() int64     { return t.info.TotalLength - t.Downloaded() }
 
-func (t *Transfer) run() {
+func (t *Torrent) run() {
 	// Start download workers
 	if !t.bitfield.All() {
 		go t.connecter()
@@ -164,7 +164,7 @@ func (t *Transfer) run() {
 	}
 }
 
-func (t *Transfer) announcer() {
+func (t *Torrent) announcer() {
 	var startEvent tracker.TrackerEvent
 	if t.bitfield.All() {
 		startEvent = tracker.EventCompleted
@@ -245,7 +245,7 @@ func openOrAllocate(path string, length int64) (f *os.File, exists bool, err err
 	return
 }
 
-func (t *Transfer) Start() {
+func (t *Torrent) Start() {
 	sKey := mse.HashSKey(t.info.Hash[:])
 	t.client.transfersM.Lock()
 	t.client.transfers[t.info.Hash] = t
@@ -262,6 +262,6 @@ func (t *Transfer) Start() {
 	}()
 }
 
-func (t *Transfer) Stop() { close(t.stopC) }
+func (t *Torrent) Stop() { close(t.stopC) }
 
-func (t *Transfer) Remove(deleteFiles bool) error { panic("not implemented") }
+func (t *Torrent) Remove(deleteFiles bool) error { panic("not implemented") }

@@ -1,7 +1,7 @@
 package rain
 
 // requestSelector decides which request to serve.
-func (t *Transfer) requestSelector() {
+func (t *Torrent) requestSelector() {
 	// TODO We respond to upload requests in FIFO order for now.
 	for {
 		t.serveC <- <-t.requestC
@@ -9,7 +9,7 @@ func (t *Transfer) requestSelector() {
 }
 
 // pieceUploader uploads single piece to a peer.
-func (t *Transfer) pieceUploader() {
+func (t *Torrent) pieceUploader() {
 	b := make([]byte, maxAllowedBlockSize)
 	for {
 		select {

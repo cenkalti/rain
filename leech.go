@@ -11,7 +11,7 @@ import (
 )
 
 // peerManager receives from t.peersC and keeps most recent peer addresses in t.peerC.
-func (t *Transfer) peerManager() {
+func (t *Torrent) peerManager() {
 	t.log.Debug("Started peerManager")
 	for {
 		select {
@@ -33,7 +33,7 @@ func (t *Transfer) peerManager() {
 }
 
 // connecter connects to peers coming from t. peerC.
-func (t *Transfer) connecter() {
+func (t *Torrent) connecter() {
 	limit := make(chan struct{}, maxPeerPerTorrent)
 	for {
 		select {
@@ -58,7 +58,7 @@ func (t *Transfer) connecter() {
 	}
 }
 
-func (t *Transfer) connectAndRun(addr net.Addr) {
+func (t *Torrent) connectAndRun(addr net.Addr) {
 	log := logger.New("peer -> " + addr.String())
 
 	conn, cipher, extensions, peerID, err := btconn.Dial(addr, !t.client.config.Encryption.DisableOutgoing, t.client.config.Encryption.ForceOutgoing, [8]byte{}, t.info.Hash, t.client.peerID)
