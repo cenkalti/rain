@@ -1,4 +1,4 @@
-package rain
+package filesection
 
 import (
 	"io"
@@ -31,13 +31,13 @@ func TestFiles(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	files := []section{
-		section{osFiles[0], 2, 2},
-		section{osFiles[1], 0, 1},
-		section{osFiles[2], 0, 0},
-		section{osFiles[3], 0, 2},
+	files := []Section{
+		Section{osFiles[0], 2, 2},
+		Section{osFiles[1], 0, 1},
+		Section{osFiles[2], 0, 0},
+		Section{osFiles[3], 0, 2},
 	}
-	pf := sections(files)
+	pf := Sections(files)
 	b := make([]byte, 5)
 	n, err := io.ReadFull(pf.Reader(), b)
 	if err != nil {

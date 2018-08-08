@@ -1,9 +1,9 @@
-package rain
+package filesection
 
 import "io"
 
-// section of a file.
-type section struct {
+// Section of a file.
+type Section struct {
 	File   readwriterAt
 	Offset int64
 	Length int64
@@ -14,12 +14,12 @@ type readwriterAt interface {
 	io.WriterAt
 }
 
-// sections is contigious sections of files. When piece hashes in torrent file is being calculated
+// Sections is contigious sections of files. When piece hashes in torrent file is being calculated
 // all files are concatenated and splitted into pieces in length specified in the torrent file.
-type sections []section
+type Sections []Section
 
 // Reader returns a io.Reader for reading all the partial files in s.
-func (s sections) Reader() io.Reader {
+func (s Sections) Reader() io.Reader {
 	readers := make([]io.Reader, len(s))
 	for i := range s {
 		readers[i] = io.NewSectionReader(s[i].File, s[i].Offset, int64(s[i].Length))
@@ -30,10 +30,10 @@ func (s sections) Reader() io.Reader {
 // ReadAt implements io.ReaderAt interface.
 // It reads bytes from s at given offset into p.
 // Used when uploading blocks of a piece.
-func (s sections) ReadAt(p []byte, off int64) (n int, err error) {
+func (s Sections) ReadAt(p []byte, off int64) (n int, err error) {
 	var readers []io.Reader
 	var i int
-	var sec section
+	var sec Section
 	var pos int64
 	// Skip sections up to offset
 	for i, sec = range s {
@@ -60,7 +60,7 @@ func (s sections) ReadAt(p []byte, off int64) (n int, err error) {
 // Used when writing a downloaded piece (all blocks) after hash check is done.
 // Calling write does not change the current position in s,
 // so len(p) must be equal to total length of the all files in s in order to issue a full write.
-func (s sections) Write(p []byte) (n int, err error) {
+func (s Sections) Write(p []byte) (n int, err error) {
 	var m int
 	for _, sec := range s {
 		m, err = sec.File.WriteAt(p[:sec.Length], sec.Offset)

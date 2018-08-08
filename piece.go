@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/rain/bitfield"
+	"github.com/cenkalti/rain/filesection"
 	"github.com/cenkalti/rain/torrent"
 )
 
@@ -18,7 +19,7 @@ type piece struct {
 	Length        uint32 // last piece may not be complete
 	Blocks        []block
 	hash          []byte                      // correct hash value
-	files         sections                    // the place to write downloaded bytes
+	files         filesection.Sections        // the place to write downloaded bytes
 	peers         map[[20]byte]struct{}       // peers which have this piece, indexed by peer id
 	requestedFrom map[[20]byte]*activeRequest // peers that we have reqeusted the piece from, indexed by peer id
 }
@@ -112,7 +113,7 @@ func newPieces(info *torrent.Info, osFiles []*os.File) []*piece {
 		for left := pieceLeft(); left > 0; {
 			n := uint32(minInt64(int64(left), fileLeft())) // number of bytes to write
 
-			file := section{osFiles[fileIndex], fileOffset, int64(n)}
+			file := filesection.Section{osFiles[fileIndex], fileOffset, int64(n)}
 			p.files = append(p.files, file)
 
 			left -= n
