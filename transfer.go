@@ -13,12 +13,13 @@ import (
 	"github.com/cenkalti/rain/bitfield"
 	"github.com/cenkalti/rain/magnet"
 	"github.com/cenkalti/rain/mse"
+	"github.com/cenkalti/rain/torrent"
 )
 
 type Transfer struct {
 	client    *Client
 	hash      [20]byte
-	info      *info
+	info      *torrent.Info
 	tracker   tracker
 	pieces    []*piece
 	bitfield  *bitfield.Bitfield
@@ -66,7 +67,7 @@ func (c *Client) newTransfer(hash [20]byte, tracker string, name string) (*Trans
 	}, nil
 }
 
-func (c *Client) newTransferTorrent(tor *torrent) (*Transfer, error) {
+func (c *Client) newTransferTorrent(tor *torrent.Torrent) (*Transfer, error) {
 	t, err := c.newTransfer(tor.Info.Hash, tor.Announce, tor.Info.Name)
 	if err != nil {
 		return nil, err
@@ -171,7 +172,7 @@ func (t *Transfer) announcer() {
 	announcePeriodically(t.tracker, t, t.stopC, startEvent, nil, t.announceC)
 }
 
-func prepareFiles(info *info, where string) (files []*os.File, checkHash bool, err error) {
+func prepareFiles(info *torrent.Info, where string) (files []*os.File, checkHash bool, err error) {
 	var f *os.File
 	var exists bool
 

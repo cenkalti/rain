@@ -1,6 +1,5 @@
-// Provides support for reading and writing torrent files.
-
-package rain
+// Package torrent support for reading and writing torrent files.
+package torrent
 
 import (
 	"crypto/sha1"
@@ -10,9 +9,9 @@ import (
 	"github.com/zeebo/bencode"
 )
 
-// torrent file dictionary
-type torrent struct {
-	Info         *info              `bencode:"-"`
+// Torrent file dictionary
+type Torrent struct {
+	Info         *Info              `bencode:"-"`
 	RawInfo      bencode.RawMessage `bencode:"info" json:"-"`
 	Announce     string             `bencode:"announce"`
 	AnnounceList [][]string         `bencode:"announce-list"`
@@ -22,8 +21,8 @@ type torrent struct {
 	Encoding     string             `bencode:"encoding"`
 }
 
-// info contains the metadata of torrent.
-type info struct {
+// Info contains information about torrent.
+type Info struct {
 	PieceLength uint32 `bencode:"piece length" json:"piece_length"`
 	Pieces      []byte `bencode:"pieces" json:"pieces"`
 	Private     byte   `bencode:"private" json:"private"`
@@ -32,7 +31,7 @@ type info struct {
 	Length int64  `bencode:"length" json:"length"`
 	Md5sum string `bencode:"md5sum" json:"md5sum,omitempty"`
 	// Multiple File mode
-	Files []fileDict `bencode:"files" json:"files"`
+	Files []FileDict `bencode:"files" json:"files"`
 	// Calculated fileds
 	Hash        [sha1.Size]byte `bencode:"-" json:"-"`
 	TotalLength int64           `bencode:"-" json:"-"`
@@ -40,15 +39,15 @@ type info struct {
 	MultiFile   bool            `bencode:"-" json:"-"`
 }
 
-type fileDict struct {
+type FileDict struct {
 	Length int64    `bencode:"length" json:"length"`
 	Path   []string `bencode:"path" json:"path"`
 	Md5sum string   `bencode:"md5sum" json:"md5sum,omitempty"`
 }
 
-// newTorrent returns a torrent from bencoded stream.
-func newTorrent(r io.Reader) (*torrent, error) {
-	var t torrent
+// New returns a torrent from bencoded stream.
+func New(r io.Reader) (*Torrent, error) {
+	var t Torrent
 	err := bencode.NewDecoder(r).Decode(&t)
 	if err != nil {
 		return nil, err
@@ -58,13 +57,13 @@ func newTorrent(r io.Reader) (*torrent, error) {
 		return nil, errors.New("no info dict in torrent file")
 	}
 
-	t.Info, err = newInfo(t.RawInfo)
+	t.Info, err = NewInfo(t.RawInfo)
 	return &t, err
 }
 
-// newInfo returns info from bencoded bytes in b.
-func newInfo(b []byte) (*info, error) {
-	var i info
+// NewInfo returns info from bencoded bytes in b.
+func NewInfo(b []byte) (*Info, error) {
+	var i Info
 	if err := bencode.DecodeBytes(b, &i); err != nil {
 		return nil, err
 	}
@@ -88,7 +87,7 @@ func newInfo(b []byte) (*info, error) {
 	return &i, nil
 }
 
-func (i *info) PieceHash(index uint32) []byte {
+func (i *Info) PieceHash(index uint32) []byte {
 	if index >= i.NumPieces {
 		panic("piece index out of range")
 	}
@@ -98,10 +97,9 @@ func (i *info) PieceHash(index uint32) []byte {
 }
 
 // GetFiles returns the files in torrent as a slice, even if there is a single file.
-func (i *info) GetFiles() []fileDict {
+func (i *Info) GetFiles() []FileDict {
 	if i.MultiFile {
 		return i.Files
-	} else {
-		return []fileDict{fileDict{i.Length, []string{i.Name}, i.Md5sum}}
 	}
+	return []FileDict{FileDict{i.Length, []string{i.Name}, i.Md5sum}}
 }

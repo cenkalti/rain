@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/cenkalti/rain/magnet"
+	"github.com/cenkalti/rain/torrent"
 )
 
 // Limits
@@ -21,7 +22,7 @@ const (
 	maxPeerPerTorrent = 200
 )
 
-// Client version. Set when building: "$ go build -ldflags "-X github.com/cenkalti/rain.Version 0001" cmd/rain/rain.go"
+// Version of client. Set when building: "$ go build -ldflags "-X github.com/cenkalti/rain.Version 0001" cmd/rain/rain.go"
 var Version = "0000" // zero means development version
 
 // http://www.bittorrent.org/beps/bep_0020.html
@@ -179,12 +180,12 @@ func (r *Client) acceptAndRun(conn net.Conn) {
 }
 
 func (c *Client) AddTorrent(r io.Reader) (*Transfer, error) {
-	torrent, err := newTorrent(r)
+	t, err := torrent.New(r)
 	if err != nil {
 		return nil, err
 	}
-	c.log.Debugf("Parsed torrent file: %#v", torrent)
-	return c.newTransferTorrent(torrent)
+	c.log.Debugf("Parsed torrent file: %#v", t)
+	return c.newTransferTorrent(t)
 }
 
 func (c *Client) AddMagnet(uri string) (*Transfer, error) {

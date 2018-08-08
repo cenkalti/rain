@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/rain/bitfield"
+	"github.com/cenkalti/rain/torrent"
 )
 
 type piece struct {
@@ -78,7 +79,7 @@ func (b *block) deleteRequested(id [20]byte) {
 	b.Piece.requestedFrom[id].blocksRequested.Clear(b.Index)
 }
 
-func newPieces(info *info, osFiles []*os.File) []*piece {
+func newPieces(info *torrent.Info, osFiles []*os.File) []*piece {
 	var (
 		fileIndex  int   // index of the current file in torrent
 		fileLength int64 = info.GetFiles()[0].Length

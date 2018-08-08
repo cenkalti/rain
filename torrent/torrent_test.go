@@ -1,4 +1,4 @@
-package rain
+package torrent
 
 import (
 	"encoding/hex"
@@ -12,7 +12,7 @@ func TestTorrent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tor, err := newTorrent(f)
+	tor, err := New(f)
 	if err != nil {
 		t.Fatal(err)
 	}
