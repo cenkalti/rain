@@ -20,8 +20,7 @@ var defaultConfig = Config{
 }
 
 func NewConfig() *Config {
-	var c Config
-	c = defaultConfig
+	c := defaultConfig
 	return &c
 }
 
