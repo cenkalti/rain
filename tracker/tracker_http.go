@@ -101,7 +101,7 @@ func (t *httpTracker) Announce(transfer Transfer, e TrackerEvent, cancel <-chan 
 		return nil, err
 	case <-cancel:
 		t.transport.CancelRequest(req)
-		return nil, requestCancelledErr
+		return nil, errRequestCancelled
 	case body := <-bodyC:
 		d := bencode.NewDecoder(body)
 		err := d.Decode(&response)

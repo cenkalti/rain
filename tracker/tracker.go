@@ -16,7 +16,7 @@ import (
 // Number of peers we want from trackers
 const numWant = 50
 
-var requestCancelledErr = errors.New("request cancelled")
+var errRequestCancelled = errors.New("request cancelled")
 
 type Tracker interface {
 	URL() string

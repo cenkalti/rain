@@ -221,7 +221,7 @@ func (t *udpTracker) retryTransaction(f func(*transaction), trx *transaction, ca
 			t.transactionsM.Lock()
 			delete(t.transactions, trx.ID())
 			t.transactionsM.Unlock()
-			return nil, requestCancelledErr
+			return nil, errRequestCancelled
 		}
 	}
 }
