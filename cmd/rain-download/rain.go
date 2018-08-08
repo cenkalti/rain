@@ -3,28 +3,23 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"time"
 
 	"github.com/cenkalti/log"
 	"github.com/mitchellh/go-homedir"
-	"gopkg.in/yaml.v2"
 
 	"github.com/cenkalti/rain"
 	"github.com/cenkalti/rain/logger"
 )
 
-const defaultConfig = "~/.rain.yml"
-
 var (
-	config             = flag.String("c", defaultConfig, "config file")
-	where              = flag.String("w", "", "where to download")
-	port               = flag.Int("p", int(rain.DefaultConfig.Port), "listen port for incoming peer connections")
-	debug              = flag.Bool("d", false, "enable debug log")
-	version            = flag.Bool("v", false, "version")
-	exitAfterCompleted = flag.Bool("e", false, "exit after files are downloaded")
+	configPath = flag.String("config", "", "config path")
+	dest       = flag.String("dest", ".", "where to download")
+	debug      = flag.Bool("debug", false, "enable debug log")
+	version    = flag.Bool("version", false, "version")
+	seed       = flag.Bool("seed", false, "continue seeding after dowload finishes")
 )
 
 func main() {
@@ -47,28 +42,16 @@ func main() {
 		logger.SetLogLevel(log.DEBUG)
 	}
 
-	var configFile string
-	if *config != "" {
-		configFile = *config
-	} else {
-		configFile = defaultConfig
-	}
-
-	var err error
-	configFile, err = homedir.Expand(configFile)
-	if err != nil {
-		fmt.Fprint(os.Stderr, "Cannot determine home directory! Specify config file with -c flag.")
-		os.Exit(1)
-	}
-
-	c, err := LoadConfig(configFile)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	c.Port = *port
-	if *where != "" {
-		c.DownloadDir = *where
+	c := rain.NewConfig()
+	if *configPath != "" {
+		cp, err := homedir.Expand(*configPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = c.LoadFile(cp)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	r, err := rain.NewClient(c)
@@ -86,31 +69,16 @@ func main() {
 		log.Fatal(err)
 	}
 
-	t, err := r.AddTorrent(f)
+	t, err := r.AddTorrent(f, *dest)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	t.Start()
 
-	if *exitAfterCompleted {
-		<-t.CompleteNotify()
-	} else {
+	if *seed {
 		select {}
+	} else {
+		<-t.CompleteNotify()
 	}
-}
-
-func LoadConfig(filename string) (*rain.Config, error) {
-	c := rain.DefaultConfig
-	b, err := ioutil.ReadFile(filename)
-	if os.IsNotExist(err) {
-		return &c, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	if err = yaml.Unmarshal(b, &c); err != nil {
-		return nil, err
-	}
-	return &c, nil
 }

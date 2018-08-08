@@ -22,6 +22,7 @@ import (
 const (
 	// Request pieces in blocks of this size.
 	blockSize = 16 * 1024
+	// TODO move these to config
 	// Do not accept more than maxPeerServe connections.
 	maxPeerServe = 200
 	// Maximum simultaneous uploads.
@@ -46,26 +47,10 @@ type Client struct {
 	log           logger.Logger
 }
 
-type Config struct {
-	Port        int
-	DownloadDir string `yaml:"download_dir"`
-	Encryption  struct {
-		DisableOutgoing bool `yaml:"disable_outgoing"`
-		ForceOutgoing   bool `yaml:"force_outgoing"`
-		ForceIncoming   bool `yaml:"force_incoming"`
-	}
-}
-
-var DefaultConfig = Config{
-	Port:        6881,
-	DownloadDir: ".",
-}
-
 // NewClient returns a pointer to new Rain BitTorrent client.
 func NewClient(c *Config) (*Client, error) {
 	if c == nil {
-		c = new(Config)
-		*c = DefaultConfig
+		c = NewConfig()
 	}
 	peerID, err := generatePeerID()
 	if err != nil {
@@ -187,13 +172,13 @@ func (c *Client) acceptAndRun(conn net.Conn) {
 	p.Run()
 }
 
-func (c *Client) AddTorrent(r io.Reader) (*Torrent, error) {
+func (c *Client) AddTorrent(r io.Reader, dest string) (*Torrent, error) {
 	t, err := torrent.New(r)
 	if err != nil {
 		return nil, err
 	}
 	c.log.Debugf("Parsed torrent file: %#v", t)
-	return c.newTransferTorrent(t)
+	return c.newTransferTorrent(t, dest)
 }
 
 func (c *Client) AddMagnet(uri string) (*Torrent, error) {
@@ -251,7 +236,7 @@ func (c *Client) newTransfer(hash [20]byte, trackerString string, name string) (
 	}, nil
 }
 
-func (c *Client) newTransferTorrent(tor *torrent.MetaInfo) (*Torrent, error) {
+func (c *Client) newTransferTorrent(tor *torrent.MetaInfo, dest string) (*Torrent, error) {
 	t, err := c.newTransfer(tor.Info.Hash, tor.Announce, tor.Info.Name)
 	if err != nil {
 		return nil, err
@@ -259,7 +244,7 @@ func (c *Client) newTransferTorrent(tor *torrent.MetaInfo) (*Torrent, error) {
 
 	t.info = tor.Info
 
-	files, checkHash, err := prepareFiles(tor.Info, c.config.DownloadDir)
+	files, checkHash, err := prepareFiles(tor.Info, dest)
 	if err != nil {
 		return nil, err
 	}

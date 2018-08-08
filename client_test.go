@@ -32,10 +32,9 @@ func init() {
 }
 
 func TestDownload(t *testing.T) {
-	c1 := rain.DefaultConfig
+	c1 := rain.NewConfig()
 	c1.Port = 0 // pick a random port
-	c1.DownloadDir = torrentDataDir
-	seeder, err := rain.NewClient(&c1)
+	seeder, err := rain.NewClient(c1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,9 +49,7 @@ func TestDownload(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c2 := rain.DefaultConfig
-	c2.DownloadDir = where
-	leecher, err := rain.NewClient(&c2)
+	leecher, err := rain.NewClient(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +61,7 @@ func TestDownload(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t1, err := seeder.AddTorrent(f)
+	t1, err := seeder.AddTorrent(f, torrentDataDir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +71,7 @@ func TestDownload(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	f.Seek(0, io.SeekStart)
-	t2, err := leecher.AddTorrent(f)
+	t2, err := leecher.AddTorrent(f, where)
 	if err != nil {
 		t.Fatal(err)
 	}
