@@ -59,14 +59,17 @@ func TestStream(t *testing.T) {
 	payloadBRead := make([]byte, 8)
 	var n uint16
 
+	done := make(chan struct{})
+	var gerr error
 	go func() {
-		_, err := a.HandshakeOutgoing(sKey, mse.RC4, payloadA)
-		if err != nil {
-			t.Fatal(err)
+		defer close(done)
+		_, gerr = a.HandshakeOutgoing(sKey, mse.RC4, payloadA)
+		if gerr != nil {
+			return
 		}
-		_, err = io.ReadFull(a, payloadBRead)
-		if err != nil {
-			t.Fatal(err)
+		_, gerr = io.ReadFull(a, payloadBRead)
+		if gerr != nil {
+			return
 		}
 	}()
 	err := b.HandshakeIncoming(
@@ -90,6 +93,10 @@ func TestStream(t *testing.T) {
 			return payloadB, nil
 		})
 	if err != nil {
+		t.Fatal(err)
+	}
+	<-done
+	if gerr != nil {
 		t.Fatal(err)
 	}
 	if !bytes.Equal(payloadB, payloadBRead) {

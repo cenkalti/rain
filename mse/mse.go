@@ -13,6 +13,8 @@
 // methods have been chosen over maximum-security algorithms.
 //
 // See http://wiki.vuze.com/w/Message_Stream_Encryption for details.
+//
+// nolint: gosec
 package mse
 
 import (
@@ -110,7 +112,7 @@ func (s *Stream) HandshakeOutgoing(sKey []byte, cryptoProvide CryptoMethod, payl
 	defer func() {
 		if err != nil {
 			if c, ok := s.raw.(io.Closer); ok {
-				c.Close()
+				_ = c.Close()
 			}
 		}
 	}()
@@ -186,10 +188,10 @@ func (s *Stream) HandshakeOutgoing(sKey []byte, cryptoProvide CryptoMethod, payl
 	writeBuf.Write(hashS)
 	writeBuf.Write(hashSKey)
 	writeBuf.Write(vc)
-	binary.Write(writeBuf, binary.BigEndian, cryptoProvide)
-	binary.Write(writeBuf, binary.BigEndian, uint16(len(padC)))
+	_ = binary.Write(writeBuf, binary.BigEndian, cryptoProvide)
+	_ = binary.Write(writeBuf, binary.BigEndian, uint16(len(padC)))
 	writeBuf.Write(padC)
-	binary.Write(writeBuf, binary.BigEndian, uint16(len(payload)))
+	_ = binary.Write(writeBuf, binary.BigEndian, uint16(len(payload)))
 	writeBuf.Write(payload)
 	encBytes := writeBuf.Bytes()[40:]
 	s.w.S.XORKeyStream(encBytes, encBytes) // RC4
@@ -277,7 +279,7 @@ func (s *Stream) HandshakeIncoming(
 	defer func() {
 		if err != nil {
 			if c, ok := s.raw.(io.Closer); ok {
-				c.Close()
+				_ = c.Close()
 			}
 		}
 	}()
@@ -424,12 +426,12 @@ func (s *Stream) HandshakeIncoming(
 	}
 	debugln("--- in: begin step 4")
 	writeBuf.Write(vc)
-	binary.Write(writeBuf, binary.BigEndian, selected)
+	_ = binary.Write(writeBuf, binary.BigEndian, selected)
 	padD, err := padZero()
 	if err != nil {
 		return
 	}
-	binary.Write(writeBuf, binary.BigEndian, uint16(len(padD)))
+	_ = binary.Write(writeBuf, binary.BigEndian, uint16(len(padD)))
 	writeBuf.Write(padD)
 	enc2Start := writeBuf.Len()
 	debugf("--- in: enc2Start: %#v\n", enc2Start)
@@ -498,7 +500,9 @@ func (s *Stream) readSync(key []byte, max int) error {
 			return err
 		}
 		max--
-		io.CopyN(ioutil.Discard, &readBuf, 1)
+		if _, err := io.CopyN(ioutil.Discard, &readBuf, 1); err != nil {
+			return err
+		}
 	}
 }
 

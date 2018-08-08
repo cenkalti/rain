@@ -54,10 +54,10 @@ func TestUnencrypted(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, cipher, ext, ih, id, err := Accept(conn, nil, false, func(ih [20]byte) bool { return ih == infoHash }, ext2, id2)
-	<-done
 	if err != nil {
 		t.Fatal(err)
 	}
+	<-done
 	if gerr != nil {
 		t.Fatal(err)
 	}
@@ -136,6 +136,7 @@ func TestEncrypted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	<-done
 	if gerr != nil {
 		t.Fatal(err)
 	}
@@ -166,5 +167,4 @@ func TestEncrypted(t *testing.T) {
 	if err != nil {
 		t.Fail()
 	}
-	<-done
 }
