@@ -1,9 +1,12 @@
 {
   "Vendor": true,
   "Disable": [
-    "golint",
     "gocyclo",
     "aligncheck",
     "maligned"
+  ],
+  "Exclude": [
+    "be unexported.*\\(golint\\)$",
+    "Errors unhandled.*\\(gosec\\)$"
   ]
 }

@@ -86,7 +86,7 @@ func (t *httpTracker) Announce(transfer Transfer, e TrackerEvent, cancel <-chan 
 
 		if resp.StatusCode != 200 {
 			data, _ := ioutil.ReadAll(resp.Body)
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			errC <- fmt.Errorf("status not 200 OK (status: %d body: %q)", resp.StatusCode, string(data))
 			return
 		}
@@ -105,7 +105,7 @@ func (t *httpTracker) Announce(transfer Transfer, e TrackerEvent, cancel <-chan 
 	case body := <-bodyC:
 		d := bencode.NewDecoder(body)
 		err := d.Decode(&response)
-		body.Close()
+		_ = body.Close()
 		if err != nil {
 			return nil, err
 		}

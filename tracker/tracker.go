@@ -90,7 +90,7 @@ func (t *TrackerBase) parsePeersBinary(r *bytes.Reader) ([]*net.TCPAddr, error) 
 	t.Log.Debugf("len(rest): %#v", r.Len())
 	if r.Len()%6 != 0 {
 		b := make([]byte, r.Len())
-		r.Read(b)
+		_, _ = r.Read(b)
 		t.Log.Debugf("Peers: %q", b)
 		return nil, errors.New("invalid peer list")
 	}
