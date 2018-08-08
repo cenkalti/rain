@@ -22,7 +22,7 @@ const (
 	// Do not accept more than maxPeerServe connections.
 	maxPeerServe = 200
 	// Maximum simultaneous uploads.
-	uploadSlots = 4
+	uploadSlotsPerTorrent = 4
 	// Do not connect more than maxPeerPerTorrent peers.
 	maxPeerPerTorrent = 200
 )

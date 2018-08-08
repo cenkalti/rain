@@ -142,7 +142,7 @@ func (t *Transfer) run() {
 
 	// Start upload workers
 	go t.requestSelector()
-	for i := 0; i < uploadSlots; i++ {
+	for i := 0; i < uploadSlotsPerTorrent; i++ {
 		go t.pieceUploader()
 	}
 
