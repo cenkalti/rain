@@ -79,8 +79,8 @@ func Accept(
 					return nil, err
 				}
 				out := bytes.NewBuffer(make([]byte, 0, 68))
-				writeHandshake(out, ih, ourID, ourExtensions)
-				return out.Bytes(), nil
+				err = writeHandshake(out, ih, ourID, ourExtensions)
+				return out.Bytes(), err
 			})
 		if err == nil {
 			log.Debugf("Encryption handshake is successfull. Selected cipher: %d", cipher)

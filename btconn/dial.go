@@ -23,7 +23,10 @@ func Dial(addr net.Addr, enableEncryption, forceEncryption bool, ourExtensions [
 	log.Debug("Connected")
 	defer func() {
 		if err != nil {
-			conn.Close()
+			cerr := conn.Close()
+			if cerr != nil {
+				log.Debugln("error while closing connection:", cerr)
+			}
 		}
 	}()
 
