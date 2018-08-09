@@ -17,7 +17,7 @@ func (t *Torrent) pieceUploader() {
 			piece := t.pieces[req.Index]
 			data := b[:req.Length]
 
-			if _, err := piece.files.ReadAt(data, int64(req.Begin)); err != nil {
+			if _, err := piece.Files.ReadAt(data, int64(req.Begin)); err != nil {
 				t.log.Error(err)
 				break
 			}

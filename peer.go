@@ -13,6 +13,7 @@ import (
 	"github.com/cenkalti/rain/bitfield"
 	"github.com/cenkalti/rain/logger"
 	"github.com/cenkalti/rain/messageid"
+	"github.com/cenkalti/rain/piece"
 )
 
 const connReadTimeout = 3 * time.Minute
@@ -76,7 +77,7 @@ func (p *peer) Run() {
 	defer func() {
 		for i := uint32(0); i < p.bitfield.Len(); i++ {
 			if p.bitfield.Test(i) {
-				delete(p.transfer.pieces[i].peers, p.id)
+				delete(p.transfer.pieces[i].Peers, p.id)
 			}
 		}
 	}()
@@ -236,28 +237,28 @@ func (p *peer) Run() {
 			}
 
 			p.transfer.m.Lock()
-			active := piece.getActiveRequest(p.id)
+			active := piece.GetRequest(p.id)
 			if active == nil {
 				p.transfer.m.Unlock()
 				p.log.Warning("received a piece that is not active")
 				continue
 			}
 
-			if active.blocksReceiving.Test(block.Index) {
+			if active.BlocksReceiving.Test(block.Index) {
 				p.log.Warningf("Receiving duplicate block: Piece #%d Block #%d", piece.Index, block.Index)
 			} else {
-				active.blocksReceiving.Set(block.Index)
+				active.BlocksReceiving.Set(block.Index)
 			}
 			p.transfer.m.Unlock()
 
-			if _, err = io.ReadFull(p.conn, active.data[msg.Begin:msg.Begin+length]); err != nil {
+			if _, err = io.ReadFull(p.conn, active.Data[msg.Begin:msg.Begin+length]); err != nil {
 				p.log.Error(err)
 				return
 			}
 
 			p.transfer.m.Lock()
-			active.blocksReceived.Set(block.Index)
-			if !active.blocksReceived.All() {
+			active.BlocksReceived.Set(block.Index)
+			if !active.BlocksReceived.All() {
 				p.transfer.m.Unlock()
 				p.cond.Broadcast()
 				continue
@@ -265,7 +266,7 @@ func (p *peer) Run() {
 			p.transfer.m.Unlock()
 
 			p.log.Debugf("Writing piece to disk: #%d", piece.Index)
-			if _, err = piece.Write(active.data); err != nil {
+			if _, err = piece.Write(active.Data); err != nil {
 				p.log.Error(err)
 				// TODO remove errcheck ignore
 				p.conn.Close() // nolint: errcheck
@@ -294,7 +295,7 @@ func (p *peer) Run() {
 
 func (p *peer) handleHave(i uint32) {
 	p.transfer.m.Lock()
-	p.transfer.pieces[i].peers[p.id] = struct{}{}
+	p.transfer.pieces[i].Peers[p.id] = struct{}{}
 	p.transfer.m.Unlock()
 	p.cond.Broadcast()
 }
@@ -330,7 +331,7 @@ func (p *peer) BeNotInterested() error {
 func (p *peer) Choke() error   { return p.sendMessage(messageid.Choke, nil) }
 func (p *peer) Unchoke() error { return p.sendMessage(messageid.Unchoke, nil) }
 
-func (p *peer) Request(b *block) error {
+func (p *peer) Request(b *piece.Block) error {
 	req := requestMessage{b.Piece.Index, b.Begin, b.Length}
 	buf := bytes.NewBuffer(make([]byte, 0, 12))
 	// TODO remove errcheck ignore
@@ -362,3 +363,5 @@ func (p *peer) sendMessage(id messageid.MessageID, payload []byte) error {
 	buf.Write(payload)                           // nolint: errcheck
 	return buf.Flush()
 }
+
+func divMod32(a, b uint32) (uint32, uint32) { return a / b, a % b }

@@ -15,6 +15,7 @@ import (
 	"github.com/cenkalti/rain/logger"
 	"github.com/cenkalti/rain/magnet"
 	"github.com/cenkalti/rain/metainfo"
+	"github.com/cenkalti/rain/piece"
 	"github.com/cenkalti/rain/tracker"
 	"github.com/cenkalti/rain/tracker/httptracker"
 	"github.com/cenkalti/rain/tracker/udptracker"
@@ -253,7 +254,7 @@ func (c *Client) newTorrentFromMetaInfo(tor *torrent.MetaInfo, dest string) (*To
 	if err != nil {
 		return nil, err
 	}
-	t.pieces = newPieces(tor.Info, files)
+	t.pieces = piece.NewPieces(tor.Info, files)
 	t.bitfield = bitfield.New(tor.Info.NumPieces)
 	var percentDone uint32
 	if checkHash {

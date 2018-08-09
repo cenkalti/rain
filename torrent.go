@@ -12,6 +12,7 @@ import (
 	"github.com/cenkalti/rain/logger"
 	"github.com/cenkalti/rain/metainfo"
 	"github.com/cenkalti/rain/mse"
+	"github.com/cenkalti/rain/piece"
 	"github.com/cenkalti/rain/tracker"
 )
 
@@ -21,7 +22,7 @@ type Torrent struct {
 	dest      string
 	info      *torrent.Info
 	tracker   tracker.Tracker
-	pieces    []*piece
+	pieces    []*piece.Piece
 	bitfield  *bitfield.Bitfield
 	announceC chan *tracker.AnnounceResponse
 	peers     map[[20]byte]*peer // connected peers
