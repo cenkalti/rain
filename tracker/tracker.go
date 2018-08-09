@@ -38,36 +38,6 @@ type AnnounceResponse struct {
 // Puts responses into responseC. Blocks when sending to this channel.
 // t.Close must be called after using this function to close open connections to the tracker.
 func AnnouncePeriodically(t Tracker, transfer Transfer, cancel <-chan struct{}, StartEvent Event, eventC <-chan Event, responseC chan<- *AnnounceResponse) {
-	var nextAnnounce time.Duration
-	var retry = *defaultRetryBackoff
-
-	announce := func(e Event) {
-		r, err := t.Announce(transfer, e, cancel)
-		if err != nil {
-			r = &AnnounceResponse{Error: err}
-			nextAnnounce = retry.NextBackOff()
-		} else {
-			retry.Reset()
-			nextAnnounce = r.Interval
-		}
-		select {
-		case responseC <- r:
-		case <-cancel:
-			return
-		}
-	}
-
-	announce(StartEvent)
-	for {
-		select {
-		case <-time.After(nextAnnounce):
-			announce(EventNone)
-		case e := <-eventC:
-			announce(e)
-		case <-cancel:
-			return
-		}
-	}
 }
 
 // ParsePeersBinary parses compact representation of peer list.

@@ -86,11 +86,6 @@ func (t *Torrent) peerManager() {
 // 		t.m.Unlock()
 // 	}()
 
-// 	if err = p.SendBitfield(); err != nil {
-// 		log.Error(err)
-// 		return
-// 	}
-
 // 	p.Run()
 // }
 

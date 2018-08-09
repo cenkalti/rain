@@ -51,8 +51,9 @@ type Torrent struct {
 	metainfo *metainfo.MetaInfo
 	tracker  tracker.Tracker
 	peers    map[[20]byte]*peer // connected peers
-	pieces   []*piece.Piece
+	pieces   []piece.Piece
 	bitfield *bitfield.Bitfield
+
 	// announceC chan *tracker.AnnounceResponse
 	stopC chan struct{} // all goroutines stop when closed
 	m     sync.Mutex    // protects all state related with this transfer and it's peers
@@ -280,6 +281,7 @@ func (t *Torrent) Port() int {
 func (t *Torrent) CompleteNotify() chan struct{} { return t.completed }
 
 func (t *Torrent) BytesCompleted() int64 {
+	// TODO use bitfield for calculation
 	t.m.Lock()
 	var sum int64
 	for _, p := range t.pieces {
@@ -339,21 +341,18 @@ func (t *Torrent) BytesTotal() int64      { return t.metainfo.Info.TotalLength }
 
 func prepareFiles(info *metainfo.Info, where string) (files []*os.File, checkHash bool, err error) {
 	var f *os.File
-	var exists bool
 
+	// Single file in torrent
 	if !info.MultiFile {
-		f, exists, err = openOrAllocate(filepath.Join(where, info.Name), info.Length)
+		f, checkHash, err = openOrAllocate(filepath.Join(where, info.Name), info.Length)
 		if err != nil {
 			return
-		}
-		if exists {
-			checkHash = true
 		}
 		files = []*os.File{f}
 		return
 	}
 
-	// Multiple files
+	// Multiple files in torrent
 	files = make([]*os.File, len(info.Files))
 	for i, f := range info.Files {
 		parts := append([]string{where, info.Name}, f.Path...)
@@ -362,6 +361,7 @@ func prepareFiles(info *metainfo.Info, where string) (files []*os.File, checkHas
 		if err != nil {
 			return
 		}
+		var exists bool
 		files[i], exists, err = openOrAllocate(path, f.Length)
 		if err != nil {
 			return
@@ -378,32 +378,24 @@ func openOrAllocate(path string, length int64) (f *os.File, exists bool, err err
 	if err != nil {
 		return
 	}
-
 	defer func() {
 		if err != nil {
 			_ = f.Close()
 		}
 	}()
-
 	fi, err := f.Stat()
 	if err != nil {
 		return
 	}
-
-	if fi.Size() == 0 && length != 0 {
-		if err = f.Truncate(length); err != nil {
-			return
-		}
-		if err = f.Sync(); err != nil {
-			return
-		}
-	} else {
-		if fi.Size() != length {
-			err = fmt.Errorf("%s expected to be %d bytes but it is %d bytes", path, length, fi.Size())
-			return
-		}
-		exists = true
+	size := fi.Size()
+	if size == 0 || size == length {
+		err = f.Sync()
+		return
 	}
-
+	exists = true
+	if err = f.Truncate(length); err != nil {
+		return
+	}
+	err = f.Sync()
 	return
 }
