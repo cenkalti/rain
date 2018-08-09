@@ -23,7 +23,6 @@ const connectionIDInterval = time.Minute
 
 type UDPTracker struct {
 	URL           *url.URL
-	Client        tracker.Client
 	Log           logger.Logger
 	conn          *net.UDPConn
 	dialMutex     sync.Mutex
@@ -33,10 +32,9 @@ type UDPTracker struct {
 	writeC        chan *transaction
 }
 
-func New(u *url.URL, c tracker.Client, l logger.Logger) *UDPTracker {
+func New(u *url.URL, l logger.Logger) *UDPTracker {
 	return &UDPTracker{
 		URL:          u,
-		Client:       c,
 		Log:          l,
 		transactions: make(map[int32]*transaction),
 		writeC:       make(chan *transaction),
@@ -221,12 +219,12 @@ func (t *UDPTracker) Announce(transfer tracker.Transfer, e tracker.Event, cancel
 
 	request := &announceRequest{
 		InfoHash:   transfer.InfoHash(),
-		PeerID:     t.Client.PeerID(),
+		PeerID:     transfer.PeerID(),
 		Event:      e,
 		IP:         0, // Tracker uses sender of this UDP packet.
 		Key:        0, // TODO set it
 		NumWant:    tracker.NumWant,
-		Port:       uint16(t.Client.Port()),
+		Port:       uint16(transfer.Port()),
 		Extensions: 0,
 	}
 	request.SetAction(actionAnnounce)

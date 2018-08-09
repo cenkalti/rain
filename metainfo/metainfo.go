@@ -1,5 +1,5 @@
-// Package torrent support for reading and writing torrent files.
-package torrent
+// Package metainfo support for reading and writing torrent files.
+package metainfo
 
 import (
 	"crypto/sha1"

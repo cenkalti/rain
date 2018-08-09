@@ -1,4 +1,4 @@
-package rain
+package client
 
 import (
 	"io/ioutil"

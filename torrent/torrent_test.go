@@ -1,4 +1,4 @@
-package rain_test
+package torrent_test
 
 import (
 	"io"
@@ -13,11 +13,10 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/cenkalti/log"
+	"github.com/cenkalti/rain/logger"
+	"github.com/cenkalti/rain/torrent"
 	"github.com/crosbymichael/tracker/registry/inmem"
 	"github.com/crosbymichael/tracker/server"
-
-	"github.com/cenkalti/rain"
-	"github.com/cenkalti/rain/logger"
 )
 
 var (
@@ -32,24 +31,7 @@ func init() {
 }
 
 func TestDownload(t *testing.T) {
-	c1 := rain.NewConfig()
-	c1.Port = 0 // pick a random port
-	seeder, err := rain.NewClient(c1)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = seeder.Start()
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	where, err := ioutil.TempDir("", "rain-")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	leecher, err := rain.NewClient(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +43,7 @@ func TestDownload(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t1, err := seeder.AddTorrent(f, torrentDataDir)
+	t1, err := torrent.New(f, torrentDataDir, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +53,7 @@ func TestDownload(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	f.Seek(0, io.SeekStart)
-	t2, err := leecher.AddTorrent(f, where)
+	t2, err := torrent.New(f, where, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

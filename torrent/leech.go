@@ -1,4 +1,6 @@
-package rain
+// +build ignore
+
+package torrent
 
 import (
 	"math/rand"
@@ -6,8 +8,8 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/cenkalti/rain/btconn"
-	"github.com/cenkalti/rain/logger"
+	// "github.com/cenkalti/rain/btconn"
+	// "github.com/cenkalti/rain/logger"
 	"github.com/cenkalti/rain/piece"
 )
 
@@ -33,64 +35,64 @@ func (t *Torrent) peerManager() {
 	}
 }
 
-// connecter connects to peers coming from t. peerC.
-func (t *Torrent) connecter() {
-	limit := make(chan struct{}, maxPeerPerTorrent)
-	for {
-		select {
-		case p := <-t.peerC:
-			// 0 port is invalid
-			if p.Port == 0 {
-				break
-			}
-			// Do not connect yourself
-			if p.IP.IsLoopback() && p.Port == t.client.Port() {
-				break
-			}
-			limit <- struct{}{}
-			go func(addr *net.TCPAddr) {
-				defer func() { <-limit }()
-				t.connectAndRun(addr)
-			}(p)
-		case <-t.stopC:
-			return
-		}
-	}
-}
+// // connecter connects to peers coming from t. peerC.
+// func (t *Torrent) connecter() {
+// 	limit := make(chan struct{}, maxPeerPerTorrent)
+// 	for {
+// 		select {
+// 		case p := <-t.peerC:
+// 			// 0 port is invalid
+// 			if p.Port == 0 {
+// 				break
+// 			}
+// 			// Do not connect yourself
+// 			if p.IP.IsLoopback() && p.Port == t.client.Port() {
+// 				break
+// 			}
+// 			limit <- struct{}{}
+// 			go func(addr *net.TCPAddr) {
+// 				defer func() { <-limit }()
+// 				t.connectAndRun(addr)
+// 			}(p)
+// 		case <-t.stopC:
+// 			return
+// 		}
+// 	}
+// }
 
-func (t *Torrent) connectAndRun(addr net.Addr) {
-	log := logger.New("peer -> " + addr.String())
+// func (t *Torrent) connectAndRun(addr net.Addr) {
+// 	log := logger.New("peer -> " + addr.String())
 
-	conn, cipher, extensions, peerID, err := btconn.Dial(addr, !t.client.config.Encryption.DisableOutgoing, t.client.config.Encryption.ForceOutgoing, [8]byte{}, t.info.Hash, t.client.peerID)
-	if err != nil {
-		if err == btconn.ErrOwnConnection {
-			log.Debug(err)
-		} else {
-			log.Error(err)
-		}
-		return
-	}
-	log.Infof("Connected to peer. (cipher=%s extensions=%x client=%q)", cipher, extensions, peerID[:8])
-	defer conn.Close() // nolint: errcheck
+// 	conn, cipher, extensions, peerID, err := btconn.Dial(addr, !t.client.config.Encryption.DisableOutgoing, t.client.config.Encryption.ForceOutgoing, [8]byte{}, t.info.Hash, t.client.peerID)
+// 	if err != nil {
+// 		if err == btconn.ErrOwnConnection {
+// 			log.Debug(err)
+// 		} else {
+// 			log.Error(err)
+// 		}
+// 		return
+// 	}
+// 	log.Infof("Connected to peer. (cipher=%s extensions=%x client=%q)", cipher, extensions, peerID[:8])
+// 	defer conn.Close() // nolint: errcheck
 
-	p := t.newPeer(conn, peerID, log)
+// 	p := t.newPeer(conn, peerID, log)
 
-	t.m.Lock()
-	t.peers[peerID] = p
-	t.m.Unlock()
-	defer func() {
-		t.m.Lock()
-		delete(t.peers, peerID)
-		t.m.Unlock()
-	}()
+// 	t.m.Lock()
+// 	t.peers[peerID] = p
+// 	t.m.Unlock()
+// 	defer func() {
+// 		t.m.Lock()
+// 		delete(t.peers, peerID)
+// 		t.m.Unlock()
+// 	}()
 
-	if err = p.SendBitfield(); err != nil {
-		log.Error(err)
-		return
-	}
+// 	if err = p.SendBitfield(); err != nil {
+// 		log.Error(err)
+// 		return
+// 	}
 
-	p.Run()
-}
+// 	p.Run()
+// }
 
 func (p *peer) downloader() {
 	t := p.torrent

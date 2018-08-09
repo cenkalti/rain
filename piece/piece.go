@@ -28,7 +28,7 @@ type Piece struct {
 	RequestedFrom map[[20]byte]*Request // peers that we have reqeusted the piece from, indexed by peer id
 }
 
-func NewPieces(info *torrent.Info, osFiles []*os.File) []*Piece {
+func NewPieces(info *metainfo.Info, osFiles []*os.File) []*Piece {
 	var (
 		fileIndex  int   // index of the current file in torrent
 		fileLength int64 = info.GetFiles()[0].Length

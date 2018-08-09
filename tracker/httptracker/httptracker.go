@@ -20,14 +20,13 @@ var httpTimeout = 30 * time.Second
 
 type HTTPTracker struct {
 	URL       *url.URL
-	Client    tracker.Client
 	Log       logger.Logger
 	http      *http.Client
 	transport *http.Transport
 	trackerID string
 }
 
-func New(u *url.URL, c tracker.Client, l logger.Logger) *HTTPTracker {
+func New(u *url.URL, l logger.Logger) *HTTPTracker {
 	transport := &http.Transport{
 		Dial: (&net.Dialer{
 			Timeout: httpTimeout,
@@ -36,9 +35,8 @@ func New(u *url.URL, c tracker.Client, l logger.Logger) *HTTPTracker {
 		DisableKeepAlives:   true,
 	}
 	return &HTTPTracker{
-		URL:    u,
-		Client: c,
-		Log:    l,
+		URL: u,
+		Log: l,
 		http: &http.Client{
 			Timeout:   httpTimeout,
 			Transport: transport,
@@ -48,12 +46,12 @@ func New(u *url.URL, c tracker.Client, l logger.Logger) *HTTPTracker {
 }
 
 func (t *HTTPTracker) Announce(transfer tracker.Transfer, e tracker.Event, cancel <-chan struct{}) (*tracker.AnnounceResponse, error) {
-	peerID := t.Client.PeerID()
+	peerID := transfer.PeerID()
 	infoHash := transfer.InfoHash()
 	q := url.Values{}
 	q.Set("info_hash", string(infoHash[:]))
 	q.Set("peer_id", string(peerID[:]))
-	q.Set("port", strconv.FormatUint(uint64(t.Client.Port()), 10))
+	q.Set("port", strconv.FormatUint(uint64(transfer.Port()), 10))
 	q.Set("uploaded", strconv.FormatInt(transfer.Uploaded(), 10))
 	q.Set("downloaded", strconv.FormatInt(transfer.Downloaded(), 10))
 	q.Set("left", strconv.FormatInt(transfer.Left(), 10))

@@ -1,4 +1,6 @@
-package rain
+// +build ignore
+
+package torrent
 
 // requestSelector decides which request to serve.
 func (t *Torrent) requestSelector() {
