@@ -33,10 +33,10 @@ type Info struct {
 	// Multiple File mode
 	Files []FileDict `bencode:"files" json:"files"`
 	// Calculated fileds
-	Hash        [sha1.Size]byte `bencode:"-" json:"-"`
-	TotalLength int64           `bencode:"-" json:"-"`
-	NumPieces   uint32          `bencode:"-" json:"-"`
-	MultiFile   bool            `bencode:"-" json:"-"`
+	Hash        [20]byte `bencode:"-" json:"-"`
+	TotalLength int64    `bencode:"-" json:"-"`
+	NumPieces   uint32   `bencode:"-" json:"-"`
+	MultiFile   bool     `bencode:"-" json:"-"`
 }
 
 type FileDict struct {

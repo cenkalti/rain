@@ -2,8 +2,8 @@ package rain
 
 import (
 	"crypto/rand"
-	"encoding/hex"
-	"errors"
+	// "encoding/hex"
+	// "errors"
 	"fmt"
 	"io"
 	"net"
@@ -13,7 +13,7 @@ import (
 	"github.com/cenkalti/rain/bitfield"
 	"github.com/cenkalti/rain/btconn"
 	"github.com/cenkalti/rain/logger"
-	"github.com/cenkalti/rain/magnet"
+	// "github.com/cenkalti/rain/magnet"
 	"github.com/cenkalti/rain/metainfo"
 	"github.com/cenkalti/rain/piece"
 	"github.com/cenkalti/rain/tracker"
@@ -42,13 +42,13 @@ var Version = "0000" // zero means development version
 var peerIDPrefix = []byte("-RN" + Version + "-")
 
 type Client struct {
-	config       *Config
-	peerID       [20]byte
-	listener     *net.TCPListener
-	torrents     map[[20]byte]*Torrent // all active transfers
-	torrentsSKey map[[20]byte]*Torrent // for encryption
-	m            sync.Mutex
-	log          logger.Logger
+	config             *Config
+	peerID             [20]byte
+	listener           *net.TCPListener
+	torrents           map[[20]byte]*Torrent // all torrents by info hash (running or stopped)
+	torrentsBySKeyHash map[[20]byte]*Torrent // for encryption
+	m                  sync.Mutex
+	log                logger.Logger
 }
 
 // NewClient returns a pointer to new Rain BitTorrent client.
@@ -63,11 +63,11 @@ func NewClient(c *Config) (*Client, error) {
 		return nil, err
 	}
 	return &Client{
-		config:       c,
-		peerID:       peerID,
-		torrents:     make(map[[20]byte]*Torrent),
-		torrentsSKey: make(map[[20]byte]*Torrent),
-		log:          logger.New("client"),
+		config:             c,
+		peerID:             peerID,
+		torrents:           make(map[[20]byte]*Torrent),
+		torrentsBySKeyHash: make(map[[20]byte]*Torrent),
+		log:                logger.New("client"),
 	}, nil
 }
 
@@ -122,35 +122,42 @@ func (c *Client) accepter() {
 		limit <- struct{}{}
 		go func(c2 net.Conn) {
 			defer func() { <-limit }()
-			defer c2.Close() // nolint: errcheck
-			c.acceptAndRun(c2)
+			c.handleConn(c2)
 		}(conn)
 	}
 }
 
-func (c *Client) acceptAndRun(conn net.Conn) {
-	getSKey := func(sKeyHash [20]byte) (sKey []byte) {
-		c.m.Lock()
-		t, ok := c.torrentsSKey[sKeyHash]
-		c.m.Unlock()
-		if ok {
-			sKey = t.info.Hash[:]
-		}
-		return
+func (c *Client) getSKey(sKeyHash [20]byte) []byte {
+	c.m.Lock()
+	t, ok := c.torrentsBySKeyHash[sKeyHash]
+	c.m.Unlock()
+	if ok {
+		return t.info.Hash[:]
 	}
+	return nil
+}
 
-	hasInfoHash := func(ih [20]byte) bool {
-		c.m.Lock()
-		_, ok := c.torrents[ih]
-		c.m.Unlock()
-		return ok
-	}
+func (c *Client) hasInfoHash(ih [20]byte) bool {
+	c.m.Lock()
+	_, ok := c.torrents[ih]
+	c.m.Unlock()
+	return ok
+}
 
+func (c *Client) handleConn(conn net.Conn) {
 	log := logger.New("peer <- " + conn.RemoteAddr().String())
-	encConn, cipher, extensions, peerID, infoHash, err := btconn.Accept(conn, getSKey, c.config.Encryption.ForceIncoming, hasInfoHash, [8]byte{}, c.peerID)
+	defer func() {
+		err := conn.Close()
+		if err != nil {
+			log.Error("cannot close conn:", err)
+		}
+	}()
+
+	encConn, cipher, extensions, peerID, infoHash, err := btconn.Accept(
+		conn, c.getSKey, c.config.Encryption.ForceIncoming, c.hasInfoHash, [8]byte{}, c.peerID)
 	if err != nil {
 		if err == btconn.ErrOwnConnection {
-			c.log.Debug(err)
+			c.log.Warning(err)
 		} else {
 			c.log.Error(err)
 		}
@@ -168,11 +175,6 @@ func (c *Client) acceptAndRun(conn net.Conn) {
 
 	p := t.newPeer(encConn, peerID, log)
 
-	if err = p.SendBitfield(); err != nil {
-		log.Error(err)
-		return
-	}
-
 	t.m.Lock()
 	t.peers[peerID] = p
 	t.m.Unlock()
@@ -185,6 +187,8 @@ func (c *Client) acceptAndRun(conn net.Conn) {
 	p.Run()
 }
 
+// func (c *Client) addPeer(
+
 func (c *Client) AddTorrent(r io.Reader, dest string) (*Torrent, error) {
 	t, err := torrent.New(r)
 	if err != nil {
@@ -193,13 +197,13 @@ func (c *Client) AddTorrent(r io.Reader, dest string) (*Torrent, error) {
 	return c.newTorrentFromMetaInfo(t, dest)
 }
 
-func (c *Client) AddMagnet(uri, dest string) (*Torrent, error) {
-	m, err := magnet.New(uri)
-	if err != nil {
-		return nil, err
-	}
-	return c.newTorrentFromMagnet(m, dest)
-}
+// func (c *Client) AddMagnet(uri, dest string) (*Torrent, error) {
+// 	m, err := magnet.New(uri)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return c.newTorrentFromMagnet(m, dest)
+// }
 
 func (c *Client) newTracker(trackerURL string) (tracker.Tracker, error) {
 	u, err := url.Parse(trackerURL)
@@ -226,7 +230,7 @@ func (c *Client) newTorrent(hash [20]byte, trackerString string, name, dest stri
 		name = name[:8]
 	}
 	return &Torrent{
-		client:    c,
+		// client:    c,
 		dest:      dest,
 		hash:      hash,
 		tracker:   trk,
@@ -277,15 +281,15 @@ func (c *Client) newTorrentFromMetaInfo(tor *torrent.MetaInfo, dest string) (*To
 	return t, nil
 }
 
-func (c *Client) newTorrentFromMagnet(m *magnet.Magnet, dest string) (*Torrent, error) {
-	if len(m.Trackers) == 0 {
-		return nil, errors.New("no tracker in magnet link")
-	}
-	var name string
-	if m.Name != "" {
-		name = m.Name
-	} else {
-		name = hex.EncodeToString(m.InfoHash[:])
-	}
-	return c.newTorrent(m.InfoHash, m.Trackers[0], name, dest)
-}
+// func (c *Client) newTorrentFromMagnet(m *magnet.Magnet, dest string) (*Torrent, error) {
+// 	if len(m.Trackers) == 0 {
+// 		return nil, errors.New("no tracker in magnet link")
+// 	}
+// 	var name string
+// 	if m.Name != "" {
+// 		name = m.Name
+// 	} else {
+// 		name = hex.EncodeToString(m.InfoHash[:])
+// 	}
+// 	return c.newTorrent(m.InfoHash, m.Trackers[0], name, dest)
+// }

@@ -270,7 +270,7 @@ func (s *Stream) HandshakeOutgoing(sKey []byte, cryptoProvide CryptoMethod, payl
 // processPayloadIn is an optional function that processes incoming initial payload and generate outgoing initial payload.
 // If this function returns an error, handshake fails.
 func (s *Stream) HandshakeIncoming(
-	getSKey func(sKeyHash [sha1.Size]byte) (sKey []byte),
+	getSKey func(sKeyHash [20]byte) (sKey []byte),
 	cryptoSelect func(provided CryptoMethod) (selected CryptoMethod),
 	payloadIn []byte,
 	lenPayloadIn *uint16,
@@ -339,7 +339,7 @@ func (s *Stream) HandshakeIncoming(
 	if err != nil {
 		return
 	}
-	var hashRead [sha1.Size]byte
+	var hashRead [20]byte
 	_, err = io.ReadFull(s.raw, hashRead[:])
 	if err != nil {
 		return
@@ -560,8 +560,8 @@ func hashInt(prefix string, i *big.Int) []byte {
 	return h.Sum(nil)
 }
 
-func HashSKey(key []byte) [sha1.Size]byte {
-	var sum [sha1.Size]byte
+func HashSKey(key []byte) [20]byte {
+	var sum [20]byte
 	h := sha1.New()
 	h.Write([]byte("req2"))
 	h.Write(key)

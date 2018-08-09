@@ -22,9 +22,9 @@ const connReadTimeout = 3 * time.Minute
 const maxAllowedBlockSize = 32 * 1024
 
 type peer struct {
-	conn     net.Conn
-	id       [20]byte
-	transfer *Torrent
+	conn    net.Conn
+	id      [20]byte
+	torrent *Torrent
 
 	disconnected bool
 	amInterested bool
@@ -55,7 +55,7 @@ func (t *Torrent) newPeer(conn net.Conn, id [20]byte, l logger.Logger) *peer {
 	p := &peer{
 		conn:        conn,
 		id:          id,
-		transfer:    t,
+		torrent:     t,
 		peerChoking: true,
 		bitfield:    bitfield.New(t.bitfield.Len()),
 		log:         l,
@@ -72,20 +72,25 @@ func (p *peer) Close() error   { return p.conn.Close() }
 func (p *peer) Run() {
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 
+	if err := p.SendBitfield(); err != nil {
+		p.log.Error(err)
+		return
+	}
+
 	go p.downloader()
 
 	defer func() {
 		for i := uint32(0); i < p.bitfield.Len(); i++ {
 			if p.bitfield.Test(i) {
-				delete(p.transfer.pieces[i].Peers, p.id)
+				delete(p.torrent.pieces[i].Peers, p.id)
 			}
 		}
 	}()
 
 	defer func() {
-		p.transfer.m.Lock()
+		p.torrent.m.Lock()
 		p.disconnected = true
-		p.transfer.m.Unlock()
+		p.torrent.m.Unlock()
 		p.cond.Broadcast()
 	}()
 
@@ -127,15 +132,15 @@ func (p *peer) Run() {
 
 		switch id {
 		case messageid.Choke:
-			p.transfer.m.Lock()
+			p.torrent.m.Lock()
 			// Discard all pending requests. TODO
 			p.peerChoking = true
-			p.transfer.m.Unlock()
+			p.torrent.m.Unlock()
 			p.cond.Broadcast()
 		case messageid.Unchoke:
-			p.transfer.m.Lock()
+			p.torrent.m.Lock()
 			p.peerChoking = false
-			p.transfer.m.Unlock()
+			p.torrent.m.Unlock()
 			p.cond.Broadcast()
 		case messageid.Interested:
 			// TODO this should not be here
@@ -151,7 +156,7 @@ func (p *peer) Run() {
 				p.log.Error(err)
 				return
 			}
-			if i >= p.transfer.info.NumPieces {
+			if i >= p.torrent.info.NumPieces {
 				p.log.Error("unexpected piece index")
 				return
 			}
@@ -164,14 +169,14 @@ func (p *peer) Run() {
 				return
 			}
 
-			if length != uint32(len(p.transfer.bitfield.Bytes())) {
+			if length != uint32(len(p.torrent.bitfield.Bytes())) {
 				p.log.Error("invalid bitfield length")
 				return
 			}
 
-			p.transfer.m.Lock()
+			p.torrent.m.Lock()
 			_, err = p.conn.Read(p.bitfield.Bytes())
-			p.transfer.m.Unlock()
+			p.torrent.m.Unlock()
 			if err != nil {
 				p.log.Error(err)
 				return
@@ -192,7 +197,7 @@ func (p *peer) Run() {
 			}
 			p.log.Debugf("Request: %+v", req)
 
-			if req.Index >= p.transfer.info.NumPieces {
+			if req.Index >= p.torrent.info.NumPieces {
 				p.log.Error("invalid request: index")
 				return
 			}
@@ -200,11 +205,11 @@ func (p *peer) Run() {
 				p.log.Error("received a request with block size larger than allowed")
 				return
 			}
-			if req.Begin+req.Length > p.transfer.pieces[req.Index].Length {
+			if req.Begin+req.Length > p.torrent.pieces[req.Index].Length {
 				p.log.Error("invalid request: length")
 			}
 
-			p.transfer.requestC <- &peerRequest{p, req}
+			p.torrent.requestC <- &peerRequest{p, req}
 		case messageid.Piece:
 			var msg pieceMessage
 			err = binary.Read(p.conn, binary.BigEndian, &msg)
@@ -214,11 +219,11 @@ func (p *peer) Run() {
 			}
 			length -= 8
 
-			if msg.Index >= p.transfer.info.NumPieces {
+			if msg.Index >= p.torrent.info.NumPieces {
 				p.log.Error("invalid request: index")
 				return
 			}
-			piece := p.transfer.pieces[msg.Index]
+			piece := p.torrent.pieces[msg.Index]
 
 			// We request only in blockSize length
 			blockIndex, mod := divMod32(msg.Begin, blockSize)
@@ -230,16 +235,16 @@ func (p *peer) Run() {
 				p.log.Error("invalid block begin")
 				return
 			}
-			block := p.transfer.pieces[msg.Index].Blocks[blockIndex]
+			block := p.torrent.pieces[msg.Index].Blocks[blockIndex]
 			if length != block.Length {
 				p.log.Error("invalid piece block length")
 				return
 			}
 
-			p.transfer.m.Lock()
+			p.torrent.m.Lock()
 			active := piece.GetRequest(p.id)
 			if active == nil {
-				p.transfer.m.Unlock()
+				p.torrent.m.Unlock()
 				p.log.Warning("received a piece that is not active")
 				continue
 			}
@@ -249,21 +254,21 @@ func (p *peer) Run() {
 			} else {
 				active.BlocksReceiving.Set(block.Index)
 			}
-			p.transfer.m.Unlock()
+			p.torrent.m.Unlock()
 
 			if _, err = io.ReadFull(p.conn, active.Data[msg.Begin:msg.Begin+length]); err != nil {
 				p.log.Error(err)
 				return
 			}
 
-			p.transfer.m.Lock()
+			p.torrent.m.Lock()
 			active.BlocksReceived.Set(block.Index)
 			if !active.BlocksReceived.All() {
-				p.transfer.m.Unlock()
+				p.torrent.m.Unlock()
 				p.cond.Broadcast()
 				continue
 			}
-			p.transfer.m.Unlock()
+			p.torrent.m.Unlock()
 
 			p.log.Debugf("Writing piece to disk: #%d", piece.Index)
 			if _, err = piece.Write(active.Data); err != nil {
@@ -273,12 +278,12 @@ func (p *peer) Run() {
 				return
 			}
 
-			p.transfer.m.Lock()
-			p.transfer.bitfield.Set(piece.Index)
-			percentDone := p.transfer.bitfield.Count() * 100 / p.transfer.bitfield.Len()
-			p.transfer.m.Unlock()
+			p.torrent.m.Lock()
+			p.torrent.bitfield.Set(piece.Index)
+			percentDone := p.torrent.bitfield.Count() * 100 / p.torrent.bitfield.Len()
+			p.torrent.m.Unlock()
 			p.cond.Broadcast()
-			p.transfer.log.Infof("Completed: %d%%", percentDone)
+			p.torrent.log.Infof("Completed: %d%%", percentDone)
 		case messageid.Cancel:
 		case messageid.Port:
 		default:
@@ -294,18 +299,18 @@ func (p *peer) Run() {
 }
 
 func (p *peer) handleHave(i uint32) {
-	p.transfer.m.Lock()
-	p.transfer.pieces[i].Peers[p.id] = struct{}{}
-	p.transfer.m.Unlock()
+	p.torrent.m.Lock()
+	p.torrent.pieces[i].Peers[p.id] = struct{}{}
+	p.torrent.m.Unlock()
 	p.cond.Broadcast()
 }
 
 func (p *peer) SendBitfield() error {
 	// Do not send a bitfield message if we don't have any pieces.
-	if p.transfer.bitfield.Count() == 0 {
+	if p.torrent.bitfield.Count() == 0 {
 		return nil
 	}
-	return p.sendMessage(messageid.Bitfield, p.transfer.bitfield.Bytes())
+	return p.sendMessage(messageid.Bitfield, p.torrent.bitfield.Bytes())
 }
 
 func (p *peer) BeInterested() error {

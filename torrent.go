@@ -1,7 +1,6 @@
 package rain
 
 import (
-	"crypto/sha1"
 	"fmt"
 	"net"
 	"os"
@@ -45,16 +44,16 @@ type Torrent struct {
 }
 
 func (t *Torrent) Start() {
-	sKey := mse.HashSKey(t.info.Hash[:])
+	skeyHash := mse.HashSKey(t.info.Hash[:])
 	t.client.m.Lock()
 	t.client.torrents[t.info.Hash] = t
-	t.client.torrentsSKey[sKey] = t
+	t.client.torrentsBySKeyHash[skeyHash] = t
 	t.client.m.Unlock()
 	go func() {
 		defer func() {
 			t.client.m.Lock()
 			delete(t.client.torrents, t.info.Hash)
-			delete(t.client.torrentsSKey, sKey)
+			delete(t.client.torrentsBySKeyHash, skeyHash)
 			t.client.m.Unlock()
 		}()
 		t.run()
@@ -68,7 +67,7 @@ func (t *Torrent) Close() error {
 	return nil
 }
 
-func (t *Torrent) InfoHash() [sha1.Size]byte     { return t.info.Hash }
+func (t *Torrent) InfoHash() [20]byte            { return t.info.Hash }
 func (t *Torrent) CompleteNotify() chan struct{} { return t.completed }
 func (t *Torrent) Downloaded() int64 {
 	t.m.Lock()

@@ -93,7 +93,7 @@ func (t *Torrent) connectAndRun(addr net.Addr) {
 }
 
 func (p *peer) downloader() {
-	t := p.transfer
+	t := p.torrent
 	for {
 		// Select next piece to download.
 		t.m.Lock()
@@ -176,9 +176,9 @@ func (p *peer) downloader() {
 
 // candidates returns list of piece indexes which is available on the peer but not available on the client.
 func (p *peer) candidates() (candidates []*piece.Piece) {
-	for i := uint32(0); i < p.transfer.bitfield.Len(); i++ {
-		if !p.transfer.bitfield.Test(i) && p.bitfield.Test(i) {
-			piece := p.transfer.pieces[i]
+	for i := uint32(0); i < p.torrent.bitfield.Len(); i++ {
+		if !p.torrent.bitfield.Test(i) && p.bitfield.Test(i) {
+			piece := p.torrent.pieces[i]
 			if _, ok := piece.RequestedFrom[p.id]; !ok {
 				candidates = append(candidates, piece)
 			}
