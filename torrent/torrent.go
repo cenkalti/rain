@@ -36,12 +36,14 @@ var (
 	// http://www.bittorrent.org/beps/bep_0020.html
 	peerIDPrefix = []byte("-RN" + Version + "-")
 
-	// Version of client. Set when building: "$ go build -ldflags "-X github.com/cenkalti/rain.Version 0001" cmd/rain/rain.go"
+	// Version of client. Set during build.
 	Version = "0000" // zero means development version
 
+	// ErrClosed is returned when doing and operation on an already closed torrent.
 	ErrClosed = errors.New("torrent is closed")
 )
 
+// Torrent connect to peers and downloads files from swarm.
 type Torrent struct {
 	peerID        [20]byte             // unique id per torrent
 	metainfo      *metainfo.MetaInfo   // parsed torrent file
@@ -66,6 +68,13 @@ type Torrent struct {
 	log           logger.Logger
 }
 
+// New returns a new torrent by reading a metainfo file.
+//
+// Files are read from disk. If there are existing files, hash check will be done.
+//
+// Returned torrent is in stopped state.
+//
+// Close must be called before discarding the torrent.
 func New(r io.Reader, dest string, port int) (*Torrent, error) {
 	m, err := metainfo.New(r)
 	if err != nil {
@@ -134,6 +143,8 @@ func newTracker(trackerURL string) (tracker.Tracker, error) {
 }
 
 // Start listening peer port, accepting incoming peer connections and download missing pieces.
+//
+// Seeding continues after all files are donwloaded.
 func (t *Torrent) Start() error {
 	t.m.Lock()
 	defer t.m.Unlock()
@@ -159,6 +170,7 @@ func (t *Torrent) Start() error {
 	return nil
 }
 
+// Stop downloading and uploading, disconnect all peers and close peer port.
 func (t *Torrent) Stop() error {
 	t.m.Lock()
 	defer t.m.Unlock()
@@ -174,10 +186,11 @@ func (t *Torrent) Stop() error {
 	}
 	close(t.stopC)
 	t.stopWG.Wait()
+	// TODO remove temporary structures
 	return nil
 }
 
-// Close peer port, connected peer connections and files.
+// Close this torrent and release all resources.
 func (t *Torrent) Close() error {
 	t.m.Lock()
 	defer t.m.Unlock()
@@ -217,8 +230,7 @@ func (t *Torrent) Port() int {
 	return 0
 }
 
-func (t *Torrent) CompleteNotify() chan struct{} { return t.completed }
-
+// BytesCompleted returns the number of bytes downlaoded and passed hash check.
 func (t *Torrent) BytesCompleted() int64 {
 	t.m.Lock()
 	defer t.m.Unlock()
@@ -233,12 +245,28 @@ func (t *Torrent) BytesCompleted() int64 {
 	return sum
 }
 
+// PeerID is unique per torrent.
+func (t *Torrent) PeerID() [20]byte { return t.peerID }
+
+// InfoHash identifies the torrent file that is being downloaded.
+func (t *Torrent) InfoHash() [20]byte { return t.metainfo.Info.Hash }
+
+// CompleteNotify returns a channel that is closed once all pieces are downloaded successfully.
+func (t *Torrent) CompleteNotify() chan struct{} { return t.completed }
+
+// BytesDownloaded is the number of bytes downloaded from swarm.
+//
+// Because some pieces may be downloaded more than once, this number may be greater than BytesCompleted returns.
 func (t *Torrent) BytesDownloaded() int64 { return t.BytesCompleted() } // TODO not the same thing
-func (t *Torrent) BytesUploaded() int64   { return 0 }                  // TODO count uploaded bytes
-func (t *Torrent) BytesLeft() int64       { return t.BytesTotal() - t.BytesCompleted() }
-func (t *Torrent) BytesTotal() int64      { return t.metainfo.Info.TotalLength }
-func (t *Torrent) InfoHash() [20]byte     { return t.metainfo.Info.Hash }
-func (t *Torrent) PeerID() [20]byte       { return t.peerID }
+
+// BytesUploaded is the number of bytes uploaded to the swarm.
+func (t *Torrent) BytesUploaded() int64 { return 0 } // TODO count uploaded bytes
+
+// BytesLeft is the number of bytes that is needed to complete all missing pieces.
+func (t *Torrent) BytesLeft() int64 { return t.BytesTotal() - t.BytesCompleted() }
+
+// BytesTotal is the number of total bytes of files in torrent.
+func (t *Torrent) BytesTotal() int64 { return t.metainfo.Info.TotalLength }
 
 func closeConn(conn net.Conn, log logger.Logger) {
 	err := conn.Close()
