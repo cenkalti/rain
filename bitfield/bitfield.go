@@ -167,4 +167,26 @@ func (b *Bitfield) checkIndex(i uint32) {
 	}
 }
 
+func (b *Bitfield) And(b2 *Bitfield) *Bitfield {
+	if b.length != b2.length {
+		panic("length mismatch")
+	}
+	result := New(b.length)
+	for i := range result.b {
+		result.b[i] = b.b[i] & b2.b[i]
+	}
+	return result
+}
+
+func (b *Bitfield) Or(b2 *Bitfield) *Bitfield {
+	if b.length != b2.length {
+		panic("length mismatch")
+	}
+	result := New(b.length)
+	for i := range result.b {
+		result.b[i] = b.b[i] | b2.b[i]
+	}
+	return result
+}
+
 func divMod32(a, b uint32) (uint32, uint32) { return a / b, a % b }
