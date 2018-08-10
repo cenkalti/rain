@@ -166,11 +166,11 @@ func (t *Torrent) Start() error {
 	t.log.Notice("Listening peers on tcp://" + t.listener.Addr().String())
 	t.stopC = make(chan struct{})
 	t.stopWG.Add(5)
-	go t.announcer()
-	go t.accepter()
-	go t.dialer()
-	go t.downloader()
-	go t.uploader()
+	go t.announcer()  // get peers from tracker
+	go t.accepter()   // accept incoming peer connections
+	go t.dialer()     // connect to new peers
+	go t.downloader() // request missing pieces from peers
+	go t.uploader()   // send requested blocks
 	return nil
 }
 
