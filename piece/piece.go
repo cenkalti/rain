@@ -20,8 +20,9 @@ type Piece struct {
 	OK     bool   // hash is correct and written to disk, Verify() must be called to set this.
 	Length uint32 // always equal to blockSize except last piece.
 	Blocks []Block
-	Data   filesection.Sections // the place to write downloaded bytes
-	hash   []byte               // correct hash value
+	// TODO do not export sections, export a data interface
+	Data filesection.Sections // the place to write downloaded bytes
+	hash []byte               // correct hash value
 }
 
 func NewPieces(info *metainfo.Info, osFiles []*os.File) []Piece {
