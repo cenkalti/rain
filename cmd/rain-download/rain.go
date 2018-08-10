@@ -68,10 +68,6 @@ func main() {
 	} else {
 		<-t.CompleteNotify()
 	}
-	err = t.Stop()
-	if err != nil {
-		log.Fatal(err)
-	}
 	err = t.Close()
 	if err != nil {
 		log.Fatal(err)

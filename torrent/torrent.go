@@ -2,12 +2,11 @@ package torrent
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/url"
-	"os"
-	"path/filepath"
 	"sync"
 
 	"github.com/cenkalti/rain/bitfield"
@@ -15,7 +14,7 @@ import (
 	"github.com/cenkalti/rain/logger"
 	"github.com/cenkalti/rain/metainfo"
 	"github.com/cenkalti/rain/mse"
-	"github.com/cenkalti/rain/piece"
+	"github.com/cenkalti/rain/torrentdata"
 	"github.com/cenkalti/rain/tracker"
 	"github.com/cenkalti/rain/tracker/httptracker"
 	"github.com/cenkalti/rain/tracker/udptracker"
@@ -40,38 +39,30 @@ var (
 
 	// Version of client. Set when building: "$ go build -ldflags "-X github.com/cenkalti/rain.Version 0001" cmd/rain/rain.go"
 	Version = "0000" // zero means development version
+
+	ErrClosed = errors.New("torrent is closed")
 )
 
 type Torrent struct {
-	peerID   [20]byte
-	listener *net.TCPListener
-	dest     string
-	port     int
-	sKeyHash [20]byte
-	metainfo *metainfo.MetaInfo
-	tracker  tracker.Tracker
-	peers    map[[20]byte]*peer // connected peers
-	pieces   []piece.Piece
-	bitfield *bitfield.Bitfield
-
-	// announceC chan *tracker.AnnounceResponse
-	stopC chan struct{} // all goroutines stop when closed
-	m     sync.Mutex    // protects all state related with this transfer and it's peers
-	log   logger.Logger
-
-	// // tracker sends available peers to this channel
-	// peersC chan []*net.TCPAddr
-	// // connecter receives from this channel and connects to new peers
-	// peerC chan *net.TCPAddr
-	// will be closed by main loop when all of the remaining pieces are downloaded
-	completed chan struct{}
-	// for closing completed channel only once
-	onceCompleted sync.Once
-	// // peers send requests to this channel
-	// requestC chan *peerRequest
-	// // uploader decides which request to serve and sends it to this channel
-	// serveC      chan *peerRequest
-	peerLimiter chan struct{}
+	peerID        [20]byte           // unique id per torrent
+	metainfo      *metainfo.MetaInfo // parsed torrent file
+	data          *torrentdata.Data  // provides access to files on disk
+	dest          string             // path of files on disk
+	port          int                // listen for peer connections
+	listener      *net.TCPListener   // listens port for peer connections
+	tracker       tracker.Tracker    // tracker to announce
+	peers         map[[20]byte]*peer // connected peers
+	sKeyHash      [20]byte           // for encryption, hash of the info hash
+	bitfield      *bitfield.Bitfield // keeps track of the pieces we have
+	peerLimiter   chan struct{}      // semaphore for limiting number of peers
+	completed     chan struct{}      // closed when all pieces are downloaded
+	onceCompleted sync.Once          // for closing completed channel only once
+	stopC         chan struct{}      // all goroutines stop when closed
+	stopWG        sync.WaitGroup     // for waiting running goroutines
+	m             sync.Mutex         // protects all state in this torrent and it's peers
+	running       bool               // true after Start() is called
+	closed        bool               // true after Close() is called
+	log           logger.Logger
 }
 
 func New(r io.Reader, dest string, port int) (*Torrent, error) {
@@ -83,50 +74,39 @@ func New(r io.Reader, dest string, port int) (*Torrent, error) {
 	if len(logName) > 8 {
 		logName = logName[:8]
 	}
+	var peerID [20]byte
+	copy(peerID[:], peerIDPrefix)
+	_, err = rand.Read(peerID[len(peerIDPrefix):]) // nolint: gosec
+	if err != nil {
+		return nil, err
+	}
+	trk, err := newTracker(m.Announce)
+	if err != nil {
+		return nil, err
+	}
+	data, err := torrentdata.New(m.Info, dest)
+	if err != nil {
+		return nil, err
+	}
+	bf, err := data.Verify()
+	if err != nil {
+		return nil, err
+	}
 	t := &Torrent{
-		metainfo: m,
-		dest:     dest,
-		port:     port,
-		sKeyHash: mse.HashSKey(m.Info.Hash[:]),
-		peers:    make(map[[20]byte]*peer),
-		stopC:    make(chan struct{}),
-		// announceC:   make(chan *tracker.AnnounceResponse),
-		// peersC:      make(chan []*net.TCPAddr),
-		// peerC:       make(chan *net.TCPAddr),
-		completed: make(chan struct{}),
-		// requestC:    make(chan *peerRequest),
-		// serveC:      make(chan *peerRequest),
+		peerID:      peerID,
+		metainfo:    m,
+		data:        data,
+		dest:        dest,
+		port:        port,
+		tracker:     trk,
+		peers:       make(map[[20]byte]*peer),
+		sKeyHash:    mse.HashSKey(m.Info.Hash[:]),
+		bitfield:    bf,
 		peerLimiter: make(chan struct{}, maxPeerPerTorrent),
+		completed:   make(chan struct{}),
 		log:         logger.New("download " + logName),
 	}
-	copy(t.peerID[:], peerIDPrefix)
-	_, err = rand.Read(t.peerID[len(peerIDPrefix):]) // nolint: gosec
-	if err != nil {
-		return nil, err
-	}
-	t.tracker, err = newTracker(m.Announce)
-	if err != nil {
-		return nil, err
-	}
-	files, checkHash, err := prepareFiles(m.Info, dest)
-	if err != nil {
-		return nil, err
-	}
-	t.pieces = piece.NewPieces(m.Info, files)
-	t.bitfield = bitfield.New(m.Info.NumPieces)
-	var percentDone uint32
-	if checkHash {
-		t.log.Notice("Doing hash check...")
-		for _, p := range t.pieces {
-			if err := p.Verify(); err != nil {
-				return nil, err
-			}
-			t.bitfield.SetTo(p.Index, p.OK)
-		}
-		percentDone = t.bitfield.Count() * 100 / t.bitfield.Len()
-		t.log.Noticef("Already downloaded: %d%%", percentDone)
-	}
-	if percentDone == 100 {
+	if bf.All() {
 		t.onceCompleted.Do(func() {
 			close(t.completed)
 			t.log.Notice("Download completed")
@@ -153,9 +133,14 @@ func newTracker(trackerURL string) (tracker.Tracker, error) {
 
 // Start listening peer port, accepting incoming peer connections and download missing pieces.
 func (t *Torrent) Start() error {
-	// TODO do not allow start after close is called
 	t.m.Lock()
 	defer t.m.Unlock()
+	if t.closed {
+		return ErrClosed
+	}
+	if t.running {
+		return nil
+	}
 	var err error
 	addr := &net.TCPAddr{Port: t.port}
 	t.listener, err = net.ListenTCP("tcp4", addr)
@@ -163,26 +148,47 @@ func (t *Torrent) Start() error {
 		return err
 	}
 	t.log.Notice("Listening peers on tcp://" + t.listener.Addr().String())
-	go t.accepter()
+	t.stopC = make(chan struct{})
+	t.stopWG.Add(5)
 	go t.announcer()
+	go t.accepter()
+	go t.dialer()
 	go t.downloader()
 	go t.uploader()
 	return nil
 }
 
 func (t *Torrent) Stop() error {
-	// TODO not implemented
 	t.m.Lock()
 	defer t.m.Unlock()
+	if t.closed {
+		return ErrClosed
+	}
+	if !t.running {
+		return nil
+	}
+	err := t.listener.Close()
+	if err != nil {
+		return err
+	}
+	close(t.stopC)
+	t.stopWG.Wait()
 	return nil
 }
 
 // Close peer port, connected peer connections and files.
 func (t *Torrent) Close() error {
-	// TODO torrent must not be running
-	// TODO close only once
 	t.m.Lock()
 	defer t.m.Unlock()
+	if t.closed {
+		return nil
+	}
+	if t.running {
+		err := t.Stop()
+		if err != nil {
+			return err
+		}
+	}
 	var result error
 	err := t.listener.Close()
 	if err != nil {
@@ -194,7 +200,10 @@ func (t *Torrent) Close() error {
 			result = multierror.Append(result, err)
 		}
 	}
-	// TODO close files
+	err = t.data.Close()
+	if err != nil {
+		result = multierror.Append(result, err)
+	}
 	return result
 }
 
@@ -281,15 +290,16 @@ func (t *Torrent) Port() int {
 func (t *Torrent) CompleteNotify() chan struct{} { return t.completed }
 
 func (t *Torrent) BytesCompleted() int64 {
-	// TODO use bitfield for calculation
 	t.m.Lock()
-	var sum int64
-	for _, p := range t.pieces {
-		if p.OK {
-			sum += int64(p.Length)
-		}
+	defer t.m.Unlock()
+	sum := int64(t.bitfield.Count() * t.metainfo.Info.PieceLength)
+
+	// Last piece usually not in full size.
+	lastPiece := t.metainfo.Info.NumPieces - 1
+	if t.bitfield.Test(lastPiece) {
+		sum -= int64(t.metainfo.Info.PieceLength)
+		sum += int64(t.data.Piece(int(lastPiece)).Length)
 	}
-	t.m.Unlock()
 	return sum
 }
 
@@ -328,74 +338,3 @@ func (t *Torrent) BytesTotal() int64      { return t.metainfo.Info.TotalLength }
 // 		}
 // 	}
 // }
-
-// func (t *Torrent) announcer() {
-// 	var startEvent tracker.Event
-// 	if t.bitfield.All() {
-// 		startEvent = tracker.EventCompleted
-// 	} else {
-// 		startEvent = tracker.EventStarted
-// 	}
-// 	tracker.AnnouncePeriodically(t.tracker, t, t.stopC, startEvent, nil, t.announceC)
-// }
-
-func prepareFiles(info *metainfo.Info, where string) (files []*os.File, checkHash bool, err error) {
-	var f *os.File
-
-	// Single file in torrent
-	if !info.MultiFile {
-		f, checkHash, err = openOrAllocate(filepath.Join(where, info.Name), info.Length)
-		if err != nil {
-			return
-		}
-		files = []*os.File{f}
-		return
-	}
-
-	// Multiple files in torrent
-	files = make([]*os.File, len(info.Files))
-	for i, f := range info.Files {
-		parts := append([]string{where, info.Name}, f.Path...)
-		path := filepath.Join(parts...)
-		err = os.MkdirAll(filepath.Dir(path), os.ModeDir|0755)
-		if err != nil {
-			return
-		}
-		var exists bool
-		files[i], exists, err = openOrAllocate(path, f.Length)
-		if err != nil {
-			return
-		}
-		if exists {
-			checkHash = true
-		}
-	}
-	return
-}
-
-func openOrAllocate(path string, length int64) (f *os.File, exists bool, err error) {
-	f, err = os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0640) // nolint: gosec
-	if err != nil {
-		return
-	}
-	defer func() {
-		if err != nil {
-			_ = f.Close()
-		}
-	}()
-	fi, err := f.Stat()
-	if err != nil {
-		return
-	}
-	size := fi.Size()
-	if size == 0 || size == length {
-		err = f.Sync()
-		return
-	}
-	exists = true
-	if err = f.Truncate(length); err != nil {
-		return
-	}
-	err = f.Sync()
-	return
-}

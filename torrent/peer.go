@@ -300,7 +300,7 @@ func (p *peer) Run() {
 
 func (p *peer) handleHave(i uint32) {
 	p.torrent.m.Lock()
-	p.torrent.pieces[i].Peers[p.id] = struct{}{}
+	// p.torrent.pieces[i].Peers[p.id] = struct{}{}
 	p.torrent.m.Unlock()
 	p.cond.Broadcast()
 }
