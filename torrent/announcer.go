@@ -8,7 +8,6 @@ import (
 	"github.com/cenkalti/rain/tracker"
 )
 
-// TODO implement
 func (t *Torrent) announcer() {
 	defer t.stopWG.Done()
 	var nextAnnounce time.Duration
