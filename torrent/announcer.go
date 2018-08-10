@@ -12,6 +12,7 @@ import (
 func (t *Torrent) announcer() {
 	defer t.stopWG.Done()
 	var nextAnnounce time.Duration
+	var m sync.Mutex
 
 	retry := &backoff.ExponentialBackOff{
 		InitialInterval:     5 * time.Second,
@@ -23,7 +24,6 @@ func (t *Torrent) announcer() {
 	}
 	retry.Reset()
 
-	var m sync.Mutex
 	announce := func(e tracker.Event) {
 		m.Lock()
 		defer m.Unlock()
@@ -38,6 +38,7 @@ func (t *Torrent) announcer() {
 		}
 	}
 
+	// Send start, stop and completed events.
 	announce(tracker.EventStarted)
 	defer announce(tracker.EventStopped)
 	go func() {
@@ -50,9 +51,13 @@ func (t *Torrent) announcer() {
 
 	}()
 
+	// Send periodic announces.
 	for {
+		m.Lock()
+		d := nextAnnounce
+		m.Unlock()
 		select {
-		case <-time.After(nextAnnounce):
+		case <-time.After(d):
 			announce(tracker.EventNone)
 		case <-t.stopC:
 			return

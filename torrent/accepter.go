@@ -60,7 +60,7 @@ func (t *Torrent) handleConn(conn net.Conn) {
 	}
 	log.Infof("Connection accepted. (cipher=%s extensions=%x client=%q)", cipher, extensions, peerID[:8])
 
-	p := t.newPeer(encConn, peerID, log)
+	p := newPeer(encConn, peerID, t.bitfield, log)
 
 	t.m.Lock()
 	t.peers[peerID] = p

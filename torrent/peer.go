@@ -1,11 +1,10 @@
 package torrent
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/binary"
-	// "io"
-	// "io/ioutil"
+	"io"
+	"io/ioutil"
 	"net"
 	"sync"
 	"time"
@@ -24,22 +23,21 @@ const maxAllowedBlockSize = 32 * 1024
 type peer struct {
 	conn net.Conn
 	id   [20]byte
-	// torrent *Torrent
-
-	disconnected bool
 
 	amChoking      bool
 	amInterested   bool
 	peerChoking    bool
 	peerInterested bool
 
-	amInterestedM sync.Mutex
-
 	// pieces that the peer has
 	bitfield *bitfield.Bitfield
 
-	cond *sync.Cond
-	log  logger.Logger
+	// pieces we have
+	have *bitfield.Bitfield
+
+	// cond *sync.Cond
+	m   sync.Mutex
+	log logger.Logger
 }
 
 type peerRequest struct {
@@ -54,17 +52,15 @@ type pieceMessage struct {
 	Index, Begin uint32
 }
 
-func (t *Torrent) newPeer(conn net.Conn, id [20]byte, l logger.Logger) *peer {
+func newPeer(conn net.Conn, id [20]byte, have *bitfield.Bitfield, l logger.Logger) *peer {
 	p := &peer{
-		conn: conn,
-		id:   id,
-		// torrent:     t,
+		conn:        conn,
+		id:          id,
 		amChoking:   true,
 		peerChoking: true,
-		bitfield:    bitfield.New(t.bitfield.Len()),
+		have:        have,
 		log:         l,
 	}
-	p.cond = sync.NewCond(&t.m)
 	return p
 }
 
@@ -76,230 +72,223 @@ func (p *peer) Close() error   { return p.conn.Close() }
 func (p *peer) Run() {
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 
-	// if err := p.SendBitfield(); err != nil {
-	// 	p.log.Error(err)
-	// 	return
-	// }
+	if err := p.SendBitfield(); err != nil {
+		p.log.Error(err)
+		return
+	}
 
-	// go p.downloader()
+	first := true
+	for {
+		err := p.conn.SetReadDeadline(time.Now().Add(connReadTimeout))
+		if err != nil {
+			p.log.Error(err)
+			return
+		}
 
-	// defer func() {
-	// 	for i := uint32(0); i < p.bitfield.Len(); i++ {
-	// 		if p.bitfield.Test(i) {
-	// 			delete(p.torrent.pieces[i].Peers, p.id)
-	// 		}
-	// 	}
-	// }()
+		var length uint32
+		p.log.Debug("Reading message...")
+		err = binary.Read(p.conn, binary.BigEndian, &length)
+		if err != nil {
+			if err == io.EOF {
+				p.log.Warning("Remote peer has closed the connection")
+				return
+			}
+			p.log.Error(err)
+			return
+		}
+		p.log.Debugf("Received message of length: %d", length)
 
-	// defer func() {
-	// 	p.torrent.m.Lock()
-	// 	p.disconnected = true
-	// 	p.torrent.m.Unlock()
-	// 	p.cond.Broadcast()
-	// }()
+		if length == 0 { // keep-alive message
+			p.log.Debug("Received message of type \"keep alive\"")
+			continue
+		}
 
-	// first := true
-	// for {
-	// 	err := p.conn.SetReadDeadline(time.Now().Add(connReadTimeout))
-	// 	if err != nil {
-	// 		p.log.Error(err)
-	// 		return
-	// 	}
+		var id messageid.MessageID
+		err = binary.Read(p.conn, binary.BigEndian, &id)
+		if err != nil {
+			p.log.Error(err)
+			return
+		}
+		length--
 
-	// 	var length uint32
-	// 	p.log.Debug("Reading message...")
-	// 	err = binary.Read(p.conn, binary.BigEndian, &length)
-	// 	if err != nil {
-	// 		if err == io.EOF {
-	// 			p.log.Warning("Remote peer has closed the connection")
-	// 			return
-	// 		}
-	// 		p.log.Error(err)
-	// 		return
-	// 	}
-	// 	p.log.Debugf("Received message of length: %d", length)
+		p.log.Debugf("Received message of type: %q", id)
 
-	// 	if length == 0 { // keep-alive message
-	// 		p.log.Debug("Received message of type \"keep alive\"")
-	// 		continue
-	// 	}
+		switch id {
+		case messageid.Choke:
+			p.m.Lock()
+			// Discard all pending requests. TODO
+			p.peerChoking = true
+			p.m.Unlock()
+			// p.cond.Broadcast()
+		case messageid.Unchoke:
+			p.m.Lock()
+			p.peerChoking = false
+			p.m.Unlock()
+			// p.cond.Broadcast()
+		case messageid.Interested:
+			p.m.Lock()
+			p.peerInterested = true
+			p.m.Unlock()
+			// TODO implement
+			// // TODO this should not be here
+			// if err2 := p.Unchoke(); err2 != nil {
+			// 	p.log.Error(err2)
+			// 	return
+			// }
+		case messageid.NotInterested:
+			p.m.Lock()
+			p.peerInterested = false
+			p.m.Unlock()
+		case messageid.Have:
+			var i uint32
+			err = binary.Read(p.conn, binary.BigEndian, &i)
+			if err != nil {
+				p.log.Error(err)
+				return
+			}
+			if i >= p.have.Len() {
+				p.log.Error("unexpected piece index")
+				return
+			}
+			p.log.Debug("Peer ", p.conn.RemoteAddr(), " has piece #", i)
+			p.bitfield.Set(i)
+			p.handleHave(i)
+		case messageid.Bitfield:
+			if !first {
+				p.log.Error("bitfield can only be sent after handshake")
+				return
+			}
 
-	// 	var id messageid.MessageID
-	// 	err = binary.Read(p.conn, binary.BigEndian, &id)
-	// 	if err != nil {
-	// 		p.log.Error(err)
-	// 		return
-	// 	}
-	// 	length--
+			if length != uint32(len(p.have.Bytes())) {
+				p.log.Error("invalid bitfield length")
+				return
+			}
 
-	// 	p.log.Debugf("Received message of type: %q", id)
+			b := make([]byte, len(p.have.Bytes()))
+			_, err = io.ReadFull(p.conn, b)
+			if err != nil {
+				p.log.Error(err)
+				return
+			}
+			bf := bitfield.NewBytes(b, p.have.Len())
+			p.m.Lock()
+			p.bitfield = bf
+			p.m.Unlock()
+			p.log.Debugln("Received bitfield:", p.bitfield.Hex())
 
-	// 	switch id {
-	// 	case messageid.Choke:
-	// 		p.torrent.m.Lock()
-	// 		// Discard all pending requests. TODO
-	// 		p.peerChoking = true
-	// 		p.torrent.m.Unlock()
-	// 		p.cond.Broadcast()
-	// 	case messageid.Unchoke:
-	// 		p.torrent.m.Lock()
-	// 		p.peerChoking = false
-	// 		p.torrent.m.Unlock()
-	// 		p.cond.Broadcast()
-	// 	case messageid.Interested:
-	// 		// TODO this should not be here
-	// 		if err2 := p.Unchoke(); err2 != nil {
-	// 			p.log.Error(err2)
-	// 			return
-	// 		}
-	// 	case messageid.NotInterested:
-	// 	case messageid.Have:
-	// 		var i uint32
-	// 		err = binary.Read(p.conn, binary.BigEndian, &i)
-	// 		if err != nil {
-	// 			p.log.Error(err)
-	// 			return
-	// 		}
-	// 		if i >= p.torrent.info.NumPieces {
-	// 			p.log.Error("unexpected piece index")
-	// 			return
-	// 		}
-	// 		p.log.Debug("Peer ", p.conn.RemoteAddr(), " has piece #", i)
-	// 		p.bitfield.Set(i)
-	// 		p.handleHave(i)
-	// 	case messageid.Bitfield:
-	// 		if !first {
-	// 			p.log.Error("bitfield can only be sent after handshake")
-	// 			return
-	// 		}
+			for i := uint32(0); i < p.bitfield.Len(); i++ {
+				if p.bitfield.Test(i) {
+					p.handleHave(i)
+				}
+			}
+		// 	case messageid.Request:
+		// 		var req requestMessage
+		// 		err = binary.Read(p.conn, binary.BigEndian, &req)
+		// 		if err != nil {
+		// 			p.log.Error(err)
+		// 			return
+		// 		}
+		// 		p.log.Debugf("Request: %+v", req)
 
-	// 		if length != uint32(len(p.torrent.bitfield.Bytes())) {
-	// 			p.log.Error("invalid bitfield length")
-	// 			return
-	// 		}
+		// 		if req.Index >= p.torrent.info.NumPieces {
+		// 			p.log.Error("invalid request: index")
+		// 			return
+		// 		}
+		// 		if req.Length > maxAllowedBlockSize {
+		// 			p.log.Error("received a request with block size larger than allowed")
+		// 			return
+		// 		}
+		// 		if req.Begin+req.Length > p.torrent.pieces[req.Index].Length {
+		// 			p.log.Error("invalid request: length")
+		// 		}
 
-	// 		p.torrent.m.Lock()
-	// 		_, err = p.conn.Read(p.bitfield.Bytes())
-	// 		p.torrent.m.Unlock()
-	// 		if err != nil {
-	// 			p.log.Error(err)
-	// 			return
-	// 		}
-	// 		p.log.Debugln("Received bitfield:", p.bitfield.Hex())
+		// 		p.torrent.requestC <- &peerRequest{p, req}
+		// 	case messageid.Piece:
+		// 		var msg pieceMessage
+		// 		err = binary.Read(p.conn, binary.BigEndian, &msg)
+		// 		if err != nil {
+		// 			p.log.Error(err)
+		// 			return
+		// 		}
+		// 		length -= 8
 
-	// 		for i := uint32(0); i < p.bitfield.Len(); i++ {
-	// 			if p.bitfield.Test(i) {
-	// 				p.handleHave(i)
-	// 			}
-	// 		}
-	// 	case messageid.Request:
-	// 		var req requestMessage
-	// 		err = binary.Read(p.conn, binary.BigEndian, &req)
-	// 		if err != nil {
-	// 			p.log.Error(err)
-	// 			return
-	// 		}
-	// 		p.log.Debugf("Request: %+v", req)
+		// 		if msg.Index >= p.torrent.info.NumPieces {
+		// 			p.log.Error("invalid request: index")
+		// 			return
+		// 		}
+		// 		piece := p.torrent.pieces[msg.Index]
 
-	// 		if req.Index >= p.torrent.info.NumPieces {
-	// 			p.log.Error("invalid request: index")
-	// 			return
-	// 		}
-	// 		if req.Length > maxAllowedBlockSize {
-	// 			p.log.Error("received a request with block size larger than allowed")
-	// 			return
-	// 		}
-	// 		if req.Begin+req.Length > p.torrent.pieces[req.Index].Length {
-	// 			p.log.Error("invalid request: length")
-	// 		}
+		// 		// We request only in blockSize length
+		// 		blockIndex, mod := divMod32(msg.Begin, blockSize)
+		// 		if mod != 0 {
+		// 			p.log.Error("unexpected block begin")
+		// 			return
+		// 		}
+		// 		if blockIndex >= uint32(len(piece.Blocks)) {
+		// 			p.log.Error("invalid block begin")
+		// 			return
+		// 		}
+		// 		block := p.torrent.pieces[msg.Index].Blocks[blockIndex]
+		// 		if length != block.Length {
+		// 			p.log.Error("invalid piece block length")
+		// 			return
+		// 		}
 
-	// 		p.torrent.requestC <- &peerRequest{p, req}
-	// 	case messageid.Piece:
-	// 		var msg pieceMessage
-	// 		err = binary.Read(p.conn, binary.BigEndian, &msg)
-	// 		if err != nil {
-	// 			p.log.Error(err)
-	// 			return
-	// 		}
-	// 		length -= 8
+		// 		p.torrent.m.Lock()
+		// 		active := piece.GetRequest(p.id)
+		// 		if active == nil {
+		// 			p.torrent.m.Unlock()
+		// 			p.log.Warning("received a piece that is not active")
+		// 			continue
+		// 		}
 
-	// 		if msg.Index >= p.torrent.info.NumPieces {
-	// 			p.log.Error("invalid request: index")
-	// 			return
-	// 		}
-	// 		piece := p.torrent.pieces[msg.Index]
+		// 		if active.BlocksReceiving.Test(block.Index) {
+		// 			p.log.Warningf("Receiving duplicate block: Piece #%d Block #%d", piece.Index, block.Index)
+		// 		} else {
+		// 			active.BlocksReceiving.Set(block.Index)
+		// 		}
+		// 		p.torrent.m.Unlock()
 
-	// 		// We request only in blockSize length
-	// 		blockIndex, mod := divMod32(msg.Begin, blockSize)
-	// 		if mod != 0 {
-	// 			p.log.Error("unexpected block begin")
-	// 			return
-	// 		}
-	// 		if blockIndex >= uint32(len(piece.Blocks)) {
-	// 			p.log.Error("invalid block begin")
-	// 			return
-	// 		}
-	// 		block := p.torrent.pieces[msg.Index].Blocks[blockIndex]
-	// 		if length != block.Length {
-	// 			p.log.Error("invalid piece block length")
-	// 			return
-	// 		}
+		// 		if _, err = io.ReadFull(p.conn, active.Data[msg.Begin:msg.Begin+length]); err != nil {
+		// 			p.log.Error(err)
+		// 			return
+		// 		}
 
-	// 		p.torrent.m.Lock()
-	// 		active := piece.GetRequest(p.id)
-	// 		if active == nil {
-	// 			p.torrent.m.Unlock()
-	// 			p.log.Warning("received a piece that is not active")
-	// 			continue
-	// 		}
+		// 		p.torrent.m.Lock()
+		// 		active.BlocksReceived.Set(block.Index)
+		// 		if !active.BlocksReceived.All() {
+		// 			p.torrent.m.Unlock()
+		// 			p.cond.Broadcast()
+		// 			continue
+		// 		}
+		// 		p.torrent.m.Unlock()
 
-	// 		if active.BlocksReceiving.Test(block.Index) {
-	// 			p.log.Warningf("Receiving duplicate block: Piece #%d Block #%d", piece.Index, block.Index)
-	// 		} else {
-	// 			active.BlocksReceiving.Set(block.Index)
-	// 		}
-	// 		p.torrent.m.Unlock()
+		// 		p.log.Debugf("Writing piece to disk: #%d", piece.Index)
+		// 		if _, err = piece.Write(active.Data); err != nil {
+		// 			p.log.Error(err)
+		// 			// TODO remove errcheck ignore
+		// 			p.conn.Close() // nolint: errcheck
+		// 			return
+		// 		}
 
-	// 		if _, err = io.ReadFull(p.conn, active.Data[msg.Begin:msg.Begin+length]); err != nil {
-	// 			p.log.Error(err)
-	// 			return
-	// 		}
+		// 		p.torrent.m.Lock()
+		// 		p.torrent.bitfield.Set(piece.Index)
+		// 		percentDone := p.torrent.bitfield.Count() * 100 / p.torrent.bitfield.Len()
+		// 		p.torrent.m.Unlock()
+		// 		p.cond.Broadcast()
+		// 		p.torrent.log.Infof("Completed: %d%%", percentDone)
+		// 	case messageid.Cancel:
+		// 	case messageid.Port:
+		default:
+			p.log.Debugf("Unknown message type: %d", id)
+			p.log.Debugln("Discarding", length, "bytes...")
+			// TODO remove errcheck ignore
+			io.CopyN(ioutil.Discard, p.conn, int64(length)) // nolint: errcheck
+			p.log.Debug("Discarding finished.")
+		}
 
-	// 		p.torrent.m.Lock()
-	// 		active.BlocksReceived.Set(block.Index)
-	// 		if !active.BlocksReceived.All() {
-	// 			p.torrent.m.Unlock()
-	// 			p.cond.Broadcast()
-	// 			continue
-	// 		}
-	// 		p.torrent.m.Unlock()
-
-	// 		p.log.Debugf("Writing piece to disk: #%d", piece.Index)
-	// 		if _, err = piece.Write(active.Data); err != nil {
-	// 			p.log.Error(err)
-	// 			// TODO remove errcheck ignore
-	// 			p.conn.Close() // nolint: errcheck
-	// 			return
-	// 		}
-
-	// 		p.torrent.m.Lock()
-	// 		p.torrent.bitfield.Set(piece.Index)
-	// 		percentDone := p.torrent.bitfield.Count() * 100 / p.torrent.bitfield.Len()
-	// 		p.torrent.m.Unlock()
-	// 		p.cond.Broadcast()
-	// 		p.torrent.log.Infof("Completed: %d%%", percentDone)
-	// 	case messageid.Cancel:
-	// 	case messageid.Port:
-	// 	default:
-	// 		p.log.Debugf("Unknown message type: %d", id)
-	// 		p.log.Debugln("Discarding", length, "bytes...")
-	// 		// TODO remove errcheck ignore
-	// 		io.CopyN(ioutil.Discard, p.conn, int64(length)) // nolint: errcheck
-	// 		p.log.Debug("Discarding finished.")
-	// 	}
-
-	// 	first = false
-	// }
+		first = false
+	}
 }
 
 func (p *peer) handleHave(i uint32) {
@@ -311,17 +300,16 @@ func (p *peer) handleHave(i uint32) {
 }
 
 func (p *peer) SendBitfield() error {
-	// // Do not send a bitfield message if we don't have any pieces.
-	// if p.torrent.bitfield.Count() == 0 {
-	// 	return nil
-	// }
-	// return p.sendMessage(messageid.Bitfield, p.torrent.bitfield.Bytes())
-	return nil
+	// Sending bitfield may be omitted if have no pieces.
+	if p.have.Count() == 0 {
+		return nil
+	}
+	return p.sendMessage(messageid.Bitfield, p.have.Bytes())
 }
 
 func (p *peer) BeInterested() error {
-	p.amInterestedM.Lock()
-	defer p.amInterestedM.Unlock()
+	p.m.Lock()
+	defer p.m.Unlock()
 	if p.amInterested {
 		return nil
 	}
@@ -330,8 +318,8 @@ func (p *peer) BeInterested() error {
 }
 
 func (p *peer) BeNotInterested() error {
-	p.amInterestedM.Lock()
-	defer p.amInterestedM.Unlock()
+	p.m.Lock()
+	defer p.m.Unlock()
 	if !p.amInterested {
 		return nil
 	}
@@ -339,8 +327,25 @@ func (p *peer) BeNotInterested() error {
 	return p.sendMessage(messageid.NotInterested, nil)
 }
 
-func (p *peer) Choke() error   { return p.sendMessage(messageid.Choke, nil) }
-func (p *peer) Unchoke() error { return p.sendMessage(messageid.Unchoke, nil) }
+func (p *peer) Choke() error {
+	p.m.Lock()
+	defer p.m.Unlock()
+	if p.amChoking {
+		return nil
+	}
+	p.amChoking = true
+	return p.sendMessage(messageid.Choke, nil)
+}
+
+func (p *peer) Unchoke() error {
+	p.m.Lock()
+	defer p.m.Unlock()
+	if !p.amChoking {
+		return nil
+	}
+	p.amChoking = false
+	return p.sendMessage(messageid.Unchoke, nil)
+}
 
 func (p *peer) Request(b *piece.Block) error {
 	req := requestMessage{b.Piece.Index, b.Begin, b.Length}
@@ -361,7 +366,7 @@ func (p *peer) SendPiece(index, begin uint32, block []byte) error {
 
 func (p *peer) sendMessage(id messageid.MessageID, payload []byte) error {
 	p.log.Debugf("Sending message of type: %q", id)
-	buf := bufio.NewWriterSize(p.conn, 4+1+len(payload))
+	buf := bytes.NewBuffer(make([]byte, 0, 4+1+len(payload)))
 	var header = struct {
 		Length uint32
 		ID     messageid.MessageID
@@ -369,10 +374,9 @@ func (p *peer) sendMessage(id messageid.MessageID, payload []byte) error {
 		uint32(1 + len(payload)),
 		id,
 	}
-	// TODO remove errcheck ignore
-	binary.Write(buf, binary.BigEndian, &header) // nolint: errcheck
-	buf.Write(payload)                           // nolint: errcheck
-	return buf.Flush()
+	_ = binary.Write(buf, binary.BigEndian, &header)
+	_, err := p.conn.Write(buf.Bytes())
+	return err
 }
 
 func divMod32(a, b uint32) (uint32, uint32) { return a / b, a % b }
