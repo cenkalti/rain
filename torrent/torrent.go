@@ -142,8 +142,7 @@ func (t *Torrent) Start() error {
 		return nil
 	}
 	var err error
-	addr := &net.TCPAddr{Port: t.port}
-	t.listener, err = net.ListenTCP("tcp4", addr)
+	t.listener, err = net.ListenTCP("tcp4", &net.TCPAddr{Port: t.port})
 	if err != nil {
 		return err
 	}
