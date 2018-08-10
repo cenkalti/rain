@@ -39,10 +39,6 @@
 
 [[constraint]]
   branch = "master"
-  name = "github.com/cenkalti/mse"
-
-[[constraint]]
-  branch = "master"
   name = "github.com/crosbymichael/tracker"
 
 [[constraint]]
