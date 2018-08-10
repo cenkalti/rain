@@ -64,6 +64,10 @@ func (t *Torrent) handleConn(conn net.Conn) {
 	p := peer.New(encConn, peerID, t.bitfield, log)
 
 	t.m.Lock()
+	if _, ok := t.peers[peerID]; ok {
+		t.log.Warning("peer already connected, dropping connection")
+		return
+	}
 	t.peers[peerID] = p
 	t.m.Unlock()
 	defer func() {

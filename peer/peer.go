@@ -309,41 +309,45 @@ func (p *Peer) SendBitfield() error {
 
 func (p *Peer) BeInterested() error {
 	p.m.Lock()
-	defer p.m.Unlock()
 	if p.amInterested {
+		p.m.Unlock()
 		return nil
 	}
 	p.amInterested = true
+	p.m.Unlock()
 	return p.sendMessage(messageid.Interested, nil)
 }
 
 func (p *Peer) BeNotInterested() error {
 	p.m.Lock()
-	defer p.m.Unlock()
 	if !p.amInterested {
+		p.m.Unlock()
 		return nil
 	}
 	p.amInterested = false
+	p.m.Unlock()
 	return p.sendMessage(messageid.NotInterested, nil)
 }
 
 func (p *Peer) Choke() error {
 	p.m.Lock()
-	defer p.m.Unlock()
 	if p.amChoking {
+		p.m.Unlock()
 		return nil
 	}
 	p.amChoking = true
+	p.m.Unlock()
 	return p.sendMessage(messageid.Choke, nil)
 }
 
 func (p *Peer) Unchoke() error {
 	p.m.Lock()
-	defer p.m.Unlock()
 	if !p.amChoking {
+		p.m.Unlock()
 		return nil
 	}
 	p.amChoking = false
+	p.m.Unlock()
 	return p.sendMessage(messageid.Unchoke, nil)
 }
 
