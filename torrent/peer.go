@@ -22,13 +22,16 @@ const connReadTimeout = 3 * time.Minute
 const maxAllowedBlockSize = 32 * 1024
 
 type peer struct {
-	conn    net.Conn
-	id      [20]byte
-	torrent *Torrent
+	conn net.Conn
+	id   [20]byte
+	// torrent *Torrent
 
 	disconnected bool
-	amInterested bool
-	peerChoking  bool
+
+	amChoking      bool
+	amInterested   bool
+	peerChoking    bool
+	peerInterested bool
 
 	amInterestedM sync.Mutex
 
@@ -53,9 +56,10 @@ type pieceMessage struct {
 
 func (t *Torrent) newPeer(conn net.Conn, id [20]byte, l logger.Logger) *peer {
 	p := &peer{
-		conn:        conn,
-		id:          id,
-		torrent:     t,
+		conn: conn,
+		id:   id,
+		// torrent:     t,
+		amChoking:   true,
 		peerChoking: true,
 		bitfield:    bitfield.New(t.bitfield.Len()),
 		log:         l,
@@ -299,18 +303,20 @@ func (p *peer) Run() {
 }
 
 func (p *peer) handleHave(i uint32) {
-	p.torrent.m.Lock()
-	// p.torrent.pieces[i].Peers[p.id] = struct{}{}
-	p.torrent.m.Unlock()
-	p.cond.Broadcast()
+	// p.torrent.m.Lock()
+	// // p.torrent.pieces[i].Peers[p.id] = struct{}{}
+	// p.torrent.m.Unlock()
+	// p.cond.Broadcast()
+	return
 }
 
 func (p *peer) SendBitfield() error {
-	// Do not send a bitfield message if we don't have any pieces.
-	if p.torrent.bitfield.Count() == 0 {
-		return nil
-	}
-	return p.sendMessage(messageid.Bitfield, p.torrent.bitfield.Bytes())
+	// // Do not send a bitfield message if we don't have any pieces.
+	// if p.torrent.bitfield.Count() == 0 {
+	// 	return nil
+	// }
+	// return p.sendMessage(messageid.Bitfield, p.torrent.bitfield.Bytes())
+	return nil
 }
 
 func (p *peer) BeInterested() error {
