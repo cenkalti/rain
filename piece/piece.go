@@ -20,10 +20,8 @@ type Piece struct {
 	OK     bool   // hash is correct and written to disk, Verify() must be called to set this.
 	Length uint32 // always equal to blockSize except last piece.
 	Blocks []Block
-	Files  filesection.Sections // the place to write downloaded bytes
+	Data   filesection.Sections // the place to write downloaded bytes
 	hash   []byte               // correct hash value
-	// Peers         map[[20]byte]struct{} // peers which have this piece, indexed by peer id
-	// RequestedFrom map[[20]byte]*Request // peers that we have reqeusted the piece from, indexed by peer id
 }
 
 func NewPieces(info *metainfo.Info, osFiles []*os.File) []Piece {
@@ -49,8 +47,6 @@ func NewPieces(info *metainfo.Info, osFiles []*os.File) []Piece {
 		p := Piece{
 			Index: i,
 			hash:  info.PieceHash(i),
-			// Peers:         make(map[[20]byte]struct{}),
-			// RequestedFrom: make(map[[20]byte]*Request),
 		}
 
 		// Construct p.Files
@@ -64,7 +60,7 @@ func NewPieces(info *metainfo.Info, osFiles []*os.File) []Piece {
 				Offset: fileOffset,
 				Length: int64(n),
 			}
-			p.Files = append(p.Files, file)
+			p.Data = append(p.Data, file)
 
 			left -= n
 			p.Length += n
@@ -112,54 +108,19 @@ func (p *Piece) newBlocks() []Block {
 	return blocks
 }
 
-// func (p *Piece) CreateRequest(id [20]byte) *Request {
-// 	r := &Request{
-// 		createdAt:        time.Now(),
-// 		BlocksRequesting: bitfield.New(uint32(len(p.Blocks))),
-// 		BlocksRequested:  bitfield.New(uint32(len(p.Blocks))),
-// 		BlocksReceiving:  bitfield.New(uint32(len(p.Blocks))),
-// 		BlocksReceived:   bitfield.New(uint32(len(p.Blocks))),
-// 		Data:             make([]byte, p.Length),
-// 	}
-// 	p.RequestedFrom[id] = r
-// 	return r
-// }
-
-// func (p *Piece) GetRequest(id [20]byte) *Request {
-// 	return p.RequestedFrom[id]
-// }
-
-// func (p *Piece) DeleteRequest(id [20]byte) {
-// 	delete(p.RequestedFrom, id)
-// }
-
-// func (p *Piece) NextBlock(id [20]byte) (*Block, bool) {
-// 	i, ok := p.RequestedFrom[id].BlocksRequested.FirstClear(0)
-// 	if !ok {
-// 		return nil, false
-// 	}
-// 	return &p.Blocks[i], true
-// }
-
-// func (b *Block) deleteRequested(id [20]byte) {
-// 	b.Piece.RequestedFrom[id].BlocksRequested.Clear(b.Index)
-// }
-
-// func (p *Piece) Availability() int { return len(p.Peers) }
-
 func (p *Piece) Write(b []byte) (n int, err error) {
 	hash := sha1.New()
 	hash.Write(b)
 	if !bytes.Equal(hash.Sum(nil), p.hash) {
 		return 0, errors.New("corrupt piece")
 	}
-	return p.Files.Write(b)
+	return p.Data.Write(b)
 }
 
 // Verify reads from disk and sets p.OK if piece is complete.
 func (p *Piece) Verify() error {
 	hash := sha1.New()
-	if _, err := io.CopyN(hash, p.Files.Reader(), int64(p.Length)); err != nil {
+	if _, err := io.CopyN(hash, p.Data.Reader(), int64(p.Length)); err != nil {
 		return err
 	}
 	p.OK = bytes.Equal(hash.Sum(nil), p.hash)
