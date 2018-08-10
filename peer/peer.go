@@ -40,10 +40,6 @@ type Peer struct {
 	log logger.Logger
 }
 
-type peerRequest struct {
-	Peer *Peer
-	requestMessage
-}
 type requestMessage struct {
 	Index, Begin, Length uint32
 }
@@ -282,8 +278,11 @@ func (p *Peer) Run() {
 		default:
 			p.log.Debugf("Unknown message type: %d", id)
 			p.log.Debugln("Discarding", length, "bytes...")
-			// TODO remove errcheck ignore
-			io.CopyN(ioutil.Discard, p.conn, int64(length)) // nolint: errcheck
+			_, err = io.CopyN(ioutil.Discard, p.conn, int64(length))
+			if err != nil {
+				p.log.Error(err)
+				return
+			}
 			p.log.Debug("Discarding finished.")
 		}
 
