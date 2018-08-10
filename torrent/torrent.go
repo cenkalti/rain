@@ -64,6 +64,7 @@ type Torrent struct {
 	peerAddrs     []*peerAddr             // contains peers not connected yet, sorted by oldest first
 	peerAddrsMap  map[string]*peerAddr    // contains peers not connected yet, keyed by addr string
 	m             sync.Mutex              // protects all state in this torrent and it's peers
+	gotPeer       *sync.Cond              // for waking announcer when got new peers from tracker
 	running       bool                    // true after Start() is called
 	closed        bool                    // true after Close() is called
 	log           logger.Logger
@@ -118,6 +119,7 @@ func New(r io.Reader, dest string, port int) (*Torrent, error) {
 		peerAddrsMap: make(map[string]*peerAddr),
 		log:          logger.New("download " + logName),
 	}
+	t.gotPeer = sync.NewCond(&t.m)
 	t.checkCompletion()
 	return t, nil
 }

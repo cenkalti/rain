@@ -2,15 +2,10 @@ package torrent
 
 import (
 	"net"
-	"time"
 
 	"github.com/cenkalti/rain/btconn"
 	"github.com/cenkalti/rain/logger"
 	"github.com/cenkalti/rain/peer"
-)
-
-const (
-	noPeerRetryDuration = time.Second
 )
 
 func (t *Torrent) dialer() {
@@ -18,17 +13,19 @@ func (t *Torrent) dialer() {
 	for {
 		select {
 		case t.peerLimiter <- struct{}{}:
+			t.m.Lock()
 			addr := t.nextPeerAddr()
-			if addr == nil {
-				<-t.peerLimiter
-				t.log.Debugln("no more peer to connect, will try again after", noPeerRetryDuration)
+			for addr == nil {
+				t.log.Debugln("no more peer to connect, waiting next announce")
+				t.gotPeer.Wait()
 				select {
-				case <-time.After(noPeerRetryDuration):
 				case <-t.stopC:
 					return
+				default:
 				}
-				continue
+				addr = t.nextPeerAddr()
 			}
+			t.m.Unlock()
 			t.stopWG.Add(1)
 			go t.dialAndRun(addr)
 		case <-t.stopC:

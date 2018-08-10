@@ -59,6 +59,8 @@ func (t *Torrent) announcer() {
 		case <-time.After(d):
 			announce(tracker.EventNone)
 		case <-t.stopC:
+			// Wake up dialer goroutine waiting for new peers because we won't get more peers.
+			t.gotPeer.Broadcast()
 			return
 		}
 	}

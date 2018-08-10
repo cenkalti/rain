@@ -12,8 +12,6 @@ type peerAddr struct {
 }
 
 func (t *Torrent) nextPeerAddr() net.Addr {
-	t.m.Lock()
-	defer t.m.Unlock()
 	if len(t.peerAddrs) == 0 {
 		return nil
 	}
@@ -25,6 +23,7 @@ func (t *Torrent) nextPeerAddr() net.Addr {
 
 func (t *Torrent) putPeerAddrs(addrs []*net.TCPAddr) {
 	t.m.Lock()
+	defer t.gotPeer.Signal()
 	defer t.m.Unlock()
 	now := time.Now()
 	for _, a := range addrs {
