@@ -4,17 +4,17 @@ import "io"
 
 // Section of a file.
 type Section struct {
-	File   readwriterAt
+	File   ReadWriterAt
 	Offset int64
 	Length int64
 }
 
-type readwriterAt interface {
+type ReadWriterAt interface {
 	io.ReaderAt
 	io.WriterAt
 }
 
-// Sections is contigious sections of files. When piece hashes in torrent file is being calculated
+// Sections is contiguous sections of files. When piece hashes in torrent file is being calculated
 // all files are concatenated and splitted into pieces in length specified in the torrent file.
 type Sections []Section
 
