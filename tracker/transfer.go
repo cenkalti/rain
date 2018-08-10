@@ -1,9 +1,9 @@
 package tracker
 
 type Transfer interface {
-	Uploaded() int64
-	Downloaded() int64
-	Left() int64
+	BytesUploaded() int64
+	BytesDownloaded() int64
+	BytesLeft() int64
 	InfoHash() [20]byte
 	PeerID() [20]byte
 	Port() int

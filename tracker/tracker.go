@@ -8,7 +8,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/cenkalti/backoff"
 	"github.com/cenkalti/rain/logger"
 )
 
@@ -32,12 +31,6 @@ type AnnounceResponse struct {
 	Seeders    int32
 	Peers      []*net.TCPAddr
 	ExternalIP net.IP
-}
-
-// AnnouncePeriodically announces to the tracker periodically and adjust the interval according to the response returned by the tracker.
-// Puts responses into responseC. Blocks when sending to this channel.
-// t.Close must be called after using this function to close open connections to the tracker.
-func AnnouncePeriodically(t Tracker, transfer Transfer, cancel <-chan struct{}, StartEvent Event, eventC <-chan Event, responseC chan<- *AnnounceResponse) {
 }
 
 // ParsePeersBinary parses compact representation of peer list.
@@ -73,16 +66,3 @@ type Error string
 
 func (e Error) Error() string { return string(e) }
 
-// defaultRetryBackoff is the back-off algorithm to use before retrying failed announce and scrape operations.
-var defaultRetryBackoff = &backoff.ExponentialBackOff{
-	InitialInterval:     5 * time.Second,
-	RandomizationFactor: 0.5,
-	Multiplier:          2,
-	MaxInterval:         30 * time.Minute,
-	MaxElapsedTime:      0, // never stop
-	Clock:               backoff.SystemClock,
-}
-
-func init() {
-	defaultRetryBackoff.Reset()
-}

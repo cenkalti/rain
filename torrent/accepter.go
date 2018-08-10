@@ -8,24 +8,22 @@ import (
 )
 
 func (t *Torrent) accepter() {
+	defer t.stopWG.Done()
 	for {
 		conn, err := t.listener.Accept()
 		if err != nil {
 			t.log.Error(err)
 			return
 		}
+		t.stopWG.Add(1)
 		go t.handleConn(conn)
 	}
 }
 
 func (t *Torrent) handleConn(conn net.Conn) {
 	log := logger.New("peer <- " + conn.RemoteAddr().String())
-	defer func() {
-		err := conn.Close()
-		if err != nil {
-			log.Error("cannot close conn:", err)
-		}
-	}()
+	defer t.stopWG.Done()
+	defer closeConn(conn, log)
 	select {
 	case t.peerLimiter <- struct{}{}:
 		defer func() { <-t.peerLimiter }()

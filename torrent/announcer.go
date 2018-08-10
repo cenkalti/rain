@@ -1,49 +1,61 @@
 package torrent
 
 import (
-// "time"
+	"sync"
+	"time"
+
+	"github.com/cenkalti/backoff"
+	"github.com/cenkalti/rain/tracker"
 )
 
 // TODO implement
 func (t *Torrent) announcer() {
-	// var nextAnnounce time.Duration
-	// var retry = *defaultRetryBackoff
+	defer t.stopWG.Done()
+	var nextAnnounce time.Duration
 
-	// announce := func(e Event) {
-	// 	r, err := t.Announce(transfer, e, cancel)
-	// 	if err != nil {
-	// 		r = &AnnounceResponse{Error: err}
-	// 		nextAnnounce = retry.NextBackOff()
-	// 	} else {
-	// 		retry.Reset()
-	// 		nextAnnounce = r.Interval
-	// 	}
-	// 	select {
-	// 	case responseC <- r:
-	// 	case <-cancel:
-	// 		return
-	// 	}
-	// }
+	retry := &backoff.ExponentialBackOff{
+		InitialInterval:     5 * time.Second,
+		RandomizationFactor: 0.5,
+		Multiplier:          2,
+		MaxInterval:         30 * time.Minute,
+		MaxElapsedTime:      0, // never stop
+		Clock:               backoff.SystemClock,
+	}
+	retry.Reset()
 
-	// announce(StartEvent)
-	// for {
-	// 	select {
-	// 	case <-time.After(nextAnnounce):
-	// 		announce(EventNone)
-	// 	case e := <-eventC:
-	// 		announce(e)
-	// 	case <-cancel:
-	// 		return
-	// 	}
-	// }
+	var m sync.Mutex
+	announce := func(e tracker.Event) {
+		m.Lock()
+		defer m.Unlock()
+		r, err := t.tracker.Announce(t, e, t.stopC)
+		if err != nil {
+			t.log.Errorln("announce error:", err)
+			nextAnnounce = retry.NextBackOff()
+		} else {
+			retry.Reset()
+			nextAnnounce = r.Interval
+			t.putPeerAddrs(r.Peers)
+		}
+	}
+
+	announce(tracker.EventStarted)
+	defer announce(tracker.EventStopped)
+	go func() {
+		select {
+		case <-t.completed:
+			announce(tracker.EventCompleted)
+		case <-t.stopC:
+			return
+		}
+
+	}()
+
+	for {
+		select {
+		case <-time.After(nextAnnounce):
+			announce(tracker.EventNone)
+		case <-t.stopC:
+			return
+		}
+	}
 }
-
-// func (t *Torrent) announcer() {
-// 	var startEvent tracker.Event
-// 	if t.bitfield.All() {
-// 		startEvent = tracker.EventCompleted
-// 	} else {
-// 		startEvent = tracker.EventStarted
-// 	}
-// 	tracker.AnnouncePeriodically(t.tracker, t, t.stopC, startEvent, nil, t.announceC)
-// }

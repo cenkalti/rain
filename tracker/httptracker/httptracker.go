@@ -52,9 +52,9 @@ func (t *HTTPTracker) Announce(transfer tracker.Transfer, e tracker.Event, cance
 	q.Set("info_hash", string(infoHash[:]))
 	q.Set("peer_id", string(peerID[:]))
 	q.Set("port", strconv.FormatUint(uint64(transfer.Port()), 10))
-	q.Set("uploaded", strconv.FormatInt(transfer.Uploaded(), 10))
-	q.Set("downloaded", strconv.FormatInt(transfer.Downloaded(), 10))
-	q.Set("left", strconv.FormatInt(transfer.Left(), 10))
+	q.Set("uploaded", strconv.FormatInt(transfer.BytesUploaded(), 10))
+	q.Set("downloaded", strconv.FormatInt(transfer.BytesDownloaded(), 10))
+	q.Set("left", strconv.FormatInt(transfer.BytesLeft(), 10))
 	q.Set("compact", "1")
 	q.Set("no_peer_id", "1")
 	q.Set("numwant", strconv.Itoa(tracker.NumWant))
@@ -67,7 +67,7 @@ func (t *HTTPTracker) Announce(transfer tracker.Transfer, e tracker.Event, cance
 
 	u := t.URL
 	u.RawQuery = q.Encode()
-	t.Log.Debugf("u.String(): %q", u.String())
+	t.Log.Debugf("making request to: %q", u.String())
 
 	req := &http.Request{
 		Method:     "GET",
