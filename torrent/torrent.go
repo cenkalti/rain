@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	"github.com/cenkalti/rain/bitfield"
-	"github.com/cenkalti/rain/btconn"
 	"github.com/cenkalti/rain/logger"
 	"github.com/cenkalti/rain/metainfo"
 	"github.com/cenkalti/rain/mse"
@@ -206,75 +205,6 @@ func (t *Torrent) Close() error {
 	return result
 }
 
-func (t *Torrent) accepter() {
-	for {
-		conn, err := t.listener.Accept()
-		if err != nil {
-			t.log.Error(err)
-			return
-		}
-		go t.handleConn(conn)
-	}
-}
-
-func (t *Torrent) handleConn(conn net.Conn) {
-	log := logger.New("peer <- " + conn.RemoteAddr().String())
-	defer func() {
-		err := conn.Close()
-		if err != nil {
-			log.Error("cannot close conn:", err)
-		}
-	}()
-	select {
-	case t.peerLimiter <- struct{}{}:
-		defer func() { <-t.peerLimiter }()
-	default:
-		log.Debugln("peer limit reached, rejecting peer")
-		return
-	}
-
-	// TODO get this from config
-	encryptionForceIncoming := false
-
-	encConn, cipher, extensions, peerID, _, err := btconn.Accept(
-		conn,
-		func(sKeyHash [20]byte) (sKey []byte) {
-			if sKeyHash == t.sKeyHash {
-				return t.metainfo.Info.Hash[:]
-			}
-			return nil
-		},
-		encryptionForceIncoming,
-		func(infoHash [20]byte) bool {
-			return infoHash == t.metainfo.Info.Hash
-		},
-		[8]byte{}, // no extension for now
-		t.peerID,
-	)
-	if err != nil {
-		if err == btconn.ErrOwnConnection {
-			log.Warning(err)
-		} else {
-			log.Error(err)
-		}
-		return
-	}
-	log.Infof("Connection accepted. (cipher=%s extensions=%x client=%q)", cipher, extensions, peerID[:8])
-
-	p := t.newPeer(encConn, peerID, log)
-
-	t.m.Lock()
-	t.peers[peerID] = p
-	t.m.Unlock()
-	defer func() {
-		t.m.Lock()
-		delete(t.peers, peerID)
-		t.m.Unlock()
-	}()
-
-	p.Run()
-}
-
 // Port returns the port number that the client is listening.
 // If the client does not listen any port, returns 0.
 func (t *Torrent) Port() int {
@@ -283,8 +213,6 @@ func (t *Torrent) Port() int {
 	}
 	return 0
 }
-
-// func (t *Torrent) InfoHash() [20]byte            { return t.info.Hash }
 
 func (t *Torrent) CompleteNotify() chan struct{} { return t.completed }
 
@@ -306,34 +234,3 @@ func (t *Torrent) BytesDownloaded() int64 { return t.BytesCompleted() } // TODO 
 func (t *Torrent) BytesUploaded() int64   { return 0 }                  // TODO count uploaded bytes
 func (t *Torrent) BytesLeft() int64       { return t.BytesTotal() - t.BytesCompleted() }
 func (t *Torrent) BytesTotal() int64      { return t.metainfo.Info.TotalLength }
-
-// func (t *Torrent) run() {
-// 	// Start download workers
-// 	if !t.bitfield.All() {
-// 		go t.connecter()
-// 		go t.peerManager()
-// 	}
-
-// 	// Start upload workers
-// 	go t.requestSelector()
-// 	for i := 0; i < uploadSlotsPerTorrent; i++ {
-// 		go t.pieceUploader()
-// 	}
-
-// 	go t.announcer()
-
-// 	for {
-// 		select {
-// 		case announce := <-t.announceC:
-// 			if announce.Error != nil {
-// 				t.log.Error(announce.Error)
-// 				break
-// 			}
-// 			t.log.Infof("Announce: %d seeder, %d leecher", announce.Seeders, announce.Leechers)
-// 			t.peersC <- announce.Peers
-// 		case <-t.stopC:
-// 			t.log.Notice("Transfer is stopped.")
-// 			return
-// 		}
-// 	}
-// }

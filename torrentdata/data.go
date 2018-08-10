@@ -38,16 +38,6 @@ func (d *Data) Close() error {
 	return result
 }
 
-func (d *Data) BytesCompleted() int64 {
-	var sum int64
-	for _, p := range d.pieces {
-		if p.OK {
-			sum += int64(p.Length)
-		}
-	}
-	return sum
-}
-
 func (d *Data) Piece(index int) *piece.Piece {
 	return &d.pieces[index]
 }
