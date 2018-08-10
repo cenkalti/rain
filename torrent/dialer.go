@@ -6,6 +6,7 @@ import (
 
 	"github.com/cenkalti/rain/btconn"
 	"github.com/cenkalti/rain/logger"
+	"github.com/cenkalti/rain/peer"
 )
 
 const (
@@ -57,7 +58,7 @@ func (t *Torrent) dialAndRun(addr net.Addr) {
 	log.Infof("Connected to peer. (cipher=%s extensions=%x client=%q)", cipher, extensions, peerID[:8])
 	defer closeConn(conn, log)
 
-	p := newPeer(conn, peerID, t.bitfield, log)
+	p := peer.New(conn, peerID, t.bitfield, log)
 
 	t.m.Lock()
 	t.peers[peerID] = p

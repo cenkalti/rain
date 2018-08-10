@@ -1,4 +1,4 @@
-package torrent
+package peer
 
 import (
 	"bytes"
@@ -20,7 +20,7 @@ const connReadTimeout = 3 * time.Minute
 // Reject requests larger than this size.
 const maxAllowedBlockSize = 32 * 1024
 
-type peer struct {
+type Peer struct {
 	conn net.Conn
 	id   [20]byte
 
@@ -41,7 +41,7 @@ type peer struct {
 }
 
 type peerRequest struct {
-	Peer *peer
+	Peer *Peer
 	requestMessage
 }
 type requestMessage struct {
@@ -52,8 +52,8 @@ type pieceMessage struct {
 	Index, Begin uint32
 }
 
-func newPeer(conn net.Conn, id [20]byte, have *bitfield.Bitfield, l logger.Logger) *peer {
-	p := &peer{
+func New(conn net.Conn, id [20]byte, have *bitfield.Bitfield, l logger.Logger) *Peer {
+	p := &Peer{
 		conn:        conn,
 		id:          id,
 		amChoking:   true,
@@ -64,12 +64,12 @@ func newPeer(conn net.Conn, id [20]byte, have *bitfield.Bitfield, l logger.Logge
 	return p
 }
 
-func (p *peer) String() string { return p.conn.RemoteAddr().String() }
-func (p *peer) Close() error   { return p.conn.Close() }
+func (p *Peer) String() string { return p.conn.RemoteAddr().String() }
+func (p *Peer) Close() error   { return p.conn.Close() }
 
 // Run reads and processes incoming messages after handshake.
 // TODO send keep-alive messages to peers at interval.
-func (p *peer) Run() {
+func (p *Peer) Run() {
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 
 	if err := p.SendBitfield(); err != nil {
@@ -291,7 +291,7 @@ func (p *peer) Run() {
 	}
 }
 
-func (p *peer) handleHave(i uint32) {
+func (p *Peer) handleHave(i uint32) {
 	// p.torrent.m.Lock()
 	// // p.torrent.pieces[i].Peers[p.id] = struct{}{}
 	// p.torrent.m.Unlock()
@@ -299,7 +299,7 @@ func (p *peer) handleHave(i uint32) {
 	return
 }
 
-func (p *peer) SendBitfield() error {
+func (p *Peer) SendBitfield() error {
 	// Sending bitfield may be omitted if have no pieces.
 	if p.have.Count() == 0 {
 		return nil
@@ -307,7 +307,7 @@ func (p *peer) SendBitfield() error {
 	return p.sendMessage(messageid.Bitfield, p.have.Bytes())
 }
 
-func (p *peer) BeInterested() error {
+func (p *Peer) BeInterested() error {
 	p.m.Lock()
 	defer p.m.Unlock()
 	if p.amInterested {
@@ -317,7 +317,7 @@ func (p *peer) BeInterested() error {
 	return p.sendMessage(messageid.Interested, nil)
 }
 
-func (p *peer) BeNotInterested() error {
+func (p *Peer) BeNotInterested() error {
 	p.m.Lock()
 	defer p.m.Unlock()
 	if !p.amInterested {
@@ -327,7 +327,7 @@ func (p *peer) BeNotInterested() error {
 	return p.sendMessage(messageid.NotInterested, nil)
 }
 
-func (p *peer) Choke() error {
+func (p *Peer) Choke() error {
 	p.m.Lock()
 	defer p.m.Unlock()
 	if p.amChoking {
@@ -337,7 +337,7 @@ func (p *peer) Choke() error {
 	return p.sendMessage(messageid.Choke, nil)
 }
 
-func (p *peer) Unchoke() error {
+func (p *Peer) Unchoke() error {
 	p.m.Lock()
 	defer p.m.Unlock()
 	if !p.amChoking {
@@ -347,7 +347,7 @@ func (p *peer) Unchoke() error {
 	return p.sendMessage(messageid.Unchoke, nil)
 }
 
-func (p *peer) Request(b *piece.Block) error {
+func (p *Peer) Request(b *piece.Block) error {
 	req := requestMessage{b.Piece.Index, b.Begin, b.Length}
 	buf := bytes.NewBuffer(make([]byte, 0, 12))
 	// TODO remove errcheck ignore
@@ -355,7 +355,7 @@ func (p *peer) Request(b *piece.Block) error {
 	return p.sendMessage(messageid.Request, buf.Bytes())
 }
 
-func (p *peer) SendPiece(index, begin uint32, block []byte) error {
+func (p *Peer) SendPiece(index, begin uint32, block []byte) error {
 	msg := &pieceMessage{index, begin}
 	buf := bytes.NewBuffer(make([]byte, 0, 8))
 	// TODO remove errcheck ignore
@@ -364,7 +364,7 @@ func (p *peer) SendPiece(index, begin uint32, block []byte) error {
 	return p.sendMessage(messageid.Piece, buf.Bytes())
 }
 
-func (p *peer) sendMessage(id messageid.MessageID, payload []byte) error {
+func (p *Peer) sendMessage(id messageid.MessageID, payload []byte) error {
 	p.log.Debugf("Sending message of type: %q", id)
 	buf := bytes.NewBuffer(make([]byte, 0, 4+1+len(payload)))
 	var header = struct {

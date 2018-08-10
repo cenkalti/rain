@@ -5,6 +5,7 @@ import (
 
 	"github.com/cenkalti/rain/btconn"
 	"github.com/cenkalti/rain/logger"
+	"github.com/cenkalti/rain/peer"
 )
 
 func (t *Torrent) accepter() {
@@ -60,7 +61,7 @@ func (t *Torrent) handleConn(conn net.Conn) {
 	}
 	log.Infof("Connection accepted. (cipher=%s extensions=%x client=%q)", cipher, extensions, peerID[:8])
 
-	p := newPeer(encConn, peerID, t.bitfield, log)
+	p := peer.New(encConn, peerID, t.bitfield, log)
 
 	t.m.Lock()
 	t.peers[peerID] = p

@@ -13,6 +13,7 @@ import (
 	"github.com/cenkalti/rain/logger"
 	"github.com/cenkalti/rain/metainfo"
 	"github.com/cenkalti/rain/mse"
+	"github.com/cenkalti/rain/peer"
 	"github.com/cenkalti/rain/torrentdata"
 	"github.com/cenkalti/rain/tracker"
 	"github.com/cenkalti/rain/tracker/httptracker"
@@ -45,26 +46,26 @@ var (
 
 // Torrent connect to peers and downloads files from swarm.
 type Torrent struct {
-	peerID        [20]byte             // unique id per torrent
-	metainfo      *metainfo.MetaInfo   // parsed torrent file
-	data          *torrentdata.Data    // provides access to files on disk
-	dest          string               // path of files on disk
-	port          int                  // listen for peer connections
-	listener      *net.TCPListener     // listens port for peer connections
-	tracker       tracker.Tracker      // tracker to announce
-	peers         map[[20]byte]*peer   // connected peers
-	sKeyHash      [20]byte             // for encryption, hash of the info hash
-	bitfield      *bitfield.Bitfield   // keeps track of the pieces we have
-	peerLimiter   chan struct{}        // semaphore for limiting number of peers
-	completed     chan struct{}        // closed when all pieces are downloaded
-	onceCompleted sync.Once            // for closing completed channel only once
-	stopC         chan struct{}        // all goroutines stop when closed
-	stopWG        sync.WaitGroup       // for waiting running goroutines
-	peerAddrs     []*peerAddr          // contains peers not connected yet, sorted by oldest first
-	peerAddrsMap  map[string]*peerAddr // contains peers not connected yet, keyed by addr string
-	m             sync.Mutex           // protects all state in this torrent and it's peers
-	running       bool                 // true after Start() is called
-	closed        bool                 // true after Close() is called
+	peerID        [20]byte                // unique id per torrent
+	metainfo      *metainfo.MetaInfo      // parsed torrent file
+	data          *torrentdata.Data       // provides access to files on disk
+	dest          string                  // path of files on disk
+	port          int                     // listen for peer connections
+	listener      *net.TCPListener        // listens port for peer connections
+	tracker       tracker.Tracker         // tracker to announce
+	peers         map[[20]byte]*peer.Peer // connected peers
+	sKeyHash      [20]byte                // for encryption, hash of the info hash
+	bitfield      *bitfield.Bitfield      // keeps track of the pieces we have
+	peerLimiter   chan struct{}           // semaphore for limiting number of peers
+	completed     chan struct{}           // closed when all pieces are downloaded
+	onceCompleted sync.Once               // for closing completed channel only once
+	stopC         chan struct{}           // all goroutines stop when closed
+	stopWG        sync.WaitGroup          // for waiting running goroutines
+	peerAddrs     []*peerAddr             // contains peers not connected yet, sorted by oldest first
+	peerAddrsMap  map[string]*peerAddr    // contains peers not connected yet, keyed by addr string
+	m             sync.Mutex              // protects all state in this torrent and it's peers
+	running       bool                    // true after Start() is called
+	closed        bool                    // true after Close() is called
 	log           logger.Logger
 }
 
@@ -109,7 +110,7 @@ func New(r io.Reader, dest string, port int) (*Torrent, error) {
 		dest:         dest,
 		port:         port,
 		tracker:      trk,
-		peers:        make(map[[20]byte]*peer),
+		peers:        make(map[[20]byte]*peer.Peer),
 		sKeyHash:     mse.HashSKey(m.Info.Hash[:]),
 		bitfield:     bf,
 		peerLimiter:  make(chan struct{}, maxPeerPerTorrent),
