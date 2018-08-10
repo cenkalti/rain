@@ -117,13 +117,17 @@ func New(r io.Reader, dest string, port int) (*Torrent, error) {
 		peerAddrsMap: make(map[string]*peerAddr),
 		log:          logger.New("download " + logName),
 	}
-	if bf.All() {
+	t.checkCompletion()
+	return t, nil
+}
+
+func (t *Torrent) checkCompletion() {
+	if t.bitfield.All() {
 		t.onceCompleted.Do(func() {
 			close(t.completed)
 			t.log.Notice("Download completed")
 		})
 	}
-	return t, nil
 }
 
 func newTracker(trackerURL string) (tracker.Tracker, error) {
