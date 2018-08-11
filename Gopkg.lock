@@ -8,10 +8,10 @@
   version = "v1.0.6"
 
 [[projects]]
+  branch = "master"
   name = "github.com/cenkalti/backoff"
   packages = ["."]
-  revision = "2ea60e5f094469f9e65adb9cd103795b73ae743e"
-  version = "v2.0.0"
+  revision = "b7325b0f3f1097c6546ea5e83c4a23267e58ad71"
 
 [[projects]]
   branch = "master"
@@ -74,12 +74,6 @@
 
 [[projects]]
   branch = "master"
-  name = "golang.org/x/net"
-  packages = ["context"]
-  revision = "f4c29de78a2a91c00474a2e689954305c350adf9"
-
-[[projects]]
-  branch = "master"
   name = "golang.org/x/sys"
   packages = [
     "unix",
@@ -96,6 +90,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f5474bb3abd793113096778d81433cec73cffbfbccff8a9104fecd09e4e372d2"
+  inputs-digest = "b29ada99522c43086615bbc909772ac86eace0a98a34ce6a4b2fbf0b5e77bb4a"
   solver-name = "gps-cdcl"
   solver-version = 1
