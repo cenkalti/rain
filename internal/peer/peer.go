@@ -12,7 +12,6 @@ import (
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/messageid"
-	"github.com/cenkalti/rain/internal/piece"
 )
 
 const connReadTimeout = 3 * time.Minute
@@ -21,8 +20,9 @@ const connReadTimeout = 3 * time.Minute
 const maxAllowedBlockSize = 32 * 1024
 
 type Peer struct {
-	conn net.Conn
-	id   [20]byte
+	conn      net.Conn
+	id        [20]byte
+	numPieces uint32
 
 	amChoking      bool
 	amInterested   bool
@@ -32,12 +32,6 @@ type Peer struct {
 	// pieces that the peer has
 	bitfield *bitfield.Bitfield
 
-	// pieces we have
-	have *bitfield.Bitfield
-
-	pending *bitfield.Bitfield
-
-	// cond *sync.Cond
 	m   sync.Mutex
 	log logger.Logger
 }
@@ -50,13 +44,13 @@ type pieceMessage struct {
 	Index, Begin uint32
 }
 
-func New(conn net.Conn, id [20]byte, have *bitfield.Bitfield, l logger.Logger) *Peer {
+func New(conn net.Conn, id [20]byte, numPieces uint32, l logger.Logger) *Peer {
 	p := &Peer{
 		conn:        conn,
 		id:          id,
+		numPieces:   numPieces,
 		amChoking:   true,
 		peerChoking: true,
-		have:        have,
 		log:         l,
 	}
 	return p
@@ -69,11 +63,6 @@ func (p *Peer) Close() error   { return p.conn.Close() }
 // TODO send keep-alive messages to peers at interval.
 func (p *Peer) Run() {
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
-
-	if err := p.SendBitfield(); err != nil {
-		p.log.Error(err)
-		return
-	}
 
 	first := true
 	for {
@@ -146,7 +135,7 @@ func (p *Peer) Run() {
 				p.log.Error(err)
 				return
 			}
-			if i >= p.have.Len() {
+			if i >= p.numPieces {
 				p.log.Error("unexpected piece index")
 				return
 			}
@@ -158,19 +147,19 @@ func (p *Peer) Run() {
 				p.log.Error("bitfield can only be sent after handshake")
 				return
 			}
-
-			if length != uint32(len(p.have.Bytes())) {
+			numBytes := bitfield.NumBytes(p.numPieces)
+			if length != numBytes {
 				p.log.Error("invalid bitfield length")
 				return
 			}
 
-			b := make([]byte, len(p.have.Bytes()))
+			b := make([]byte, numBytes)
 			_, err = io.ReadFull(p.conn, b)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
-			bf := bitfield.NewBytes(b, p.have.Len())
+			bf := bitfield.NewBytes(b, p.numPieces)
 			p.m.Lock()
 			p.bitfield = bf
 			p.m.Unlock()
@@ -302,15 +291,15 @@ func (p *Peer) handleHave(i uint32) {
 	return
 }
 
-func (p *Peer) SendBitfield() error {
+func (p *Peer) SendBitfield(b *bitfield.Bitfield) error {
 	// Sending bitfield may be omitted if have no pieces.
-	if p.have.Count() == 0 {
+	if b.Count() == 0 {
 		return nil
 	}
-	return p.sendMessage(messageid.Bitfield, p.have.Bytes())
+	return p.writeMessage(messageid.Bitfield, b.Bytes())
 }
 
-func (p *Peer) BeInterested() error {
+func (p *Peer) SendInterested() error {
 	p.m.Lock()
 	if p.amInterested {
 		p.m.Unlock()
@@ -318,10 +307,10 @@ func (p *Peer) BeInterested() error {
 	}
 	p.amInterested = true
 	p.m.Unlock()
-	return p.sendMessage(messageid.Interested, nil)
+	return p.writeMessage(messageid.Interested, nil)
 }
 
-func (p *Peer) BeNotInterested() error {
+func (p *Peer) SendNotInterested() error {
 	p.m.Lock()
 	if !p.amInterested {
 		p.m.Unlock()
@@ -329,10 +318,10 @@ func (p *Peer) BeNotInterested() error {
 	}
 	p.amInterested = false
 	p.m.Unlock()
-	return p.sendMessage(messageid.NotInterested, nil)
+	return p.writeMessage(messageid.NotInterested, nil)
 }
 
-func (p *Peer) Choke() error {
+func (p *Peer) SendChoke() error {
 	p.m.Lock()
 	if p.amChoking {
 		p.m.Unlock()
@@ -340,10 +329,10 @@ func (p *Peer) Choke() error {
 	}
 	p.amChoking = true
 	p.m.Unlock()
-	return p.sendMessage(messageid.Choke, nil)
+	return p.writeMessage(messageid.Choke, nil)
 }
 
-func (p *Peer) Unchoke() error {
+func (p *Peer) SendUnchoke() error {
 	p.m.Lock()
 	if !p.amChoking {
 		p.m.Unlock()
@@ -351,15 +340,15 @@ func (p *Peer) Unchoke() error {
 	}
 	p.amChoking = false
 	p.m.Unlock()
-	return p.sendMessage(messageid.Unchoke, nil)
+	return p.writeMessage(messageid.Unchoke, nil)
 }
 
-func (p *Peer) Request(b *piece.Block) error {
-	req := requestMessage{b.Piece.Index, b.Begin, b.Length}
+func (p *Peer) SendRequest(piece, begin, length uint32) error {
+	req := requestMessage{piece, begin, length}
 	buf := bytes.NewBuffer(make([]byte, 0, 12))
 	// TODO remove errcheck ignore
 	binary.Write(buf, binary.BigEndian, &req) // nolint: errcheck
-	return p.sendMessage(messageid.Request, buf.Bytes())
+	return p.writeMessage(messageid.Request, buf.Bytes())
 }
 
 func (p *Peer) SendPiece(index, begin uint32, block []byte) error {
@@ -368,10 +357,10 @@ func (p *Peer) SendPiece(index, begin uint32, block []byte) error {
 	// TODO remove errcheck ignore
 	binary.Write(buf, binary.BigEndian, msg) // nolint: errcheck
 	buf.Write(block)
-	return p.sendMessage(messageid.Piece, buf.Bytes())
+	return p.writeMessage(messageid.Piece, buf.Bytes())
 }
 
-func (p *Peer) sendMessage(id messageid.MessageID, payload []byte) error {
+func (p *Peer) writeMessage(id messageid.MessageID, payload []byte) error {
 	p.log.Debugf("Sending message of type: %q", id)
 	buf := bytes.NewBuffer(make([]byte, 0, 4+1+len(payload)))
 	var header = struct {

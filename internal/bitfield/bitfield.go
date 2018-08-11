@@ -6,6 +6,10 @@ import (
 	"sync"
 )
 
+func NumBytes(length uint32) uint32 {
+	return uint32((uint64(length) + 7) / 8)
+}
+
 // Bitfield is described in BEP 3.
 type Bitfield struct {
 	b      []byte
@@ -16,7 +20,7 @@ type Bitfield struct {
 // New creates a new Bitfield of length bits.
 func New(length uint32) *Bitfield {
 	return &Bitfield{
-		b:      make([]byte, (length+7)/8),
+		b:      make([]byte, NumBytes(length)),
 		length: length,
 	}
 }

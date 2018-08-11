@@ -55,7 +55,12 @@ func (t *Torrent) dialAndRun(addr net.Addr) {
 	log.Infof("Connected to peer. (cipher=%s extensions=%x client=%q)", cipher, extensions, peerID[:8])
 	defer closeConn(conn, log)
 
-	p := peer.New(conn, peerID, t.bitfield, log)
+	p := peer.New(conn, peerID, t.metainfo.Info.NumPieces, log)
+
+	if err := p.SendBitfield(t.bitfield); err != nil {
+		log.Error(err)
+		return
+	}
 
 	t.m.Lock()
 	if _, ok := t.peers[peerID]; ok {
