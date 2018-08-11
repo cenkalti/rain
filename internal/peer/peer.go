@@ -61,8 +61,13 @@ func (p *Peer) Close() error   { return p.conn.Close() }
 
 // Run reads and processes incoming messages after handshake.
 // TODO send keep-alive messages to peers at interval.
-func (p *Peer) Run() {
+func (p *Peer) Run(b *bitfield.Bitfield) {
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
+
+	if err := p.sendBitfield(b); err != nil {
+		p.log.Error(err)
+		return
+	}
 
 	first := true
 	for {
@@ -291,7 +296,7 @@ func (p *Peer) handleHave(i uint32) {
 	return
 }
 
-func (p *Peer) SendBitfield(b *bitfield.Bitfield) error {
+func (p *Peer) sendBitfield(b *bitfield.Bitfield) error {
 	// Sending bitfield may be omitted if have no pieces.
 	if b.Count() == 0 {
 		return nil

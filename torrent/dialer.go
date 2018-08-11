@@ -57,11 +57,6 @@ func (t *Torrent) dialAndRun(addr net.Addr) {
 
 	p := peer.New(conn, peerID, t.metainfo.Info.NumPieces, log)
 
-	if err := p.SendBitfield(t.bitfield); err != nil {
-		log.Error(err)
-		return
-	}
-
 	t.m.Lock()
 	if _, ok := t.peers[peerID]; ok {
 		t.log.Warning("peer already connected, dropping connection")
@@ -75,5 +70,5 @@ func (t *Torrent) dialAndRun(addr net.Addr) {
 		t.m.Unlock()
 	}()
 
-	p.Run()
+	p.Run(t.bitfield)
 }
