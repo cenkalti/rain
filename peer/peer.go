@@ -35,6 +35,8 @@ type Peer struct {
 	// pieces we have
 	have *bitfield.Bitfield
 
+	pending *bitfield.Bitfield
+
 	// cond *sync.Cond
 	m   sync.Mutex
 	log logger.Logger
@@ -80,6 +82,8 @@ func (p *Peer) Run() {
 			p.log.Error(err)
 			return
 		}
+
+		// p.
 
 		var length uint32
 		p.log.Debug("Reading message...")
