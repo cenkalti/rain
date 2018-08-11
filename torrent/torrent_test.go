@@ -13,10 +13,11 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/cenkalti/log"
-	"github.com/cenkalti/rain/logger"
-	"github.com/cenkalti/rain/torrent"
 	"github.com/crosbymichael/tracker/registry/inmem"
 	"github.com/crosbymichael/tracker/server"
+
+	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/torrent"
 )
 
 var (

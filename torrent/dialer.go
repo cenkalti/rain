@@ -3,9 +3,9 @@ package torrent
 import (
 	"net"
 
-	"github.com/cenkalti/rain/btconn"
-	"github.com/cenkalti/rain/logger"
-	"github.com/cenkalti/rain/peer"
+	"github.com/cenkalti/rain/internal/btconn"
+	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/internal/peer"
 )
 
 func (t *Torrent) dialer() {

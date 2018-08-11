@@ -9,15 +9,16 @@ import (
 	"net/url"
 	"sync"
 
-	"github.com/cenkalti/rain/bitfield"
-	"github.com/cenkalti/rain/logger"
-	"github.com/cenkalti/rain/metainfo"
-	"github.com/cenkalti/rain/mse"
-	"github.com/cenkalti/rain/peer"
-	"github.com/cenkalti/rain/torrentdata"
-	"github.com/cenkalti/rain/tracker"
-	"github.com/cenkalti/rain/tracker/httptracker"
-	"github.com/cenkalti/rain/tracker/udptracker"
+	"github.com/cenkalti/rain/internal/bitfield"
+	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/internal/metainfo"
+	"github.com/cenkalti/rain/internal/mse"
+	"github.com/cenkalti/rain/internal/peer"
+	"github.com/cenkalti/rain/internal/torrentdata"
+	"github.com/cenkalti/rain/internal/tracker"
+	"github.com/cenkalti/rain/internal/tracker/httptracker"
+	"github.com/cenkalti/rain/internal/tracker/udptracker"
+
 	"github.com/hashicorp/go-multierror"
 )
 

@@ -5,7 +5,8 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff"
-	"github.com/cenkalti/rain/tracker"
+
+	"github.com/cenkalti/rain/internal/tracker"
 )
 
 func (t *Torrent) announcer() {

@@ -1,7 +1,7 @@
 package client
 
 import (
-	"github.com/cenkalti/rain/logger"
+	"github.com/cenkalti/rain/internal/logger"
 )
 
 type Client struct {
