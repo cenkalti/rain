@@ -32,32 +32,33 @@ type Peer struct {
 	// pieces that the peer has
 	bitfield *bitfield.Bitfield
 
-	m   sync.Mutex
-	log logger.Logger
+	messages chan Message
+	stopC    chan struct{}
+	m        sync.Mutex
+	log      logger.Logger
 }
 
-type requestMessage struct {
-	Index, Begin, Length uint32
-}
-
-type pieceMessage struct {
-	Index, Begin uint32
-}
-
-func New(conn net.Conn, id [20]byte, numPieces uint32, l logger.Logger) *Peer {
-	p := &Peer{
+func New(conn net.Conn, id [20]byte, numPieces uint32, l logger.Logger, messages chan Message) *Peer {
+	return &Peer{
 		conn:        conn,
 		id:          id,
 		numPieces:   numPieces,
 		amChoking:   true,
 		peerChoking: true,
+		messages:    messages,
+		stopC:       make(chan struct{}),
 		log:         l,
 	}
-	return p
 }
 
-func (p *Peer) String() string { return p.conn.RemoteAddr().String() }
-func (p *Peer) Close() error   { return p.conn.Close() }
+func (p *Peer) String() string {
+	return p.conn.RemoteAddr().String()
+}
+
+func (p *Peer) Close() error {
+	close(p.stopC)
+	return p.conn.Close()
+}
 
 // Run reads and processes incoming messages after handshake.
 // TODO send keep-alive messages to peers at interval.
@@ -110,15 +111,17 @@ func (p *Peer) Run(b *bitfield.Bitfield) {
 		switch id {
 		case messageid.Choke:
 			p.m.Lock()
-			// Discard all pending requests. TODO
 			p.peerChoking = true
 			p.m.Unlock()
-			// p.cond.Broadcast()
+			select {
+			case p.messages <- Message{p, Choke{}}:
+			case <-p.stopC:
+				return
+			}
 		case messageid.Unchoke:
 			p.m.Lock()
 			p.peerChoking = false
 			p.m.Unlock()
-			// p.cond.Broadcast()
 		case messageid.Interested:
 			p.m.Lock()
 			p.peerInterested = true
@@ -134,25 +137,29 @@ func (p *Peer) Run(b *bitfield.Bitfield) {
 			p.peerInterested = false
 			p.m.Unlock()
 		case messageid.Have:
-			var i uint32
-			err = binary.Read(p.conn, binary.BigEndian, &i)
+			var h Have
+			err = binary.Read(p.conn, binary.BigEndian, &h)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
-			if i >= p.numPieces {
+			if h.Index >= p.numPieces {
 				p.log.Error("unexpected piece index")
 				return
 			}
-			p.log.Debug("Peer ", p.conn.RemoteAddr(), " has piece #", i)
-			p.bitfield.Set(i)
-			p.handleHave(i)
+			p.log.Debug("Peer ", p.conn.RemoteAddr(), " has piece #", h.Index)
+			p.bitfield.Set(h.Index)
+			select {
+			case p.messages <- Message{p, h}:
+			case <-p.stopC:
+				return
+			}
 		case messageid.Bitfield:
 			if !first {
 				p.log.Error("bitfield can only be sent after handshake")
 				return
 			}
-			numBytes := bitfield.NumBytes(p.numPieces)
+			numBytes := uint32(bitfield.NumBytes(p.numPieces))
 			if length != numBytes {
 				p.log.Error("invalid bitfield length")
 				return
@@ -172,7 +179,11 @@ func (p *Peer) Run(b *bitfield.Bitfield) {
 
 			for i := uint32(0); i < p.bitfield.Len(); i++ {
 				if p.bitfield.Test(i) {
-					p.handleHave(i)
+					select {
+					case p.messages <- Message{p, Have{i}}:
+					case <-p.stopC:
+						return
+					}
 				}
 			}
 		// 	case messageid.Request:
@@ -288,14 +299,6 @@ func (p *Peer) Run(b *bitfield.Bitfield) {
 	}
 }
 
-func (p *Peer) handleHave(i uint32) {
-	// p.torrent.m.Lock()
-	// // p.torrent.pieces[i].Peers[p.id] = struct{}{}
-	// p.torrent.m.Unlock()
-	// p.cond.Broadcast()
-	return
-}
-
 func (p *Peer) sendBitfield(b *bitfield.Bitfield) error {
 	// Sending bitfield may be omitted if have no pieces.
 	if b.Count() == 0 {
@@ -349,7 +352,7 @@ func (p *Peer) SendUnchoke() error {
 }
 
 func (p *Peer) SendRequest(piece, begin, length uint32) error {
-	req := requestMessage{piece, begin, length}
+	req := Request{piece, begin, length}
 	buf := bytes.NewBuffer(make([]byte, 0, 12))
 	// TODO remove errcheck ignore
 	binary.Write(buf, binary.BigEndian, &req) // nolint: errcheck
@@ -357,7 +360,7 @@ func (p *Peer) SendRequest(piece, begin, length uint32) error {
 }
 
 func (p *Peer) SendPiece(index, begin uint32, block []byte) error {
-	msg := &pieceMessage{index, begin}
+	msg := Piece{index, begin}
 	buf := bytes.NewBuffer(make([]byte, 0, 8))
 	// TODO remove errcheck ignore
 	binary.Write(buf, binary.BigEndian, msg) // nolint: errcheck

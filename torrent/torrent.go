@@ -68,6 +68,7 @@ type Torrent struct {
 	gotPeer       *sync.Cond              // for waking announcer when got new peers from tracker
 	running       bool                    // true after Start() is called
 	closed        bool                    // true after Close() is called
+	peerMessages  chan peer.Message       // messages from peers are sent to this channel for downloader
 	log           logger.Logger
 }
 
@@ -118,6 +119,7 @@ func New(r io.Reader, dest string, port int) (*Torrent, error) {
 		peerLimiter:  make(chan struct{}, maxPeerPerTorrent),
 		completed:    make(chan struct{}),
 		peerAddrsMap: make(map[string]*peerAddr),
+		peerMessages: make(chan peer.Message),
 		log:          logger.New("download " + logName),
 	}
 	t.gotPeer = sync.NewCond(&t.m)
@@ -245,10 +247,10 @@ func (t *Torrent) BytesCompleted() int64 {
 	sum := int64(t.bitfield.Count() * t.metainfo.Info.PieceLength)
 
 	// Last piece usually not in full size.
-	lastPiece := t.metainfo.Info.NumPieces - 1
-	if t.bitfield.Test(lastPiece) {
+	lastPiece := len(t.data.Pieces) - 1
+	if t.bitfield.Test(uint32(lastPiece)) {
 		sum -= int64(t.metainfo.Info.PieceLength)
-		sum += int64(t.data.Piece(int(lastPiece)).Length)
+		sum += int64(t.data.Pieces[lastPiece].Length)
 	}
 	return sum
 }

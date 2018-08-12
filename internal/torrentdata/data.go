@@ -3,16 +3,16 @@ package torrentdata
 import (
 	"os"
 
+	"github.com/hashicorp/go-multierror"
+
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/piece"
-
-	"github.com/hashicorp/go-multierror"
 )
 
 type Data struct {
+	Pieces    []piece.Piece
 	files     []*os.File
-	pieces    []piece.Piece
 	checkHash bool
 }
 
@@ -23,7 +23,7 @@ func New(info *metainfo.Info, dest string) (*Data, error) {
 	}
 	return &Data{
 		files:     files,
-		pieces:    piece.NewPieces(info, files),
+		Pieces:    piece.NewPieces(info, files),
 		checkHash: checkHash,
 	}, nil
 }
@@ -39,18 +39,14 @@ func (d *Data) Close() error {
 	return result
 }
 
-func (d *Data) Piece(index int) *piece.Piece {
-	return &d.pieces[index]
-}
-
 func (d *Data) Verify() (*bitfield.Bitfield, error) {
-	b := bitfield.New(uint32(len(d.pieces)))
+	b := bitfield.New(uint32(len(d.Pieces)))
 	if d.checkHash {
-		for _, p := range d.pieces {
+		for i, p := range d.Pieces {
 			if err := p.Verify(); err != nil {
 				return nil, err
 			}
-			b.SetTo(p.Index, p.OK)
+			b.SetTo(uint32(i), p.OK)
 		}
 	}
 	return b, nil

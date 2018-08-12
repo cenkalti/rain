@@ -55,7 +55,7 @@ func (t *Torrent) dialAndRun(addr net.Addr) {
 	log.Infof("Connected to peer. (cipher=%s extensions=%x client=%q)", cipher, extensions, peerID[:8])
 	defer closeConn(conn, log)
 
-	p := peer.New(conn, peerID, t.metainfo.Info.NumPieces, log)
+	p := peer.New(conn, peerID, t.metainfo.Info.NumPieces, log, t.peerMessages)
 
 	t.m.Lock()
 	if _, ok := t.peers[peerID]; ok {

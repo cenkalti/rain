@@ -6,8 +6,8 @@ import (
 	"sync"
 )
 
-func NumBytes(length uint32) uint32 {
-	return uint32((uint64(length) + 7) / 8)
+func NumBytes(length uint32) int {
+	return int((uint64(length) + 7) / 8)
 }
 
 // Bitfield is described in BEP 3.

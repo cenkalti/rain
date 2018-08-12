@@ -16,7 +16,6 @@ const blockSize = 16 * 1024
 
 // Piece of a torrent.
 type Piece struct {
-	Index  uint32 // piece index in whole torrent
 	OK     bool   // hash is correct and written to disk, Verify() must be called to set this.
 	Length uint32 // always equal to blockSize except last piece.
 	Blocks []Block
@@ -46,8 +45,7 @@ func NewPieces(info *metainfo.Info, osFiles []*os.File) []Piece {
 	pieces := make([]Piece, info.NumPieces)
 	for i := uint32(0); i < info.NumPieces; i++ {
 		p := Piece{
-			Index: i,
-			hash:  info.PieceHash(i),
+			hash: info.PieceHash(i),
 		}
 
 		// Construct p.Files
@@ -92,7 +90,6 @@ func (p *Piece) newBlocks() []Block {
 	blocks := make([]Block, numBlocks)
 	for j := uint32(0); j < div; j++ {
 		blocks[j] = Block{
-			Piece:  p,
 			Index:  j,
 			Begin:  j * blockSize,
 			Length: blockSize,
@@ -100,7 +97,6 @@ func (p *Piece) newBlocks() []Block {
 	}
 	if mod != 0 {
 		blocks[numBlocks-1] = Block{
-			Piece:  p,
 			Index:  numBlocks - 1,
 			Begin:  (numBlocks - 1) * blockSize,
 			Length: mod,
