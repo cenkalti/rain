@@ -3,29 +3,22 @@ package torrent
 import (
 	"net"
 
+	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/btconn"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/peer"
 )
 
-func (t *Torrent) dialer() {
+func (t *Torrent) dialer(a *announcer.Announcer) {
 	defer t.stopWG.Done()
 	for {
 		select {
 		case t.peerLimiter <- struct{}{}:
-			t.m.Lock()
-			addr := t.nextPeerAddr()
-			for addr == nil {
-				t.log.Debugln("no more peer to connect, waiting next announce")
-				t.gotPeer.Wait()
-				select {
-				case <-t.stopC:
-					return
-				default:
-				}
-				addr = t.nextPeerAddr()
+			addr := a.NextPeerAddr()
+			if addr == nil {
+				<-t.peerLimiter
+				return
 			}
-			t.m.Unlock()
 			t.stopWG.Add(1)
 			go t.dialAndRun(addr)
 		case <-t.stopC:

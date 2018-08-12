@@ -1,11 +1,19 @@
-package torrent
+package torrentdownloader
 
 import (
 	"time"
 
+	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/peer"
+	"github.com/cenkalti/rain/internal/peermanager"
 	"github.com/cenkalti/rain/internal/piece"
 )
+
+type TorrentDownloader struct {
+	PeerManager *peermanager.Manager
+	Data        *torrentdata.Data
+	Bitfield    *bitfield.Bitfield
+}
 
 // type pieceState struct {
 // 	p *piece.Piece
@@ -20,8 +28,12 @@ type downloaderPiece struct {
 type downloaderRequest struct {
 }
 
+func New() *TorrentDownloader {
+	return &TorrentDownloader{}
+}
+
 // TODO implement
-func (t *Torrent) downloader() {
+func (d *TorrentDownloader) Run() {
 	defer t.stopWG.Done()
 
 	pieces := make([]downloaderPiece, len(t.data.Pieces))

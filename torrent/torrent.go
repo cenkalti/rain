@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"sync"
 
+	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/metainfo"
@@ -62,10 +63,7 @@ type Torrent struct {
 	onceCompleted sync.Once               // for closing completed channel only once
 	stopC         chan struct{}           // all goroutines stop when closed
 	stopWG        sync.WaitGroup          // for waiting running goroutines
-	peerAddrs     []*peerAddr             // contains peers not connected yet, sorted by oldest first
-	peerAddrsMap  map[string]*peerAddr    // contains peers not connected yet, keyed by addr string
 	m             sync.Mutex              // protects all state in this torrent and it's peers
-	gotPeer       *sync.Cond              // for waking announcer when got new peers from tracker
 	running       bool                    // true after Start() is called
 	closed        bool                    // true after Close() is called
 	peerMessages  chan peer.Message       // messages from peers are sent to this channel for downloader
@@ -118,11 +116,9 @@ func New(r io.Reader, dest string, port int) (*Torrent, error) {
 		bitfield:     bf,
 		peerLimiter:  make(chan struct{}, maxPeerPerTorrent),
 		completed:    make(chan struct{}),
-		peerAddrsMap: make(map[string]*peerAddr),
 		peerMessages: make(chan peer.Message),
 		log:          logger.New("download " + logName),
 	}
-	t.gotPeer = sync.NewCond(&t.m)
 	t.checkCompletion()
 	return t, nil
 }
@@ -141,12 +137,11 @@ func newTracker(trackerURL string) (tracker.Tracker, error) {
 	if err != nil {
 		return nil, err
 	}
-	l := logger.New("tracker " + trackerURL)
 	switch u.Scheme {
 	case "http", "https":
-		return httptracker.New(u, l), nil
+		return httptracker.New(u), nil
 	case "udp":
-		return udptracker.New(u, l), nil
+		return udptracker.New(u), nil
 	default:
 		return nil, fmt.Errorf("unsupported tracker scheme: %s", u.Scheme)
 	}
@@ -172,11 +167,15 @@ func (t *Torrent) Start() error {
 	t.log.Notice("Listening peers on tcp://" + t.listener.Addr().String())
 	t.stopC = make(chan struct{})
 	t.stopWG.Add(5)
-	go t.announcer()  // get peers from tracker
-	go t.accepter()   // accept incoming peer connections
-	go t.dialer()     // connect to new peers
-	go t.downloader() // request missing pieces from peers
-	go t.uploader()   // send requested blocks
+
+	// get peers from tracker
+	a := announcer.New(t.tracker, t, t.completed, t.log)
+	go a.Run(t.stopC, &t.stopWG)
+
+	go t.accepter() // accept incoming peer connections
+	go t.dialer(a)  // connect to new peers
+	// go t.downloader() // request missing pieces from peers
+	go t.uploader() // send requested blocks
 	return nil
 }
 

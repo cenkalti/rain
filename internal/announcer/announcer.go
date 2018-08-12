@@ -19,6 +19,7 @@ type Announcer struct {
 	gotPeer      *sync.Cond           // for waking announcer when got new peers from tracker
 	completedC   chan struct{}
 	m            sync.Mutex
+	done         bool
 }
 
 func New(tr tracker.Tracker, to tracker.Transfer, completedC chan struct{}, l logger.Logger) *Announcer {
@@ -85,6 +86,7 @@ func (a *Announcer) Run(stopC chan struct{}, stopWG *sync.WaitGroup) {
 			announce(tracker.EventNone)
 		case <-stopC:
 			// Wake up dialer goroutine waiting for new peers because we won't get more peers.
+			a.done = true
 			a.gotPeer.Broadcast()
 			return
 		}
