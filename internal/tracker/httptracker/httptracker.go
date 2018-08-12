@@ -20,8 +20,8 @@ import (
 var httpTimeout = 30 * time.Second
 
 type HTTPTracker struct {
-	URL       *url.URL
-	Log       logger.Logger
+	url       *url.URL
+	log       logger.Logger
 	http      *http.Client
 	transport *http.Transport
 	trackerID string
@@ -36,8 +36,8 @@ func New(u *url.URL, l logger.Logger) *HTTPTracker {
 		DisableKeepAlives:   true,
 	}
 	return &HTTPTracker{
-		URL: u,
-		Log: l,
+		url: u,
+		log: l,
 		http: &http.Client{
 			Timeout:   httpTimeout,
 			Transport: transport,
@@ -66,9 +66,9 @@ func (t *HTTPTracker) Announce(transfer tracker.Transfer, e tracker.Event, cance
 		q.Set("trackerid", t.trackerID)
 	}
 
-	u := t.URL
+	u := t.url
 	u.RawQuery = q.Encode()
-	t.Log.Debugf("making request to: %q", u.String())
+	t.log.Debugf("making request to: %q", u.String())
 
 	req := &http.Request{
 		Method:     "GET",
@@ -117,7 +117,7 @@ func (t *HTTPTracker) Announce(transfer tracker.Transfer, e tracker.Event, cance
 	}
 
 	if response.WarningMessage != "" {
-		t.Log.Warning(response.WarningMessage)
+		t.log.Warning(response.WarningMessage)
 	}
 	if response.FailureReason != "" {
 		return nil, tracker.Error(response.FailureReason)
@@ -139,7 +139,7 @@ func (t *HTTPTracker) Announce(transfer tracker.Transfer, e tracker.Event, cance
 			if err != nil {
 				return nil, err
 			}
-			peers, err = tracker.ParsePeersBinary(bytes.NewReader(b), t.Log)
+			peers, err = tracker.ParsePeersBinary(bytes.NewReader(b), t.log)
 		}
 	}
 	if err != nil {
