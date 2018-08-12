@@ -33,10 +33,10 @@ type UDPTracker struct {
 	writeC        chan *transaction
 }
 
-func New(u *url.URL, l logger.Logger) *UDPTracker {
+func New(u *url.URL) *UDPTracker {
 	return &UDPTracker{
 		url:          u,
-		log:          l,
+		log:          logger.New("tracker " + u.String()),
 		transactions: make(map[int32]*transaction),
 		writeC:       make(chan *transaction),
 	}

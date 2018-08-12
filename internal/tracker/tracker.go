@@ -19,9 +19,9 @@ var ErrRequestCancelled = errors.New("request cancelled")
 type Tracker interface {
 	// Announce transfer to the tracker.
 	Announce(t Transfer, e Event, cancel <-chan struct{}) (*AnnounceResponse, error)
-	// TODO implement scrape
 	// Close open connections to the tracker.
 	Close() error
+	// TODO implement scrape
 }
 
 type AnnounceResponse struct {

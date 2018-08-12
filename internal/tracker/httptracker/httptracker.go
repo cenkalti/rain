@@ -27,22 +27,20 @@ type HTTPTracker struct {
 	trackerID string
 }
 
-func New(u *url.URL, l logger.Logger) *HTTPTracker {
-	transport := &http.Transport{
-		Dial: (&net.Dialer{
-			Timeout: httpTimeout,
-		}).Dial,
-		TLSHandshakeTimeout: httpTimeout,
-		DisableKeepAlives:   true,
-	}
+func New(u *url.URL) *HTTPTracker {
 	return &HTTPTracker{
 		url: u,
-		log: l,
+		log: logger.New("tracker " + u.String()),
 		http: &http.Client{
-			Timeout:   httpTimeout,
-			Transport: transport,
+			Timeout: httpTimeout,
+			Transport: &http.Transport{
+				Dial: (&net.Dialer{
+					Timeout: httpTimeout,
+				}).Dial,
+				TLSHandshakeTimeout: httpTimeout,
+				DisableKeepAlives:   true,
+			},
 		},
-		transport: transport,
 	}
 }
 
