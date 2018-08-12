@@ -23,8 +23,8 @@ const connectionIDMagic = 0x41727101980
 const connectionIDInterval = time.Minute
 
 type UDPTracker struct {
-	URL           *url.URL
-	Log           logger.Logger
+	url           *url.URL
+	log           logger.Logger
 	conn          *net.UDPConn
 	dialMutex     sync.Mutex
 	connected     bool
@@ -35,15 +35,15 @@ type UDPTracker struct {
 
 func New(u *url.URL, l logger.Logger) *UDPTracker {
 	return &UDPTracker{
-		URL:          u,
-		Log:          l,
+		url:          u,
+		log:          l,
 		transactions: make(map[int32]*transaction),
 		writeC:       make(chan *transaction),
 	}
 }
 
 func (t *UDPTracker) dial() error {
-	serverAddr, err := net.ResolveUDPAddr("udp", t.URL.Host)
+	serverAddr, err := net.ResolveUDPAddr("udp", t.url.Host)
 	if err != nil {
 		return err
 	}
@@ -74,24 +74,24 @@ func (t *UDPTracker) readLoop() {
 	for {
 		n, err := t.conn.Read(buf)
 		if err != nil {
-			t.Log.Error(err)
+			t.log.Error(err)
 			if nerr, ok := err.(net.Error); ok && !nerr.Temporary() {
-				t.Log.Debug("End of tracker read loop")
+				t.log.Debug("End of tracker read loop")
 				return
 			}
 			continue
 		}
-		t.Log.Debug("Read ", n, " bytes")
+		t.log.Debug("Read ", n, " bytes")
 
 		var header udpMessageHeader
 		if n < binary.Size(header) {
-			t.Log.Error("response is too small")
+			t.log.Error("response is too small")
 			continue
 		}
 
 		err = binary.Read(bytes.NewReader(buf), binary.BigEndian, &header)
 		if err != nil {
-			t.Log.Error(err)
+			t.log.Error(err)
 			continue
 		}
 
@@ -100,7 +100,7 @@ func (t *UDPTracker) readLoop() {
 		delete(t.transactions, header.TransactionID)
 		t.transactionsM.Unlock()
 		if !ok {
-			t.Log.Errorln("unexpected transaction_id:", header.TransactionID)
+			t.log.Errorln("unexpected transaction_id:", header.TransactionID)
 			continue
 		}
 
@@ -137,10 +137,10 @@ func (t *UDPTracker) writeLoop() {
 }
 
 func (t *UDPTracker) writeTrx(trx *transaction) {
-	t.Log.Debugln("Writing transaction. ID:", trx.ID())
+	t.log.Debugln("Writing transaction. ID:", trx.ID())
 	_, err := trx.request.WriteTo(t.conn)
 	if err != nil {
-		t.Log.Error(err)
+		t.log.Error(err)
 	}
 }
 
@@ -157,23 +157,23 @@ func (t *UDPTracker) connect() int64 {
 	for {
 		data, err := t.retryTransaction(t.writeTrx, trx, nil) // Does not return until transaction is completed.
 		if err != nil {
-			t.Log.Error(err)
+			t.log.Error(err)
 			continue
 		}
 
 		var response connectResponse
 		err = binary.Read(bytes.NewReader(data), binary.BigEndian, &response)
 		if err != nil {
-			t.Log.Error(err)
+			t.log.Error(err)
 			continue
 		}
 
 		if response.Action != actionConnect {
-			t.Log.Error("invalid action in connect response")
+			t.log.Error("invalid action in connect response")
 			continue
 		}
 
-		t.Log.Debugf("connect Response: %#v\n", response)
+		t.log.Debugf("connect Response: %#v\n", response)
 		return response.ConnectionID
 	}
 }
@@ -233,7 +233,7 @@ func (t *UDPTracker) Announce(transfer tracker.Transfer, e tracker.Event, cancel
 	request2 := &transferAnnounceRequest{
 		transfer:        transfer,
 		announceRequest: request,
-		urlData:         t.URL.RequestURI(),
+		urlData:         t.url.RequestURI(),
 	}
 	trx := newTransaction(request2)
 
@@ -250,7 +250,7 @@ func (t *UDPTracker) Announce(transfer tracker.Transfer, e tracker.Event, cancel
 	if err != nil {
 		return nil, err
 	}
-	t.Log.Debugf("Announce response: %#v", response)
+	t.log.Debugf("Announce response: %#v", response)
 
 	return &tracker.AnnounceResponse{
 		Interval: time.Duration(response.Interval) * time.Second,
@@ -272,13 +272,13 @@ func (t *UDPTracker) parseAnnounceResponse(data []byte) (*udpAnnounceResponse, [
 	if err != nil {
 		return nil, nil, err
 	}
-	t.Log.Debugf("annouceResponse: %#v", response)
+	t.log.Debugf("annouceResponse: %#v", response)
 
 	if response.Action != actionAnnounce {
 		return nil, nil, errors.New("invalid action")
 	}
 
-	peers, err := tracker.ParsePeersBinary(reader, t.Log)
+	peers, err := tracker.ParsePeersBinary(reader, t.log)
 	if err != nil {
 		return nil, nil, err
 	}
