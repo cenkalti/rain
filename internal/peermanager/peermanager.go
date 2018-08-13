@@ -1,33 +1,59 @@
 package peermanager
 
 import (
+	"net"
 	"sync"
 
 	"github.com/hashicorp/go-multierror"
 
+	"github.com/cenkalti/rain/internal/announcer"
+	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/internal/mse"
 	"github.com/cenkalti/rain/internal/peer"
+)
+
+const (
+	// Do not connect more than maxPeerPerTorrent peers.
+	maxPeerPerTorrent = 60
 )
 
 type PeerManager struct {
 	peers            map[[20]byte]*peer.Peer // connected peers
 	peerConnected    chan *peer.Peer
 	peerDisconnected chan *peer.Peer
+	listener         *net.TCPListener
+	announcer        *announcer.Announcer
+	peerID           [20]byte
+	infoHash         [20]byte
+	sKeyHash         [20]byte
+	bitfield         *bitfield.Bitfield
+	limiter          chan struct{}
+	peerMessages     chan peer.Message
 	log              logger.Logger
 	m                sync.Mutex
+	wg               sync.WaitGroup
 }
 
-func New(l logger.Logger) *PeerManager {
+func New(listener *net.TCPListener, a *announcer.Announcer, peerID, infoHash [20]byte, b *bitfield.Bitfield, l logger.Logger) *PeerManager {
 	return &PeerManager{
 		peers:            make(map[[20]byte]*peer.Peer),
 		peerConnected:    make(chan *peer.Peer),
 		peerDisconnected: make(chan *peer.Peer),
+		listener:         listener,
+		announcer:        a,
+		peerID:           peerID,
+		infoHash:         infoHash,
+		sKeyHash:         mse.HashSKey(infoHash[:]),
+		bitfield:         b,
+		limiter:          make(chan struct{}, maxPeerPerTorrent),
+		peerMessages:     make(chan peer.Message),
 		log:              l,
 	}
 }
 
-func (m *PeerManager) PeerConnected() chan *peer.Peer {
-	return m.peerConnected
+func (m *PeerManager) PeerMessages() chan peer.Message {
+	return m.peerMessages
 }
 
 func (m *PeerManager) Close() error {
@@ -44,6 +70,15 @@ func (m *PeerManager) Close() error {
 }
 
 func (m *PeerManager) Run(stopC chan struct{}) {
+	m.wg.Add(2)
+	go func() {
+		defer m.wg.Done()
+		m.acceptor(stopC)
+	}()
+	go func() {
+		defer m.wg.Done()
+		m.dialer(stopC)
+	}()
 	for {
 		select {
 		case p := <-m.peerConnected:
@@ -51,6 +86,7 @@ func (m *PeerManager) Run(stopC chan struct{}) {
 		case p := <-m.peerDisconnected:
 			m.handleDisconnect(p)
 		case <-stopC:
+			m.wg.Done()
 			return
 		}
 	}

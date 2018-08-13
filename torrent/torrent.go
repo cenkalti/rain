@@ -11,10 +11,8 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 
-	"github.com/cenkalti/rain/internal/acceptor"
 	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/bitfield"
-	"github.com/cenkalti/rain/internal/dialer"
 	"github.com/cenkalti/rain/internal/downloader"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/metainfo"
@@ -30,9 +28,6 @@ import (
 
 // TODO move these to config
 const (
-	// Do not connect more than maxPeerPerTorrent peers.
-	maxPeerPerTorrent = 60
-
 	// Maximum simultaneous uploads.
 	uploadSlotsPerTorrent = 4
 
@@ -62,7 +57,6 @@ type Torrent struct {
 	tracker       tracker.Tracker    // tracker to announce
 	sKeyHash      [20]byte           // for encryption, hash of the info hash
 	bitfield      *bitfield.Bitfield // keeps track of the pieces we have
-	peerLimiter   chan struct{}      // semaphore for limiting number of peers
 	completed     chan struct{}      // closed when all pieces are downloaded
 	onceCompleted sync.Once          // for closing completed channel only once
 	stopC         chan struct{}      // all goroutines stop when closed
@@ -117,7 +111,6 @@ func New(r io.Reader, dest string, port int) (*Torrent, error) {
 		tracker:      trk,
 		sKeyHash:     mse.HashSKey(m.Info.Hash[:]),
 		bitfield:     bf,
-		peerLimiter:  make(chan struct{}, maxPeerPerTorrent),
 		completed:    make(chan struct{}),
 		peerMessages: make(chan peer.Message),
 		log:          logger.New("download " + logName),
@@ -171,15 +164,12 @@ func (t *Torrent) Start() error {
 
 	t.stopC = make(chan struct{})
 
-	lim := make(chan struct{}, 50)                                                                                                // limit max number of connected peers
-	an := announcer.New(t.tracker, t, t.completed, t.log)                                                                         // get peers from tracker
-	pm := peermanager.New(t.log)                                                                                                  // maintains connected peer list
-	do := downloader.New(pm, t.data, t.bitfield)                                                                                  // request missing pieces from peers
-	up := uploader.New()                                                                                                          // send requested blocks
-	ac := acceptor.New(t.listener, t.peerID, t.metainfo.Info.Hash, t.bitfield, lim, pm.PeerConnected(), do.PeerMessages(), t.log) // accept incoming peer connections
-	di := dialer.New(an, t.peerID, t.metainfo.Info.Hash, t.bitfield, lim, pm.PeerConnected(), do.PeerMessages())                  // connect to new peers
+	an := announcer.New(t.tracker, t, t.completed, t.log)                                    // get peers from tracker
+	pm := peermanager.New(t.listener, an, t.peerID, t.metainfo.Info.Hash, t.bitfield, t.log) // maintains connected peer list
+	do := downloader.New(pm, t.data, t.bitfield)                                             // request missing pieces from peers
+	up := uploader.New()                                                                     // send requested blocks
 
-	workers{an, pm, ac, di, do, up}.start(t.stopC, &t.stopWG)
+	workers{an, pm, do, up}.start(t.stopC, &t.stopWG)
 
 	return nil
 }
