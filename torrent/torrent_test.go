@@ -44,7 +44,7 @@ func TestDownload(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t1, err := torrent.New(f, torrentDataDir, 0)
+	t1, err := torrent.New(f, torrentDataDir, 6881)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +54,7 @@ func TestDownload(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	f.Seek(0, io.SeekStart)
-	t2, err := torrent.New(f, where, 0)
+	t2, err := torrent.New(f, where, 6882)
 	if err != nil {
 		t.Fatal(err)
 	}

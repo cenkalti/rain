@@ -21,7 +21,7 @@ func (m *PeerManager) dialer(stopC chan struct{}) {
 			go func() {
 				defer m.wg.Done()
 				defer func() { <-m.limiter }()
-				m.dialAndRun(addr)
+				m.dialAndRun(addr, stopC)
 			}()
 		case <-stopC:
 			return
@@ -29,23 +29,21 @@ func (m *PeerManager) dialer(stopC chan struct{}) {
 	}
 }
 
-func (m *PeerManager) dialAndRun(addr net.Addr) {
+func (m *PeerManager) dialAndRun(addr net.Addr, stopC chan struct{}) {
 	log := logger.New("peer -> " + addr.String())
 
 	// TODO get this from config
 	encryptionDisableOutgoing := false
 	encryptionForceOutgoing := false
 
-	conn, cipher, extensions, peerID, err := btconn.Dial(addr, !encryptionDisableOutgoing, encryptionForceOutgoing, [8]byte{}, m.infoHash, m.peerID)
+	conn, cipher, extensions, peerID, err := btconn.Dial(
+		addr, !encryptionDisableOutgoing, encryptionForceOutgoing, [8]byte{}, m.infoHash, m.peerID)
 	if err != nil {
-		if err == btconn.ErrOwnConnection {
-			log.Debug(err)
-		} else {
-			log.Error(err)
-		}
+		log.Error(err)
 		return
 	}
 	log.Infof("Connected to peer. (cipher=%s extensions=%x client=%q)", cipher, extensions, peerID[:8])
+
 	defer func() {
 		err := conn.Close()
 		if err != nil {
@@ -54,6 +52,5 @@ func (m *PeerManager) dialAndRun(addr net.Addr) {
 	}()
 
 	p := peer.New(conn, peerID, m.bitfield.Len(), log, m.peerMessages)
-	m.peerConnected <- p
-	p.Run(m.bitfield)
+	m.handleConnect(p, stopC)
 }

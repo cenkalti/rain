@@ -42,7 +42,7 @@ func (a *Announcer) putPeerAddrs(addrs []*net.TCPAddr) {
 			continue
 		}
 		// Discard own client
-		if ad.IP.IsLoopback() && ad.Port == a.Transfer.Port() {
+		if ad.IP.IsLoopback() && ad.Port == a.transfer.Port() {
 			continue
 		}
 		key := ad.String()

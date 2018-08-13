@@ -1,6 +1,7 @@
 package announcer
 
 import (
+	"net/url"
 	"sync"
 	"time"
 
@@ -8,12 +9,14 @@ import (
 
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/tracker"
+	"github.com/cenkalti/rain/internal/tracker/httptracker"
+	"github.com/cenkalti/rain/internal/tracker/udptracker"
 )
 
 type Announcer struct {
-	Tracker      tracker.Tracker
-	Transfer     tracker.Transfer
-	Log          logger.Logger
+	url          string
+	transfer     tracker.Transfer
+	log          logger.Logger
 	peerAddrs    []*peerAddr          // contains peers not connected yet, sorted by oldest first
 	peerAddrsMap map[string]*peerAddr // contains peers not connected yet, keyed by addr string
 	gotPeer      *sync.Cond           // for waking announcer when got new peers from tracker
@@ -22,11 +25,11 @@ type Announcer struct {
 	done         bool
 }
 
-func New(tr tracker.Tracker, to tracker.Transfer, completedC chan struct{}, l logger.Logger) *Announcer {
+func New(trackerURL string, to tracker.Transfer, completedC chan struct{}, l logger.Logger) *Announcer {
 	a := &Announcer{
-		Tracker:      tr,
-		Transfer:     to,
-		Log:          l,
+		url:          trackerURL,
+		transfer:     to,
+		log:          l,
 		completedC:   completedC,
 		peerAddrsMap: make(map[string]*peerAddr),
 	}
@@ -35,6 +38,30 @@ func New(tr tracker.Tracker, to tracker.Transfer, completedC chan struct{}, l lo
 }
 
 func (a *Announcer) Run(stopC chan struct{}) {
+	defer func() {
+		// Wake up dialer goroutine waiting for new peers because we won't get more peers.
+		a.m.Lock()
+		a.done = true
+		a.m.Unlock()
+		a.gotPeer.Broadcast()
+	}()
+
+	u, err := url.Parse(a.url)
+	if err != nil {
+		a.log.Errorln("cannot parse tracker url:", err)
+		return
+	}
+	var tr tracker.Tracker
+	switch u.Scheme {
+	case "http", "https":
+		tr = httptracker.New(u)
+	case "udp":
+		tr = udptracker.New(u)
+	default:
+		a.log.Errorln("unsupported tracker scheme: %s", u.Scheme)
+		return
+	}
+
 	var nextAnnounce time.Duration
 	var m sync.Mutex
 
@@ -51,9 +78,9 @@ func (a *Announcer) Run(stopC chan struct{}) {
 	announce := func(e tracker.Event) {
 		m.Lock()
 		defer m.Unlock()
-		r, err := a.Tracker.Announce(a.Transfer, e, stopC)
+		r, err := tr.Announce(a.transfer, e, stopC)
 		if err != nil {
-			a.Log.Errorln("announce error:", err)
+			a.log.Errorln("announce error:", err)
 			nextAnnounce = retry.NextBackOff()
 		} else {
 			retry.Reset()
@@ -84,9 +111,7 @@ func (a *Announcer) Run(stopC chan struct{}) {
 		case <-time.After(d):
 			announce(tracker.EventNone)
 		case <-stopC:
-			// Wake up dialer goroutine waiting for new peers because we won't get more peers.
-			a.done = true
-			a.gotPeer.Broadcast()
+			tr.Close()
 			return
 		}
 	}

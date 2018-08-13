@@ -10,6 +10,9 @@ import (
 	"github.com/cenkalti/rain/internal/torrentdata"
 )
 
+// Request pieces in blocks of this size.
+const blockSize = 16 * 1024
+
 type Downloader struct {
 	peerManager  *peermanager.PeerManager
 	data         *torrentdata.Data
