@@ -32,27 +32,37 @@ type Peer struct {
 	// pieces that the peer has
 	bitfield *bitfield.Bitfield
 
-	messages chan Message
-	stopC    chan struct{}
-	m        sync.Mutex
-	log      logger.Logger
+	messages     chan Message
+	stopC        chan struct{}
+	m            sync.Mutex
+	disconnected chan struct{}
+	log          logger.Logger
 }
 
 func New(conn net.Conn, id [20]byte, numPieces uint32, l logger.Logger, messages chan Message) *Peer {
 	return &Peer{
-		conn:        conn,
-		id:          id,
-		numPieces:   numPieces,
-		amChoking:   true,
-		peerChoking: true,
-		messages:    messages,
-		stopC:       make(chan struct{}),
-		log:         l,
+		conn:         conn,
+		id:           id,
+		numPieces:    numPieces,
+		amChoking:    true,
+		peerChoking:  true,
+		messages:     messages,
+		stopC:        make(chan struct{}),
+		disconnected: make(chan struct{}),
+		log:          l,
 	}
+}
+
+func (p *Peer) ID() [20]byte {
+	return p.id
 }
 
 func (p *Peer) String() string {
 	return p.conn.RemoteAddr().String()
+}
+
+func (p *Peer) NotifyDisconnect() chan struct{} {
+	return p.disconnected
 }
 
 func (p *Peer) Close() error {
@@ -64,6 +74,7 @@ func (p *Peer) Close() error {
 // TODO send keep-alive messages to peers at interval.
 func (p *Peer) Run(b *bitfield.Bitfield) {
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
+	defer close(p.disconnected)
 
 	if err := p.sendBitfield(b); err != nil {
 		p.log.Error(err)

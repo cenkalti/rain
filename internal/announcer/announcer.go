@@ -34,8 +34,7 @@ func New(tr tracker.Tracker, to tracker.Transfer, completedC chan struct{}, l lo
 	return a
 }
 
-func (a *Announcer) Run(stopC chan struct{}, stopWG *sync.WaitGroup) {
-	defer stopWG.Done()
+func (a *Announcer) Run(stopC chan struct{}) {
 	var nextAnnounce time.Duration
 	var m sync.Mutex
 

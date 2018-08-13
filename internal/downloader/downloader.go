@@ -1,4 +1,4 @@
-package torrentdownloader
+package downloader
 
 import (
 	"time"
@@ -7,12 +7,14 @@ import (
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peermanager"
 	"github.com/cenkalti/rain/internal/piece"
+	"github.com/cenkalti/rain/internal/torrentdata"
 )
 
-type TorrentDownloader struct {
-	PeerManager *peermanager.Manager
-	Data        *torrentdata.Data
-	Bitfield    *bitfield.Bitfield
+type Downloader struct {
+	peerManager  *peermanager.PeerManager
+	data         *torrentdata.Data
+	bitfield     *bitfield.Bitfield
+	peerMessages chan peer.Message
 }
 
 // type pieceState struct {
@@ -28,15 +30,22 @@ type downloaderPiece struct {
 type downloaderRequest struct {
 }
 
-func New() *TorrentDownloader {
-	return &TorrentDownloader{}
+func New(pm *peermanager.PeerManager, d *torrentdata.Data, b *bitfield.Bitfield) *Downloader {
+	return &Downloader{
+		peerManager:  pm,
+		data:         d,
+		bitfield:     b,
+		peerMessages: make(chan peer.Message),
+	}
+}
+
+func (d *Downloader) PeerMessages() chan peer.Message {
+	return d.peerMessages
 }
 
 // TODO implement
-func (d *TorrentDownloader) Run() {
-	defer t.stopWG.Done()
-
-	pieces := make([]downloaderPiece, len(t.data.Pieces))
+func (d *Downloader) Run(stopC chan struct{}) {
+	pieces := make([]downloaderPiece, len(d.data.Pieces))
 	for _, p := range pieces {
 		p.havingPeers = make(map[*peer.Peer]struct{})
 	}
@@ -48,7 +57,7 @@ func (d *TorrentDownloader) Run() {
 		case <-time.After(time.Second):
 			// TODO selecting pieces in sequential order, change to rarest first
 			for i, p := range pieces {
-				if t.bitfield.Test(uint32(i)) {
+				if d.bitfield.Test(uint32(i)) {
 					continue
 				}
 				if len(p.havingPeers) == 0 {
@@ -75,7 +84,7 @@ func (d *TorrentDownloader) Run() {
 			// if havingPeer == nil {
 			// 	continue
 			// }
-		case pm := <-t.peerMessages:
+		case pm := <-d.peerMessages:
 			switch msg := pm.Message.(type) {
 			case peer.Have:
 				pieces[msg.Index].havingPeers[pm.Peer] = struct{}{}
@@ -86,7 +95,7 @@ func (d *TorrentDownloader) Run() {
 			case peer.Piece:
 				// TODO handle piece message
 			}
-		case <-t.stopC:
+		case <-stopC:
 			return
 		}
 	}

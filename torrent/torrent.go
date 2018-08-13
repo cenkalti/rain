@@ -9,18 +9,23 @@ import (
 	"net/url"
 	"sync"
 
+	"github.com/hashicorp/go-multierror"
+
+	"github.com/cenkalti/rain/internal/acceptor"
 	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/bitfield"
+	"github.com/cenkalti/rain/internal/dialer"
+	"github.com/cenkalti/rain/internal/downloader"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/mse"
 	"github.com/cenkalti/rain/internal/peer"
+	"github.com/cenkalti/rain/internal/peermanager"
 	"github.com/cenkalti/rain/internal/torrentdata"
 	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/internal/tracker/httptracker"
 	"github.com/cenkalti/rain/internal/tracker/udptracker"
-
-	"github.com/hashicorp/go-multierror"
+	"github.com/cenkalti/rain/internal/uploader"
 )
 
 // TODO move these to config
@@ -48,25 +53,24 @@ var (
 
 // Torrent connect to peers and downloads files from swarm.
 type Torrent struct {
-	peerID        [20]byte                // unique id per torrent
-	metainfo      *metainfo.MetaInfo      // parsed torrent file
-	data          *torrentdata.Data       // provides access to files on disk
-	dest          string                  // path of files on disk
-	port          int                     // listen for peer connections
-	listener      *net.TCPListener        // listens port for peer connections
-	tracker       tracker.Tracker         // tracker to announce
-	peers         map[[20]byte]*peer.Peer // connected peers
-	sKeyHash      [20]byte                // for encryption, hash of the info hash
-	bitfield      *bitfield.Bitfield      // keeps track of the pieces we have
-	peerLimiter   chan struct{}           // semaphore for limiting number of peers
-	completed     chan struct{}           // closed when all pieces are downloaded
-	onceCompleted sync.Once               // for closing completed channel only once
-	stopC         chan struct{}           // all goroutines stop when closed
-	stopWG        sync.WaitGroup          // for waiting running goroutines
-	m             sync.Mutex              // protects all state in this torrent and it's peers
-	running       bool                    // true after Start() is called
-	closed        bool                    // true after Close() is called
-	peerMessages  chan peer.Message       // messages from peers are sent to this channel for downloader
+	peerID        [20]byte           // unique id per torrent
+	metainfo      *metainfo.MetaInfo // parsed torrent file
+	data          *torrentdata.Data  // provides access to files on disk
+	dest          string             // path of files on disk
+	port          int                // listen for peer connections
+	listener      *net.TCPListener   // listens port for peer connections
+	tracker       tracker.Tracker    // tracker to announce
+	sKeyHash      [20]byte           // for encryption, hash of the info hash
+	bitfield      *bitfield.Bitfield // keeps track of the pieces we have
+	peerLimiter   chan struct{}      // semaphore for limiting number of peers
+	completed     chan struct{}      // closed when all pieces are downloaded
+	onceCompleted sync.Once          // for closing completed channel only once
+	stopC         chan struct{}      // all goroutines stop when closed
+	stopWG        sync.WaitGroup     // for waiting running goroutines
+	m             sync.Mutex         // protects all state in this torrent and it's peers
+	running       bool               // true after Start() is called
+	closed        bool               // true after Close() is called
+	peerMessages  chan peer.Message  // messages from peers are sent to this channel for downloader
 	log           logger.Logger
 }
 
@@ -111,7 +115,6 @@ func New(r io.Reader, dest string, port int) (*Torrent, error) {
 		dest:         dest,
 		port:         port,
 		tracker:      trk,
-		peers:        make(map[[20]byte]*peer.Peer),
 		sKeyHash:     mse.HashSKey(m.Info.Hash[:]),
 		bitfield:     bf,
 		peerLimiter:  make(chan struct{}, maxPeerPerTorrent),
@@ -165,17 +168,19 @@ func (t *Torrent) Start() error {
 		return err
 	}
 	t.log.Notice("Listening peers on tcp://" + t.listener.Addr().String())
+
 	t.stopC = make(chan struct{})
-	t.stopWG.Add(5)
 
-	// get peers from tracker
-	a := announcer.New(t.tracker, t, t.completed, t.log)
-	go a.Run(t.stopC, &t.stopWG)
+	lim := make(chan struct{}, 50)                                                                                                // limit max number of connected peers
+	an := announcer.New(t.tracker, t, t.completed, t.log)                                                                         // get peers from tracker
+	pm := peermanager.New(t.log)                                                                                                  // maintains connected peer list
+	do := downloader.New(pm, t.data, t.bitfield)                                                                                  // request missing pieces from peers
+	up := uploader.New()                                                                                                          // send requested blocks
+	ac := acceptor.New(t.listener, t.peerID, t.metainfo.Info.Hash, t.bitfield, lim, pm.PeerConnected(), do.PeerMessages(), t.log) // accept incoming peer connections
+	di := dialer.New(an, t.peerID, t.metainfo.Info.Hash, t.bitfield, lim, pm.PeerConnected(), do.PeerMessages())                  // connect to new peers
 
-	go t.accepter() // accept incoming peer connections
-	go t.dialer(a)  // connect to new peers
-	// go t.downloader() // request missing pieces from peers
-	go t.uploader() // send requested blocks
+	workers{an, pm, ac, di, do, up}.start(t.stopC, &t.stopWG)
+
 	return nil
 }
 
@@ -217,12 +222,11 @@ func (t *Torrent) Close() error {
 	if err != nil {
 		result = multierror.Append(result, err)
 	}
-	for _, p := range t.peers {
-		err = p.Close()
-		if err != nil {
-			result = multierror.Append(result, err)
-		}
-	}
+	// TODO close peer connections
+	// err = t.peerManager.Close()
+	// if err != nil {
+	// 	result = multierror.Append(result, err)
+	// }
 	err = t.data.Close()
 	if err != nil {
 		result = multierror.Append(result, err)
@@ -276,10 +280,3 @@ func (t *Torrent) BytesLeft() int64 { return t.BytesTotal() - t.BytesCompleted()
 
 // BytesTotal is the number of total bytes of files in torrent.
 func (t *Torrent) BytesTotal() int64 { return t.metainfo.Info.TotalLength }
-
-func closeConn(conn net.Conn, log logger.Logger) {
-	err := conn.Close()
-	if err != nil {
-		log.Errorln("cannot close conn:", err)
-	}
-}
