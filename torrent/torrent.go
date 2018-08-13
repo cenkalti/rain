@@ -18,11 +18,11 @@ import (
 )
 
 var (
-	// http://www.bittorrent.org/beps/bep_0020.html
-	peerIDPrefix = []byte("-RN" + Version + "-")
-
 	// Version of client. Set during build.
 	Version = "0000" // zero means development version
+
+	// http://www.bittorrent.org/beps/bep_0020.html
+	peerIDPrefix = []byte("-RN" + Version + "-")
 )
 
 // Torrent connect to peers and downloads files from swarm.
@@ -132,7 +132,7 @@ func (t *Torrent) Start() {
 	}()
 
 	// request missing pieces from peers
-	do := downloader.New(pm, t.data, t.bitfield)
+	do := downloader.New(pm, t.data, t.bitfield, t.log)
 	t.stopWG.Add(1)
 	go func() {
 		defer t.stopWG.Done()
