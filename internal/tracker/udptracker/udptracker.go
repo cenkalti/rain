@@ -1,8 +1,7 @@
 package udptracker
 
 // http://bittorrent.org/beps/bep_0015.html
-// http://xbtt.sourceforge.net/udp_tracker_bt.html
-// http://www.rasterbar.com/products/libtorrent/udp_tracker_bt.html
+// http://xbtt.sourceforge.net/udp_tracker_protocol.html
 
 import (
 	"bytes"
