@@ -32,7 +32,7 @@ func main() {
 	}
 	args := flag.Args()
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "Give a torrent file as first argument!")
+		_, _ = fmt.Fprintln(os.Stderr, "Give a torrent file as first argument!")
 		os.Exit(1)
 	}
 	if *debug {
@@ -57,10 +57,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = t.Start()
-	if err != nil {
-		log.Fatal(err)
-	}
+	t.Start()
 	if *seed {
 		sigC := make(chan os.Signal, 1)
 		signal.Notify(sigC, syscall.SIGINT, syscall.SIGTERM)
