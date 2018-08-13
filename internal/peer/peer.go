@@ -390,6 +390,7 @@ func (p *Peer) writeMessage(id messageid.MessageID, payload []byte) error {
 		id,
 	}
 	_ = binary.Write(buf, binary.BigEndian, &header)
+	buf.Write(payload)
 	_, err := p.conn.Write(buf.Bytes())
 	return err
 }

@@ -14,10 +14,9 @@ import (
 const blockSize = 16 * 1024
 
 type Downloader struct {
-	peerManager  *peermanager.PeerManager
-	data         *torrentdata.Data
-	bitfield     *bitfield.Bitfield
-	peerMessages chan peer.Message
+	peerManager *peermanager.PeerManager
+	data        *torrentdata.Data
+	bitfield    *bitfield.Bitfield
 }
 
 // type pieceState struct {
@@ -35,22 +34,20 @@ type downloaderRequest struct {
 
 func New(pm *peermanager.PeerManager, d *torrentdata.Data, b *bitfield.Bitfield) *Downloader {
 	return &Downloader{
-		peerManager:  pm,
-		data:         d,
-		bitfield:     b,
-		peerMessages: make(chan peer.Message),
+		peerManager: pm,
+		data:        d,
+		bitfield:    b,
 	}
-}
-
-func (d *Downloader) PeerMessages() chan peer.Message {
-	return d.peerMessages
 }
 
 // TODO implement
 func (d *Downloader) Run(stopC chan struct{}) {
 	pieces := make([]downloaderPiece, len(d.data.Pieces))
-	for _, p := range pieces {
-		p.havingPeers = make(map[*peer.Peer]struct{})
+	for i := range d.data.Pieces {
+		pieces[i] = downloaderPiece{
+			piece:       &d.data.Pieces[i],
+			havingPeers: make(map[*peer.Peer]struct{}),
+		}
 	}
 
 	// var requests []*downloaderRequest
@@ -76,18 +73,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				}
 				go downloadPiece(p.piece, havingPeer)
 			}
-
-			// for _, p := range t.data.Pieces() {
-			// jjjkk
-			// missingPiece := findMissingPiece()
-			// if missingPiece == nil {
-			// 	continue
-			// }
-			// havingPeer := findHavingPeer()
-			// if havingPeer == nil {
-			// 	continue
-			// }
-		case pm := <-d.peerMessages:
+		case pm := <-d.peerManager.PeerMessages():
 			switch msg := pm.Message.(type) {
 			case peer.Have:
 				pieces[msg.Index].havingPeers[pm.Peer] = struct{}{}
@@ -105,6 +91,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 }
 
 func downloadPiece(pi *piece.Piece, pe *peer.Peer) {
+	println("donwloading piece", pi, pe.String())
 	// blocksRequested := bitfield.New(uint32(len(pi.Blocks)))
 	// for
 }
