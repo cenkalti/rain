@@ -16,6 +16,8 @@ const blockSize = 16 * 1024
 
 const parallelPieceDownloads = 10
 
+const maxQueuedBlocks = 10
+
 type Downloader struct {
 	peerManager *peermanager.PeerManager
 	data        *torrentdata.Data
@@ -23,15 +25,15 @@ type Downloader struct {
 	log         logger.Logger
 }
 
-type downloaderPiece struct {
+type Piece struct {
+	*piece.Piece
 	index       int
-	piece       *piece.Piece
 	havingPeers map[*peer.Peer]struct{}
+	downloads   map[*peer.Peer]*pieceDownloader
 }
 
-type pieceDownload struct {
-	piece *downloaderPiece
-	peer  *peer.Peer
+type Peer struct {
+	*peer.Peer
 }
 
 func New(pm *peermanager.PeerManager, d *torrentdata.Data, b *bitfield.Bitfield, l logger.Logger) *Downloader {
@@ -43,18 +45,18 @@ func New(pm *peermanager.PeerManager, d *torrentdata.Data, b *bitfield.Bitfield,
 	}
 }
 
-// TODO implement
 func (d *Downloader) Run(stopC chan struct{}) {
-	pieces := make([]downloaderPiece, len(d.data.Pieces))
+	pieces := make([]Piece, len(d.data.Pieces))
 	for i := range d.data.Pieces {
-		pieces[i] = downloaderPiece{
+		pieces[i] = Piece{
+			Piece:       &d.data.Pieces[i],
 			index:       i,
-			piece:       &d.data.Pieces[i],
 			havingPeers: make(map[*peer.Peer]struct{}),
+			downloads:   make(map[*peer.Peer]*pieceDownloader),
 		}
 	}
 
-	var activeDownloads []*pieceDownload
+	var activeDownloads []*pieceDownloader
 
 	for {
 		select {
@@ -78,9 +80,11 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				if havingPeer == nil {
 					continue
 				}
-				req := &pieceDownload{&pieces[i], havingPeer}
+				req := newPieceDownloader(&pieces[i], &Peer{Peer: havingPeer})
+				d.log.Debugln("downloading piece", req.piece.index, "from", req.peer)
 				activeDownloads = append(activeDownloads, req)
-				go d.downloadPiece(req)
+				pieces[i].downloads[req.peer.Peer] = req
+				go req.run(stopC)
 			}
 		case pm := <-d.peerManager.PeerMessages():
 			switch msg := pm.Message.(type) {
@@ -92,15 +96,11 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				// }
 			case peer.Piece:
 				// TODO handle piece message
+				// pd := pieces[msg.Index].downloads[pm.Peer]
+				// pd.pieceC <- msg.
 			}
 		case <-stopC:
 			return
 		}
 	}
-}
-
-func (d *Downloader) downloadPiece(req *pieceDownload) {
-	d.log.Debugln("downloading piece", req.piece.index, "from", req.peer)
-	// blocksRequested := bitfield.New(uint32(len(pi.Blocks)))
-	// for
 }
