@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/cenkalti/rain/internal/announcer"
-	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/downloader"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/metainfo"
@@ -33,7 +32,6 @@ type Torrent struct {
 	dest          string             // path of files on disk
 	port          int                // listen for peer connections
 	sKeyHash      [20]byte           // for encryption, hash of the info hash
-	bitfield      *bitfield.Bitfield // keeps track of the pieces we have
 	completed     chan struct{}      // closed when all pieces are downloaded
 	onceCompleted sync.Once          // for closing completed channel only once
 	running       bool               // true after Start() is called
@@ -73,7 +71,7 @@ func New(r io.Reader, dest string, port int) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
-	bf, err := data.Verify()
+	err = data.Verify()
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +82,6 @@ func New(r io.Reader, dest string, port int) (*Torrent, error) {
 		dest:      dest,
 		port:      port,
 		sKeyHash:  mse.HashSKey(m.Info.Hash[:]),
-		bitfield:  bf,
 		completed: make(chan struct{}),
 		log:       logger.New("download " + logName),
 	}
@@ -93,7 +90,7 @@ func New(r io.Reader, dest string, port int) (*Torrent, error) {
 }
 
 func (t *Torrent) checkCompletion() {
-	if t.bitfield.All() {
+	if t.data.Bitfield().All() {
 		t.onceCompleted.Do(func() {
 			close(t.completed)
 			t.log.Notice("Download completed")
@@ -124,7 +121,7 @@ func (t *Torrent) Start() {
 	}()
 
 	// manage peer connections
-	pm := peermanager.New(t.port, an, t.peerID, t.metainfo.Info.Hash, t.bitfield, t.log)
+	pm := peermanager.New(t.port, an, t.peerID, t.metainfo.Info.Hash, t.data, t.log)
 	t.stopWG.Add(1)
 	go func() {
 		defer t.stopWG.Done()
@@ -132,7 +129,7 @@ func (t *Torrent) Start() {
 	}()
 
 	// request missing pieces from peers
-	do := downloader.New(pm, t.data, t.bitfield, t.log)
+	do := downloader.New(pm, t.data, t.log)
 	t.stopWG.Add(1)
 	go func() {
 		defer t.stopWG.Done()
@@ -182,13 +179,12 @@ func (t *Torrent) Port() int {
 
 // BytesCompleted returns the number of bytes downlaoded and passed hash check.
 func (t *Torrent) BytesCompleted() int64 {
-	t.m.Lock()
-	defer t.m.Unlock()
-	sum := int64(t.bitfield.Count() * t.metainfo.Info.PieceLength)
+	bf := t.data.Bitfield()
+	sum := int64(bf.Count() * t.metainfo.Info.PieceLength)
 
 	// Last piece usually not in full size.
 	lastPiece := len(t.data.Pieces) - 1
-	if t.bitfield.Test(uint32(lastPiece)) {
+	if bf.Test(uint32(lastPiece)) {
 		sum -= int64(t.metainfo.Info.PieceLength)
 		sum += int64(t.data.Pieces[lastPiece].Length)
 	}

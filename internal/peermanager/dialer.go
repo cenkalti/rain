@@ -51,6 +51,6 @@ func (m *PeerManager) dialAndRun(addr net.Addr, stopC chan struct{}) {
 		}
 	}()
 
-	p := peer.New(conn, peerID, m.bitfield.Len(), log, m.peerMessages)
+	p := peer.New(conn, peerID, m.data, log, m.peerMessages)
 	m.handleConnect(p, stopC)
 }

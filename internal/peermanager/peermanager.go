@@ -5,10 +5,10 @@ import (
 	"sync"
 
 	"github.com/cenkalti/rain/internal/announcer"
-	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/mse"
 	"github.com/cenkalti/rain/internal/peer"
+	"github.com/cenkalti/rain/internal/torrentdata"
 )
 
 // Do not connect more than maxPeerPerTorrent peers.
@@ -23,7 +23,7 @@ type PeerManager struct {
 	peerID           [20]byte
 	infoHash         [20]byte
 	sKeyHash         [20]byte
-	bitfield         *bitfield.Bitfield
+	data             *torrentdata.Data
 	limiter          chan struct{}
 	peerMessages     chan peer.Message
 	log              logger.Logger
@@ -31,7 +31,7 @@ type PeerManager struct {
 	wg               sync.WaitGroup
 }
 
-func New(port int, a *announcer.Announcer, peerID, infoHash [20]byte, b *bitfield.Bitfield, l logger.Logger) *PeerManager {
+func New(port int, a *announcer.Announcer, peerID, infoHash [20]byte, d *torrentdata.Data, l logger.Logger) *PeerManager {
 	return &PeerManager{
 		peers:            make(map[[20]byte]*peer.Peer),
 		peerDisconnected: make(chan *peer.Peer),
@@ -40,7 +40,7 @@ func New(port int, a *announcer.Announcer, peerID, infoHash [20]byte, b *bitfiel
 		peerID:           peerID,
 		infoHash:         infoHash,
 		sKeyHash:         mse.HashSKey(infoHash[:]),
-		bitfield:         b,
+		data:             d,
 		limiter:          make(chan struct{}, maxPeerPerTorrent),
 		peerMessages:     make(chan peer.Message),
 		log:              l,
@@ -120,7 +120,7 @@ func (m *PeerManager) handleConnect(p *peer.Peer, stopC chan struct{}) {
 	}
 	go m.waitDisconnect(p, stopC)
 	m.peers[p.ID()] = p
-	p.Run(m.bitfield)
+	p.Run()
 }
 
 func (m *PeerManager) closePeer(p *peer.Peer) {

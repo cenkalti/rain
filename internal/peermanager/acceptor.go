@@ -57,7 +57,7 @@ func (m *PeerManager) handleConn(conn net.Conn, stopC chan struct{}) {
 	}
 	log.Infof("Connection accepted. (cipher=%s extensions=%x client=%q)", cipher, extensions, peerID[:8])
 
-	p := peer.New(encConn, peerID, m.bitfield.Len(), log, m.peerMessages)
+	p := peer.New(encConn, peerID, m.data, log, m.peerMessages)
 	m.handleConnect(p, stopC)
 }
 

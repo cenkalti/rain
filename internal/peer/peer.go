@@ -12,6 +12,7 @@ import (
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/messageid"
+	"github.com/cenkalti/rain/internal/torrentdata"
 )
 
 const connReadTimeout = 3 * time.Minute
@@ -20,9 +21,9 @@ const connReadTimeout = 3 * time.Minute
 const maxAllowedBlockSize = 32 * 1024
 
 type Peer struct {
-	conn      net.Conn
-	id        [20]byte
-	numPieces uint32
+	conn net.Conn
+	id   [20]byte
+	data *torrentdata.Data
 
 	amChoking      bool
 	amInterested   bool
@@ -39,11 +40,11 @@ type Peer struct {
 	log          logger.Logger
 }
 
-func New(conn net.Conn, id [20]byte, numPieces uint32, l logger.Logger, messages chan Message) *Peer {
+func New(conn net.Conn, id [20]byte, d *torrentdata.Data, l logger.Logger, messages chan Message) *Peer {
 	return &Peer{
 		conn:         conn,
 		id:           id,
-		numPieces:    numPieces,
+		data:         d,
 		amChoking:    true,
 		peerChoking:  true,
 		messages:     messages,
@@ -72,11 +73,11 @@ func (p *Peer) Close() error {
 
 // Run reads and processes incoming messages after handshake.
 // TODO send keep-alive messages to peers at interval.
-func (p *Peer) Run(b *bitfield.Bitfield) {
+func (p *Peer) Run() {
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 	defer close(p.disconnected)
 
-	if err := p.sendBitfield(b); err != nil {
+	if err := p.sendBitfield(p.data.Bitfield()); err != nil {
 		p.log.Error(err)
 		return
 	}
@@ -149,7 +150,7 @@ func (p *Peer) Run(b *bitfield.Bitfield) {
 				p.log.Error(err)
 				return
 			}
-			if h.Index >= p.numPieces {
+			if h.Index >= uint32(len(p.data.Pieces)) {
 				p.log.Error("unexpected piece index")
 				return
 			}
@@ -165,7 +166,7 @@ func (p *Peer) Run(b *bitfield.Bitfield) {
 				p.log.Error("bitfield can only be sent after handshake")
 				return
 			}
-			numBytes := uint32(bitfield.NumBytes(p.numPieces))
+			numBytes := uint32(bitfield.NumBytes(uint32(len(p.data.Pieces))))
 			if length != numBytes {
 				p.log.Error("invalid bitfield length")
 				return
@@ -176,7 +177,7 @@ func (p *Peer) Run(b *bitfield.Bitfield) {
 				p.log.Error(err)
 				return
 			}
-			bf := bitfield.NewBytes(b, p.numPieces)
+			bf := bitfield.NewBytes(b, uint32(len(p.data.Pieces)))
 			p.m.Lock()
 			p.bitfield = bf
 			p.m.Unlock()

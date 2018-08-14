@@ -13,6 +13,7 @@ import (
 type Data struct {
 	Pieces    []piece.Piece
 	files     []*os.File
+	bitfield  *bitfield.Bitfield // keeps track of the pieces we have
 	checkHash bool
 }
 
@@ -21,11 +22,17 @@ func New(info *metainfo.Info, dest string) (*Data, error) {
 	if err != nil {
 		return nil, err
 	}
+	pieces := piece.NewPieces(info, files)
 	return &Data{
+		Pieces:    pieces,
 		files:     files,
-		Pieces:    piece.NewPieces(info, files),
+		bitfield:  bitfield.New(uint32(len(pieces))),
 		checkHash: checkHash,
 	}, nil
+}
+
+func (d *Data) Bitfield() *bitfield.Bitfield {
+	return d.bitfield
 }
 
 func (d *Data) Close() error {
@@ -39,15 +46,15 @@ func (d *Data) Close() error {
 	return result
 }
 
-func (d *Data) Verify() (*bitfield.Bitfield, error) {
-	b := bitfield.New(uint32(len(d.Pieces)))
-	if d.checkHash {
-		for i, p := range d.Pieces {
-			if err := p.Verify(); err != nil {
-				return nil, err
-			}
-			b.SetTo(uint32(i), p.OK)
-		}
+func (d *Data) Verify() error {
+	if !d.checkHash {
+		return nil
 	}
-	return b, nil
+	for i, p := range d.Pieces {
+		if err := p.Verify(); err != nil {
+			return err
+		}
+		d.bitfield.SetTo(uint32(i), p.OK)
+	}
+	return nil
 }

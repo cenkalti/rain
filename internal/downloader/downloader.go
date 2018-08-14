@@ -3,7 +3,6 @@ package downloader
 import (
 	"time"
 
-	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peermanager"
@@ -21,7 +20,6 @@ const maxQueuedBlocks = 10
 type Downloader struct {
 	peerManager *peermanager.PeerManager
 	data        *torrentdata.Data
-	bitfield    *bitfield.Bitfield
 	log         logger.Logger
 }
 
@@ -36,11 +34,10 @@ type Peer struct {
 	*peer.Peer
 }
 
-func New(pm *peermanager.PeerManager, d *torrentdata.Data, b *bitfield.Bitfield, l logger.Logger) *Downloader {
+func New(pm *peermanager.PeerManager, d *torrentdata.Data, l logger.Logger) *Downloader {
 	return &Downloader{
 		peerManager: pm,
 		data:        d,
-		bitfield:    b,
 		log:         l,
 	}
 }
@@ -66,7 +63,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				if len(activeDownloads) >= parallelPieceDownloads {
 					break
 				}
-				if d.bitfield.Test(uint32(i)) {
+				if p.OK {
 					continue
 				}
 				if len(p.havingPeers) == 0 {
