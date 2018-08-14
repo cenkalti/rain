@@ -1,5 +1,7 @@
 package peer
 
+import "github.com/cenkalti/rain/internal/piece"
+
 type Message struct {
 	Peer    *Peer
 	Message interface{}
@@ -14,6 +16,12 @@ type Request struct {
 }
 
 type Piece struct {
+	*piece.Piece
+	*piece.Block
+	Data []byte
+}
+
+type pieceMessage struct {
 	Index, Begin uint32
 }
 

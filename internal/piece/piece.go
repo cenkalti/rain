@@ -11,13 +11,12 @@ import (
 	"github.com/cenkalti/rain/internal/metainfo"
 )
 
-// TODO duplicate
-const blockSize = 16 * 1024
+const BlockSize = 16 * 1024
 
 // Piece of a torrent.
 type Piece struct {
 	OK     bool   // hash is correct and written to disk, Verify() must be called to set this.
-	Length uint32 // always equal to blockSize except last piece.
+	Length uint32 // always equal to BlockSize except last piece.
 	Blocks []Block
 	// TODO do not export sections, export a data interface
 	Data filesection.Sections // the place to write downloaded bytes
@@ -25,9 +24,11 @@ type Piece struct {
 }
 
 func NewPieces(info *metainfo.Info, osFiles []*os.File) []Piece {
+	// TODO take interface rwcloser for osFiles
+	// TODO init all to zero, call nextFile to init
 	var (
 		fileIndex  int   // index of the current file in torrent
-		fileLength int64 = info.GetFiles()[0].Length
+		fileLength int64 = info.GetFiles()[fileIndex].Length
 		fileEnd          = fileLength // absolute position of end of the file among all pieces
 		fileOffset int64              // offset in file: [0, fileLength)
 	)
@@ -82,7 +83,7 @@ func NewPieces(info *metainfo.Info, osFiles []*os.File) []Piece {
 }
 
 func (p *Piece) newBlocks() []Block {
-	div, mod := divMod32(p.Length, blockSize)
+	div, mod := divMod32(p.Length, BlockSize)
 	numBlocks := div
 	if mod != 0 {
 		numBlocks++
@@ -91,14 +92,14 @@ func (p *Piece) newBlocks() []Block {
 	for j := uint32(0); j < div; j++ {
 		blocks[j] = Block{
 			Index:  j,
-			Begin:  j * blockSize,
-			Length: blockSize,
+			Begin:  j * BlockSize,
+			Length: BlockSize,
 		}
 	}
 	if mod != 0 {
 		blocks[numBlocks-1] = Block{
 			Index:  numBlocks - 1,
-			Begin:  (numBlocks - 1) * blockSize,
+			Begin:  (numBlocks - 1) * BlockSize,
 			Length: mod,
 		}
 	}
@@ -122,6 +123,17 @@ func (p *Piece) Verify() error {
 	}
 	p.OK = bytes.Equal(hash.Sum(nil), p.hash)
 	return nil
+}
+
+func (p *Piece) GetBlock(begin uint32) *Block {
+	idx, mod := divMod32(begin, BlockSize)
+	if mod != 0 {
+		return nil
+	}
+	if idx >= uint32(len(p.Blocks)) {
+		return nil
+	}
+	return &p.Blocks[idx]
 }
 
 func minInt64(a, b int64) int64 {

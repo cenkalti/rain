@@ -120,7 +120,7 @@ func (m *PeerManager) handleConnect(p *peer.Peer, stopC chan struct{}) {
 	}
 	go m.waitDisconnect(p, stopC)
 	m.peers[p.ID()] = p
-	p.Run()
+	p.Run(stopC)
 }
 
 func (m *PeerManager) closePeer(p *peer.Peer) {

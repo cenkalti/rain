@@ -1,18 +1,22 @@
 package downloader
 
 import (
+	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/piece"
 )
 
 type pieceDownloader struct {
 	piece *Piece
 	peer  *Peer
+	// data  []byte
+	pieceC chan peer.Piece
 }
 
 func newPieceDownloader(pi *Piece, pe *Peer) *pieceDownloader {
 	return &pieceDownloader{
-		piece: pi,
-		peer:  pe,
+		piece:  pi,
+		peer:   pe,
+		pieceC: make(chan peer.Piece),
 	}
 }
 
@@ -32,6 +36,8 @@ func (d *pieceDownloader) run(stopC chan struct{}) {
 			if err != nil {
 				// TODO handle error
 			}
+		// case p := <-d.pieceC:
+		// p.
 		case <-stopC:
 			return
 		}

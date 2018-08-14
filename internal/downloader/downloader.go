@@ -10,10 +10,7 @@ import (
 	"github.com/cenkalti/rain/internal/torrentdata"
 )
 
-// Request pieces in blocks of this size.
-const blockSize = 16 * 1024
-
-const parallelPieceDownloads = 10
+const parallelPieceDownloads = 4
 
 const maxQueuedBlocks = 10
 
@@ -56,6 +53,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 	var activeDownloads []*pieceDownloader
 
 	for {
+		// TODO extract cases to methods
 		select {
 		case <-time.After(time.Second):
 			// TODO selecting pieces in sequential order, change to rarest first
@@ -94,7 +92,24 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			case peer.Piece:
 				// TODO handle piece message
 				// pd := pieces[msg.Index].downloads[pm.Peer]
+				// pd.blockC <- msg.Block
+
 				// pd.pieceC <- msg.
+
+				// 				p.log.Debugf("Writing piece to disk: #%d", piece.Index)
+				// 				if _, err = piece.Write(active.Data); err != nil {
+				// 					p.log.Error(err)
+				// 					// TODO remove errcheck ignore
+				// 					p.conn.Close() // nolint: errcheck
+				// 					return
+				// 				}
+
+				// 				p.torrent.m.Lock()
+				// 				p.torrent.bitfield.Set(piece.Index)
+				// 				percentDone := p.torrent.bitfield.Count() * 100 / p.torrent.bitfield.Len()
+				// 				p.torrent.m.Unlock()
+				// 				p.cond.Broadcast()
+				// 				p.torrent.log.Infof("Completed: %d%%", percentDone)
 			}
 		case <-stopC:
 			return

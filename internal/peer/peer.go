@@ -34,7 +34,6 @@ type Peer struct {
 	bitfield *bitfield.Bitfield
 
 	messages     chan Message
-	stopC        chan struct{}
 	m            sync.Mutex
 	disconnected chan struct{}
 	log          logger.Logger
@@ -48,7 +47,6 @@ func New(conn net.Conn, id [20]byte, d *torrentdata.Data, l logger.Logger, messa
 		amChoking:    true,
 		peerChoking:  true,
 		messages:     messages,
-		stopC:        make(chan struct{}),
 		disconnected: make(chan struct{}),
 		log:          l,
 	}
@@ -67,13 +65,12 @@ func (p *Peer) NotifyDisconnect() chan struct{} {
 }
 
 func (p *Peer) Close() error {
-	close(p.stopC)
 	return p.conn.Close()
 }
 
 // Run reads and processes incoming messages after handshake.
 // TODO send keep-alive messages to peers at interval.
-func (p *Peer) Run() {
+func (p *Peer) Run(stopC chan struct{}) {
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 	defer close(p.disconnected)
 
@@ -125,7 +122,7 @@ func (p *Peer) Run() {
 			p.m.Unlock()
 			select {
 			case p.messages <- Message{p, Choke{}}:
-			case <-p.stopC:
+			case <-stopC:
 				return
 			}
 		case messageid.Unchoke:
@@ -158,7 +155,7 @@ func (p *Peer) Run() {
 			p.bitfield.Set(h.Index)
 			select {
 			case p.messages <- Message{p, h}:
-			case <-p.stopC:
+			case <-stopC:
 				return
 			}
 		case messageid.Bitfield:
@@ -187,7 +184,7 @@ func (p *Peer) Run() {
 				if p.bitfield.Test(i) {
 					select {
 					case p.messages <- Message{p, Have{i}}:
-					case <-p.stopC:
+					case <-stopC:
 						return
 					}
 				}
@@ -215,7 +212,7 @@ func (p *Peer) Run() {
 
 		// 		p.torrent.requestC <- &peerRequest{p, req}
 		case messageid.Piece:
-			var msg Piece
+			var msg pieceMessage
 			err = binary.Read(p.conn, binary.BigEndian, &msg)
 			if err != nil {
 				p.log.Error(err)
@@ -223,71 +220,34 @@ func (p *Peer) Run() {
 			}
 			length -= 8
 
-			// if msg.Index >= p.numPieces {
-			// 	p.log.Error("invalid request: index")
-			// 	return
-			// }
-			// piece := p.torrent.pieces[msg.Index]
+			if msg.Index >= uint32(len(p.data.Pieces)) {
+				p.log.Error("invalid piece index")
+				return
+			}
+			piece := &p.data.Pieces[msg.Index]
 
-			// // We request only in blockSize length
-			// blockIndex, mod := divMod32(msg.Begin, blockSize)
-			// if mod != 0 {
-			// 	p.log.Error("unexpected block begin")
-			// 	return
-			// }
-			// if blockIndex >= uint32(len(piece.Blocks)) {
-			// 	p.log.Error("invalid block begin")
-			// 	return
-			// }
-			// block := p.torrent.pieces[msg.Index].Blocks[blockIndex]
-			// if length != block.Length {
-			// 	p.log.Error("invalid piece block length")
-			// 	return
-			// }
+			block := piece.GetBlock(msg.Begin)
+			if block == nil {
+				p.log.Error("invalid block begin")
+				return
+			}
+			if length != block.Length {
+				p.log.Error("invalid block length")
+				return
+			}
 
-			// p.torrent.m.Lock()
-			// active := piece.GetRequest(p.id)
-			// if active == nil {
-			// 	p.torrent.m.Unlock()
-			// 	p.log.Warning("received a piece that is not active")
-			// 	continue
-			// }
+			pm := Piece{Piece: piece, Block: block}
+			pm.Data = make([]byte, length)
+			if _, err = io.ReadFull(p.conn, pm.Data); err != nil {
+				p.log.Error(err)
+				return
+			}
 
-			// if active.BlocksReceiving.Test(block.Index) {
-			// 	p.log.Warningf("Receiving duplicate block: Piece #%d Block #%d", piece.Index, block.Index)
-			// } else {
-			// 	active.BlocksReceiving.Set(block.Index)
-			// }
-			// p.torrent.m.Unlock()
-
-			// if _, err = io.ReadFull(p.conn, active.Data[msg.Begin:msg.Begin+length]); err != nil {
-			// 	p.log.Error(err)
-			// 	return
-			// }
-
-			// p.torrent.m.Lock()
-			// active.BlocksReceived.Set(block.Index)
-			// if !active.BlocksReceived.All() {
-			// 	p.torrent.m.Unlock()
-			// 	p.cond.Broadcast()
-			// 	continue
-			// }
-			// p.torrent.m.Unlock()
-
-			// p.log.Debugf("Writing piece to disk: #%d", piece.Index)
-			// if _, err = piece.Write(active.Data); err != nil {
-			// 	p.log.Error(err)
-			// 	// TODO remove errcheck ignore
-			// 	p.conn.Close() // nolint: errcheck
-			// 	return
-			// }
-
-			// p.torrent.m.Lock()
-			// p.torrent.bitfield.Set(piece.Index)
-			// percentDone := p.torrent.bitfield.Count() * 100 / p.torrent.bitfield.Len()
-			// p.torrent.m.Unlock()
-			// p.cond.Broadcast()
-			// p.torrent.log.Infof("Completed: %d%%", percentDone)
+			select {
+			case p.messages <- Message{p, msg}:
+			case <-stopC:
+				return
+			}
 		// // 	case messageid.Cancel:
 		// // 	case messageid.Port:
 		default:
@@ -363,7 +323,7 @@ func (p *Peer) SendRequest(piece, begin, length uint32) error {
 }
 
 func (p *Peer) SendPiece(index, begin uint32, block []byte) error {
-	msg := Piece{index, begin}
+	msg := pieceMessage{index, begin}
 	buf := bytes.NewBuffer(make([]byte, 0, 8))
 	_ = binary.Write(buf, binary.BigEndian, msg)
 	buf.Write(block)
