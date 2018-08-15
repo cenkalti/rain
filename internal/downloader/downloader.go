@@ -2,7 +2,6 @@ package downloader
 
 import (
 	"sync"
-	"time"
 
 	"github.com/cenkalti/rain/internal/downloader/piecedownloader"
 	"github.com/cenkalti/rain/internal/logger"
@@ -15,12 +14,14 @@ import (
 const parallelPieceDownloads = 4
 
 type Downloader struct {
-	peerManager *peermanager.PeerManager
-	data        *torrentdata.Data
-	pieces      []Piece
-	downloads   map[*piecedownloader.PieceDownloader]struct{}
-	log         logger.Logger
-	m           sync.Mutex
+	peerManager   *peermanager.PeerManager
+	data          *torrentdata.Data
+	pieces        []Piece
+	unchokedPeers map[*peer.Peer]struct{}
+	downloads     map[*peer.Peer]*piecedownloader.PieceDownloader
+	log           logger.Logger
+	limiter       chan struct{}
+	m             sync.Mutex
 }
 
 type Piece struct {
@@ -41,11 +42,13 @@ func New(pm *peermanager.PeerManager, d *torrentdata.Data, l logger.Logger) *Dow
 		}
 	}
 	return &Downloader{
-		peerManager: pm,
-		data:        d,
-		pieces:      pieces,
-		downloads:   make(map[*piecedownloader.PieceDownloader]struct{}),
-		log:         l,
+		peerManager:   pm,
+		data:          d,
+		pieces:        pieces,
+		unchokedPeers: make(map[*peer.Peer]struct{}),
+		downloads:     make(map[*peer.Peer]*piecedownloader.PieceDownloader),
+		log:           l,
+		limiter:       make(chan struct{}, parallelPieceDownloads),
 	}
 }
 
@@ -53,28 +56,35 @@ func (d *Downloader) Run(stopC chan struct{}) {
 	for {
 		// TODO extract cases to methods
 		select {
-		case <-time.After(time.Second):
+		case d.limiter <- struct{}{}:
 			// TODO check status of existing downloads
 			d.m.Lock()
-			for len(d.downloads) < parallelPieceDownloads {
-				pi, pe, ok := d.nextDownload()
-				if !ok {
-					break
-				}
-				d.startDownload(pi, pe, stopC)
+			pi, pe, ok := d.nextDownload()
+			if !ok {
+				d.m.Unlock()
+				<-d.limiter
+				break
 			}
+			d.startDownload(pi, pe, stopC)
 			d.m.Unlock()
 		case pm := <-d.peerManager.PeerMessages():
 			switch msg := pm.Message.(type) {
 			case peer.Have:
 				d.pieces[msg.Index].havingPeers[pm.Peer] = struct{}{}
+			case peer.Unchoke:
+				d.unchokedPeers[pm.Peer] = struct{}{}
+				if pd, ok := d.downloads[pm.Peer]; ok {
+					pd.UnchokeC <- struct{}{}
+				}
 			case peer.Choke:
-				// for _, p := range pieces {
-				// 	delete(p.havingPeers, pm.Peer)
-				// }
+				delete(d.unchokedPeers, pm.Peer)
+				if pd, ok := d.downloads[pm.Peer]; ok {
+					pd.ChokeC <- struct{}{}
+				}
 			case peer.Piece:
-				pd := d.pieces[msg.Piece.Index].requestedPeers[pm.Peer]
-				pd.PieceC <- msg
+				if pd, ok := d.downloads[pm.Peer]; ok {
+					pd.PieceC <- msg
+				}
 			}
 		case <-stopC:
 			return
@@ -93,6 +103,9 @@ func (d *Downloader) nextDownload() (pi *piece.Piece, pe *peer.Peer, ok bool) {
 		}
 		// TODO selecting first peer having the piece, change to more smart decision
 		for pe2 := range p.havingPeers {
+			if _, ok2 := d.unchokedPeers[pe2]; !ok2 {
+				continue
+			}
 			if _, ok2 := p.requestedPeers[pe2]; ok2 {
 				continue
 			}
@@ -112,7 +125,7 @@ func (d *Downloader) nextDownload() (pi *piece.Piece, pe *peer.Peer, ok bool) {
 func (d *Downloader) startDownload(pi *piece.Piece, pe *peer.Peer, stopC chan struct{}) {
 	d.log.Debugln("downloading piece", pi.Index, "from", pe.String())
 	pd := piecedownloader.New(pi, pe)
-	d.downloads[pd] = struct{}{}
+	d.downloads[pe] = pd
 	d.pieces[pi.Index].requestedPeers[pe] = pd
 	go d.downloadPiece(pd, stopC)
 }
@@ -121,11 +134,12 @@ func (d *Downloader) downloadPiece(pd *piecedownloader.PieceDownloader, stopC ch
 	err := pd.Run(stopC)
 	if err != nil {
 		d.log.Error(err)
-		return
+	} else {
+		d.data.Bitfield().Set(pd.Piece.Index)
 	}
-	d.data.Bitfield().Set(pd.Piece.Index)
 	d.m.Lock()
-	delete(d.downloads, pd)
+	delete(d.downloads, pd.Peer)
 	delete(d.pieces[pd.Piece.Index].requestedPeers, pd.Peer)
 	d.m.Unlock()
+	<-d.limiter
 }

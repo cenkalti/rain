@@ -12,11 +12,13 @@ const maxQueuedBlocks = 10
 
 // PieceDownloader downloads all blocks of a piece from a peer.
 type PieceDownloader struct {
-	Piece   *piece.Piece
-	Peer    *peer.Peer
-	blocks  []block
-	limiter chan struct{}
-	PieceC  chan peer.Piece
+	Piece    *piece.Piece
+	Peer     *peer.Peer
+	blocks   []block
+	limiter  chan struct{}
+	PieceC   chan peer.Piece
+	ChokeC   chan struct{}
+	UnchokeC chan struct{}
 }
 
 type block struct {
@@ -31,28 +33,23 @@ func New(pi *piece.Piece, pe *peer.Peer) *PieceDownloader {
 		blocks[i] = block{Block: &pi.Blocks[i]}
 	}
 	return &PieceDownloader{
-		Piece:   pi,
-		Peer:    pe,
-		blocks:  blocks,
-		limiter: make(chan struct{}, maxQueuedBlocks),
-		PieceC:  make(chan peer.Piece),
+		Piece:    pi,
+		Peer:     pe,
+		blocks:   blocks,
+		limiter:  make(chan struct{}, maxQueuedBlocks),
+		PieceC:   make(chan peer.Piece),
+		ChokeC:   make(chan struct{}),
+		UnchokeC: make(chan struct{}),
 	}
 }
 
 func (d *PieceDownloader) Run(stopC chan struct{}) error {
 	for {
+		d.Peer.WaitUnchoke()
 		select {
 		case d.limiter <- struct{}{}:
 			b := d.nextBlock()
 			err := d.Peer.SendRequest(d.Piece.Index, b.Begin, b.Length)
-			// if err == peer.ErrPeerChoking {
-			// 	d.Peer.WaitUnchoke()
-			// 	select {
-			// 	case <-d.Peer.NotifyDisconnect():
-			// 		return re
-
-			// 	break
-			// }
 			if err != nil {
 				return err
 			}
@@ -65,8 +62,15 @@ func (d *PieceDownloader) Run(stopC chan struct{}) error {
 			if d.allDone() {
 				return d.verifyPiece()
 			}
-			// TODO handle choke
-			// TODO handle unchoke
+		case <-d.ChokeC:
+			for i := range d.blocks {
+				if d.blocks[i].data == nil && d.blocks[i].requested {
+					d.blocks[i].requested = false
+				}
+			}
+			d.limiter = nil
+		case <-d.UnchokeC:
+			d.limiter = make(chan struct{}, maxQueuedBlocks)
 		case <-d.Peer.NotifyDisconnect():
 			return errors.New("peer disconnected")
 		case <-stopC:

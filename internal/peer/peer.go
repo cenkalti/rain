@@ -126,7 +126,6 @@ func (p *Peer) Run(stopC chan struct{}) {
 			p.m.Lock()
 			p.peerChoking = true
 			p.m.Unlock()
-			p.cond.Broadcast()
 			select {
 			case p.messages <- Message{p, Choke{}}:
 			case <-stopC:
