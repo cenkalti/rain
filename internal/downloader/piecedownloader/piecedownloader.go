@@ -45,6 +45,14 @@ func (d *PieceDownloader) Run(stopC chan struct{}) error {
 		case d.limiter <- struct{}{}:
 			b := d.nextBlock()
 			err := d.Peer.SendRequest(d.Piece.Index, b.Begin, b.Length)
+			// if err == peer.ErrPeerChoking {
+			// 	d.Peer.WaitUnchoke()
+			// 	select {
+			// 	case <-d.Peer.NotifyDisconnect():
+			// 		return re
+
+			// 	break
+			// }
 			if err != nil {
 				return err
 			}

@@ -3,6 +3,7 @@ package peer
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"io"
 	"io/ioutil"
 	"net"
@@ -20,6 +21,8 @@ const connReadTimeout = 3 * time.Minute
 // Reject requests larger than this size.
 const maxAllowedBlockSize = 32 * 1024
 
+var ErrPeerChoking = errors.New("peer is choking")
+
 type Peer struct {
 	conn net.Conn
 	id   [20]byte
@@ -32,12 +35,13 @@ type Peer struct {
 
 	messages     chan Message
 	m            sync.Mutex
+	cond         *sync.Cond
 	disconnected chan struct{}
 	log          logger.Logger
 }
 
 func New(conn net.Conn, id [20]byte, d *torrentdata.Data, l logger.Logger, messages chan Message) *Peer {
-	return &Peer{
+	p := &Peer{
 		conn:         conn,
 		id:           id,
 		data:         d,
@@ -47,6 +51,8 @@ func New(conn net.Conn, id [20]byte, d *torrentdata.Data, l logger.Logger, messa
 		disconnected: make(chan struct{}),
 		log:          l,
 	}
+	p.cond = sync.NewCond(&p.m)
+	return p
 }
 
 func (p *Peer) ID() [20]byte {
@@ -69,7 +75,10 @@ func (p *Peer) Close() error {
 // TODO send keep-alive messages to peers at interval.
 func (p *Peer) Run(stopC chan struct{}) {
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
-	defer close(p.disconnected)
+	defer func() {
+		close(p.disconnected)
+		p.cond.Broadcast()
+	}()
 
 	if err := p.sendBitfield(p.data.Bitfield()); err != nil {
 		p.log.Error(err)
@@ -117,6 +126,7 @@ func (p *Peer) Run(stopC chan struct{}) {
 			p.m.Lock()
 			p.peerChoking = true
 			p.m.Unlock()
+			p.cond.Broadcast()
 			select {
 			case p.messages <- Message{p, Choke{}}:
 			case <-stopC:
@@ -126,6 +136,7 @@ func (p *Peer) Run(stopC chan struct{}) {
 			p.m.Lock()
 			p.peerChoking = false
 			p.m.Unlock()
+			p.cond.Broadcast()
 			// TODO implement
 		case messageid.Interested:
 			p.m.Lock()
@@ -310,10 +321,25 @@ func (p *Peer) SendUnchoke() error {
 }
 
 func (p *Peer) SendRequest(piece, begin, length uint32) error {
+	p.m.Lock()
+	if p.peerChoking {
+		p.m.Unlock()
+		return ErrPeerChoking
+	}
+	p.m.Unlock()
+
 	req := Request{piece, begin, length}
 	buf := bytes.NewBuffer(make([]byte, 0, 12))
 	_ = binary.Write(buf, binary.BigEndian, &req)
 	return p.writeMessage(messageid.Request, buf.Bytes())
+}
+
+func (p *Peer) WaitUnchoke() {
+	p.m.Lock()
+	for p.peerChoking {
+		p.cond.Wait()
+	}
+	p.m.Unlock()
 }
 
 func (p *Peer) SendPiece(index, begin uint32, block []byte) error {
