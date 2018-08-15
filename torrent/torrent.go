@@ -31,7 +31,6 @@ type Torrent struct {
 	data          *torrentdata.Data  // provides access to files on disk
 	dest          string             // path of files on disk
 	port          int                // listen for peer connections
-	sKeyHash      [20]byte           // for encryption, hash of the info hash
 	completed     chan struct{}      // closed when all pieces are downloaded
 	onceCompleted sync.Once          // for closing completed channel only once
 	running       bool               // true after Start() is called
@@ -81,7 +80,6 @@ func New(r io.Reader, dest string, port int) (*Torrent, error) {
 		data:      data,
 		dest:      dest,
 		port:      port,
-		sKeyHash:  mse.HashSKey(m.Info.Hash[:]),
 		completed: make(chan struct{}),
 		log:       logger.New("download " + logName),
 	}
