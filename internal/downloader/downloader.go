@@ -54,19 +54,16 @@ func (d *Downloader) Run(stopC chan struct{}) {
 		// TODO extract cases to methods
 		select {
 		case <-time.After(time.Second):
+			// TODO check status of existing downloads
+			d.m.Lock()
 			for len(d.downloads) < parallelPieceDownloads {
 				pi, pe, ok := d.nextDownload()
 				if !ok {
 					break
 				}
-				pd := piecedownloader.New(pi, pe)
-				d.log.Debugln("downloading piece", pi.Index, "from", pe.String())
-				d.m.Lock()
-				d.downloads[pd] = struct{}{}
-				d.pieces[pi.Index].requestedPeers[pe] = pd
-				d.m.Unlock()
-				go d.downloadPiece(pd, stopC)
+				d.startDownload(pi, pe, stopC)
 			}
+			d.m.Unlock()
 		case pm := <-d.peerManager.PeerMessages():
 			switch msg := pm.Message.(type) {
 			case peer.Have:
@@ -76,16 +73,8 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				// 	delete(p.havingPeers, pm.Peer)
 				// }
 			case peer.Piece:
-				// TODO handle piece message
 				pd := d.pieces[msg.Piece.Index].requestedPeers[pm.Peer]
 				pd.PieceC <- msg
-
-				// 				p.torrent.m.Lock()
-				// 				p.torrent.bitfield.Set(piece.Index)
-				// 				percentDone := p.torrent.bitfield.Count() * 100 / p.torrent.bitfield.Len()
-				// 				p.torrent.m.Unlock()
-				// 				p.cond.Broadcast()
-				// 				p.torrent.log.Infof("Completed: %d%%", percentDone)
 			}
 		case <-stopC:
 			return
@@ -103,8 +92,12 @@ func (d *Downloader) nextDownload() (pi *piece.Piece, pe *peer.Peer, ok bool) {
 			continue
 		}
 		// TODO selecting first peer having the piece, change to more smart decision
-		for pe = range p.havingPeers {
-			continue
+		for pe2 := range p.havingPeers {
+			if _, ok2 := p.requestedPeers[pe2]; ok2 {
+				continue
+			}
+			pe = pe2
+			break
 		}
 		if pe == nil {
 			continue
@@ -114,6 +107,14 @@ func (d *Downloader) nextDownload() (pi *piece.Piece, pe *peer.Peer, ok bool) {
 		break
 	}
 	return
+}
+
+func (d *Downloader) startDownload(pi *piece.Piece, pe *peer.Peer, stopC chan struct{}) {
+	d.log.Debugln("downloading piece", pi.Index, "from", pe.String())
+	pd := piecedownloader.New(pi, pe)
+	d.downloads[pd] = struct{}{}
+	d.pieces[pi.Index].requestedPeers[pe] = pd
+	go d.downloadPiece(pd, stopC)
 }
 
 func (d *Downloader) downloadPiece(pd *piecedownloader.PieceDownloader, stopC chan struct{}) {
