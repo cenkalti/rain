@@ -108,13 +108,21 @@ func (p *Piece) newBlocks() []Block {
 	return blocks
 }
 
-func (p *Piece) Write(b []byte) (n int, err error) {
+func (p *Piece) Write(b []byte) error {
+	if uint32(len(b)) != p.Length {
+		return errors.New("invalid piece data length")
+	}
 	hash := sha1.New()
 	hash.Write(b)
 	if !bytes.Equal(hash.Sum(nil), p.hash) {
-		return 0, errors.New("corrupt piece")
+		return errors.New("corrupt piece")
 	}
-	return p.Data.Write(b)
+	_, err := p.Data.Write(b)
+	if err != nil {
+		return err
+	}
+	p.OK = true
+	return nil
 }
 
 // Verify reads from disk and sets p.OK if piece is complete.

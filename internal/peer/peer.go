@@ -35,13 +35,12 @@ type Peer struct {
 
 	messages     chan Message
 	m            sync.Mutex
-	cond         *sync.Cond
 	disconnected chan struct{}
 	log          logger.Logger
 }
 
 func New(conn net.Conn, id [20]byte, d *torrentdata.Data, l logger.Logger, messages chan Message) *Peer {
-	p := &Peer{
+	return &Peer{
 		conn:         conn,
 		id:           id,
 		data:         d,
@@ -51,8 +50,6 @@ func New(conn net.Conn, id [20]byte, d *torrentdata.Data, l logger.Logger, messa
 		disconnected: make(chan struct{}),
 		log:          l,
 	}
-	p.cond = sync.NewCond(&p.m)
-	return p
 }
 
 func (p *Peer) ID() [20]byte {
@@ -75,15 +72,15 @@ func (p *Peer) Close() error {
 // TODO send keep-alive messages to peers at interval.
 func (p *Peer) Run(stopC chan struct{}) {
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
-	defer func() {
-		close(p.disconnected)
-		p.cond.Broadcast()
-	}()
+	defer close(p.disconnected)
 
 	if err := p.sendBitfield(p.data.Bitfield()); err != nil {
 		p.log.Error(err)
 		return
 	}
+
+	// TODO remove after implementing uploader
+	p.SendUnchoke()
 
 	first := true
 	for {
@@ -94,7 +91,7 @@ func (p *Peer) Run(stopC chan struct{}) {
 		}
 
 		var length uint32
-		p.log.Debug("Reading message...")
+		// p.log.Debug("Reading message...")
 		err = binary.Read(p.conn, binary.BigEndian, &length)
 		if err != nil {
 			if err == io.EOF {
@@ -104,7 +101,7 @@ func (p *Peer) Run(stopC chan struct{}) {
 			}
 			return
 		}
-		p.log.Debugf("Received message of length: %d", length)
+		// p.log.Debugf("Received message of length: %d", length)
 
 		if length == 0 { // keep-alive message
 			p.log.Debug("Received message of type \"keep alive\"")
@@ -119,7 +116,7 @@ func (p *Peer) Run(stopC chan struct{}) {
 		}
 		length--
 
-		p.log.Debugf("Received message of type: %q", id)
+		// p.log.Debugf("Received message of type: %q", id)
 
 		switch id {
 		case messageid.Choke:
@@ -135,7 +132,11 @@ func (p *Peer) Run(stopC chan struct{}) {
 			p.m.Lock()
 			p.peerChoking = false
 			p.m.Unlock()
-			p.cond.Broadcast()
+			select {
+			case p.messages <- Message{p, Unchoke{}}:
+			case <-stopC:
+				return
+			}
 			// TODO implement
 		case messageid.Interested:
 			p.m.Lock()
@@ -192,29 +193,28 @@ func (p *Peer) Run(stopC chan struct{}) {
 					}
 				}
 			}
-		// TODO handle request messages
-		// case messageid.Request:
-		// 		var req requestMessage
-		// 		err = binary.Read(p.conn, binary.BigEndian, &req)
-		// 		if err != nil {
-		// 			p.log.Error(err)
-		// 			return
-		// 		}
-		// 		p.log.Debugf("Request: %+v", req)
+		case messageid.Request:
+			var req Request
+			err = binary.Read(p.conn, binary.BigEndian, &req)
+			if err != nil {
+				p.log.Error(err)
+				return
+			}
+			p.log.Debugf("Received Request: %+v", req)
 
-		// 		if req.Index >= p.torrent.info.NumPieces {
-		// 			p.log.Error("invalid request: index")
-		// 			return
-		// 		}
-		// 		if req.Length > maxAllowedBlockSize {
-		// 			p.log.Error("received a request with block size larger than allowed")
-		// 			return
-		// 		}
-		// 		if req.Begin+req.Length > p.torrent.pieces[req.Index].Length {
-		// 			p.log.Error("invalid request: length")
-		// 		}
+			if req.Index >= uint32(len(p.data.Pieces)) {
+				p.log.Error("invalid request: index")
+				return
+			}
+			if req.Length > maxAllowedBlockSize {
+				p.log.Error("received a request with block size larger than allowed")
+				return
+			}
+			if req.Begin+req.Length > p.data.Pieces[req.Index].Length {
+				p.log.Error("invalid request: length")
+			}
 
-		// 		p.torrent.requestC <- &peerRequest{p, req}
+			p.messages <- Message{p, req}
 		case messageid.Piece:
 			var msg pieceMessage
 			err = binary.Read(p.conn, binary.BigEndian, &msg)
@@ -247,6 +247,7 @@ func (p *Peer) Run(stopC chan struct{}) {
 				return
 			}
 
+			println("XXX received piece", msg.Index, msg.Begin)
 			select {
 			case p.messages <- Message{p, pm}:
 			case <-stopC:
@@ -328,21 +329,15 @@ func (p *Peer) SendRequest(piece, begin, length uint32) error {
 	p.m.Unlock()
 
 	req := Request{piece, begin, length}
+	p.log.Debugf("Sending Request: %+v", req)
 	buf := bytes.NewBuffer(make([]byte, 0, 12))
 	_ = binary.Write(buf, binary.BigEndian, &req)
 	return p.writeMessage(messageid.Request, buf.Bytes())
 }
 
-func (p *Peer) WaitUnchoke() {
-	p.m.Lock()
-	for p.peerChoking {
-		p.cond.Wait()
-	}
-	p.m.Unlock()
-}
-
 func (p *Peer) SendPiece(index, begin uint32, block []byte) error {
 	msg := pieceMessage{index, begin}
+	p.log.Debugf("Sending Piece: %+v", msg)
 	buf := bytes.NewBuffer(make([]byte, 0, 8))
 	_ = binary.Write(buf, binary.BigEndian, msg)
 	buf.Write(block)
@@ -350,7 +345,7 @@ func (p *Peer) SendPiece(index, begin uint32, block []byte) error {
 }
 
 func (p *Peer) writeMessage(id messageid.MessageID, payload []byte) error {
-	p.log.Debugf("Sending message of type: %q", id)
+	// p.log.Debugf("Sending message of type: %q", id)
 	buf := bytes.NewBuffer(make([]byte, 0, 4+1+len(payload)))
 	var header = struct {
 		Length uint32

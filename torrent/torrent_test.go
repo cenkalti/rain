@@ -25,6 +25,7 @@ var (
 	torrentFile    = filepath.Join("testfiles", "10mb.torrent")
 	torrentDataDir = "testfiles"
 	torrentName    = "10mb"
+	timeout        = 10 * time.Second
 )
 
 func init() {
@@ -62,7 +63,7 @@ func TestDownload(t *testing.T) {
 
 	select {
 	case <-t2.CompleteNotify():
-	case <-time.After(4 * time.Second):
+	case <-time.After(timeout):
 		panic("download did not finish")
 	}
 

@@ -15,6 +15,7 @@ type Data struct {
 	files     []*os.File
 	bitfield  *bitfield.Bitfield // keeps track of the pieces we have
 	checkHash bool
+	Completed chan struct{}
 }
 
 func New(info *metainfo.Info, dest string) (*Data, error) {
@@ -28,6 +29,7 @@ func New(info *metainfo.Info, dest string) (*Data, error) {
 		files:     files,
 		bitfield:  bitfield.New(uint32(len(pieces))),
 		checkHash: checkHash,
+		Completed: make(chan struct{}),
 	}, nil
 }
 

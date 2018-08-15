@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 
+	"github.com/cenkalti/log"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/piece"
 )
@@ -45,17 +46,21 @@ func New(pi *piece.Piece, pe *peer.Peer) *PieceDownloader {
 
 func (d *PieceDownloader) Run(stopC chan struct{}) error {
 	for {
-		d.Peer.WaitUnchoke()
 		select {
 		case d.limiter <- struct{}{}:
 			b := d.nextBlock()
+			if b == nil {
+				d.limiter = nil
+				break
+			}
 			err := d.Peer.SendRequest(d.Piece.Index, b.Begin, b.Length)
 			if err != nil {
 				return err
 			}
 		case p := <-d.PieceC:
-			b := d.blocks[p.Block.Index]
-			if b.requested && b.data == nil {
+			log.Warningln("piece message", p.Piece.Index, p.Block.Index, p.Block.Begin, p.Block.Length)
+			b := &d.blocks[p.Block.Index]
+			if b.requested && b.data == nil && d.limiter != nil {
 				<-d.limiter
 			}
 			b.data = p.Data
@@ -68,9 +73,9 @@ func (d *PieceDownloader) Run(stopC chan struct{}) error {
 					d.blocks[i].requested = false
 				}
 			}
-			d.limiter = nil
+			// d.limiter = nil
 		case <-d.UnchokeC:
-			d.limiter = make(chan struct{}, maxQueuedBlocks)
+			// d.limiter = make(chan struct{}, maxQueuedBlocks)
 		case <-d.Peer.NotifyDisconnect():
 			return errors.New("peer disconnected")
 		case <-stopC:
@@ -82,6 +87,7 @@ func (d *PieceDownloader) Run(stopC chan struct{}) error {
 func (d *PieceDownloader) nextBlock() *block {
 	for i := range d.blocks {
 		if !d.blocks[i].requested {
+			d.blocks[i].requested = true
 			return &d.blocks[i]
 		}
 	}
@@ -112,6 +118,6 @@ func (d *PieceDownloader) verifyPiece() error {
 	for i := range d.blocks {
 		buf.Write(d.blocks[i].data)
 	}
-	_, err := d.Piece.Write(buf.Bytes())
+	err := d.Piece.Write(buf.Bytes())
 	return err
 }

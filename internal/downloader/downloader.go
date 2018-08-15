@@ -62,6 +62,14 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			pi, pe, ok := d.nextDownload()
 			if !ok {
 				d.m.Unlock()
+				// TODO separate channels for each message type
+				// select {
+				// case pm := <-d.peerManager.PeerMessages():
+				// 	<-d.limiter
+				// 	go func() { d.peerManager.PeerMessages() <- pm }()
+				// case <-stopC:
+				// 	return
+				// }
 				<-d.limiter
 				break
 			}
@@ -82,9 +90,23 @@ func (d *Downloader) Run(stopC chan struct{}) {
 					pd.ChokeC <- struct{}{}
 				}
 			case peer.Piece:
+				d.log.Warningln("piece Message 2", msg.Piece.Index, msg.Block.Index)
 				if pd, ok := d.downloads[pm.Peer]; ok {
 					pd.PieceC <- msg
 				}
+			case peer.Request:
+				println("YYY replying request")
+				pe := pm.Peer
+				// pi := d.data.Pieces[msg.Index]
+				buf := make([]byte, msg.Length)
+				// pi.Data.ReadAt(buf, int64(msg.Begin))
+				err := pe.SendPiece(msg.Index, msg.Begin, buf)
+				if err != nil {
+					d.log.Error(err)
+					return
+				}
+			default:
+				d.log.Debugln("unhandled message type:", msg)
 			}
 		case <-stopC:
 			return
@@ -107,6 +129,9 @@ func (d *Downloader) nextDownload() (pi *piece.Piece, pe *peer.Peer, ok bool) {
 				continue
 			}
 			if _, ok2 := p.requestedPeers[pe2]; ok2 {
+				continue
+			}
+			if _, ok2 := d.downloads[pe2]; ok2 {
 				continue
 			}
 			pe = pe2
