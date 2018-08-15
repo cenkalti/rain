@@ -10,7 +10,6 @@ import (
 	"github.com/cenkalti/rain/internal/downloader"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/metainfo"
-	"github.com/cenkalti/rain/internal/mse"
 	"github.com/cenkalti/rain/internal/peermanager"
 	"github.com/cenkalti/rain/internal/torrentdata"
 	"github.com/cenkalti/rain/internal/uploader"
