@@ -182,7 +182,8 @@ func (p *Peer) Run(stopC chan struct{}) {
 					}
 				}
 			}
-		// 	case messageid.Request:
+		// TODO handle request messages
+		// case messageid.Request:
 		// 		var req requestMessage
 		// 		err = binary.Read(p.conn, binary.BigEndian, &req)
 		// 		if err != nil {
@@ -241,8 +242,8 @@ func (p *Peer) Run(stopC chan struct{}) {
 			case <-stopC:
 				return
 			}
-		// // 	case messageid.Cancel:
-		// // 	case messageid.Port:
+		// TODO handle cancel messages
+		// case messageid.Cancel:
 		default:
 			p.log.Debugf("unhandled message type: %s", id)
 			p.log.Debugln("Discarding", length, "bytes...")
@@ -338,5 +339,3 @@ func (p *Peer) writeMessage(id messageid.MessageID, payload []byte) error {
 	_, err := p.conn.Write(buf.Bytes())
 	return err
 }
-
-func divMod32(a, b uint32) (uint32, uint32) { return a / b, a % b }
