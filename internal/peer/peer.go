@@ -244,7 +244,7 @@ func (p *Peer) Run(stopC chan struct{}) {
 			}
 
 			select {
-			case p.messages <- Message{p, msg}:
+			case p.messages <- Message{p, pm}:
 			case <-stopC:
 				return
 			}

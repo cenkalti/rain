@@ -26,3 +26,5 @@ type pieceMessage struct {
 }
 
 type Choke struct{}
+
+type Unchoke struct{}

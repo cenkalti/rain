@@ -12,13 +12,11 @@ const maxQueuedBlocks = 10
 
 // PieceDownloader downloads all blocks of a piece from a peer.
 type PieceDownloader struct {
-	piece   *piece.Piece
-	peer    *peer.Peer
+	Piece   *piece.Piece
+	Peer    *peer.Peer
 	blocks  []block
 	limiter chan struct{}
 	PieceC  chan peer.Piece
-	Done    chan struct{}
-	Err     error
 }
 
 type block struct {
@@ -33,25 +31,22 @@ func New(pi *piece.Piece, pe *peer.Peer) *PieceDownloader {
 		blocks[i] = block{Block: &pi.Blocks[i]}
 	}
 	return &PieceDownloader{
-		piece:   pi,
-		peer:    pe,
+		Piece:   pi,
+		Peer:    pe,
 		blocks:  blocks,
 		limiter: make(chan struct{}, maxQueuedBlocks),
 		PieceC:  make(chan peer.Piece),
-		Done:    make(chan struct{}),
 	}
 }
 
-func (d *PieceDownloader) Run(stopC chan struct{}) {
-	defer close(d.Done)
+func (d *PieceDownloader) Run(stopC chan struct{}) error {
 	for {
 		select {
 		case d.limiter <- struct{}{}:
 			b := d.nextBlock()
-			err := d.peer.SendRequest(d.piece.Index, b.Begin, b.Length)
+			err := d.Peer.SendRequest(d.Piece.Index, b.Begin, b.Length)
 			if err != nil {
-				d.Err = err
-				return
+				return err
 			}
 		case p := <-d.PieceC:
 			b := d.blocks[p.Block.Index]
@@ -60,17 +55,14 @@ func (d *PieceDownloader) Run(stopC chan struct{}) {
 			}
 			b.data = p.Data
 			if d.allDone() {
-				d.Err = d.verifyPiece()
-				return
+				return d.verifyPiece()
 			}
 			// TODO handle choke
 			// TODO handle unchoke
-		case <-d.peer.NotifyDisconnect():
-			d.Err = errors.New("peer disconnected")
-			return
+		case <-d.Peer.NotifyDisconnect():
+			return errors.New("peer disconnected")
 		case <-stopC:
-			d.Err = errors.New("download stopped")
-			return
+			return errors.New("download stopped")
 		}
 	}
 }
@@ -104,10 +96,10 @@ func (d *PieceDownloader) numRequested() int {
 }
 
 func (d *PieceDownloader) verifyPiece() error {
-	buf := bytes.NewBuffer(make([]byte, 0, d.piece.Length))
+	buf := bytes.NewBuffer(make([]byte, 0, d.Piece.Length))
 	for i := range d.blocks {
 		buf.Write(d.blocks[i].data)
 	}
-	_, err := d.piece.Write(buf.Bytes())
+	_, err := d.Piece.Write(buf.Bytes())
 	return err
 }
