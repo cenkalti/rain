@@ -30,9 +30,6 @@ type Peer struct {
 	peerChoking    bool
 	peerInterested bool
 
-	// pieces that the peer has
-	bitfield *bitfield.Bitfield
-
 	messages     chan Message
 	m            sync.Mutex
 	disconnected chan struct{}
@@ -152,7 +149,6 @@ func (p *Peer) Run(stopC chan struct{}) {
 				return
 			}
 			p.log.Debug("Peer ", p.conn.RemoteAddr(), " has piece #", h.Index)
-			p.bitfield.Set(h.Index)
 			select {
 			case p.messages <- Message{p, h}:
 			case <-stopC:
@@ -175,13 +171,10 @@ func (p *Peer) Run(stopC chan struct{}) {
 				return
 			}
 			bf := bitfield.NewBytes(b, uint32(len(p.data.Pieces)))
-			p.m.Lock()
-			p.bitfield = bf
-			p.m.Unlock()
-			p.log.Debugln("Received bitfield:", p.bitfield.Hex())
+			p.log.Debugln("Received bitfield:", bf.Hex())
 
-			for i := uint32(0); i < p.bitfield.Len(); i++ {
-				if p.bitfield.Test(i) {
+			for i := uint32(0); i < bf.Len(); i++ {
+				if bf.Test(i) {
 					select {
 					case p.messages <- Message{p, Have{i}}:
 					case <-stopC:
