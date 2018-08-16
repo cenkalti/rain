@@ -31,29 +31,31 @@ func (s Sections) Reader() io.Reader {
 // It reads bytes from s at given offset into p.
 // Used when uploading blocks of a piece.
 func (s Sections) ReadAt(p []byte, off int64) (n int, err error) {
-	// TODO use io.SectionReader
 	var readers []io.Reader
 	var i int
-	var sec Section
 	var pos int64
+
 	// Skip sections up to offset
-	for i, sec = range s {
-		pos += sec.Length
-		if pos > off {
+	for ; i < len(s); i++ {
+		pos += s[i].Length
+		if pos >= off {
 			break
 		}
 	}
+
 	// Add half section
-	// TODO no need to check nil
-	if sec.File != nil {
-		advance := sec.Length - (pos - off)
-		sr := io.NewSectionReader(sec.File, sec.Offset+advance, sec.Length-advance)
-		readers = append(readers, sr)
-	}
+	advance := s[i].Length - (pos - off)
+	readers = append(readers, io.NewSectionReader(s[i].File, s[i].Offset+advance, s[i].Length-advance))
+
 	// Add remaining sections
 	for i++; i < len(s); i++ {
-		readers[i] = io.NewSectionReader(s[i].File, s[i].Offset, s[i].Length)
+		readers = append(readers, io.NewSectionReader(s[i].File, s[i].Offset, s[i].Length))
+		pos += s[i].Length
+		if pos >= off+int64(len(p)) {
+			break
+		}
 	}
+
 	return io.ReadFull(io.MultiReader(readers...), p)
 }
 

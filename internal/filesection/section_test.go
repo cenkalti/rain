@@ -38,6 +38,8 @@ func TestFiles(t *testing.T) {
 		Section{osFiles[3], 0, 2},
 	}
 	pf := Sections(files)
+
+	// test full read
 	b := make([]byte, 5)
 	n, err := io.ReadFull(pf.Reader(), b)
 	if err != nil {
@@ -49,6 +51,45 @@ func TestFiles(t *testing.T) {
 	if string(b) != "dfaqw" {
 		t.Errorf("b = %s", string(b))
 	}
+
+	// test partial read
+	cases := []struct {
+		size   int
+		offset int64
+		expect string
+	}{
+		{5, 0, "dfaqw"},
+		{4, 0, "dfaq"},
+		{3, 0, "dfa"},
+		{2, 0, "df"},
+		{1, 0, "d"},
+		{0, 0, ""},
+		{4, 1, "faqw"},
+		{3, 2, "aqw"},
+		{2, 3, "qw"},
+		{1, 4, "w"},
+		{0, 5, ""},
+		{1, 0, "d"},
+		{1, 1, "f"},
+		{1, 2, "a"},
+		{1, 3, "q"},
+		{1, 4, "w"},
+	}
+	for _, c := range cases {
+		b = make([]byte, c.size)
+		n, err = pf.ReadAt(b, c.offset)
+		if err != nil {
+			t.Error(err)
+		}
+		if n != c.size {
+			t.Errorf("n == %d", n)
+		}
+		if string(b) != c.expect {
+			t.Errorf("b = %s", string(b))
+		}
+	}
+
+	// test write
 	n, err = pf.Write([]byte("12345"))
 	if err != nil {
 		t.Error(err)
