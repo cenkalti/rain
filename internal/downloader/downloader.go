@@ -2,6 +2,7 @@ package downloader
 
 import (
 	"sync"
+	"time"
 
 	"github.com/cenkalti/rain/internal/downloader/piecedownloader"
 	"github.com/cenkalti/rain/internal/logger"
@@ -58,23 +59,19 @@ func (d *Downloader) Run(stopC chan struct{}) {
 		select {
 		case d.limiter <- struct{}{}:
 			// TODO check status of existing downloads
-			d.m.Lock()
-			pi, pe, ok := d.nextDownload()
-			if !ok {
+			go func() {
+				d.m.Lock()
+				pi, pe, ok := d.nextDownload()
+				if !ok {
+					d.m.Unlock()
+					<-time.After(time.Second)
+					<-d.limiter
+					return
+					// TODO separate channels for each message type
+				}
+				d.startDownload(pi, pe, stopC)
 				d.m.Unlock()
-				// TODO separate channels for each message type
-				// select {
-				// case pm := <-d.peerManager.PeerMessages():
-				// 	<-d.limiter
-				// 	go func() { d.peerManager.PeerMessages() <- pm }()
-				// case <-stopC:
-				// 	return
-				// }
-				<-d.limiter
-				break
-			}
-			d.startDownload(pi, pe, stopC)
-			d.m.Unlock()
+			}()
 		case pm := <-d.peerManager.PeerMessages():
 			switch msg := pm.Message.(type) {
 			case peer.Have:

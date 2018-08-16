@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime/pprof"
 	"syscall"
 
 	"github.com/cenkalti/log"
 	"github.com/mitchellh/go-homedir"
-	"github.com/pkg/profile"
 
 	"github.com/cenkalti/rain/client"
 	"github.com/cenkalti/rain/internal/logger"
@@ -41,7 +41,11 @@ func main() {
 		logger.SetLogLevel(log.DEBUG)
 	}
 	if *cpuprofile != "" {
-		defer profile.Start().Stop()
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
 	}
 	cfg := client.NewConfig()
 	if *configPath != "" {
@@ -63,15 +67,26 @@ func main() {
 		log.Fatal(err)
 	}
 	t.Start()
-	if *seed {
-		sigC := make(chan os.Signal, 1)
-		signal.Notify(sigC, syscall.SIGINT, syscall.SIGTERM)
-		<-sigC
-	} else {
-		<-t.CompleteNotify()
+
+	sigC := make(chan os.Signal, 1)
+	signal.Notify(sigC, syscall.SIGINT, syscall.SIGTERM)
+LOOP:
+	for {
+		select {
+		case <-sigC:
+			break LOOP
+		case <-t.CompleteNotify():
+			if !*seed {
+				break LOOP
+			}
+		}
 	}
 	err = t.Close()
 	if err != nil {
 		log.Fatal(err)
+	}
+	if *cpuprofile != "" {
+		pprof.StopCPUProfile()
+		f.Close()
 	}
 }
