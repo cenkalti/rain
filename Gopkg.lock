@@ -55,6 +55,12 @@
   revision = "58046073cbffe2f25d425fe1331102f55cf719de"
 
 [[projects]]
+  name = "github.com/pkg/profile"
+  packages = ["."]
+  revision = "5b67d428864e92711fcbd2f8629456121a56d91f"
+  version = "v1.2.1"
+
+[[projects]]
   branch = "master"
   name = "github.com/vbatts/go-bt"
   packages = ["bencode"]
@@ -90,6 +96,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b29ada99522c43086615bbc909772ac86eace0a98a34ce6a4b2fbf0b5e77bb4a"
+  inputs-digest = "598d084cb321795a2c1584a5eea5d5938be6ab1b9216455da0bb30e139fbf69c"
   solver-name = "gps-cdcl"
   solver-version = 1

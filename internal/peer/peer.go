@@ -81,6 +81,7 @@ func (p *Peer) Run(stopC chan struct{}) {
 
 	// TODO remove after implementing uploader
 	p.SendUnchoke()
+	p.SendInterested()
 
 	first := true
 	for {
@@ -116,7 +117,7 @@ func (p *Peer) Run(stopC chan struct{}) {
 		}
 		length--
 
-		// p.log.Debugf("Received message of type: %q", id)
+		p.log.Debugf("Received message of type: %q", id)
 
 		switch id {
 		case messageid.Choke:
@@ -344,7 +345,7 @@ func (p *Peer) SendPiece(index, begin uint32, block []byte) error {
 }
 
 func (p *Peer) writeMessage(id messageid.MessageID, payload []byte) error {
-	// p.log.Debugf("Sending message of type: %q", id)
+	p.log.Debugf("Sending message of type: %q", id)
 	buf := bytes.NewBuffer(make([]byte, 0, 4+1+len(payload)))
 	var header = struct {
 		Length uint32

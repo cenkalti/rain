@@ -9,6 +9,7 @@ import (
 
 	"github.com/cenkalti/log"
 	"github.com/mitchellh/go-homedir"
+	"github.com/pkg/profile"
 
 	"github.com/cenkalti/rain/client"
 	"github.com/cenkalti/rain/internal/logger"
@@ -22,6 +23,7 @@ var (
 	debug      = flag.Bool("debug", false, "enable debug log")
 	version    = flag.Bool("version", false, "version")
 	seed       = flag.Bool("seed", false, "continue seeding after dowload finishes")
+	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 )
 
 func main() {
@@ -37,6 +39,9 @@ func main() {
 	}
 	if *debug {
 		logger.SetLogLevel(log.DEBUG)
+	}
+	if *cpuprofile != "" {
+		defer profile.Start().Stop()
 	}
 	cfg := client.NewConfig()
 	if *configPath != "" {
