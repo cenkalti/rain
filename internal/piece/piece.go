@@ -1,10 +1,10 @@
 package piece
 
 import (
-	"bytes"
-	"crypto/sha1"
-	"errors"
-	"io"
+	// "bytes"
+	// "crypto/sha1"
+	// "errors"
+	// "io"
 	"os"
 
 	"github.com/cenkalti/rain/internal/filesection"
@@ -18,10 +18,7 @@ type Piece struct {
 	Index  uint32 // index in torrent
 	Length uint32 // always equal to BlockSize except last piece.
 	Blocks []Block
-	// TODO do not export sections, export a data interface
-	Data filesection.Sections // the place to write downloaded bytes
-	OK   bool                 // hash is correct and written to disk, Verify() must be called to set this.
-	hash []byte               // correct hash value
+	Data   filesection.Sections // the place to write downloaded bytes
 }
 
 func NewPieces(info *metainfo.Info, osFiles []*os.File) []Piece {
@@ -48,7 +45,6 @@ func NewPieces(info *metainfo.Info, osFiles []*os.File) []Piece {
 	for i := uint32(0); i < info.NumPieces; i++ {
 		p := Piece{
 			Index: i,
-			hash:  info.PieceHash(i),
 		}
 
 		// Construct p.Files
@@ -106,33 +102,6 @@ func (p *Piece) newBlocks() []Block {
 		}
 	}
 	return blocks
-}
-
-func (p *Piece) Write(b []byte) error {
-	if uint32(len(b)) != p.Length {
-		return errors.New("invalid piece data length")
-	}
-	hash := sha1.New()
-	hash.Write(b)
-	if !bytes.Equal(hash.Sum(nil), p.hash) {
-		return errors.New("corrupt piece")
-	}
-	_, err := p.Data.Write(b)
-	if err != nil {
-		return err
-	}
-	p.OK = true
-	return nil
-}
-
-// Verify reads from disk and sets p.OK if piece is complete.
-func (p *Piece) Verify() error {
-	hash := sha1.New()
-	if _, err := io.CopyN(hash, p.Data.Reader(), int64(p.Length)); err != nil {
-		return err
-	}
-	p.OK = bytes.Equal(hash.Sum(nil), p.hash)
-	return nil
 }
 
 func (p *Piece) GetBlock(begin uint32) *Block {

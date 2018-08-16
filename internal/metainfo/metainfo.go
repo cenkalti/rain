@@ -34,6 +34,7 @@ type Info struct {
 	Files []FileDict `bencode:"files" json:"files"`
 	// Calculated fileds
 	Hash        [20]byte `bencode:"-" json:"-"`
+	PieceHashes [][]byte `bencode:"-" json:"-"`
 	TotalLength int64    `bencode:"-" json:"-"`
 	NumPieces   uint32   `bencode:"-" json:"-"`
 	MultiFile   bool     `bencode:"-" json:"-"`
@@ -77,16 +78,13 @@ func NewInfo(b []byte) (*Info, error) {
 			i.TotalLength += f.Length
 		}
 	}
-	return &i, nil
-}
-
-func (i *Info) PieceHash(index uint32) []byte {
-	if index >= i.NumPieces {
-		panic("piece index out of range")
+	i.PieceHashes = make([][]byte, i.NumPieces)
+	for idx := uint32(0); idx < i.NumPieces; idx++ {
+		begin := idx * sha1.Size
+		end := begin + sha1.Size
+		i.PieceHashes[idx] = i.Pieces[begin:end]
 	}
-	start := index * sha1.Size
-	end := start + sha1.Size
-	return i.Pieces[start:end]
+	return &i, nil
 }
 
 // GetFiles returns the files in torrent as a slice, even if there is a single file.

@@ -247,7 +247,6 @@ func (p *Peer) Run(stopC chan struct{}) {
 				return
 			}
 
-			println("XXX received piece", msg.Index, msg.Begin)
 			select {
 			case p.messages <- Message{p, pm}:
 			case <-stopC:

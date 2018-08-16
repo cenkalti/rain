@@ -25,19 +25,17 @@ var (
 
 // Torrent connect to peers and downloads files from swarm.
 type Torrent struct {
-	peerID        [20]byte           // unique id per torrent
-	metainfo      *metainfo.MetaInfo // parsed torrent file
-	data          *torrentdata.Data  // provides access to files on disk
-	dest          string             // path of files on disk
-	port          int                // listen for peer connections
-	completed     chan struct{}      // closed when all pieces are downloaded
-	onceCompleted sync.Once          // for closing completed channel only once
-	running       bool               // true after Start() is called
-	closed        bool               // true after Close() is called
-	m             sync.Mutex         // protects running and closed state
-	stopC         chan struct{}      // all goroutines stop when closed
-	stopWG        sync.WaitGroup     // for waiting running goroutines
-	log           logger.Logger
+	peerID   [20]byte           // unique id per torrent
+	metainfo *metainfo.MetaInfo // parsed torrent file
+	data     *torrentdata.Data  // provides access to files on disk
+	dest     string             // path of files on disk
+	port     int                // listen for peer connections
+	running  bool               // true after Start() is called
+	closed   bool               // true after Close() is called
+	m        sync.Mutex         // protects running and closed state
+	stopC    chan struct{}      // all goroutines stop when closed
+	stopWG   sync.WaitGroup     // for waiting running goroutines
+	log      logger.Logger
 }
 
 // New returns a new torrent by reading a metainfo file.
@@ -73,26 +71,14 @@ func New(r io.Reader, dest string, port int) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
-	t := &Torrent{
-		peerID:    peerID,
-		metainfo:  m,
-		data:      data,
-		dest:      dest,
-		port:      port,
-		completed: make(chan struct{}),
-		log:       logger.New("download " + logName),
-	}
-	t.checkCompletion()
-	return t, nil
-}
-
-func (t *Torrent) checkCompletion() {
-	if t.data.Bitfield().All() {
-		t.onceCompleted.Do(func() {
-			close(t.completed)
-			t.log.Notice("Download completed")
-		})
-	}
+	return &Torrent{
+		peerID:   peerID,
+		metainfo: m,
+		data:     data,
+		dest:     dest,
+		port:     port,
+		log:      logger.New("download " + logName),
+	}, nil
 }
 
 // Start listening peer port, accepting incoming peer connections and download missing pieces.
@@ -110,7 +96,7 @@ func (t *Torrent) Start() {
 	t.stopC = make(chan struct{})
 
 	// get peers from tracker
-	an := announcer.New(t.metainfo.Announce, t, t.completed, t.log)
+	an := announcer.New(t.metainfo.Announce, t, t.data.Completed, t.log)
 	t.stopWG.Add(1)
 	go func() {
 		defer t.stopWG.Done()
@@ -195,7 +181,7 @@ func (t *Torrent) PeerID() [20]byte { return t.peerID }
 func (t *Torrent) InfoHash() [20]byte { return t.metainfo.Info.Hash }
 
 // CompleteNotify returns a channel that is closed once all pieces are downloaded successfully.
-func (t *Torrent) CompleteNotify() chan struct{} { return t.completed }
+func (t *Torrent) CompleteNotify() chan struct{} { return t.data.Completed }
 
 // BytesDownloaded is the number of bytes downloaded from swarm.
 //

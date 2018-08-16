@@ -18,19 +18,20 @@ type ReadWriterAt interface {
 // all files are concatenated and splitted into pieces in length specified in the torrent file.
 type Sections []Section
 
-// Reader returns a io.Reader for reading all the partial files in s.
-func (s Sections) Reader() io.Reader {
+func (s Sections) ReadFull(buf []byte) error {
 	readers := make([]io.Reader, len(s))
 	for i := range s {
 		readers[i] = io.NewSectionReader(s[i].File, s[i].Offset, s[i].Length)
 	}
-	return io.MultiReader(readers...)
+	r := io.MultiReader(readers...)
+	_, err := io.ReadFull(r, buf)
+	return err
 }
 
 // ReadAt implements io.ReaderAt interface.
 // It reads bytes from s at given offset into p.
 // Used when uploading blocks of a piece.
-func (s Sections) ReadAt(p []byte, off int64) (n int, err error) {
+func (s Sections) ReadAt(p []byte, off int64) error {
 	var readers []io.Reader
 	var i int
 	var pos int64
@@ -56,7 +57,8 @@ func (s Sections) ReadAt(p []byte, off int64) (n int, err error) {
 		}
 	}
 
-	return io.ReadFull(io.MultiReader(readers...), p)
+	_, err := io.ReadFull(io.MultiReader(readers...), p)
+	return err
 }
 
 // Write implements io.Writer interface.

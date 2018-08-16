@@ -41,12 +41,9 @@ func TestFiles(t *testing.T) {
 
 	// test full read
 	b := make([]byte, 5)
-	n, err := io.ReadFull(pf.Reader(), b)
+	err = pf.ReadFull(b)
 	if err != nil {
 		t.Error(err)
-	}
-	if n != 5 {
-		t.Errorf("n == %d", n)
 	}
 	if string(b) != "dfaqw" {
 		t.Errorf("b = %s", string(b))
@@ -77,12 +74,9 @@ func TestFiles(t *testing.T) {
 	}
 	for _, c := range cases {
 		b = make([]byte, c.size)
-		n, err = pf.ReadAt(b, c.offset)
+		err = pf.ReadAt(b, c.offset)
 		if err != nil {
 			t.Error(err)
-		}
-		if n != c.size {
-			t.Errorf("n == %d", n)
 		}
 		if string(b) != c.expect {
 			t.Errorf("b = %s", string(b))
@@ -90,7 +84,7 @@ func TestFiles(t *testing.T) {
 	}
 
 	// test write
-	n, err = pf.Write([]byte("12345"))
+	n, err := pf.Write([]byte("12345"))
 	if err != nil {
 		t.Error(err)
 	}

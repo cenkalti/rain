@@ -90,12 +90,10 @@ func (d *Downloader) Run(stopC chan struct{}) {
 					pd.ChokeC <- struct{}{}
 				}
 			case peer.Piece:
-				d.log.Warningln("piece Message 2", msg.Piece.Index, msg.Block.Index)
 				if pd, ok := d.downloads[pm.Peer]; ok {
 					pd.PieceC <- msg
 				}
 			case peer.Request:
-				println("YYY replying request")
 				pe := pm.Peer
 				// pi := d.data.Pieces[msg.Index]
 				buf := make([]byte, msg.Length)
@@ -117,7 +115,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 func (d *Downloader) nextDownload() (pi *piece.Piece, pe *peer.Peer, ok bool) {
 	// TODO selecting pieces in sequential order, change to rarest first
 	for _, p := range d.pieces {
-		if p.OK {
+		if d.data.Bitfield().Test(p.Index) {
 			continue
 		}
 		if len(p.havingPeers) == 0 {
@@ -156,15 +154,22 @@ func (d *Downloader) startDownload(pi *piece.Piece, pe *peer.Peer, stopC chan st
 }
 
 func (d *Downloader) downloadPiece(pd *piecedownloader.PieceDownloader, stopC chan struct{}) {
-	err := pd.Run(stopC)
+	defer func() {
+		d.m.Lock()
+		delete(d.downloads, pd.Peer)
+		delete(d.pieces[pd.Piece.Index].requestedPeers, pd.Peer)
+		d.m.Unlock()
+		<-d.limiter
+	}()
+	buf, err := pd.Run(stopC)
 	if err != nil {
 		d.log.Error(err)
-	} else {
-		d.data.Bitfield().Set(pd.Piece.Index)
+		return
 	}
-	d.m.Lock()
-	delete(d.downloads, pd.Peer)
-	delete(d.pieces[pd.Piece.Index].requestedPeers, pd.Peer)
-	d.m.Unlock()
-	<-d.limiter
+	err = d.data.WritePiece(pd.Piece.Index, buf.Bytes())
+	if err != nil {
+		// TODO blacklist peer if sent corrupt piece
+		d.log.Error(err)
+		return
+	}
 }
