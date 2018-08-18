@@ -144,13 +144,3 @@ func (m *PeerManager) waitDisconnect(p *peer.Peer, stopC chan struct{}) {
 		return
 	}
 }
-
-func (m *PeerManager) Peers() []*peer.Peer {
-	m.m.Lock()
-	defer m.m.Unlock()
-	peers := make([]*peer.Peer, 0, len(m.peers))
-	for _, v := range m.peers {
-		peers = append(peers, v)
-	}
-	return peers
-}
