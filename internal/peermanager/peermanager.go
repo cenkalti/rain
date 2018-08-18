@@ -77,7 +77,7 @@ func (m *PeerManager) Run(stopC chan struct{}) {
 			m.handleDisconnect(p)
 		case <-stopC:
 			m.close()
-			m.wg.Done()
+			m.wg.Wait()
 			return
 		}
 	}
