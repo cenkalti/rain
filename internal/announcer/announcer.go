@@ -2,7 +2,6 @@ package announcer
 
 import (
 	"net/url"
-	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff"
@@ -50,7 +49,6 @@ func (a *Announcer) Run(stopC chan struct{}) {
 	}
 
 	var nextAnnounce time.Duration
-	var m sync.Mutex
 
 	retry := &backoff.ExponentialBackOff{
 		InitialInterval:     5 * time.Second,
@@ -63,8 +61,6 @@ func (a *Announcer) Run(stopC chan struct{}) {
 	retry.Reset()
 
 	announce := func(e tracker.Event) {
-		m.Lock()
-		defer m.Unlock()
 		r, err := tr.Announce(a.transfer, e, stopC)
 		if err != nil {
 			a.log.Errorln("announce error:", err)
@@ -79,26 +75,16 @@ func (a *Announcer) Run(stopC chan struct{}) {
 		}
 	}
 
-	// Send start, stop and completed events.
 	announce(tracker.EventStarted)
-	defer announce(tracker.EventStopped)
-	go func() {
+	for {
 		select {
+		case <-time.After(nextAnnounce):
+			announce(tracker.EventNone)
 		case <-a.completedC:
 			announce(tracker.EventCompleted)
+			a.completedC = nil
 		case <-stopC:
-		}
-	}()
-
-	// Send periodic announces.
-	for {
-		m.Lock()
-		d := nextAnnounce
-		m.Unlock()
-		select {
-		case <-time.After(d):
-			announce(tracker.EventNone)
-		case <-stopC:
+			announce(tracker.EventStopped)
 			tr.Close()
 			return
 		}
