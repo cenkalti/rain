@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/cenkalti/rain/messageid"
+	"github.com/cenkalti/rain/internal/messageid"
 	"github.com/zeebo/bencode"
 )
 

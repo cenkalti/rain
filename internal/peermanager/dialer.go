@@ -12,17 +12,18 @@ func (m *PeerManager) dialer(stopC chan struct{}) {
 	for {
 		select {
 		case m.limiter <- struct{}{}:
-			addr := m.announcer.NextPeerAddr()
-			if addr == nil {
-				<-m.limiter
+			nextPeer := m.peerList.Get()
+			select {
+			case addr := <-nextPeer:
+				m.wg.Add(1)
+				go func() {
+					defer m.wg.Done()
+					defer func() { <-m.limiter }()
+					m.dialAndRun(addr, stopC)
+				}()
+			case <-stopC:
 				return
 			}
-			m.wg.Add(1)
-			go func() {
-				defer m.wg.Done()
-				defer func() { <-m.limiter }()
-				m.dialAndRun(addr, stopC)
-			}()
 		case <-stopC:
 			return
 		}

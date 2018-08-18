@@ -33,13 +33,13 @@ type Peer struct {
 	peerChoking    bool
 	peerInterested bool
 
-	messages     chan Message
+	messages     *Messages
 	m            sync.Mutex
 	disconnected chan struct{}
 	log          logger.Logger
 }
 
-func New(conn net.Conn, id [20]byte, d *torrentdata.Data, l logger.Logger, messages chan Message) *Peer {
+func New(conn net.Conn, id [20]byte, d *torrentdata.Data, l logger.Logger, messages *Messages) *Peer {
 	return &Peer{
 		conn:         conn,
 		id:           id,
@@ -125,7 +125,7 @@ func (p *Peer) Run(stopC chan struct{}) {
 			p.peerChoking = true
 			p.m.Unlock()
 			select {
-			case p.messages <- Message{p, Choke{}}:
+			case p.messages.Choke <- p:
 			case <-stopC:
 				return
 			}
@@ -134,7 +134,7 @@ func (p *Peer) Run(stopC chan struct{}) {
 			p.peerChoking = false
 			p.m.Unlock()
 			select {
-			case p.messages <- Message{p, Unchoke{}}:
+			case p.messages.Unchoke <- p:
 			case <-stopC:
 				return
 			}
@@ -150,7 +150,7 @@ func (p *Peer) Run(stopC chan struct{}) {
 			p.m.Unlock()
 			// TODO implement
 		case messageid.Have:
-			var h Have
+			var h haveMessage
 			err = binary.Read(p.conn, binary.BigEndian, &h)
 			if err != nil {
 				p.log.Error(err)
@@ -162,7 +162,7 @@ func (p *Peer) Run(stopC chan struct{}) {
 			}
 			p.log.Debug("Peer ", p.conn.RemoteAddr(), " has piece #", h.Index)
 			select {
-			case p.messages <- Message{p, h}:
+			case p.messages.Have <- Have{p, h.Index}:
 			case <-stopC:
 				return
 			}
@@ -188,14 +188,14 @@ func (p *Peer) Run(stopC chan struct{}) {
 			for i := uint32(0); i < bf.Len(); i++ {
 				if bf.Test(i) {
 					select {
-					case p.messages <- Message{p, Have{i}}:
+					case p.messages.Have <- Have{p, i}:
 					case <-stopC:
 						return
 					}
 				}
 			}
 		case messageid.Request:
-			var req Request
+			var req requestMessage
 			err = binary.Read(p.conn, binary.BigEndian, &req)
 			if err != nil {
 				p.log.Error(err)
@@ -215,7 +215,7 @@ func (p *Peer) Run(stopC chan struct{}) {
 				p.log.Error("invalid request: length")
 			}
 
-			p.messages <- Message{p, req}
+			p.messages.Request <- Request{p, req.Index, req.Begin, req.Length}
 		case messageid.Piece:
 			var msg pieceMessage
 			err = binary.Read(p.conn, binary.BigEndian, &msg)
@@ -241,7 +241,7 @@ func (p *Peer) Run(stopC chan struct{}) {
 				return
 			}
 
-			pm := Piece{Piece: piece, Block: block}
+			pm := Piece{Peer: p, Piece: piece, Block: block}
 			pm.Data = make([]byte, length)
 			if _, err = io.ReadFull(p.conn, pm.Data); err != nil {
 				p.log.Error(err)
@@ -249,7 +249,7 @@ func (p *Peer) Run(stopC chan struct{}) {
 			}
 
 			select {
-			case p.messages <- Message{p, pm}:
+			case p.messages.Piece <- pm:
 			case <-stopC:
 				return
 			}
@@ -328,7 +328,7 @@ func (p *Peer) SendRequest(piece, begin, length uint32) error {
 	}
 	p.m.Unlock()
 
-	req := Request{piece, begin, length}
+	req := requestMessage{piece, begin, length}
 	p.log.Debugf("Sending Request: %+v", req)
 	buf := bytes.NewBuffer(make([]byte, 0, 12))
 	_ = binary.Write(buf, binary.BigEndian, &req)

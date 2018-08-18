@@ -10,6 +10,7 @@ import (
 	"github.com/cenkalti/rain/internal/downloader"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/metainfo"
+	"github.com/cenkalti/rain/internal/peerlist"
 	"github.com/cenkalti/rain/internal/peermanager"
 	"github.com/cenkalti/rain/internal/torrentdata"
 	"github.com/cenkalti/rain/internal/uploader"
@@ -95,28 +96,36 @@ func (t *Torrent) Start() {
 	}
 	t.stopC = make(chan struct{})
 
-	// get peers from tracker
-	an := announcer.New(t.metainfo.Announce, t, t.data.Completed, t.log)
+	// keep list of peer addresses to connect
+	pl := peerlist.New()
 	t.stopWG.Add(1)
 	go func() {
 		defer t.stopWG.Done()
-		go an.Run(t.stopC)
+		pl.Run(t.stopC)
+	}()
+
+	// get peers from tracker
+	an := announcer.New(t.metainfo.Announce, t, t.data.Completed, pl, t.log)
+	t.stopWG.Add(1)
+	go func() {
+		defer t.stopWG.Done()
+		an.Run(t.stopC)
 	}()
 
 	// manage peer connections
-	pm := peermanager.New(t.port, an, t.peerID, t.metainfo.Info.Hash, t.data, t.log)
+	pm := peermanager.New(t.port, pl, t.peerID, t.metainfo.Info.Hash, t.data, t.log)
 	t.stopWG.Add(1)
 	go func() {
 		defer t.stopWG.Done()
-		go pm.Run(t.stopC)
+		pm.Run(t.stopC)
 	}()
 
 	// request missing pieces from peers
-	do := downloader.New(pm, t.data, t.log)
+	do := downloader.New(t.data, pm.PeerMessages(), t.log)
 	t.stopWG.Add(1)
 	go func() {
 		defer t.stopWG.Done()
-		go do.Run(t.stopC)
+		do.Run(t.stopC)
 	}()
 
 	// send requested blocks
@@ -124,7 +133,7 @@ func (t *Torrent) Start() {
 	t.stopWG.Add(1)
 	go func() {
 		defer t.stopWG.Done()
-		go up.Run(t.stopC)
+		up.Run(t.stopC)
 	}()
 }
 

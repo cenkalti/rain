@@ -2,12 +2,10 @@ package downloader
 
 import (
 	"sync"
-	"time"
 
 	"github.com/cenkalti/rain/internal/downloader/piecedownloader"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/peer"
-	"github.com/cenkalti/rain/internal/peermanager"
 	"github.com/cenkalti/rain/internal/piece"
 	"github.com/cenkalti/rain/internal/torrentdata"
 )
@@ -15,8 +13,8 @@ import (
 const parallelPieceDownloads = 4
 
 type Downloader struct {
-	peerManager   *peermanager.PeerManager
 	data          *torrentdata.Data
+	messages      *peer.Messages
 	pieces        []Piece
 	unchokedPeers map[*peer.Peer]struct{}
 	downloads     map[*peer.Peer]*piecedownloader.PieceDownloader
@@ -32,7 +30,7 @@ type Piece struct {
 	requestedPeers map[*peer.Peer]*piecedownloader.PieceDownloader
 }
 
-func New(pm *peermanager.PeerManager, d *torrentdata.Data, l logger.Logger) *Downloader {
+func New(d *torrentdata.Data, m *peer.Messages, l logger.Logger) *Downloader {
 	pieces := make([]Piece, len(d.Pieces))
 	for i := range d.Pieces {
 		pieces[i] = Piece{
@@ -43,8 +41,8 @@ func New(pm *peermanager.PeerManager, d *torrentdata.Data, l logger.Logger) *Dow
 		}
 	}
 	return &Downloader{
-		peerManager:   pm,
 		data:          d,
+		messages:      m,
 		pieces:        pieces,
 		unchokedPeers: make(map[*peer.Peer]struct{}),
 		downloads:     make(map[*peer.Peer]*piecedownloader.PieceDownloader),
@@ -64,7 +62,26 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				pi, pe, ok := d.nextDownload()
 				if !ok {
 					d.m.Unlock()
-					<-time.After(time.Second)
+					select {
+					case msg := <-d.messages.Have:
+						go func() {
+							select {
+							case d.messages.Have <- msg:
+							case <-stopC:
+								return
+							}
+						}()
+					case msg := <-d.messages.Unchoke:
+						go func() {
+							select {
+							case d.messages.Unchoke <- msg:
+							case <-stopC:
+								return
+							}
+						}()
+					case <-stopC:
+						return
+					}
 					<-d.limiter
 					return
 					// TODO separate channels for each message type
@@ -72,36 +89,32 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				d.startDownload(pi, pe, stopC)
 				d.m.Unlock()
 			}()
-		case pm := <-d.peerManager.PeerMessages():
-			switch msg := pm.Message.(type) {
-			case peer.Have:
-				d.pieces[msg.Index].havingPeers[pm.Peer] = struct{}{}
-			case peer.Unchoke:
-				d.unchokedPeers[pm.Peer] = struct{}{}
-				if pd, ok := d.downloads[pm.Peer]; ok {
-					pd.UnchokeC <- struct{}{}
-				}
-			case peer.Choke:
-				delete(d.unchokedPeers, pm.Peer)
-				if pd, ok := d.downloads[pm.Peer]; ok {
-					pd.ChokeC <- struct{}{}
-				}
-			case peer.Piece:
-				if pd, ok := d.downloads[pm.Peer]; ok {
-					pd.PieceC <- msg
-				}
-			case peer.Request:
-				pe := pm.Peer
-				// pi := d.data.Pieces[msg.Index]
-				buf := make([]byte, msg.Length)
-				// pi.Data.ReadAt(buf, int64(msg.Begin))
-				err := pe.SendPiece(msg.Index, msg.Begin, buf)
-				if err != nil {
-					d.log.Error(err)
-					return
-				}
-			default:
-				d.log.Debugln("unhandled message type:", msg)
+		case msg := <-d.messages.Have:
+			d.pieces[msg.Index].havingPeers[msg.Peer] = struct{}{}
+			// go checkInterested(peer, bitfield)
+			// peer.writeMessages <- interested{}
+		case pe := <-d.messages.Unchoke:
+			d.unchokedPeers[pe] = struct{}{}
+			if pd, ok := d.downloads[pe]; ok {
+				pd.UnchokeC <- struct{}{}
+			}
+		case pe := <-d.messages.Unchoke:
+			delete(d.unchokedPeers, pe)
+			if pd, ok := d.downloads[pe]; ok {
+				pd.ChokeC <- struct{}{}
+			}
+		case msg := <-d.messages.Piece:
+			if pd, ok := d.downloads[msg.Peer]; ok {
+				pd.PieceC <- msg
+			}
+		case msg := <-d.messages.Request:
+			// pi := d.data.Pieces[msg.Index]
+			buf := make([]byte, msg.Length)
+			// pi.Data.ReadAt(buf, int64(msg.Begin))
+			err := msg.Peer.SendPiece(msg.Index, msg.Begin, buf)
+			if err != nil {
+				d.log.Error(err)
+				return
 			}
 		case <-stopC:
 			return

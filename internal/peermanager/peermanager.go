@@ -4,10 +4,10 @@ import (
 	"net"
 	"sync"
 
-	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/mse"
 	"github.com/cenkalti/rain/internal/peer"
+	"github.com/cenkalti/rain/internal/peerlist"
 	"github.com/cenkalti/rain/internal/torrentdata"
 )
 
@@ -19,35 +19,35 @@ type PeerManager struct {
 	peerDisconnected chan *peer.Peer
 	port             int
 	listener         *net.TCPListener
-	announcer        *announcer.Announcer
+	peerList         *peerlist.PeerList
 	peerID           [20]byte
 	infoHash         [20]byte
 	sKeyHash         [20]byte
 	data             *torrentdata.Data
 	limiter          chan struct{}
-	peerMessages     chan peer.Message
+	peerMessages     *peer.Messages
 	log              logger.Logger
 	m                sync.Mutex
 	wg               sync.WaitGroup
 }
 
-func New(port int, a *announcer.Announcer, peerID, infoHash [20]byte, d *torrentdata.Data, l logger.Logger) *PeerManager {
+func New(port int, pl *peerlist.PeerList, peerID, infoHash [20]byte, d *torrentdata.Data, l logger.Logger) *PeerManager {
 	return &PeerManager{
 		peers:            make(map[[20]byte]*peer.Peer),
 		peerDisconnected: make(chan *peer.Peer),
 		port:             port,
-		announcer:        a,
+		peerList:         pl,
 		peerID:           peerID,
 		infoHash:         infoHash,
 		sKeyHash:         mse.HashSKey(infoHash[:]),
 		data:             d,
 		limiter:          make(chan struct{}, maxPeerPerTorrent),
-		peerMessages:     make(chan peer.Message),
+		peerMessages:     peer.NewMessages(),
 		log:              l,
 	}
 }
 
-func (m *PeerManager) PeerMessages() chan peer.Message {
+func (m *PeerManager) PeerMessages() *peer.Messages {
 	return m.peerMessages
 }
 

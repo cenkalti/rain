@@ -8,44 +8,31 @@ import (
 	"github.com/cenkalti/backoff"
 
 	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/internal/peerlist"
 	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/internal/tracker/httptracker"
 	"github.com/cenkalti/rain/internal/tracker/udptracker"
 )
 
 type Announcer struct {
-	url          string
-	transfer     tracker.Transfer
-	log          logger.Logger
-	peerAddrs    []*peerAddr          // contains peers not connected yet, sorted by oldest first
-	peerAddrsMap map[string]*peerAddr // contains peers not connected yet, keyed by addr string
-	gotPeer      *sync.Cond           // for waking announcer when got new peers from tracker
-	completedC   chan struct{}
-	m            sync.Mutex
-	done         bool
+	url        string
+	transfer   tracker.Transfer
+	log        logger.Logger
+	completedC chan struct{}
+	peerList   *peerlist.PeerList
 }
 
-func New(trackerURL string, to tracker.Transfer, completedC chan struct{}, l logger.Logger) *Announcer {
-	a := &Announcer{
-		url:          trackerURL,
-		transfer:     to,
-		log:          l,
-		completedC:   completedC,
-		peerAddrsMap: make(map[string]*peerAddr),
+func New(trackerURL string, to tracker.Transfer, completedC chan struct{}, pl *peerlist.PeerList, l logger.Logger) *Announcer {
+	return &Announcer{
+		url:        trackerURL,
+		transfer:   to,
+		log:        l,
+		completedC: completedC,
+		peerList:   pl,
 	}
-	a.gotPeer = sync.NewCond(&a.m)
-	return a
 }
 
 func (a *Announcer) Run(stopC chan struct{}) {
-	defer func() {
-		// Wake up dialer goroutine waiting for new peers because we won't get more peers.
-		a.m.Lock()
-		a.done = true
-		a.m.Unlock()
-		a.gotPeer.Broadcast()
-	}()
-
 	u, err := url.Parse(a.url)
 	if err != nil {
 		a.log.Errorln("cannot parse tracker url:", err)
@@ -85,7 +72,10 @@ func (a *Announcer) Run(stopC chan struct{}) {
 		} else {
 			retry.Reset()
 			nextAnnounce = r.Interval
-			a.putPeerAddrs(r.Peers)
+			select {
+			case a.peerList.NewPeers <- r.Peers:
+			case <-stopC:
+			}
 		}
 	}
 
@@ -97,9 +87,7 @@ func (a *Announcer) Run(stopC chan struct{}) {
 		case <-a.completedC:
 			announce(tracker.EventCompleted)
 		case <-stopC:
-			return
 		}
-
 	}()
 
 	// Send periodic announces.
