@@ -18,6 +18,7 @@ type Downloader struct {
 	pieces        []Piece
 	unchokedPeers map[*peer.Peer]struct{}
 	downloads     map[*peer.Peer]*piecedownloader.PieceDownloader
+	downloadDone  chan *piecedownloader.PieceDownloader
 	log           logger.Logger
 	limiter       chan struct{}
 	m             sync.Mutex
@@ -46,59 +47,51 @@ func New(d *torrentdata.Data, m *peer.Messages, l logger.Logger) *Downloader {
 		pieces:        pieces,
 		unchokedPeers: make(map[*peer.Peer]struct{}),
 		downloads:     make(map[*peer.Peer]*piecedownloader.PieceDownloader),
+		downloadDone:  make(chan *piecedownloader.PieceDownloader),
 		log:           l,
 		limiter:       make(chan struct{}, parallelPieceDownloads),
 	}
 }
 
 func (d *Downloader) Run(stopC chan struct{}) {
+	waitingDownloader := 0
 	for {
 		// TODO extract cases to methods
 		select {
 		case d.limiter <- struct{}{}:
 			// TODO check status of existing downloads
-			go func() {
-				d.m.Lock()
-				pi, pe, ok := d.nextDownload()
-				if !ok {
-					d.m.Unlock()
-					select {
-					case msg := <-d.messages.Have:
-						go func() {
-							select {
-							case d.messages.Have <- msg:
-							case <-stopC:
-								return
-							}
-						}()
-					case msg := <-d.messages.Unchoke:
-						go func() {
-							select {
-							case d.messages.Unchoke <- msg:
-							case <-stopC:
-								return
-							}
-						}()
-					case <-stopC:
-						return
-					}
-					<-d.limiter
-					return
-					// TODO separate channels for each message type
-				}
-				d.startDownload(pi, pe, stopC)
-				d.m.Unlock()
-			}()
+			pi, pe, ok := d.nextDownload()
+			if !ok {
+				waitingDownloader++
+				continue
+			}
+			d.log.Debugln("downloading piece", pi.Index, "from", pe.String())
+			pd := piecedownloader.New(pi, pe)
+			d.downloads[pe] = pd
+			d.pieces[pi.Index].requestedPeers[pe] = pd
+			go d.downloadPiece(pd, stopC)
+		case pd := <-d.downloadDone:
+			delete(d.downloads, pd.Peer)
+			delete(d.pieces[pd.Piece.Index].requestedPeers, pd.Peer)
+			<-d.limiter
 		case msg := <-d.messages.Have:
+			if waitingDownloader > 0 {
+				waitingDownloader--
+				<-d.limiter
+			}
 			d.pieces[msg.Index].havingPeers[msg.Peer] = struct{}{}
 			// go checkInterested(peer, bitfield)
 			// peer.writeMessages <- interested{}
 		case pe := <-d.messages.Unchoke:
+			if waitingDownloader > 0 {
+				waitingDownloader--
+				<-d.limiter
+			}
 			d.unchokedPeers[pe] = struct{}{}
 			if pd, ok := d.downloads[pe]; ok {
 				pd.UnchokeC <- struct{}{}
 			}
-		case pe := <-d.messages.Unchoke:
+		case pe := <-d.messages.Choke:
 			delete(d.unchokedPeers, pe)
 			if pd, ok := d.downloads[pe]; ok {
 				pd.ChokeC <- struct{}{}
@@ -155,23 +148,15 @@ func (d *Downloader) nextDownload() (pi *piece.Piece, pe *peer.Peer, ok bool) {
 	return
 }
 
-func (d *Downloader) startDownload(pi *piece.Piece, pe *peer.Peer, stopC chan struct{}) {
-	d.log.Debugln("downloading piece", pi.Index, "from", pe.String())
-	pd := piecedownloader.New(pi, pe)
-	d.downloads[pe] = pd
-	d.pieces[pi.Index].requestedPeers[pe] = pd
-	go d.downloadPiece(pd, stopC)
-}
-
 func (d *Downloader) downloadPiece(pd *piecedownloader.PieceDownloader, stopC chan struct{}) {
 	defer func() {
-		d.m.Lock()
-		delete(d.downloads, pd.Peer)
-		delete(d.pieces[pd.Piece.Index].requestedPeers, pd.Peer)
-		d.m.Unlock()
-		<-d.limiter
+		select {
+		case d.downloadDone <- pd:
+			<-d.limiter
+		case <-stopC:
+		}
 	}()
-	buf, err := pd.Run(stopC)
+	buf, err := pd.Download(stopC)
 	if err != nil {
 		d.log.Error(err)
 		return

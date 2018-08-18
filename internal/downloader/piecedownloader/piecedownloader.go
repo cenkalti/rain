@@ -43,7 +43,7 @@ func New(pi *piece.Piece, pe *peer.Peer) *PieceDownloader {
 	}
 }
 
-func (d *PieceDownloader) Run(stopC chan struct{}) (*bytes.Buffer, error) {
+func (d *PieceDownloader) Download(stopC chan struct{}) (*bytes.Buffer, error) {
 	for {
 		select {
 		case d.limiter <- struct{}{}:
