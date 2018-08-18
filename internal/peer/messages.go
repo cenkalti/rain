@@ -41,6 +41,7 @@ type Have struct {
 
 type Request struct {
 	*Peer
+	// TODO put *piece.Piece instead of index
 	Index, Begin, Length uint32
 }
 
