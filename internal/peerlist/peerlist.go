@@ -89,5 +89,6 @@ func (a *PeerList) put(addrs []*net.TCPAddr) {
 			a.peerAddrs = append(a.peerAddrs, p)
 		}
 	}
+	// TODO limit max peer addresses to keep
 	sort.Slice(a.peerAddrs, func(i, j int) bool { return a.peerAddrs[i].timestamp.Before(a.peerAddrs[j].timestamp) })
 }
