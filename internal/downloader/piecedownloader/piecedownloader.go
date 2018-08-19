@@ -101,16 +101,6 @@ func (d *PieceDownloader) allDone() bool {
 	return true
 }
 
-func (d *PieceDownloader) numRequested() int {
-	var n int
-	for i := range d.blocks {
-		if d.blocks[i].requested {
-			n++
-		}
-	}
-	return n
-}
-
 func (d *PieceDownloader) assembleBlocks() *bytes.Buffer {
 	buf := bytes.NewBuffer(make([]byte, 0, d.Piece.Length))
 	for i := range d.blocks {

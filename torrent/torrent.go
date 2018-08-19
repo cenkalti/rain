@@ -100,40 +100,40 @@ func (t *Torrent) Start() {
 	pl := peerlist.New()
 	t.stopWG.Add(1)
 	go func() {
-		defer t.stopWG.Done()
 		pl.Run(t.stopC)
+		t.stopWG.Done()
 	}()
 
 	// get peers from tracker
 	an := announcer.New(t.metainfo.Announce, t, t.data.Completed, pl, t.log)
 	t.stopWG.Add(1)
 	go func() {
-		defer t.stopWG.Done()
 		an.Run(t.stopC)
+		t.stopWG.Done()
 	}()
 
 	// manage peer connections
 	pm := peermanager.New(t.port, pl, t.peerID, t.metainfo.Info.Hash, t.data, t.log)
 	t.stopWG.Add(1)
 	go func() {
-		defer t.stopWG.Done()
 		pm.Run(t.stopC)
+		t.stopWG.Done()
 	}()
 
 	// request missing pieces from peers
 	do := downloader.New(t.data, pm.PeerMessages(), t.log)
 	t.stopWG.Add(1)
 	go func() {
-		defer t.stopWG.Done()
 		do.Run(t.stopC)
+		t.stopWG.Done()
 	}()
 
 	// send requested blocks
 	up := uploader.New()
 	t.stopWG.Add(1)
 	go func() {
-		defer t.stopWG.Done()
 		up.Run(t.stopC)
+		t.stopWG.Done()
 	}()
 }
 
