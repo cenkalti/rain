@@ -61,7 +61,11 @@ func Dial(
 				err = errNotEncrypted
 				return
 			}
-			// TODO close unencrypted conn
+			// Close current connection
+			err = conn.Close()
+			if err != nil {
+				return
+			}
 			// Connect again and try w/o encryption
 			log.Debug("Connecting again without encryption...")
 			conn, err = net.DialTimeout(addr.Network(), addr.String(), handshakeDeadline)
