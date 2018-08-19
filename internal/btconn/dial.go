@@ -29,10 +29,7 @@ func Dial(
 	log.Debug("Connected")
 	defer func() {
 		if err != nil {
-			cerr := conn.Close()
-			if cerr != nil {
-				log.Debugln("error while closing connection:", cerr)
-			}
+			_ = conn.Close()
 		}
 	}()
 

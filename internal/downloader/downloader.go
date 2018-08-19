@@ -152,7 +152,6 @@ func (d *Downloader) downloadPiece(pd *piecedownloader.PieceDownloader, stopC ch
 	defer func() {
 		select {
 		case d.downloadDone <- pd:
-			<-d.limiter
 		case <-stopC:
 		}
 	}()
