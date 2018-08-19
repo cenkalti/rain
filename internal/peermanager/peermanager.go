@@ -16,9 +16,11 @@ const maxPeerPerTorrent = 60
 
 type PeerManager struct {
 	peers            map[[20]byte]*peer.Peer // connected peers
+	peerConnected    chan *peer.Peer
 	peerDisconnected chan *peer.Peer
 	port             int
 	listener         *net.TCPListener
+	listenerReady    chan *net.TCPListener
 	peerList         *peerlist.PeerList
 	peerID           [20]byte
 	infoHash         [20]byte
@@ -27,15 +29,16 @@ type PeerManager struct {
 	limiter          chan struct{}
 	peerMessages     *peer.Messages
 	log              logger.Logger
-	m                sync.Mutex
 	wg               sync.WaitGroup
 }
 
 func New(port int, pl *peerlist.PeerList, peerID, infoHash [20]byte, d *torrentdata.Data, l logger.Logger) *PeerManager {
 	return &PeerManager{
 		peers:            make(map[[20]byte]*peer.Peer),
+		peerConnected:    make(chan *peer.Peer),
 		peerDisconnected: make(chan *peer.Peer),
 		port:             port,
+		listenerReady:    make(chan *net.TCPListener, 1),
 		peerList:         pl,
 		peerID:           peerID,
 		infoHash:         infoHash,
@@ -51,50 +54,46 @@ func (m *PeerManager) PeerMessages() *peer.Messages {
 	return m.peerMessages
 }
 
-func (m *PeerManager) close() {
-	m.m.Lock()
-	defer m.m.Unlock()
-	if m.listener != nil {
-		err := m.listener.Close()
-		if err != nil {
-			m.log.Errorln("cannot close listener:", err)
-		}
+func (m *PeerManager) closeListener() {
+	if m.listener == nil {
+		return
 	}
-	for _, p := range m.peers {
-		err := p.Close()
-		if err != nil {
-			m.log.Errorln("cannot close peer:", err)
-		}
+	err := m.listener.Close()
+	if err != nil {
+		m.log.Errorln("cannot close listener:", err)
 	}
 }
 
 func (m *PeerManager) Run(stopC chan struct{}) {
-	m.startAcceptor(stopC)
+	go m.createListener()
 	m.startDialer(stopC)
 	for {
 		select {
+		case m.listener = <-m.listenerReady:
+			m.startAcceptor(stopC)
+		case p := <-m.peerConnected:
+			m.handleConnect(p, stopC)
 		case p := <-m.peerDisconnected:
 			m.handleDisconnect(p)
 		case <-stopC:
-			m.close()
+			m.closeListener()
 			m.wg.Wait()
 			return
 		}
 	}
 }
 
-func (m *PeerManager) startAcceptor(stopC chan struct{}) {
-	m.m.Lock()
-	defer m.m.Unlock()
-
-	var err error
-	m.listener, err = net.ListenTCP("tcp4", &net.TCPAddr{Port: m.port})
+func (m *PeerManager) createListener() {
+	listener, err := net.ListenTCP("tcp4", &net.TCPAddr{Port: m.port})
 	if err != nil {
 		m.log.Errorf("cannot listen port %d: %s", m.port, err)
 		return
 	}
+	m.log.Notice("Listening peers on tcp://" + listener.Addr().String())
+	m.listenerReady <- listener
+}
 
-	m.log.Notice("Listening peers on tcp://" + m.listener.Addr().String())
+func (m *PeerManager) startAcceptor(stopC chan struct{}) {
 	m.wg.Add(1)
 	go func() {
 		defer m.wg.Done()
@@ -111,8 +110,6 @@ func (m *PeerManager) startDialer(stopC chan struct{}) {
 }
 
 func (m *PeerManager) handleConnect(p *peer.Peer, stopC chan struct{}) {
-	m.m.Lock()
-	defer m.m.Unlock()
 	if _, ok := m.peers[p.ID()]; ok {
 		m.log.Warningln("peer already connected, dropping connection:", p.String())
 		go m.closePeer(p)
@@ -120,7 +117,10 @@ func (m *PeerManager) handleConnect(p *peer.Peer, stopC chan struct{}) {
 	}
 	go m.waitDisconnect(p, stopC)
 	m.peers[p.ID()] = p
-	p.Run(stopC)
+	go func() {
+		p.Run(stopC)
+		m.wg.Done()
+	}()
 }
 
 func (m *PeerManager) closePeer(p *peer.Peer) {
@@ -128,11 +128,10 @@ func (m *PeerManager) closePeer(p *peer.Peer) {
 	if err != nil {
 		m.log.Error(err)
 	}
+	m.wg.Done()
 }
 
 func (m *PeerManager) handleDisconnect(p *peer.Peer) {
-	m.m.Lock()
-	defer m.m.Unlock()
 	delete(m.peers, p.ID())
 }
 

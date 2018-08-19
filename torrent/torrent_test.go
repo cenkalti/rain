@@ -49,6 +49,7 @@ func TestDownload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer t1.Close()
 	t1.Start()
 
 	// Wait for seeder to announce to tracker.
@@ -59,6 +60,7 @@ func TestDownload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer t2.Close()
 	t2.Start()
 
 	select {
