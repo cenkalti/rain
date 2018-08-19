@@ -13,15 +13,15 @@ import (
 const parallelPieceDownloads = 4
 
 type Downloader struct {
-	data          *torrentdata.Data
-	messages      *peer.Messages
-	pieces        []Piece
-	unchokedPeers map[*peer.Peer]struct{}
-	downloads     map[*peer.Peer]*piecedownloader.PieceDownloader
-	downloadDone  chan *piecedownloader.PieceDownloader
-	log           logger.Logger
-	limiter       chan struct{}
-	m             sync.Mutex
+	data           *torrentdata.Data
+	messages       *peer.Messages
+	pieces         []Piece
+	unchokingPeers map[*peer.Peer]struct{}
+	downloads      map[*peer.Peer]*piecedownloader.PieceDownloader
+	downloadDone   chan *piecedownloader.PieceDownloader
+	log            logger.Logger
+	limiter        chan struct{}
+	m              sync.Mutex
 }
 
 type Piece struct {
@@ -42,14 +42,14 @@ func New(d *torrentdata.Data, m *peer.Messages, l logger.Logger) *Downloader {
 		}
 	}
 	return &Downloader{
-		data:          d,
-		messages:      m,
-		pieces:        pieces,
-		unchokedPeers: make(map[*peer.Peer]struct{}),
-		downloads:     make(map[*peer.Peer]*piecedownloader.PieceDownloader),
-		downloadDone:  make(chan *piecedownloader.PieceDownloader),
-		log:           l,
-		limiter:       make(chan struct{}, parallelPieceDownloads),
+		data:           d,
+		messages:       m,
+		pieces:         pieces,
+		unchokingPeers: make(map[*peer.Peer]struct{}),
+		downloads:      make(map[*peer.Peer]*piecedownloader.PieceDownloader),
+		downloadDone:   make(chan *piecedownloader.PieceDownloader),
+		log:            l,
+		limiter:        make(chan struct{}, parallelPieceDownloads),
 	}
 }
 
@@ -87,12 +87,12 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				waitingDownloader--
 				<-d.limiter
 			}
-			d.unchokedPeers[pe] = struct{}{}
+			d.unchokingPeers[pe] = struct{}{}
 			if pd, ok := d.downloads[pe]; ok {
 				pd.UnchokeC <- struct{}{}
 			}
 		case pe := <-d.messages.Choke:
-			delete(d.unchokedPeers, pe)
+			delete(d.unchokingPeers, pe)
 			if pd, ok := d.downloads[pe]; ok {
 				pd.ChokeC <- struct{}{}
 			}
@@ -126,7 +126,7 @@ func (d *Downloader) nextDownload() (pi *piece.Piece, pe *peer.Peer, ok bool) {
 		}
 		// TODO selecting first peer having the piece, change to more smart decision
 		for pe2 := range p.havingPeers {
-			if _, ok2 := d.unchokedPeers[pe2]; !ok2 {
+			if _, ok2 := d.unchokingPeers[pe2]; !ok2 {
 				continue
 			}
 			if _, ok2 := p.requestedPeers[pe2]; ok2 {
