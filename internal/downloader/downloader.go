@@ -79,7 +79,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				waitingDownloader--
 				<-d.limiter
 			}
-			d.pieces[msg.Index].havingPeers[msg.Peer] = struct{}{}
+			d.pieces[msg.Piece.Index].havingPeers[msg.Peer] = struct{}{}
 			// go checkInterested(peer, bitfield)
 			// peer.writeMessages <- interested{}
 		case pe := <-d.messages.Unchoke:
@@ -104,7 +104,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			// pi := d.data.Pieces[msg.Index]
 			buf := make([]byte, msg.Length)
 			// pi.Data.ReadAt(buf, int64(msg.Begin))
-			err := msg.Peer.SendPiece(msg.Index, msg.Begin, buf)
+			err := msg.Peer.SendPiece(msg.Piece.Index, msg.Begin, buf)
 			if err != nil {
 				d.log.Error(err)
 				return

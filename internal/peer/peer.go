@@ -160,9 +160,10 @@ func (p *Peer) Run(stopC chan struct{}) {
 				p.log.Error("unexpected piece index")
 				return
 			}
-			p.log.Debug("Peer ", p.conn.RemoteAddr(), " has piece #", h.Index)
+			pi := &p.data.Pieces[h.Index]
+			p.log.Debug("Peer ", p.conn.RemoteAddr(), " has piece #", pi.Index)
 			select {
-			case p.messages.Have <- Have{p, h.Index}:
+			case p.messages.Have <- Have{p, pi}:
 			case <-stopC:
 				return
 			}
@@ -187,8 +188,9 @@ func (p *Peer) Run(stopC chan struct{}) {
 
 			for i := uint32(0); i < bf.Len(); i++ {
 				if bf.Test(i) {
+					pi := &p.data.Pieces[i]
 					select {
-					case p.messages.Have <- Have{p, i}:
+					case p.messages.Have <- Have{p, pi}:
 					case <-stopC:
 						return
 					}
@@ -215,7 +217,8 @@ func (p *Peer) Run(stopC chan struct{}) {
 				p.log.Error("invalid request: length")
 			}
 
-			p.messages.Request <- Request{p, req.Index, req.Begin, req.Length}
+			pi := &p.data.Pieces[req.Index]
+			p.messages.Request <- Request{p, pi, req.Begin, req.Length}
 		case messageid.Piece:
 			var msg pieceMessage
 			err = binary.Read(p.conn, binary.BigEndian, &msg)

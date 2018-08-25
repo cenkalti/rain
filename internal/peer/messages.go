@@ -35,21 +35,22 @@ func NewMessages() *Messages {
 }
 
 type Have struct {
-	*Peer
-	Index uint32
+	Peer  *Peer
+	Piece *piece.Piece
 }
 
 type Request struct {
-	*Peer
-	// TODO put *piece.Piece instead of index
-	Index, Begin, Length uint32
+	Peer   *Peer
+	Piece  *piece.Piece
+	Begin  uint32
+	Length uint32
 }
 
 type Piece struct {
-	*Peer
-	*piece.Piece
-	*piece.Block
-	Data []byte
+	Peer  *Peer
+	Piece *piece.Piece
+	Block *piece.Block
+	Data  []byte
 }
 
 type haveMessage struct {
