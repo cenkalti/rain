@@ -14,6 +14,7 @@ import (
 	"github.com/cenkalti/rain/internal/peermanager"
 	"github.com/cenkalti/rain/internal/torrentdata"
 	"github.com/cenkalti/rain/internal/uploader"
+	"github.com/cenkalti/rain/internal/worker"
 )
 
 var (
@@ -34,8 +35,7 @@ type Torrent struct {
 	running  bool               // true after Start() is called
 	closed   bool               // true after Close() is called
 	m        sync.Mutex         // protects running and closed state
-	stopC    chan struct{}      // all goroutines stop when closed
-	stopWG   sync.WaitGroup     // for waiting running goroutines
+	workers  worker.Workers
 	log      logger.Logger
 }
 
@@ -94,47 +94,26 @@ func (t *Torrent) Start() {
 	if t.running {
 		return
 	}
-	t.stopC = make(chan struct{})
 
 	// keep list of peer addresses to connect
 	pl := peerlist.New()
-	t.stopWG.Add(1)
-	go func() {
-		pl.Run(t.stopC)
-		t.stopWG.Done()
-	}()
+	t.workers.Start(pl)
 
 	// get peers from tracker
 	an := announcer.New(t.metainfo.Announce, t, t.data.Completed, pl, t.log)
-	t.stopWG.Add(1)
-	go func() {
-		an.Run(t.stopC)
-		t.stopWG.Done()
-	}()
+	t.workers.Start(an)
 
 	// manage peer connections
 	pm := peermanager.New(t.port, pl, t.peerID, t.metainfo.Info.Hash, t.data, t.log)
-	t.stopWG.Add(1)
-	go func() {
-		pm.Run(t.stopC)
-		t.stopWG.Done()
-	}()
+	t.workers.Start(pm)
 
 	// request missing pieces from peers
 	do := downloader.New(t.data, pm.PeerMessages(), t.log)
-	t.stopWG.Add(1)
-	go func() {
-		do.Run(t.stopC)
-		t.stopWG.Done()
-	}()
+	t.workers.Start(do)
 
 	// send requested blocks
 	up := uploader.New()
-	t.stopWG.Add(1)
-	go func() {
-		up.Run(t.stopC)
-		t.stopWG.Done()
-	}()
+	t.workers.Start(up)
 }
 
 // Stop downloading and uploading, disconnect all peers and close peer port.
@@ -147,8 +126,7 @@ func (t *Torrent) Stop() {
 	if !t.running {
 		return
 	}
-	close(t.stopC)
-	t.stopWG.Wait()
+	t.workers.Stop()
 }
 
 // Close this torrent and release all resources.
