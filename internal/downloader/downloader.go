@@ -35,6 +35,7 @@ type Piece struct {
 	*piece.Piece
 	havingPeers    map[*peer.Peer]struct{}
 	requestedPeers map[*peer.Peer]*piecedownloader.PieceDownloader
+	writing        bool
 }
 
 func New(d *torrentdata.Data, m *peer.Messages, l logger.Logger) *Downloader {
@@ -95,6 +96,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			case buf := <-pd.DoneC:
 				select {
 				case d.writeMessages <- piecewriter.Message{Piece: pd.Piece, Data: buf}:
+					d.pieces[pd.Piece.Index].writing = true
 				case <-stopC:
 					return
 				}
@@ -152,6 +154,9 @@ func (d *Downloader) nextDownload() (pi *piece.Piece, pe *peer.Peer, ok bool) {
 	// TODO selecting pieces in sequential order, change to rarest first
 	for _, p := range d.pieces {
 		if d.data.Bitfield().Test(p.Index) {
+			continue
+		}
+		if p.writing {
 			continue
 		}
 		if len(p.havingPeers) == 0 {

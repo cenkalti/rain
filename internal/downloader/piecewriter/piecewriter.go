@@ -29,6 +29,7 @@ func (w *PieceWriter) Run(stopC chan struct{}) {
 	for {
 		select {
 		case msg := <-w.messages:
+			w.log.Debugln("writing piece index:", msg.Piece.Index, "len:", len(msg.Data))
 			err := w.data.WritePiece(msg.Piece.Index, msg.Data)
 			if err != nil {
 				w.log.Error(err)
