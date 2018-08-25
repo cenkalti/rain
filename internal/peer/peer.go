@@ -83,6 +83,12 @@ func (p *Peer) Run(stopC chan struct{}) {
 	p.SendUnchoke()
 	p.SendInterested()
 
+	select {
+	case p.messages.Connect <- p:
+	case <-stopC:
+		return
+	}
+
 	first := true
 	for {
 		err := p.conn.SetReadDeadline(time.Now().Add(connReadTimeout))
