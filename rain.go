@@ -9,11 +9,10 @@ import (
 	"syscall"
 
 	"github.com/cenkalti/log"
-	"github.com/mitchellh/go-homedir"
-
 	"github.com/cenkalti/rain/client"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent"
+	"github.com/mitchellh/go-homedir"
 )
 
 var (
@@ -23,11 +22,21 @@ var (
 	debug      = flag.Bool("debug", false, "enable debug log")
 	version    = flag.Bool("version", false, "version")
 	seed       = flag.Bool("seed", false, "continue seeding after dowload finishes")
-	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
 )
 
 func main() {
 	flag.Parse()
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal("could not create CPU profile: ", err)
+		}
+		if err := pprof.StartCPUProfile(f); err != nil {
+			log.Fatal("could not start CPU profile: ", err)
+		}
+		defer pprof.StopCPUProfile()
+	}
 	if *version {
 		fmt.Println(torrent.Version)
 		return
@@ -39,13 +48,6 @@ func main() {
 	}
 	if *debug {
 		logger.SetLogLevel(log.DEBUG)
-	}
-	if *cpuprofile != "" {
-		f, err := os.Create(*cpuprofile)
-		if err != nil {
-			log.Fatal(err)
-		}
-		pprof.StartCPUProfile(f)
 	}
 	cfg := client.NewConfig()
 	if *configPath != "" {
@@ -84,9 +86,5 @@ LOOP:
 	err = t.Close()
 	if err != nil {
 		log.Fatal(err)
-	}
-	if *cpuprofile != "" {
-		pprof.StopCPUProfile()
-		f.Close()
 	}
 }
