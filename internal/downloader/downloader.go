@@ -83,7 +83,12 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			pd := piecedownloader.New(pi, pe)
 			d.downloads[pe] = pd
 			d.pieces[pi.Index].requestedPeers[pe] = pd
-			d.workers.StartWithOnFinishHandler(pd, func() { d.downloadDone <- pd })
+			d.workers.StartWithOnFinishHandler(pd, func() {
+				select {
+				case d.downloadDone <- pd:
+				case <-stopC:
+				}
+			})
 		case pd := <-d.downloadDone:
 			delete(d.downloads, pd.Peer)
 			delete(d.pieces[pd.Piece.Index].requestedPeers, pd.Peer)
