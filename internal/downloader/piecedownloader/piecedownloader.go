@@ -2,7 +2,6 @@ package piecedownloader
 
 import (
 	"bytes"
-	"errors"
 
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/piece"
@@ -19,6 +18,8 @@ type PieceDownloader struct {
 	PieceC   chan peer.Piece
 	ChokeC   chan struct{}
 	UnchokeC chan struct{}
+	DoneC    chan []byte
+	ErrC     chan error
 }
 
 type block struct {
@@ -40,10 +41,12 @@ func New(pi *piece.Piece, pe *peer.Peer) *PieceDownloader {
 		PieceC:   make(chan peer.Piece),
 		ChokeC:   make(chan struct{}),
 		UnchokeC: make(chan struct{}),
+		DoneC:    make(chan []byte, 1),
+		ErrC:     make(chan error, 1),
 	}
 }
 
-func (d *PieceDownloader) Download(stopC chan struct{}) (*bytes.Buffer, error) {
+func (d *PieceDownloader) Run(stopC chan struct{}) {
 	for {
 		select {
 		case d.limiter <- struct{}{}:
@@ -54,7 +57,8 @@ func (d *PieceDownloader) Download(stopC chan struct{}) (*bytes.Buffer, error) {
 			}
 			err := d.Peer.SendRequest(d.Piece.Index, b.Begin, b.Length)
 			if err != nil {
-				return nil, err
+				d.ErrC <- err
+				return
 			}
 		case p := <-d.PieceC:
 			b := &d.blocks[p.Block.Index]
@@ -63,7 +67,8 @@ func (d *PieceDownloader) Download(stopC chan struct{}) (*bytes.Buffer, error) {
 			}
 			b.data = p.Data
 			if d.allDone() {
-				return d.assembleBlocks(), nil
+				d.DoneC <- d.assembleBlocks().Bytes()
+				return
 			}
 		case <-d.ChokeC:
 			for i := range d.blocks {
@@ -74,10 +79,8 @@ func (d *PieceDownloader) Download(stopC chan struct{}) (*bytes.Buffer, error) {
 			// d.limiter = nil
 		case <-d.UnchokeC:
 			// d.limiter = make(chan struct{}, maxQueuedBlocks)
-		case <-d.Peer.NotifyDisconnect():
-			return nil, errors.New("peer disconnected")
 		case <-stopC:
-			return nil, errors.New("download stopped")
+			return
 		}
 	}
 }

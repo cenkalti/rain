@@ -4,23 +4,30 @@ import (
 	"sync"
 
 	"github.com/cenkalti/rain/internal/downloader/piecedownloader"
+	"github.com/cenkalti/rain/internal/downloader/piecewriter"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/piece"
 	"github.com/cenkalti/rain/internal/torrentdata"
+	"github.com/cenkalti/rain/internal/worker"
 )
 
 const parallelPieceDownloads = 4
+
+const parallelPieceWrites = 4
 
 type Downloader struct {
 	data           *torrentdata.Data
 	messages       *peer.Messages
 	pieces         []Piece
+	connectedPeers map[*peer.Peer]struct{}
 	unchokingPeers map[*peer.Peer]struct{}
 	downloads      map[*peer.Peer]*piecedownloader.PieceDownloader
 	downloadDone   chan *piecedownloader.PieceDownloader
+	writeMessages  chan piecewriter.Message
 	log            logger.Logger
 	limiter        chan struct{}
+	workers        worker.Workers
 	m              sync.Mutex
 }
 
@@ -45,15 +52,22 @@ func New(d *torrentdata.Data, m *peer.Messages, l logger.Logger) *Downloader {
 		data:           d,
 		messages:       m,
 		pieces:         pieces,
+		connectedPeers: make(map[*peer.Peer]struct{}),
 		unchokingPeers: make(map[*peer.Peer]struct{}),
 		downloads:      make(map[*peer.Peer]*piecedownloader.PieceDownloader),
 		downloadDone:   make(chan *piecedownloader.PieceDownloader),
+		writeMessages:  make(chan piecewriter.Message, 1),
 		log:            l,
 		limiter:        make(chan struct{}, parallelPieceDownloads),
 	}
 }
 
 func (d *Downloader) Run(stopC chan struct{}) {
+	defer d.workers.Stop()
+	for i := 0; i < parallelPieceWrites; i++ {
+		w := piecewriter.New(d.data, d.writeMessages, d.log)
+		d.workers.Start(w)
+	}
 	waitingDownloader := 0
 	for {
 		// TODO extract cases to methods
@@ -69,11 +83,23 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			pd := piecedownloader.New(pi, pe)
 			d.downloads[pe] = pd
 			d.pieces[pi.Index].requestedPeers[pe] = pd
-			go d.downloadPiece(pd, stopC)
+			d.workers.StartWithOnFinishHandler(pd, func() { d.downloadDone <- pd })
 		case pd := <-d.downloadDone:
 			delete(d.downloads, pd.Peer)
 			delete(d.pieces[pd.Piece.Index].requestedPeers, pd.Peer)
 			<-d.limiter
+			select {
+			case buf := <-pd.DoneC:
+				select {
+				case d.writeMessages <- piecewriter.Message{Piece: pd.Piece, Data: buf}:
+				case <-stopC:
+					return
+				}
+			case err := <-pd.ErrC:
+				d.log.Errorln("could not download piece:", err)
+			case <-stopC:
+				return
+			}
 		case msg := <-d.messages.Have:
 			if waitingDownloader > 0 {
 				waitingDownloader--
@@ -109,6 +135,10 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				d.log.Error(err)
 				return
 			}
+		case pe := <-d.messages.Connect:
+			d.connectedPeers[pe] = struct{}{}
+		case pe := <-d.messages.Disconnect:
+			delete(d.connectedPeers, pe)
 		case <-stopC:
 			return
 		}
@@ -146,24 +176,4 @@ func (d *Downloader) nextDownload() (pi *piece.Piece, pe *peer.Peer, ok bool) {
 		break
 	}
 	return
-}
-
-func (d *Downloader) downloadPiece(pd *piecedownloader.PieceDownloader, stopC chan struct{}) {
-	defer func() {
-		select {
-		case d.downloadDone <- pd:
-		case <-stopC:
-		}
-	}()
-	buf, err := pd.Download(stopC)
-	if err != nil {
-		d.log.Error(err)
-		return
-	}
-	err = d.data.WritePiece(pd.Piece.Index, buf.Bytes())
-	if err != nil {
-		// TODO blacklist peer if sent corrupt piece
-		d.log.Error(err)
-		return
-	}
 }

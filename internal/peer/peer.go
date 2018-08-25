@@ -33,22 +33,20 @@ type Peer struct {
 	peerChoking    bool
 	peerInterested bool
 
-	messages     *Messages
-	m            sync.Mutex
-	disconnected chan struct{}
-	log          logger.Logger
+	messages *Messages
+	m        sync.Mutex
+	log      logger.Logger
 }
 
 func New(conn net.Conn, id [20]byte, d *torrentdata.Data, l logger.Logger, messages *Messages) *Peer {
 	return &Peer{
-		conn:         conn,
-		id:           id,
-		data:         d,
-		amChoking:    true,
-		peerChoking:  true,
-		messages:     messages,
-		disconnected: make(chan struct{}),
-		log:          l,
+		conn:        conn,
+		id:          id,
+		data:        d,
+		amChoking:   true,
+		peerChoking: true,
+		messages:    messages,
+		log:         l,
 	}
 }
 
@@ -60,10 +58,6 @@ func (p *Peer) String() string {
 	return p.conn.RemoteAddr().String()
 }
 
-func (p *Peer) NotifyDisconnect() chan struct{} {
-	return p.disconnected
-}
-
 func (p *Peer) Close() error {
 	return p.conn.Close()
 }
@@ -72,7 +66,12 @@ func (p *Peer) Close() error {
 // TODO send keep-alive messages to peers at interval.
 func (p *Peer) Run(stopC chan struct{}) {
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
-	defer close(p.disconnected)
+	defer func() {
+		select {
+		case p.messages.Disconnect <- p:
+		case <-stopC:
+		}
+	}()
 
 	if err := p.sendBitfield(p.data.Bitfield()); err != nil {
 		p.log.Error(err)
