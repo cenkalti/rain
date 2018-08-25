@@ -42,7 +42,7 @@ func (h *Handler) Run(stopC chan struct{}) {
 	conn, cipher, extensions, peerID, err := btconn.Dial(
 		h.addr, !encryptionDisableOutgoing, encryptionForceOutgoing, [8]byte{}, h.infoHash, h.peerID)
 	if err != nil {
-		log.Error(err)
+		log.Errorln("cannot complete handshake:", err)
 		return
 	}
 	log.Infof("Connected to peer. (cipher=%s extensions=%x client=%q)", cipher, extensions, peerID[:8])
