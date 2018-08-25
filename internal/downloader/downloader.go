@@ -33,7 +33,6 @@ type Downloader struct {
 
 type Piece struct {
 	*piece.Piece
-	index          int
 	havingPeers    map[*peer.Peer]struct{}
 	requestedPeers map[*peer.Peer]*piecedownloader.PieceDownloader
 }
@@ -43,7 +42,6 @@ func New(d *torrentdata.Data, m *peer.Messages, l logger.Logger) *Downloader {
 	for i := range d.Pieces {
 		pieces[i] = Piece{
 			Piece:          &d.Pieces[i],
-			index:          i,
 			havingPeers:    make(map[*peer.Peer]struct{}),
 			requestedPeers: make(map[*peer.Peer]*piecedownloader.PieceDownloader),
 		}
