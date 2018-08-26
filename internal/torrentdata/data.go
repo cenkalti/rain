@@ -1,9 +1,7 @@
 package torrentdata
 
 import (
-	"bytes"
 	"crypto/sha1"
-	"errors"
 	"os"
 	"sync"
 
@@ -16,7 +14,6 @@ import (
 
 type Data struct {
 	Pieces        []piece.Piece
-	hashes        [][]byte
 	files         []*os.File
 	bitfield      *bitfield.Bitfield // keeps track of the pieces we have
 	checkHash     bool
@@ -33,7 +30,6 @@ func New(info *metainfo.Info, dest string) (*Data, error) {
 	pieces := piece.NewPieces(info, files)
 	return &Data{
 		Pieces:      pieces,
-		hashes:      info.PieceHashes,
 		files:       files,
 		bitfield:    bitfield.New(uint32(len(pieces))),
 		checkHash:   checkHash,
@@ -57,50 +53,26 @@ func (d *Data) Close() error {
 	return result
 }
 
-func (d *Data) ReadPiece(index, begin uint32, buf []byte) error {
-	return d.Pieces[index].Data.ReadAt(buf, int64(begin))
-}
-
-func (d *Data) WritePiece(index uint32, buf []byte) error {
-	p := d.Pieces[index]
-	hash := sha1.New()
-	hash.Write(buf)
-	sum := hash.Sum(nil)
-	ok := bytes.Equal(sum, d.hashes[index])
-	if !ok {
-		return errors.New("corrupt piece")
-	}
-	_, err := p.Data.Write(buf)
-	if err != nil {
-		return err
-	}
-	d.bitfield.Set(p.Index)
-	d.checkCompletion()
-	return nil
-}
-
 func (d *Data) Verify() error {
 	if !d.checkHash {
 		return nil
 	}
 	buf := make([]byte, d.pieceLength)
 	hash := sha1.New()
-	for i, p := range d.Pieces {
+	for _, p := range d.Pieces {
 		err := p.Data.ReadFull(buf)
 		if err != nil {
 			return err
 		}
-		hash.Write(buf[:p.Length])
-		sum := hash.Sum(nil)
-		ok := bytes.Equal(sum, d.hashes[i])
+		ok := p.VerifyHash(buf[:p.Length], hash)
 		d.bitfield.SetTo(p.Index, ok)
 		hash.Reset()
 	}
-	d.checkCompletion()
+	d.CheckCompletion()
 	return nil
 }
 
-func (d *Data) checkCompletion() {
+func (d *Data) CheckCompletion() {
 	if d.Bitfield().All() {
 		d.onceCompleted.Do(func() {
 			close(d.Completed)

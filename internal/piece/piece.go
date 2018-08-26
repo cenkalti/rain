@@ -1,10 +1,9 @@
 package piece
 
 import (
-	// "bytes"
-	// "crypto/sha1"
-	// "errors"
-	// "io"
+	"bytes"
+	"crypto/sha1"
+	"hash"
 	"os"
 
 	"github.com/cenkalti/rain/internal/filesection"
@@ -19,6 +18,7 @@ type Piece struct {
 	Length uint32 // always equal to BlockSize except last piece.
 	Blocks []Block
 	Data   filesection.Sections // the place to write downloaded bytes
+	Hash   []byte
 }
 
 func NewPieces(info *metainfo.Info, osFiles []*os.File) []Piece {
@@ -45,6 +45,7 @@ func NewPieces(info *metainfo.Info, osFiles []*os.File) []Piece {
 	for i := uint32(0); i < info.NumPieces; i++ {
 		p := Piece{
 			Index: i,
+			Hash:  info.PieceHashes[i],
 		}
 
 		// Construct p.Files
@@ -113,6 +114,19 @@ func (p *Piece) GetBlock(begin uint32) *Block {
 		return nil
 	}
 	return &p.Blocks[idx]
+}
+
+func (p *Piece) Verify(buf []byte) bool {
+	return p.VerifyHash(buf, sha1.New())
+}
+
+func (p *Piece) VerifyHash(buf []byte, h hash.Hash) bool {
+	if uint32(len(buf)) != p.Length {
+		return false
+	}
+	h.Write(buf)
+	sum := h.Sum(nil)
+	return bytes.Equal(sum, p.Hash)
 }
 
 func minInt64(a, b int64) int64 {

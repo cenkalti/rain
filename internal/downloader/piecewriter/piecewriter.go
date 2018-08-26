@@ -3,36 +3,43 @@ package piecewriter
 import (
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/piece"
-	"github.com/cenkalti/rain/internal/torrentdata"
 )
 
 type PieceWriter struct {
-	messages chan Message
-	data     *torrentdata.Data
-	log      logger.Logger
+	requests  chan Request
+	responses chan Response
+	log       logger.Logger
 }
 
-type Message struct {
+type Request struct {
 	Piece *piece.Piece
 	Data  []byte
 }
 
-func New(data *torrentdata.Data, messages chan Message, l logger.Logger) *PieceWriter {
+type Response struct {
+	Request Request
+	Error   error
+}
+
+func New(requests chan Request, responses chan Response, l logger.Logger) *PieceWriter {
 	return &PieceWriter{
-		data:     data,
-		messages: messages,
-		log:      l,
+		requests:  requests,
+		responses: responses,
+		log:       l,
 	}
 }
 
 func (w *PieceWriter) Run(stopC chan struct{}) {
 	for {
 		select {
-		case msg := <-w.messages:
-			w.log.Debugln("writing piece index:", msg.Piece.Index, "len:", len(msg.Data))
-			err := w.data.WritePiece(msg.Piece.Index, msg.Data)
-			if err != nil {
-				w.log.Error(err)
+		case req := <-w.requests:
+			w.log.Debugln("writing piece index:", req.Piece.Index, "len:", len(req.Data))
+			resp := Response{Request: req}
+			_, resp.Error = req.Piece.Data.Write(req.Data)
+			select {
+			case w.responses <- resp:
+			case <-stopC:
+				return
 			}
 		case <-stopC:
 			return

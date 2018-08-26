@@ -24,7 +24,8 @@ type Downloader struct {
 	unchokingPeers map[*peer.Peer]struct{}
 	downloads      map[*peer.Peer]*piecedownloader.PieceDownloader
 	downloadDone   chan *piecedownloader.PieceDownloader
-	writeMessages  chan piecewriter.Message
+	writeRequests  chan piecewriter.Request
+	writeResponses chan piecewriter.Response
 	log            logger.Logger
 	limiter        chan struct{}
 	workers        worker.Workers
@@ -55,7 +56,8 @@ func New(d *torrentdata.Data, m *peer.Messages, l logger.Logger) *Downloader {
 		unchokingPeers: make(map[*peer.Peer]struct{}),
 		downloads:      make(map[*peer.Peer]*piecedownloader.PieceDownloader),
 		downloadDone:   make(chan *piecedownloader.PieceDownloader),
-		writeMessages:  make(chan piecewriter.Message, 1),
+		writeRequests:  make(chan piecewriter.Request, 1),
+		writeResponses: make(chan piecewriter.Response),
 		log:            l,
 		limiter:        make(chan struct{}, parallelPieceDownloads),
 	}
@@ -64,12 +66,11 @@ func New(d *torrentdata.Data, m *peer.Messages, l logger.Logger) *Downloader {
 func (d *Downloader) Run(stopC chan struct{}) {
 	defer d.workers.Stop()
 	for i := 0; i < parallelPieceWrites; i++ {
-		w := piecewriter.New(d.data, d.writeMessages, d.log)
+		w := piecewriter.New(d.writeRequests, d.writeResponses, d.log)
 		d.workers.Start(w)
 	}
 	waitingDownloader := 0
 	for {
-		// TODO extract cases to methods
 		select {
 		case d.limiter <- struct{}{}:
 			// TODO check status of existing downloads
@@ -86,6 +87,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				select {
 				case d.downloadDone <- pd:
 				case <-stopC:
+					return
 				}
 			})
 		case pd := <-d.downloadDone:
@@ -94,8 +96,13 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			<-d.limiter
 			select {
 			case buf := <-pd.DoneC:
+				ok := d.pieces[pd.Piece.Index].Piece.Verify(buf)
+				if !ok {
+					// TODO handle corrupt piece
+					continue
+				}
 				select {
-				case d.writeMessages <- piecewriter.Message{Piece: pd.Piece, Data: buf}:
+				case d.writeRequests <- piecewriter.Request{Piece: pd.Piece, Data: buf}:
 					d.pieces[pd.Piece.Index].writing = true
 				case <-stopC:
 					return
@@ -105,6 +112,16 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			case <-stopC:
 				return
 			}
+		case resp := <-d.writeResponses:
+			d.pieces[resp.Request.Piece.Index].writing = false
+			if resp.Error != nil {
+				// TODO handle write error
+				continue
+			}
+			// TODO handle write response
+			d.data.Bitfield().Set(resp.Request.Piece.Index)
+			d.data.CheckCompletion()
+			// TODO publish everyone have message
 		case msg := <-d.messages.Have:
 			if waitingDownloader > 0 {
 				waitingDownloader--

@@ -14,7 +14,6 @@ type Messages struct {
 	Have          chan Have
 	Request       chan Request
 	Piece         chan Piece
-	// Bitfield      chan Bitfield
 	// Cancel        chan Cancel
 }
 
@@ -29,7 +28,6 @@ func NewMessages() *Messages {
 		Have:          make(chan Have),
 		Request:       make(chan Request),
 		Piece:         make(chan Piece),
-		// Bitfield:      make(chan Bitfield),
 		// Cancel:        make(chan Cancel),
 	}
 }
