@@ -171,11 +171,11 @@ func (t *Torrent) PeerID() [20]byte { return t.peerID }
 func (t *Torrent) InfoHash() [20]byte { return t.metainfo.Info.Hash }
 
 // NotifyComplete returns a channel that is closed once all pieces are downloaded successfully.
-func (t *Torrent) NotifyComplete() chan struct{} { return t.data.Completed }
+func (t *Torrent) NotifyComplete() <-chan struct{} { return t.data.Completed }
 
 // NotifyError returns a new channel for waiting download errors.
 // When error is sent to the channel, torrent is stopped automatically.
-func (t *Torrent) NotifyError() chan error { return t.errC }
+func (t *Torrent) NotifyError() <-chan error { return t.errC }
 
 // BytesDownloaded is the number of bytes downloaded from swarm.
 //
