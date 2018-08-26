@@ -328,6 +328,13 @@ func (p *Peer) SendUnchoke() error {
 	return p.writeMessage(messageid.Unchoke, nil)
 }
 
+func (p *Peer) SendHave(piece uint32) error {
+	req := haveMessage{piece}
+	buf := bytes.NewBuffer(make([]byte, 0, 4))
+	_ = binary.Write(buf, binary.BigEndian, &req)
+	return p.writeMessage(messageid.Have, buf.Bytes())
+}
+
 func (p *Peer) SendRequest(piece, begin, length uint32) error {
 	p.m.Lock()
 	if p.peerChoking {

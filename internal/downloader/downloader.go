@@ -122,7 +122,10 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			}
 			d.data.Bitfield().Set(resp.Request.Piece.Index)
 			d.data.CheckCompletion()
-			// TODO publish everyone have message
+			// Tell everyone that we have this piece
+			for pe := range d.connectedPeers {
+				go pe.SendHave(resp.Request.Piece.Index)
+			}
 		case msg := <-d.messages.Have:
 			if waitingDownloader > 0 {
 				waitingDownloader--
