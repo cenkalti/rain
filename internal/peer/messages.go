@@ -1,8 +1,6 @@
 package peer
 
-import (
-	"github.com/cenkalti/rain/internal/piece"
-)
+import "github.com/cenkalti/rain/internal/piece"
 
 type Messages struct {
 	Connect       chan *Peer
