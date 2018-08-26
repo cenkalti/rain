@@ -120,7 +120,6 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				d.errC <- resp.Error
 				continue
 			}
-			// TODO handle write response
 			d.data.Bitfield().Set(resp.Request.Piece.Index)
 			d.data.CheckCompletion()
 			// TODO publish everyone have message
@@ -130,6 +129,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				<-d.limiter
 			}
 			d.pieces[msg.Piece.Index].havingPeers[msg.Peer] = struct{}{}
+			// TODO update interested state
 			// go checkInterested(peer, bitfield)
 			// peer.writeMessages <- interested{}
 		case pe := <-d.messages.Unchoke:
@@ -153,6 +153,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 		case msg := <-d.messages.Request:
 			// pi := d.data.Pieces[msg.Index]
 			buf := make([]byte, msg.Length)
+			// TODO read data
 			// pi.Data.ReadAt(buf, int64(msg.Begin))
 			err := msg.Peer.SendPiece(msg.Piece.Index, msg.Begin, buf)
 			if err != nil {
