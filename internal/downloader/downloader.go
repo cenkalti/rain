@@ -126,6 +126,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			for pe := range d.connectedPeers {
 				go pe.SendHave(resp.Request.Piece.Index)
 			}
+			// TODO update interested state
 		case msg := <-d.messages.Have:
 			if waitingDownloader > 0 {
 				waitingDownloader--
