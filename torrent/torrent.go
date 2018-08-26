@@ -35,6 +35,7 @@ type Torrent struct {
 	running  bool               // true after Start() is called
 	closed   bool               // true after Close() is called
 	m        sync.Mutex         // protects running and closed state
+	errC     chan error         // downlaoder sends critical error to this channel
 	workers  worker.Workers
 	log      logger.Logger
 }
@@ -95,6 +96,8 @@ func (t *Torrent) Start() {
 		return
 	}
 
+	t.errC = make(chan error, 1)
+
 	// keep list of peer addresses to connect
 	pl := peerlist.New()
 	t.workers.Start(pl)
@@ -108,8 +111,8 @@ func (t *Torrent) Start() {
 	t.workers.Start(pm)
 
 	// request missing pieces from peers
-	do := downloader.New(t.data, pm.PeerMessages(), t.log)
-	t.workers.Start(do)
+	do := downloader.New(t.data, pm.PeerMessages(), t.errC, t.log)
+	t.workers.StartWithOnFinishHandler(do, func() { t.Stop() })
 
 	// send requested blocks
 	up := uploader.New()
@@ -167,8 +170,12 @@ func (t *Torrent) PeerID() [20]byte { return t.peerID }
 // InfoHash identifies the torrent file that is being downloaded.
 func (t *Torrent) InfoHash() [20]byte { return t.metainfo.Info.Hash }
 
-// CompleteNotify returns a channel that is closed once all pieces are downloaded successfully.
-func (t *Torrent) CompleteNotify() chan struct{} { return t.data.Completed }
+// NotifyComplete returns a channel that is closed once all pieces are downloaded successfully.
+func (t *Torrent) NotifyComplete() chan struct{} { return t.data.Completed }
+
+// NotifyError returns a new channel for waiting download errors.
+// When error is sent to the channel, torrent is stopped automatically.
+func (t *Torrent) NotifyError() chan error { return t.errC }
 
 // BytesDownloaded is the number of bytes downloaded from swarm.
 //

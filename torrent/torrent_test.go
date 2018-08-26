@@ -64,7 +64,9 @@ func TestDownload(t *testing.T) {
 	t2.Start()
 
 	select {
-	case <-t2.CompleteNotify():
+	case <-t2.NotifyComplete():
+	case err = <-t2.NotifyError():
+		t.Fatal(err)
 	case <-time.After(timeout):
 		panic("download did not finish")
 	}

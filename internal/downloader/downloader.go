@@ -26,6 +26,7 @@ type Downloader struct {
 	downloadDone   chan *piecedownloader.PieceDownloader
 	writeRequests  chan piecewriter.Request
 	writeResponses chan piecewriter.Response
+	errC           chan error
 	log            logger.Logger
 	limiter        chan struct{}
 	workers        worker.Workers
@@ -39,7 +40,7 @@ type Piece struct {
 	writing        bool
 }
 
-func New(d *torrentdata.Data, m *peer.Messages, l logger.Logger) *Downloader {
+func New(d *torrentdata.Data, m *peer.Messages, errC chan error, l logger.Logger) *Downloader {
 	pieces := make([]Piece, len(d.Pieces))
 	for i := range d.Pieces {
 		pieces[i] = Piece{
@@ -58,6 +59,7 @@ func New(d *torrentdata.Data, m *peer.Messages, l logger.Logger) *Downloader {
 		downloadDone:   make(chan *piecedownloader.PieceDownloader),
 		writeRequests:  make(chan piecewriter.Request, 1),
 		writeResponses: make(chan piecewriter.Response),
+		errC:           errC,
 		log:            l,
 		limiter:        make(chan struct{}, parallelPieceDownloads),
 	}
@@ -115,7 +117,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 		case resp := <-d.writeResponses:
 			d.pieces[resp.Request.Piece.Index].writing = false
 			if resp.Error != nil {
-				// TODO handle write error
+				d.errC <- resp.Error
 				continue
 			}
 			// TODO handle write response
