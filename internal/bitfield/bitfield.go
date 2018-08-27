@@ -193,4 +193,12 @@ func (b *Bitfield) Or(b2 *Bitfield) *Bitfield {
 	return result
 }
 
+func (b *Bitfield) Interesting(b2 *Bitfield) bool {
+	if b.length != b2.length {
+		panic("length mismatch")
+	}
+	// TODO calculate
+	return false
+}
+
 func divMod32(a, b uint32) (uint32, uint32) { return a / b, a % b }
