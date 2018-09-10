@@ -190,6 +190,9 @@ func (d *Downloader) nextDownload() (pi *piece.Piece, pe *peer.Peer, ok bool) {
 		if d.data.Bitfield().Test(p.Index) {
 			continue
 		}
+		if len(p.requestedPeers) > 0 {
+			continue
+		}
 		if p.writing {
 			continue
 		}
@@ -199,9 +202,6 @@ func (d *Downloader) nextDownload() (pi *piece.Piece, pe *peer.Peer, ok bool) {
 		// TODO selecting first peer having the piece, change to more smart decision
 		for pe2 := range p.havingPeers {
 			if _, ok2 := d.unchokingPeers[pe2]; !ok2 {
-				continue
-			}
-			if _, ok2 := p.requestedPeers[pe2]; ok2 {
 				continue
 			}
 			if _, ok2 := d.downloads[pe2]; ok2 {
