@@ -264,6 +264,7 @@ func (p *Peer) Run(stopC chan struct{}) {
 				p.log.Error("have_none can only be sent after handshake")
 				return
 			}
+		case messageid.Suggest:
 		// TODO handle cancel messages
 		// case messageid.Cancel:
 		default:
