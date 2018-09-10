@@ -265,8 +265,26 @@ func (p *Peer) Run(stopC chan struct{}) {
 				return
 			}
 		case messageid.Suggest:
-		// TODO handle cancel messages
-		// case messageid.Cancel:
+		// case messageid.Reject: // TODO handle reject messages
+		case messageid.AllowedFast:
+			var h haveMessage
+			err = binary.Read(p.conn, binary.BigEndian, &h)
+			if err != nil {
+				p.log.Error(err)
+				return
+			}
+			if h.Index >= uint32(len(p.data.Pieces)) {
+				p.log.Error("unexpected piece index")
+				return
+			}
+			pi := &p.data.Pieces[h.Index]
+			p.log.Debug("Peer ", p.conn.RemoteAddr(), " has allowed fast for piece #", pi.Index)
+			select {
+			case p.messages.AllowedFast <- Have{p, pi}:
+			case <-stopC:
+				return
+			}
+		// case messageid.Cancel: TODO handle cancel messages
 		default:
 			p.log.Debugf("unhandled message type: %s", id)
 			p.log.Debugln("Discarding", length, "bytes...")

@@ -7,7 +7,6 @@ import (
 	"github.com/cenkalti/rain/internal/downloader/piecewriter"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/peer"
-	"github.com/cenkalti/rain/internal/piece"
 	"github.com/cenkalti/rain/internal/semaphore"
 	"github.com/cenkalti/rain/internal/torrentdata"
 	"github.com/cenkalti/rain/internal/worker"
@@ -23,6 +22,7 @@ type Downloader struct {
 	pieces         []Piece
 	sortedPieces   []*Piece
 	connectedPeers map[*peer.Peer]*Peer
+	// TODO move into Peer struct
 	unchokingPeers map[*peer.Peer]struct{}
 	downloads      map[*peer.Peer]*piecedownloader.PieceDownloader
 	downloadDone   chan *piecedownloader.PieceDownloader
@@ -71,15 +71,14 @@ func (d *Downloader) Run(stopC chan struct{}) {
 		select {
 		case <-downloaders.Wait:
 			// TODO check status of existing downloads
-			pi, pe, ok := d.nextDownload()
-			if !ok {
+			pd := d.nextDownload()
+			if pd == nil {
 				downloaders.Block()
 				continue
 			}
-			d.log.Debugln("downloading piece", pi.Index, "from", pe.String())
-			pd := piecedownloader.New(pi, pe)
-			d.downloads[pe] = pd
-			d.pieces[pi.Index].requestedPeers[pe] = pd
+			d.log.Debugln("downloading piece", pd.Piece.Index, "from", pd.Peer.String())
+			d.downloads[pd.Peer] = pd
+			d.pieces[pd.Piece.Index].requestedPeers[pd.Peer] = pd
 			d.workers.StartWithOnFinishHandler(pd, func() {
 				select {
 				case d.downloadDone <- pd:
@@ -143,6 +142,8 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			downloaders.Signal(uint32(len(d.pieces)))
 			p := d.connectedPeers[pe]
 			d.updateInterestedState(p)
+		case msg := <-d.messages.AllowedFast:
+			d.pieces[msg.Piece.Index].allowedFastPeers[msg.Peer] = struct{}{}
 		case pe := <-d.messages.Unchoke:
 			downloaders.Signal(1)
 			d.unchokingPeers[pe] = struct{}{}
@@ -176,13 +177,19 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			}
 		case pe := <-d.messages.Disconnect:
 			delete(d.connectedPeers, pe)
+			delete(d.unchokingPeers, pe)
+			for i := range d.pieces {
+				delete(d.pieces[i].havingPeers, pe)
+				delete(d.pieces[i].allowedFastPeers, pe)
+				delete(d.pieces[i].requestedPeers, pe)
+			}
 		case <-stopC:
 			return
 		}
 	}
 }
 
-func (d *Downloader) nextDownload() (pi *piece.Piece, pe *peer.Peer, ok bool) {
+func (d *Downloader) nextDownload() *piecedownloader.PieceDownloader {
 	sort.Sort(ByAvailability(d.sortedPieces))
 	for _, p := range d.sortedPieces {
 		if d.data.Bitfield().Test(p.Index) {
@@ -197,25 +204,25 @@ func (d *Downloader) nextDownload() (pi *piece.Piece, pe *peer.Peer, ok bool) {
 		if len(p.havingPeers) == 0 {
 			continue
 		}
-		// TODO selecting first peer having the piece, change to more smart decision
-		for pe2 := range p.havingPeers {
-			if _, ok2 := d.unchokingPeers[pe2]; !ok2 {
+		// prefer allowed fast peers first
+		for pe := range p.havingPeers {
+			if _, ok := p.allowedFastPeers[pe]; ok {
+				// TODO selecting first peer having the piece, change to more smart decision
+				return piecedownloader.New(p.Piece, pe)
+			}
+		}
+		for pe := range p.havingPeers {
+			if _, ok2 := d.unchokingPeers[pe]; !ok2 {
 				continue
 			}
-			if _, ok2 := d.downloads[pe2]; ok2 {
+			if _, ok2 := d.downloads[pe]; ok2 {
 				continue
 			}
-			pe = pe2
-			break
+			// TODO selecting first peer having the piece, change to more smart decision
+			return piecedownloader.New(p.Piece, pe)
 		}
-		if pe == nil {
-			continue
-		}
-		pi = p.Piece
-		ok = true
-		break
 	}
-	return
+	return nil
 }
 
 func (d *Downloader) updateInterestedState(pe *Peer) {

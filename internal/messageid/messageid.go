@@ -17,10 +17,12 @@ const (
 	Piece
 	Cancel
 	Port
-	Suggest   = 13
-	HaveAll   = 14
-	HaveNone  = 15
-	Extension = 20
+	Suggest     = 13
+	HaveAll     = 14
+	HaveNone    = 15
+	Reject      = 16
+	AllowedFast = 17
+	Extension   = 20
 )
 
 var messageIDStrings = map[MessageID]string{
@@ -37,6 +39,8 @@ var messageIDStrings = map[MessageID]string{
 	13: "suggest",
 	14: "have all",
 	15: "have none",
+	16: "reject",
+	17: "allowed fast",
 	20: "extension",
 }
 

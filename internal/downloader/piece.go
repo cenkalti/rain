@@ -8,9 +8,10 @@ import (
 
 type Piece struct {
 	*piece.Piece
-	havingPeers    map[*peer.Peer]struct{}
-	requestedPeers map[*peer.Peer]*piecedownloader.PieceDownloader
-	writing        bool
+	havingPeers      map[*peer.Peer]struct{}
+	allowedFastPeers map[*peer.Peer]struct{}
+	requestedPeers   map[*peer.Peer]*piecedownloader.PieceDownloader
+	writing          bool
 }
 
 type ByAvailability []*Piece
