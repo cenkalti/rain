@@ -3,6 +3,7 @@ package handler
 import (
 	"net"
 
+	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/btconn"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/peer"
@@ -39,17 +40,20 @@ func (h *Handler) Run(stopC chan struct{}) {
 
 	// TODO get this from config
 	encryptionForceIncoming := false
-	extensions := [8]byte{}
+
+	ourExtensions := [8]byte{}
+	ourbf := bitfield.NewBytes(ourExtensions[:], 64)
+	ourbf.Set(61) // Fast Extension
 
 	// TODO close conn during handshake when stopC is closed
-	encConn, cipher, extensions, peerID, _, err := btconn.Accept(
-		h.conn, h.getSKey, encryptionForceIncoming, h.checkInfoHash, extensions, h.peerID)
+	encConn, cipher, peerExtensions, peerID, _, err := btconn.Accept(
+		h.conn, h.getSKey, encryptionForceIncoming, h.checkInfoHash, ourExtensions, h.peerID)
 	if err != nil {
 		log.Error(err)
 		_ = h.conn.Close()
 		return
 	}
-	log.Infof("Connection accepted. (cipher=%s extensions=%x client=%q)", cipher, extensions, peerID[:8])
+	log.Infof("Connection accepted. (cipher=%s extensions=%x client=%q)", cipher, peerExtensions, peerID[:8])
 
 	ok := h.peerIDs.Add(peerID)
 	if !ok {
@@ -58,7 +62,10 @@ func (h *Handler) Run(stopC chan struct{}) {
 	}
 	defer h.peerIDs.Remove(peerID)
 
-	p := peer.New(encConn, peerID, h.data, log, h.messages)
+	peerbf := bitfield.NewBytes(peerExtensions[:], 64)
+	extensions := ourbf.And(peerbf)
+
+	p := peer.New(encConn, peerID, extensions, h.data, log, h.messages)
 	p.Run(stopC)
 }
 

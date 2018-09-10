@@ -20,20 +20,22 @@ const connReadTimeout = 3 * time.Minute
 const maxAllowedBlockSize = 32 * 1024
 
 type Peer struct {
-	conn     net.Conn
-	id       [20]byte
-	data     *torrentdata.Data
-	messages *Messages
-	log      logger.Logger
+	conn        net.Conn
+	id          [20]byte
+	data        *torrentdata.Data
+	messages    *Messages
+	fastEnabled bool
+	log         logger.Logger
 }
 
-func New(conn net.Conn, id [20]byte, d *torrentdata.Data, l logger.Logger, messages *Messages) *Peer {
+func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, d *torrentdata.Data, l logger.Logger, messages *Messages) *Peer {
 	return &Peer{
-		conn:     conn,
-		id:       id,
-		data:     d,
-		messages: messages,
-		log:      l,
+		conn:        conn,
+		id:          id,
+		data:        d,
+		messages:    messages,
+		fastEnabled: extensions.Test(61),
+		log:         l,
 	}
 }
 

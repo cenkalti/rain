@@ -12,7 +12,7 @@ func NumBytes(length uint32) int {
 
 // Bitfield is described in BEP 3.
 type Bitfield struct {
-	b      []byte
+	bytes  []byte
 	length uint32
 	m      sync.RWMutex
 }
@@ -20,7 +20,7 @@ type Bitfield struct {
 // New creates a new Bitfield of length bits.
 func New(length uint32) *Bitfield {
 	return &Bitfield{
-		b:      make([]byte, NumBytes(length)),
+		bytes:  make([]byte, NumBytes(length)),
 		length: length,
 	}
 }
@@ -42,13 +42,13 @@ func NewBytes(b []byte, length uint32) *Bitfield {
 		b[len(b)-1] &= ^(0xff >> mod)
 	}
 	return &Bitfield{
-		b:      b[:requiredBytes],
+		bytes:  b[:requiredBytes],
 		length: length,
 	}
 }
 
 // Bytes returns bytes in b. If you modify the returned slice the bits in b are modified too.
-func (b *Bitfield) Bytes() []byte { return b.b }
+func (b *Bitfield) Bytes() []byte { return b.bytes }
 
 // Len returns the number of bits as given to New.
 func (b *Bitfield) Len() uint32 { return b.length }
@@ -57,7 +57,7 @@ func (b *Bitfield) Len() uint32 { return b.length }
 func (b *Bitfield) Hex() string {
 	b.m.RLock()
 	defer b.m.RUnlock()
-	return hex.EncodeToString(b.b)
+	return hex.EncodeToString(b.bytes)
 }
 
 // Set bit i. 0 is the most significant bit. Panics if i >= b.Len().
@@ -65,7 +65,7 @@ func (b *Bitfield) Set(i uint32) {
 	b.checkIndex(i)
 	b.m.Lock()
 	div, mod := divMod32(i, 8)
-	b.b[div] |= 1 << (7 - mod)
+	b.bytes[div] |= 1 << (7 - mod)
 	b.m.Unlock()
 }
 
@@ -84,7 +84,7 @@ func (b *Bitfield) Clear(i uint32) {
 	b.checkIndex(i)
 	b.m.Lock()
 	div, mod := divMod32(i, 8)
-	b.b[div] &= ^(1 << (7 - mod))
+	b.bytes[div] &= ^(1 << (7 - mod))
 	b.m.Unlock()
 }
 
@@ -115,8 +115,8 @@ func (b *Bitfield) FirstClear(start uint32) (uint32, bool) {
 // ClearAll clears all bits.
 func (b *Bitfield) ClearAll() {
 	b.m.Lock()
-	for i := range b.b {
-		b.b[i] = 0
+	for i := range b.bytes {
+		b.bytes[i] = 0
 	}
 	b.m.Unlock()
 }
@@ -127,7 +127,7 @@ func (b *Bitfield) Test(i uint32) bool {
 	b.m.RLock()
 	defer b.m.RUnlock()
 	div, mod := divMod32(i, 8)
-	return (b.b[div] & (1 << (7 - mod))) > 0
+	return (b.bytes[div] & (1 << (7 - mod))) > 0
 }
 
 var countCache = [256]byte{
@@ -153,7 +153,7 @@ var countCache = [256]byte{
 func (b *Bitfield) Count() uint32 {
 	var total uint32
 	b.m.RLock()
-	for _, v := range b.b {
+	for _, v := range b.bytes {
 		total += uint32(countCache[v])
 	}
 	b.m.RUnlock()
@@ -176,8 +176,8 @@ func (b *Bitfield) And(b2 *Bitfield) *Bitfield {
 		panic("length mismatch")
 	}
 	result := New(b.length)
-	for i := range result.b {
-		result.b[i] = b.b[i] & b2.b[i]
+	for i := range result.bytes {
+		result.bytes[i] = b.bytes[i] & b2.bytes[i]
 	}
 	return result
 }
@@ -187,18 +187,10 @@ func (b *Bitfield) Or(b2 *Bitfield) *Bitfield {
 		panic("length mismatch")
 	}
 	result := New(b.length)
-	for i := range result.b {
-		result.b[i] = b.b[i] | b2.b[i]
+	for i := range result.bytes {
+		result.bytes[i] = b.bytes[i] | b2.bytes[i]
 	}
 	return result
-}
-
-func (b *Bitfield) Interesting(b2 *Bitfield) bool {
-	if b.length != b2.length {
-		panic("length mismatch")
-	}
-	// TODO calculate
-	return false
 }
 
 func divMod32(a, b uint32) (uint32, uint32) { return a / b, a % b }
