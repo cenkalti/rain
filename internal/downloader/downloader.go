@@ -6,6 +6,7 @@ import (
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/piece"
+	"github.com/cenkalti/rain/internal/semaphore"
 	"github.com/cenkalti/rain/internal/torrentdata"
 	"github.com/cenkalti/rain/internal/worker"
 )
@@ -26,7 +27,6 @@ type Downloader struct {
 	writeResponses chan piecewriter.Response
 	errC           chan error
 	log            logger.Logger
-	limiter        chan struct{}
 	workers        worker.Workers
 }
 
@@ -58,7 +58,6 @@ func New(d *torrentdata.Data, m *peer.Messages, errC chan error, l logger.Logger
 		writeResponses: make(chan piecewriter.Response),
 		errC:           errC,
 		log:            l,
-		limiter:        make(chan struct{}, parallelPieceDownloads),
 	}
 }
 
@@ -68,14 +67,14 @@ func (d *Downloader) Run(stopC chan struct{}) {
 		w := piecewriter.New(d.writeRequests, d.writeResponses, d.log)
 		d.workers.Start(w)
 	}
-	waitingDownloader := 0
+	sem := semaphore.New(parallelPieceDownloads)
 	for {
 		select {
-		case d.limiter <- struct{}{}:
+		case <-sem.Wait:
 			// TODO check status of existing downloads
 			pi, pe, ok := d.nextDownload()
 			if !ok {
-				waitingDownloader++
+				sem.Block()
 				continue
 			}
 			d.log.Debugln("downloading piece", pi.Index, "from", pe.String())
@@ -92,7 +91,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 		case pd := <-d.downloadDone:
 			delete(d.downloads, pd.Peer)
 			delete(d.pieces[pd.Piece.Index].requestedPeers, pd.Peer)
-			<-d.limiter
+			sem.Signal(1)
 			select {
 			case buf := <-pd.DoneC:
 				ok := d.pieces[pd.Piece.Index].Piece.Verify(buf)
@@ -125,10 +124,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			}
 			// TODO update interested state
 		case msg := <-d.messages.Have:
-			if waitingDownloader > 0 {
-				waitingDownloader--
-				<-d.limiter
-			}
+			sem.Signal(1)
 			d.pieces[msg.Piece.Index].havingPeers[msg.Peer] = struct{}{}
 			// TODO update interested state
 			// go checkInterested(peer, bitfield)
@@ -139,16 +135,10 @@ func (d *Downloader) Run(stopC chan struct{}) {
 					d.pieces[i].havingPeers[msg.Peer] = struct{}{}
 				}
 			}
-			for waitingDownloader > 0 {
-				waitingDownloader--
-				<-d.limiter
-			}
+			sem.Signal(msg.Bitfield.Count())
 			// TODO update interested state
 		case pe := <-d.messages.Unchoke:
-			if waitingDownloader > 0 {
-				waitingDownloader--
-				<-d.limiter
-			}
+			sem.Signal(1)
 			d.unchokingPeers[pe] = struct{}{}
 			if pd, ok := d.downloads[pe]; ok {
 				pd.UnchokeC <- struct{}{}
