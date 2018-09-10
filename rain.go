@@ -77,10 +77,13 @@ LOOP:
 		select {
 		case <-sigC:
 			break LOOP
-		case <-t.CompleteNotify():
+		case <-t.NotifyComplete():
 			if !*seed {
 				break LOOP
 			}
+		case err = <-t.NotifyError():
+			log.Error(err)
+			os.Exit(1)
 		}
 	}
 	err = t.Close()

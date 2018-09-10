@@ -85,7 +85,9 @@ func New(r io.Reader, dest string, port int) (*Torrent, error) {
 
 // Start listening peer port, accepting incoming peer connections and download missing pieces.
 //
-// Seeding continues after all files are donwloaded.
+// Seeding continues after all files are downloaded.
+//
+// You should listen NotifyComplete and NotifyError channels after starting the torrent.
 func (t *Torrent) Start() {
 	t.m.Lock()
 	defer t.m.Unlock()
@@ -174,6 +176,7 @@ func (t *Torrent) InfoHash() [20]byte { return t.metainfo.Info.Hash }
 func (t *Torrent) NotifyComplete() <-chan struct{} { return t.data.Completed }
 
 // NotifyError returns a new channel for waiting download errors.
+//
 // When error is sent to the channel, torrent is stopped automatically.
 func (t *Torrent) NotifyError() <-chan error { return t.errC }
 
