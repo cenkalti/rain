@@ -1,6 +1,9 @@
 package peer
 
-import "github.com/cenkalti/rain/internal/piece"
+import (
+	"github.com/cenkalti/rain/internal/bitfield"
+	"github.com/cenkalti/rain/internal/piece"
+)
 
 type Messages struct {
 	Connect       chan *Peer
@@ -10,6 +13,7 @@ type Messages struct {
 	Interested    chan *Peer
 	NotInterested chan *Peer
 	Have          chan Have
+	Bitfield      chan Bitfield
 	Request       chan Request
 	Piece         chan Piece
 	// Cancel        chan Cancel
@@ -24,6 +28,7 @@ func NewMessages() *Messages {
 		Interested:    make(chan *Peer),
 		NotInterested: make(chan *Peer),
 		Have:          make(chan Have),
+		Bitfield:      make(chan Bitfield),
 		Request:       make(chan Request),
 		Piece:         make(chan Piece),
 		// Cancel:        make(chan Cancel),
@@ -33,6 +38,11 @@ func NewMessages() *Messages {
 type Have struct {
 	Peer  *Peer
 	Piece *piece.Piece
+}
+
+type Bitfield struct {
+	Peer     *Peer
+	Bitfield *bitfield.Bitfield
 }
 
 type Request struct {

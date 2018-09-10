@@ -190,16 +190,10 @@ func (p *Peer) Run(stopC chan struct{}) {
 			}
 			bf := bitfield.NewBytes(b, uint32(len(p.data.Pieces)))
 			p.log.Debugln("Received bitfield:", bf.Hex())
-
-			for i := uint32(0); i < bf.Len(); i++ {
-				if bf.Test(i) {
-					pi := &p.data.Pieces[i]
-					select {
-					case p.messages.Have <- Have{p, pi}:
-					case <-stopC:
-						return
-					}
-				}
+			select {
+			case p.messages.Bitfield <- Bitfield{p, bf}:
+			case <-stopC:
+				return
 			}
 		case messageid.Request:
 			var req requestMessage

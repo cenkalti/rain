@@ -1,8 +1,6 @@
 package downloader
 
 import (
-	"sync"
-
 	"github.com/cenkalti/rain/internal/downloader/piecedownloader"
 	"github.com/cenkalti/rain/internal/downloader/piecewriter"
 	"github.com/cenkalti/rain/internal/logger"
@@ -30,7 +28,6 @@ type Downloader struct {
 	log            logger.Logger
 	limiter        chan struct{}
 	workers        worker.Workers
-	m              sync.Mutex
 }
 
 type Piece struct {
@@ -136,6 +133,17 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			// TODO update interested state
 			// go checkInterested(peer, bitfield)
 			// peer.writeMessages <- interested{}
+		case msg := <-d.messages.Bitfield:
+			for i := uint32(0); i < msg.Bitfield.Len(); i++ {
+				if msg.Bitfield.Test(i) {
+					d.pieces[i].havingPeers[msg.Peer] = struct{}{}
+				}
+			}
+			for waitingDownloader > 0 {
+				waitingDownloader--
+				<-d.limiter
+			}
+			// TODO update interested state
 		case pe := <-d.messages.Unchoke:
 			if waitingDownloader > 0 {
 				waitingDownloader--
