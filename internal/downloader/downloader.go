@@ -67,14 +67,14 @@ func (d *Downloader) Run(stopC chan struct{}) {
 		w := piecewriter.New(d.writeRequests, d.writeResponses, d.log)
 		d.workers.Start(w)
 	}
-	sem := semaphore.New(parallelPieceDownloads)
+	downloaders := semaphore.New(parallelPieceDownloads)
 	for {
 		select {
-		case <-sem.Wait:
+		case <-downloaders.Wait:
 			// TODO check status of existing downloads
 			pi, pe, ok := d.nextDownload()
 			if !ok {
-				sem.Block()
+				downloaders.Block()
 				continue
 			}
 			d.log.Debugln("downloading piece", pi.Index, "from", pe.String())
@@ -91,7 +91,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 		case pd := <-d.downloadDone:
 			delete(d.downloads, pd.Peer)
 			delete(d.pieces[pd.Piece.Index].requestedPeers, pd.Peer)
-			sem.Signal(1)
+			downloaders.Signal(1)
 			select {
 			case buf := <-pd.DoneC:
 				ok := d.pieces[pd.Piece.Index].Piece.Verify(buf)
@@ -124,7 +124,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			}
 			// TODO update interested state
 		case msg := <-d.messages.Have:
-			sem.Signal(1)
+			downloaders.Signal(1)
 			d.pieces[msg.Piece.Index].havingPeers[msg.Peer] = struct{}{}
 			// TODO update interested state
 			// go checkInterested(peer, bitfield)
@@ -135,10 +135,10 @@ func (d *Downloader) Run(stopC chan struct{}) {
 					d.pieces[i].havingPeers[msg.Peer] = struct{}{}
 				}
 			}
-			sem.Signal(msg.Bitfield.Count())
+			downloaders.Signal(msg.Bitfield.Count())
 			// TODO update interested state
 		case pe := <-d.messages.Unchoke:
-			sem.Signal(1)
+			downloaders.Signal(1)
 			d.unchokingPeers[pe] = struct{}{}
 			if pd, ok := d.downloads[pe]; ok {
 				pd.UnchokeC <- struct{}{}
