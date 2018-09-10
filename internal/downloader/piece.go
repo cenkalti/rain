@@ -8,8 +8,8 @@ import (
 
 type Piece struct {
 	*piece.Piece
-	havingPeers      map[*peer.Peer]struct{}
-	allowedFastPeers map[*peer.Peer]struct{}
+	havingPeers      map[*peer.Peer]*Peer
+	allowedFastPeers map[*peer.Peer]*Peer
 	requestedPeers   map[*peer.Peer]*piecedownloader.PieceDownloader
 	writing          bool
 }

@@ -22,8 +22,6 @@ type Downloader struct {
 	pieces         []Piece
 	sortedPieces   []*Piece
 	connectedPeers map[*peer.Peer]*Peer
-	// TODO move into Peer struct
-	unchokingPeers map[*peer.Peer]struct{}
 	downloads      map[*peer.Peer]*piecedownloader.PieceDownloader
 	downloadDone   chan *piecedownloader.PieceDownloader
 	writeRequests  chan piecewriter.Request
@@ -38,9 +36,10 @@ func New(d *torrentdata.Data, m *peer.Messages, errC chan error, l logger.Logger
 	sortedPieces := make([]*Piece, len(d.Pieces))
 	for i := range d.Pieces {
 		pieces[i] = Piece{
-			Piece:          &d.Pieces[i],
-			havingPeers:    make(map[*peer.Peer]struct{}),
-			requestedPeers: make(map[*peer.Peer]*piecedownloader.PieceDownloader),
+			Piece:            &d.Pieces[i],
+			havingPeers:      make(map[*peer.Peer]*Peer),
+			allowedFastPeers: make(map[*peer.Peer]*Peer),
+			requestedPeers:   make(map[*peer.Peer]*piecedownloader.PieceDownloader),
 		}
 		sortedPieces[i] = &pieces[i]
 	}
@@ -50,7 +49,6 @@ func New(d *torrentdata.Data, m *peer.Messages, errC chan error, l logger.Logger
 		pieces:         pieces,
 		sortedPieces:   sortedPieces,
 		connectedPeers: make(map[*peer.Peer]*Peer),
-		unchokingPeers: make(map[*peer.Peer]struct{}),
 		downloads:      make(map[*peer.Peer]*piecedownloader.PieceDownloader),
 		downloadDone:   make(chan *piecedownloader.PieceDownloader),
 		writeRequests:  make(chan piecewriter.Request, 1),
@@ -123,13 +121,13 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			}
 		case msg := <-d.messages.Have:
 			downloaders.Signal(1)
-			d.pieces[msg.Piece.Index].havingPeers[msg.Peer] = struct{}{}
+			d.pieces[msg.Piece.Index].havingPeers[msg.Peer] = d.connectedPeers[msg.Peer]
 			pe := d.connectedPeers[msg.Peer]
 			d.updateInterestedState(pe)
 		case msg := <-d.messages.Bitfield:
 			for i := uint32(0); i < msg.Bitfield.Len(); i++ {
 				if msg.Bitfield.Test(i) {
-					d.pieces[i].havingPeers[msg.Peer] = struct{}{}
+					d.pieces[i].havingPeers[msg.Peer] = d.connectedPeers[msg.Peer]
 				}
 			}
 			downloaders.Signal(msg.Bitfield.Count())
@@ -137,21 +135,21 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			d.updateInterestedState(pe)
 		case pe := <-d.messages.HaveAll:
 			for i := range d.pieces {
-				d.pieces[i].havingPeers[pe] = struct{}{}
+				d.pieces[i].havingPeers[pe] = d.connectedPeers[pe]
 			}
 			downloaders.Signal(uint32(len(d.pieces)))
 			p := d.connectedPeers[pe]
 			d.updateInterestedState(p)
 		case msg := <-d.messages.AllowedFast:
-			d.pieces[msg.Piece.Index].allowedFastPeers[msg.Peer] = struct{}{}
+			d.pieces[msg.Piece.Index].allowedFastPeers[msg.Peer] = d.connectedPeers[msg.Peer]
 		case pe := <-d.messages.Unchoke:
 			downloaders.Signal(1)
-			d.unchokingPeers[pe] = struct{}{}
+			d.connectedPeers[pe].peerChoking = false
 			if pd, ok := d.downloads[pe]; ok {
 				pd.UnchokeC <- struct{}{}
 			}
 		case pe := <-d.messages.Choke:
-			delete(d.unchokingPeers, pe)
+			d.connectedPeers[pe].peerChoking = true
 			if pd, ok := d.downloads[pe]; ok {
 				pd.ChokeC <- struct{}{}
 			}
@@ -177,7 +175,6 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			}
 		case pe := <-d.messages.Disconnect:
 			delete(d.connectedPeers, pe)
-			delete(d.unchokingPeers, pe)
 			for i := range d.pieces {
 				delete(d.pieces[i].havingPeers, pe)
 				delete(d.pieces[i].allowedFastPeers, pe)
@@ -205,21 +202,25 @@ func (d *Downloader) nextDownload() *piecedownloader.PieceDownloader {
 			continue
 		}
 		// prefer allowed fast peers first
-		for pe := range p.havingPeers {
-			if _, ok := p.allowedFastPeers[pe]; ok {
-				// TODO selecting first peer having the piece, change to more smart decision
-				return piecedownloader.New(p.Piece, pe)
-			}
-		}
-		for pe := range p.havingPeers {
-			if _, ok2 := d.unchokingPeers[pe]; !ok2 {
+		for _, pe := range p.havingPeers {
+			if _, ok := p.allowedFastPeers[pe.Peer]; !ok {
 				continue
 			}
-			if _, ok2 := d.downloads[pe]; ok2 {
+			if _, ok := d.downloads[pe.Peer]; ok {
 				continue
 			}
 			// TODO selecting first peer having the piece, change to more smart decision
-			return piecedownloader.New(p.Piece, pe)
+			return piecedownloader.New(p.Piece, pe.Peer)
+		}
+		for _, pe := range p.havingPeers {
+			if pe.peerChoking {
+				continue
+			}
+			if _, ok := d.downloads[pe.Peer]; ok {
+				continue
+			}
+			// TODO selecting first peer having the piece, change to more smart decision
+			return piecedownloader.New(p.Piece, pe.Peer)
 		}
 	}
 	return nil
