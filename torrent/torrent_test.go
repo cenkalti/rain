@@ -22,8 +22,8 @@ import (
 
 var (
 	trackerAddr    = ":5000"
-	torrentFile    = filepath.Join("testfiles", "10mb.torrent")
-	torrentDataDir = "testfiles"
+	torrentFile    = filepath.Join("testdata", "10mb.torrent")
+	torrentDataDir = "testdata"
 	torrentName    = "10mb"
 	timeout        = 10 * time.Second
 )

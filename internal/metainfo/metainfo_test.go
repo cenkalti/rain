@@ -7,7 +7,7 @@ import (
 )
 
 func TestTorrent(t *testing.T) {
-	f, err := os.Open("testfiles/ubuntu-14.04.1-server-amd64.iso.torrent")
+	f, err := os.Open("testdata/ubuntu-14.04.1-server-amd64.iso.torrent")
 	if err != nil {
 		t.Fatal(err)
 	}
