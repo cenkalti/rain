@@ -13,6 +13,7 @@ type Messages struct {
 	Interested    chan *Peer
 	NotInterested chan *Peer
 	Have          chan Have
+	HaveAll       chan *Peer
 	Bitfield      chan Bitfield
 	Request       chan Request
 	Piece         chan Piece
@@ -28,6 +29,7 @@ func NewMessages() *Messages {
 		Interested:    make(chan *Peer),
 		NotInterested: make(chan *Peer),
 		Have:          make(chan Have),
+		HaveAll:       make(chan *Peer),
 		Bitfield:      make(chan Bitfield),
 		Request:       make(chan Request),
 		Piece:         make(chan Piece),

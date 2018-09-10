@@ -20,22 +20,22 @@ const connReadTimeout = 3 * time.Minute
 const maxAllowedBlockSize = 32 * 1024
 
 type Peer struct {
-	conn        net.Conn
-	id          [20]byte
-	data        *torrentdata.Data
-	messages    *Messages
-	fastEnabled bool
-	log         logger.Logger
+	conn          net.Conn
+	id            [20]byte
+	data          *torrentdata.Data
+	messages      *Messages
+	FastExtension bool
+	log           logger.Logger
 }
 
 func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, d *torrentdata.Data, l logger.Logger, messages *Messages) *Peer {
 	return &Peer{
-		conn:        conn,
-		id:          id,
-		data:        d,
-		messages:    messages,
-		fastEnabled: extensions.Test(61),
-		log:         l,
+		conn:          conn,
+		id:            id,
+		data:          d,
+		messages:      messages,
+		FastExtension: extensions.Test(61),
+		log:           l,
 	}
 }
 
@@ -194,7 +194,11 @@ func (p *Peer) Run(stopC chan struct{}) {
 			}
 
 			pi := &p.data.Pieces[req.Index]
-			p.messages.Request <- Request{p, pi, req.Begin, req.Length}
+			select {
+			case p.messages.Request <- Request{p, pi, req.Begin, req.Length}:
+			case <-stopC:
+				return
+			}
 		case messageid.Piece:
 			var msg pieceMessage
 			err = binary.Read(p.conn, binary.BigEndian, &msg)
@@ -230,6 +234,29 @@ func (p *Peer) Run(stopC chan struct{}) {
 			select {
 			case p.messages.Piece <- pm:
 			case <-stopC:
+				return
+			}
+		case messageid.HaveAll:
+			if !p.FastExtension {
+				p.log.Error("have_all message received but fast extensions is not enabled")
+				return
+			}
+			if !first {
+				p.log.Error("have_all can only be sent after handshake")
+				return
+			}
+			select {
+			case p.messages.HaveAll <- p:
+			case <-stopC:
+				return
+			}
+		case messageid.HaveNone:
+			if !p.FastExtension {
+				p.log.Error("have_none message received but fast extensions is not enabled")
+				return
+			}
+			if !first {
+				p.log.Error("have_none can only be sent after handshake")
 				return
 			}
 		// TODO handle cancel messages

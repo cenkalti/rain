@@ -136,6 +136,13 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			downloaders.Signal(msg.Bitfield.Count())
 			pe := d.connectedPeers[msg.Peer]
 			d.updateInterestedState(pe)
+		case pe := <-d.messages.HaveAll:
+			for i := range d.pieces {
+				d.pieces[i].havingPeers[pe] = struct{}{}
+			}
+			downloaders.Signal(uint32(len(d.pieces)))
+			p := d.connectedPeers[pe]
+			d.updateInterestedState(p)
 		case pe := <-d.messages.Unchoke:
 			downloaders.Signal(1)
 			d.unchokingPeers[pe] = struct{}{}

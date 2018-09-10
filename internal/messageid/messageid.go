@@ -17,6 +17,8 @@ const (
 	Piece
 	Cancel
 	Port
+	HaveAll   = 14
+	HaveNone  = 15
 	Extension = 20
 )
 
@@ -31,6 +33,8 @@ var messageIDStrings = map[MessageID]string{
 	7:  "piece",
 	8:  "cancel",
 	9:  "port",
+	14: "have all",
+	15: "have none",
 	20: "extension",
 }
 
