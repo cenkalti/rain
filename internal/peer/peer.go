@@ -3,11 +3,9 @@ package peer
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"io"
 	"io/ioutil"
 	"net"
-	"sync"
 	"time"
 
 	"github.com/cenkalti/rain/internal/bitfield"
@@ -21,32 +19,21 @@ const connReadTimeout = 3 * time.Minute
 // Reject requests larger than this size.
 const maxAllowedBlockSize = 32 * 1024
 
-var ErrPeerChoking = errors.New("peer is choking")
-
 type Peer struct {
-	conn net.Conn
-	id   [20]byte
-	data *torrentdata.Data
-
-	amChoking      bool
-	amInterested   bool
-	peerChoking    bool
-	peerInterested bool
-
+	conn     net.Conn
+	id       [20]byte
+	data     *torrentdata.Data
 	messages *Messages
-	m        sync.Mutex
 	log      logger.Logger
 }
 
 func New(conn net.Conn, id [20]byte, d *torrentdata.Data, l logger.Logger, messages *Messages) *Peer {
 	return &Peer{
-		conn:        conn,
-		id:          id,
-		data:        d,
-		amChoking:   true,
-		peerChoking: true,
-		messages:    messages,
-		log:         l,
+		conn:     conn,
+		id:       id,
+		data:     d,
+		messages: messages,
+		log:      l,
 	}
 }
 
@@ -126,18 +113,12 @@ func (p *Peer) Run(stopC chan struct{}) {
 
 		switch id {
 		case messageid.Choke:
-			p.m.Lock()
-			p.peerChoking = true
-			p.m.Unlock()
 			select {
 			case p.messages.Choke <- p:
 			case <-stopC:
 				return
 			}
 		case messageid.Unchoke:
-			p.m.Lock()
-			p.peerChoking = false
-			p.m.Unlock()
 			select {
 			case p.messages.Unchoke <- p:
 			case <-stopC:
@@ -145,14 +126,8 @@ func (p *Peer) Run(stopC chan struct{}) {
 			}
 			// TODO implement
 		case messageid.Interested:
-			p.m.Lock()
-			p.peerInterested = true
-			p.m.Unlock()
 			// TODO implement
 		case messageid.NotInterested:
-			p.m.Lock()
-			p.peerInterested = false
-			p.m.Unlock()
 			// TODO implement
 		case messageid.Have:
 			var h haveMessage
@@ -279,46 +254,18 @@ func (p *Peer) sendBitfield(b *bitfield.Bitfield) error {
 }
 
 func (p *Peer) SendInterested() error {
-	p.m.Lock()
-	if p.amInterested {
-		p.m.Unlock()
-		return nil
-	}
-	p.amInterested = true
-	p.m.Unlock()
 	return p.writeMessage(messageid.Interested, nil)
 }
 
 func (p *Peer) SendNotInterested() error {
-	p.m.Lock()
-	if !p.amInterested {
-		p.m.Unlock()
-		return nil
-	}
-	p.amInterested = false
-	p.m.Unlock()
 	return p.writeMessage(messageid.NotInterested, nil)
 }
 
 func (p *Peer) SendChoke() error {
-	p.m.Lock()
-	if p.amChoking {
-		p.m.Unlock()
-		return nil
-	}
-	p.amChoking = true
-	p.m.Unlock()
 	return p.writeMessage(messageid.Choke, nil)
 }
 
 func (p *Peer) SendUnchoke() error {
-	p.m.Lock()
-	if !p.amChoking {
-		p.m.Unlock()
-		return nil
-	}
-	p.amChoking = false
-	p.m.Unlock()
 	return p.writeMessage(messageid.Unchoke, nil)
 }
 
@@ -330,13 +277,6 @@ func (p *Peer) SendHave(piece uint32) error {
 }
 
 func (p *Peer) SendRequest(piece, begin, length uint32) error {
-	p.m.Lock()
-	if p.peerChoking {
-		p.m.Unlock()
-		return ErrPeerChoking
-	}
-	p.m.Unlock()
-
 	req := requestMessage{piece, begin, length}
 	p.log.Debugf("Sending Request: %+v", req)
 	buf := bytes.NewBuffer(make([]byte, 0, 12))

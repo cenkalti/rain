@@ -19,7 +19,7 @@ type Downloader struct {
 	data           *torrentdata.Data
 	messages       *peer.Messages
 	pieces         []Piece
-	connectedPeers map[*peer.Peer]struct{}
+	connectedPeers map[*peer.Peer]*Peer
 	unchokingPeers map[*peer.Peer]struct{}
 	downloads      map[*peer.Peer]*piecedownloader.PieceDownloader
 	downloadDone   chan *piecedownloader.PieceDownloader
@@ -28,6 +28,14 @@ type Downloader struct {
 	errC           chan error
 	log            logger.Logger
 	workers        worker.Workers
+}
+
+type Peer struct {
+	*peer.Peer
+	amChoking      bool
+	amInterested   bool
+	peerChoking    bool
+	peerInterested bool
 }
 
 type Piece struct {
@@ -50,7 +58,7 @@ func New(d *torrentdata.Data, m *peer.Messages, errC chan error, l logger.Logger
 		data:           d,
 		messages:       m,
 		pieces:         pieces,
-		connectedPeers: make(map[*peer.Peer]struct{}),
+		connectedPeers: make(map[*peer.Peer]*Peer),
 		unchokingPeers: make(map[*peer.Peer]struct{}),
 		downloads:      make(map[*peer.Peer]*piecedownloader.PieceDownloader),
 		downloadDone:   make(chan *piecedownloader.PieceDownloader),
@@ -119,16 +127,15 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			d.data.Bitfield().Set(resp.Request.Piece.Index)
 			d.data.CheckCompletion()
 			// Tell everyone that we have this piece
-			for pe := range d.connectedPeers {
+			for _, pe := range d.connectedPeers {
 				go pe.SendHave(resp.Request.Piece.Index)
+				d.updateInterestedState(pe)
 			}
-			// TODO update interested state
 		case msg := <-d.messages.Have:
 			downloaders.Signal(1)
 			d.pieces[msg.Piece.Index].havingPeers[msg.Peer] = struct{}{}
-			// TODO update interested state
-			// go checkInterested(peer, bitfield)
-			// peer.writeMessages <- interested{}
+			pe := d.connectedPeers[msg.Peer]
+			d.updateInterestedState(pe)
 		case msg := <-d.messages.Bitfield:
 			for i := uint32(0); i < msg.Bitfield.Len(); i++ {
 				if msg.Bitfield.Test(i) {
@@ -136,7 +143,8 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				}
 			}
 			downloaders.Signal(msg.Bitfield.Count())
-			// TODO update interested state
+			pe := d.connectedPeers[msg.Peer]
+			d.updateInterestedState(pe)
 		case pe := <-d.messages.Unchoke:
 			downloaders.Signal(1)
 			d.unchokingPeers[pe] = struct{}{}
@@ -163,7 +171,11 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				}
 			}(msg)
 		case pe := <-d.messages.Connect:
-			d.connectedPeers[pe] = struct{}{}
+			d.connectedPeers[pe] = &Peer{
+				Peer:        pe,
+				amChoking:   true,
+				peerChoking: true,
+			}
 		case pe := <-d.messages.Disconnect:
 			delete(d.connectedPeers, pe)
 		case <-stopC:
@@ -206,4 +218,26 @@ func (d *Downloader) nextDownload() (pi *piece.Piece, pe *peer.Peer, ok bool) {
 		break
 	}
 	return
+}
+
+func (d *Downloader) updateInterestedState(pe *Peer) {
+	interested := false
+	for i := uint32(0); i < d.data.Bitfield().Len(); i++ {
+		weHave := d.data.Bitfield().Test(i)
+		_, peerHave := d.pieces[i].havingPeers[pe.Peer]
+		if !weHave && peerHave {
+			interested = true
+			break
+		}
+	}
+	if !pe.amInterested && interested {
+		pe.amInterested = true
+		go pe.Peer.SendInterested()
+		return
+	}
+	if pe.amInterested && !interested {
+		pe.amInterested = false
+		go pe.Peer.SendNotInterested()
+		return
+	}
 }
