@@ -1,6 +1,8 @@
 package downloader
 
 import (
+	"sort"
+
 	"github.com/cenkalti/rain/internal/downloader/piecedownloader"
 	"github.com/cenkalti/rain/internal/downloader/piecewriter"
 	"github.com/cenkalti/rain/internal/logger"
@@ -19,6 +21,7 @@ type Downloader struct {
 	data           *torrentdata.Data
 	messages       *peer.Messages
 	pieces         []Piece
+	sortedPieces   []*Piece
 	connectedPeers map[*peer.Peer]*Peer
 	unchokingPeers map[*peer.Peer]struct{}
 	downloads      map[*peer.Peer]*piecedownloader.PieceDownloader
@@ -30,34 +33,22 @@ type Downloader struct {
 	workers        worker.Workers
 }
 
-type Peer struct {
-	*peer.Peer
-	amChoking      bool
-	amInterested   bool
-	peerChoking    bool
-	peerInterested bool
-}
-
-type Piece struct {
-	*piece.Piece
-	havingPeers    map[*peer.Peer]struct{}
-	requestedPeers map[*peer.Peer]*piecedownloader.PieceDownloader
-	writing        bool
-}
-
 func New(d *torrentdata.Data, m *peer.Messages, errC chan error, l logger.Logger) *Downloader {
 	pieces := make([]Piece, len(d.Pieces))
+	sortedPieces := make([]*Piece, len(d.Pieces))
 	for i := range d.Pieces {
 		pieces[i] = Piece{
 			Piece:          &d.Pieces[i],
 			havingPeers:    make(map[*peer.Peer]struct{}),
 			requestedPeers: make(map[*peer.Peer]*piecedownloader.PieceDownloader),
 		}
+		sortedPieces[i] = &pieces[i]
 	}
 	return &Downloader{
 		data:           d,
 		messages:       m,
 		pieces:         pieces,
+		sortedPieces:   sortedPieces,
 		connectedPeers: make(map[*peer.Peer]*Peer),
 		unchokingPeers: make(map[*peer.Peer]struct{}),
 		downloads:      make(map[*peer.Peer]*piecedownloader.PieceDownloader),
@@ -185,8 +176,8 @@ func (d *Downloader) Run(stopC chan struct{}) {
 }
 
 func (d *Downloader) nextDownload() (pi *piece.Piece, pe *peer.Peer, ok bool) {
-	// TODO selecting pieces in sequential order, change to rarest first
-	for _, p := range d.pieces {
+	sort.Sort(ByAvailability(d.sortedPieces))
+	for _, p := range d.sortedPieces {
 		if d.data.Bitfield().Test(p.Index) {
 			continue
 		}
