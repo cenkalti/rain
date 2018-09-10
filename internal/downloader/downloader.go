@@ -163,15 +163,15 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				pd.PieceC <- msg
 			}
 		case msg := <-d.messages.Request:
-			// pi := d.data.Pieces[msg.Index]
-			buf := make([]byte, msg.Length)
-			// TODO read data
-			// pi.Data.ReadAt(buf, int64(msg.Begin))
-			err := msg.Peer.SendPiece(msg.Piece.Index, msg.Begin, buf)
-			if err != nil {
-				d.log.Error(err)
-				return
-			}
+			go func(msg peer.Request) {
+				buf := make([]byte, msg.Length)
+				msg.Piece.Data.ReadAt(buf, int64(msg.Begin))
+				err := msg.Peer.SendPiece(msg.Piece.Index, msg.Begin, buf)
+				if err != nil {
+					// TODO ignore write errors
+					d.log.Error(err)
+				}
+			}(msg)
 		case pe := <-d.messages.Connect:
 			d.connectedPeers[pe] = struct{}{}
 		case pe := <-d.messages.Disconnect:
