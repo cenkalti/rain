@@ -47,22 +47,27 @@ func (p *Peer) String() string {
 	return p.conn.RemoteAddr().String()
 }
 
-func (p *Peer) Close() error {
-	return p.conn.Close()
-}
-
 // Run reads and processes incoming messages after handshake.
 // TODO send keep-alive messages to peers at interval.
 func (p *Peer) Run(stopC chan struct{}) {
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 	defer func() {
+		_ = p.conn.Close()
 		select {
 		case p.messages.Disconnect <- p:
 		case <-stopC:
 		}
 	}()
 
-	if err := p.sendBitfield(p.data.Bitfield()); err != nil {
+	var err error
+	if p.FastExtension && p.data.Bitfield().All() {
+		err = p.sendHaveAll()
+	} else if p.FastExtension && p.data.Bitfield().Count() == 0 {
+		err = p.sendHaveNone()
+	} else {
+		err = p.sendBitfield(p.data.Bitfield())
+	}
+	if err != nil {
 		p.log.Error(err)
 		return
 	}
@@ -303,6 +308,14 @@ func (p *Peer) SendHave(piece uint32) error {
 	buf := bytes.NewBuffer(make([]byte, 0, 4))
 	_ = binary.Write(buf, binary.BigEndian, &req)
 	return p.writeMessage(messageid.Have, buf.Bytes())
+}
+
+func (p *Peer) sendHaveAll() error {
+	return p.writeMessage(messageid.HaveAll, nil)
+}
+
+func (p *Peer) sendHaveNone() error {
+	return p.writeMessage(messageid.HaveNone, nil)
 }
 
 func (p *Peer) SendRequest(piece, begin, length uint32) error {
