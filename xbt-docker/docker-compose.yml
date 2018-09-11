@@ -1,0 +1,14 @@
+version: '3.2'
+services:
+  mysql:
+    build:
+      dockerfile: Dockerfile-mysql
+      context: .
+    tty: true
+  xbt:
+    build:
+      dockerfile: Dockerfile-xbt
+      context: .
+    tty: true
+    ports:
+      - "2710:2710"
