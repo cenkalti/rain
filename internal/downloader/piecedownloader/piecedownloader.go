@@ -76,9 +76,9 @@ func (d *PieceDownloader) Run(stopC chan struct{}) {
 					d.blocks[i].requested = false
 				}
 			}
-			// d.limiter = nil
+			d.limiter = nil
 		case <-d.UnchokeC:
-			// d.limiter = make(chan struct{}, maxQueuedBlocks)
+			d.limiter = make(chan struct{}, maxQueuedBlocks)
 		case <-stopC:
 			return
 		}
