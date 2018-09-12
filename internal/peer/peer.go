@@ -72,10 +72,6 @@ func (p *Peer) Run(stopC chan struct{}) {
 		return
 	}
 
-	// TODO remove after implementing uploader
-	p.SendUnchoke()
-	p.SendInterested()
-
 	select {
 	case p.messages.Connect <- p:
 	case <-stopC:
@@ -352,6 +348,14 @@ func (p *Peer) SendPiece(index, begin uint32, block []byte) error {
 	_ = binary.Write(buf, binary.BigEndian, msg)
 	buf.Write(block)
 	return p.writeMessage(messageid.Piece, buf.Bytes())
+}
+
+func (p *Peer) SendReject(piece, begin, length uint32) error {
+	req := requestMessage{piece, begin, length}
+	p.log.Debugf("Sending Reject: %+v", req)
+	buf := bytes.NewBuffer(make([]byte, 0, 12))
+	_ = binary.Write(buf, binary.BigEndian, &req)
+	return p.writeMessage(messageid.Request, buf.Bytes())
 }
 
 func (p *Peer) writeMessage(id messageid.MessageID, payload []byte) error {

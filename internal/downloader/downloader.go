@@ -1,7 +1,9 @@
 package downloader
 
 import (
+	"math/rand"
 	"sort"
+	"time"
 
 	"github.com/cenkalti/rain/internal/downloader/piecedownloader"
 	"github.com/cenkalti/rain/internal/downloader/piecewriter"
@@ -17,18 +19,19 @@ const parallelPieceDownloads = 4
 const parallelPieceWrites = 4
 
 type Downloader struct {
-	data           *torrentdata.Data
-	messages       *peer.Messages
-	pieces         []Piece
-	sortedPieces   []*Piece
-	connectedPeers map[*peer.Peer]*Peer
-	downloads      map[*peer.Peer]*piecedownloader.PieceDownloader
-	downloadDone   chan *piecedownloader.PieceDownloader
-	writeRequests  chan piecewriter.Request
-	writeResponses chan piecewriter.Response
-	errC           chan error
-	log            logger.Logger
-	workers        worker.Workers
+	data                   *torrentdata.Data
+	messages               *peer.Messages
+	pieces                 []Piece
+	sortedPieces           []*Piece
+	connectedPeers         map[*peer.Peer]*Peer
+	downloads              map[*peer.Peer]*piecedownloader.PieceDownloader
+	downloadDone           chan *piecedownloader.PieceDownloader
+	writeRequests          chan piecewriter.Request
+	writeResponses         chan piecewriter.Response
+	optimisticUnchokedPeer *Peer
+	errC                   chan error
+	log                    logger.Logger
+	workers                worker.Workers
 }
 
 func New(d *torrentdata.Data, m *peer.Messages, errC chan error, l logger.Logger) *Downloader {
@@ -65,6 +68,10 @@ func (d *Downloader) Run(stopC chan struct{}) {
 		d.workers.Start(w)
 	}
 	downloaders := semaphore.New(parallelPieceDownloads)
+	unchokeTimer := time.NewTicker(10 * time.Second)
+	defer unchokeTimer.Stop()
+	optimisticUnchokeTimer := time.NewTicker(30 * time.Second)
+	defer optimisticUnchokeTimer.Stop()
 	for {
 		select {
 		case <-downloaders.Wait:
@@ -154,24 +161,70 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				pd.ChokeC <- struct{}{}
 			}
 		case msg := <-d.messages.Piece:
+			if pe, ok := d.connectedPeers[msg.Peer]; ok {
+				pe.bytesDownlaodedInChokePeriod += int64(len(msg.Data))
+			}
 			if pd, ok := d.downloads[msg.Peer]; ok {
 				pd.PieceC <- msg
 			}
 		case msg := <-d.messages.Request:
-			go func(msg peer.Request) {
-				buf := make([]byte, msg.Length)
-				msg.Piece.Data.ReadAt(buf, int64(msg.Begin))
-				err := msg.Peer.SendPiece(msg.Piece.Index, msg.Begin, buf)
-				if err != nil {
-					// TODO ignore write errors
-					d.log.Error(err)
+			if pe, ok := d.connectedPeers[msg.Peer]; ok {
+				if pe.amChoking {
+					if msg.Peer.FastExtension {
+						d.rejectPiece(pe, msg)
+					}
+				} else {
+					go d.sendPiece(pe, msg)
 				}
-			}(msg)
-		case pe := <-d.messages.Connect:
-			d.connectedPeers[pe] = &Peer{
-				Peer:        pe,
+			}
+		case <-unchokeTimer.C:
+			peers := make([]*Peer, 0, len(d.connectedPeers))
+			for _, pe := range d.connectedPeers {
+				if !pe.optimisticUnhoked {
+					peers = append(peers, pe)
+				}
+			}
+			sort.Sort(ByDownloadRate(peers))
+			for _, pe := range d.connectedPeers {
+				pe.bytesDownlaodedInChokePeriod = 0
+			}
+			unchokedPeers := make(map[*Peer]struct{}, 3)
+			for i, pe := range peers {
+				if i == 3 {
+					break
+				}
+				d.unchokePeer(pe)
+				unchokedPeers[pe] = struct{}{}
+			}
+			for _, pe := range d.connectedPeers {
+				if _, ok := unchokedPeers[pe]; !ok {
+					d.chokePeer(pe)
+				}
+			}
+		case <-optimisticUnchokeTimer.C:
+			peers := make([]*Peer, 0, len(d.connectedPeers))
+			for _, pe := range d.connectedPeers {
+				if !pe.optimisticUnhoked && pe.amChoking {
+					peers = append(peers, pe)
+				}
+			}
+			if d.optimisticUnchokedPeer != nil {
+				d.optimisticUnchokedPeer.optimisticUnhoked = false
+				d.chokePeer(d.optimisticUnchokedPeer)
+			}
+			pe := peers[rand.Intn(len(peers))]
+			pe.optimisticUnhoked = true
+			d.unchokePeer(pe)
+			d.optimisticUnchokedPeer = pe
+		case p := <-d.messages.Connect:
+			pe := &Peer{
+				Peer:        p,
 				amChoking:   true,
 				peerChoking: true,
+			}
+			d.connectedPeers[p] = pe
+			if len(d.connectedPeers) <= 4 {
+				d.unchokePeer(pe)
 			}
 		case pe := <-d.messages.Disconnect:
 			delete(d.connectedPeers, pe)
@@ -246,4 +299,32 @@ func (d *Downloader) updateInterestedState(pe *Peer) {
 		go pe.Peer.SendNotInterested()
 		return
 	}
+}
+
+func (d *Downloader) chokePeer(pe *Peer) {
+	if !pe.amChoking {
+		pe.amChoking = true
+		go pe.Peer.SendChoke()
+	}
+}
+
+func (d *Downloader) unchokePeer(pe *Peer) {
+	if pe.amChoking {
+		pe.amChoking = false
+		go pe.Peer.SendUnchoke()
+	}
+}
+
+func (d *Downloader) sendPiece(pe *Peer, msg peer.Request) {
+	buf := make([]byte, msg.Length)
+	err := msg.Piece.Data.ReadAt(buf, int64(msg.Begin))
+	if err != nil {
+		// TODO handle cannot read piece data for uploading
+		return
+	}
+	msg.Peer.SendPiece(msg.Piece.Index, msg.Begin, buf)
+}
+
+func (d *Downloader) rejectPiece(pe *Peer, msg peer.Request) {
+	go msg.Peer.SendReject(msg.Piece.Index, msg.Begin, msg.Length)
 }
