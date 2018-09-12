@@ -245,6 +245,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 }
 
 func (d *Downloader) nextDownload() *piecedownloader.PieceDownloader {
+	// TODO request first 4 pieces randomly
 	sort.Sort(ByAvailability(d.sortedPieces))
 	for _, p := range d.sortedPieces {
 		if d.data.Bitfield().Test(p.Index) {
