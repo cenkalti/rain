@@ -174,7 +174,11 @@ func (d *Downloader) Run(stopC chan struct{}) {
 						d.rejectPiece(pe, msg)
 					}
 				} else {
-					go d.sendPiece(pe, msg)
+					select {
+					case pe.writer.RequestC <- msg:
+					case <-stopC:
+						return
+					}
 				}
 			}
 		case msg := <-d.messages.Reject:
@@ -202,7 +206,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			}
 			for _, pe := range d.connectedPeers {
 				if _, ok := unchokedPeers[pe]; !ok {
-					d.chokePeer(pe)
+					d.chokePeer(pe, stopC)
 				}
 			}
 		case <-optimisticUnchokeTimer.C:
@@ -214,18 +218,15 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			}
 			if d.optimisticUnchokedPeer != nil {
 				d.optimisticUnchokedPeer.optimisticUnhoked = false
-				d.chokePeer(d.optimisticUnchokedPeer)
+				d.chokePeer(d.optimisticUnchokedPeer, stopC)
 			}
 			pe := peers[rand.Intn(len(peers))]
 			pe.optimisticUnhoked = true
 			d.unchokePeer(pe)
 			d.optimisticUnchokedPeer = pe
 		case p := <-d.messages.Connect:
-			pe := &Peer{
-				Peer:        p,
-				amChoking:   true,
-				peerChoking: true,
-			}
+			pe := NewPeer(p)
+			d.workers.Start(pe)
 			d.connectedPeers[p] = pe
 			if len(d.connectedPeers) <= 4 {
 				d.unchokePeer(pe)
@@ -305,10 +306,14 @@ func (d *Downloader) updateInterestedState(pe *Peer) {
 	}
 }
 
-func (d *Downloader) chokePeer(pe *Peer) {
+func (d *Downloader) chokePeer(pe *Peer, stopC chan struct{}) {
 	if !pe.amChoking {
 		pe.amChoking = true
-		go pe.Peer.SendChoke()
+		select {
+		case pe.writer.ChokeC <- struct{}{}:
+		case <-stopC:
+			return
+		}
 	}
 }
 

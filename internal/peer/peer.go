@@ -17,7 +17,7 @@ import (
 const connReadTimeout = 3 * time.Minute
 
 // Reject requests larger than this size.
-const maxAllowedBlockSize = 32 * 1024
+const MaxAllowedBlockSize = 32 * 1024
 
 type Peer struct {
 	conn          net.Conn
@@ -49,6 +49,10 @@ func (p *Peer) String() string {
 
 func (p *Peer) Close() {
 	_ = p.conn.Close()
+}
+
+func (p *Peer) Logger() logger.Logger {
+	return p.log
 }
 
 // Run reads and processes incoming messages after handshake.
@@ -190,7 +194,7 @@ func (p *Peer) Run(stopC chan struct{}) {
 				p.log.Error("invalid request: index")
 				return
 			}
-			if req.Length > maxAllowedBlockSize {
+			if req.Length > MaxAllowedBlockSize {
 				p.log.Error("received a request with block size larger than allowed")
 				return
 			}
@@ -221,7 +225,7 @@ func (p *Peer) Run(stopC chan struct{}) {
 				p.log.Error("invalid reject: index")
 				return
 			}
-			if req.Length > maxAllowedBlockSize {
+			if req.Length > MaxAllowedBlockSize {
 				p.log.Error("received a reject with block size larger than allowed")
 				return
 			}

@@ -1,6 +1,7 @@
 package downloader
 
 import (
+	"github.com/cenkalti/rain/internal/downloader/peerwriter"
 	"github.com/cenkalti/rain/internal/peer"
 )
 
@@ -12,6 +13,20 @@ type Peer struct {
 	peerInterested               bool
 	bytesDownlaodedInChokePeriod int64
 	optimisticUnhoked            bool
+	writer                       *peerwriter.PeerWriter
+}
+
+func NewPeer(p *peer.Peer) *Peer {
+	return &Peer{
+		Peer:        p,
+		amChoking:   true,
+		peerChoking: true,
+		writer:      peerwriter.New(p),
+	}
+}
+
+func (p *Peer) Run(stopC chan struct{}) {
+	p.writer.Run(stopC)
 }
 
 type ByDownloadRate []*Peer
