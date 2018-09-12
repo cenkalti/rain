@@ -66,6 +66,7 @@ func (p *PeerWriter) writer(stopC chan struct{}) {
 			for _, req := range p.requests {
 				_ = p.Peer.SendReject(req.Piece.Index, req.Begin, req.Length)
 			}
+			p.requests = nil
 		case <-stopC:
 			return
 		}
