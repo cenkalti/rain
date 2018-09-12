@@ -47,6 +47,10 @@ func (p *Peer) String() string {
 	return p.conn.RemoteAddr().String()
 }
 
+func (p *Peer) Close() {
+	_ = p.conn.Close()
+}
+
 // Run reads and processes incoming messages after handshake.
 // TODO send keep-alive messages to peers at interval.
 func (p *Peer) Run(stopC chan struct{}) {
@@ -200,6 +204,37 @@ func (p *Peer) Run(stopC chan struct{}) {
 			case <-stopC:
 				return
 			}
+		case messageid.Reject:
+			if !p.FastExtension {
+				p.log.Error("reject message received but fast extensions is not enabled")
+				return
+			}
+			var req requestMessage
+			err = binary.Read(p.conn, binary.BigEndian, &req)
+			if err != nil {
+				p.log.Error(err)
+				return
+			}
+			p.log.Debugf("Received Reject: %+v", req)
+
+			if req.Index >= uint32(len(p.data.Pieces)) {
+				p.log.Error("invalid reject: index")
+				return
+			}
+			if req.Length > maxAllowedBlockSize {
+				p.log.Error("received a reject with block size larger than allowed")
+				return
+			}
+			if req.Begin+req.Length > p.data.Pieces[req.Index].Length {
+				p.log.Error("invalid reject: length")
+			}
+
+			pi := &p.data.Pieces[req.Index]
+			select {
+			case p.messages.Reject <- Request{p, pi, req.Begin, req.Length}:
+			case <-stopC:
+				return
+			}
 		case messageid.Piece:
 			var msg pieceMessage
 			err = binary.Read(p.conn, binary.BigEndian, &msg)
@@ -261,7 +296,6 @@ func (p *Peer) Run(stopC chan struct{}) {
 				return
 			}
 		case messageid.Suggest:
-		// case messageid.Reject: // TODO handle reject messages
 		case messageid.AllowedFast:
 			var h haveMessage
 			err = binary.Read(p.conn, binary.BigEndian, &h)

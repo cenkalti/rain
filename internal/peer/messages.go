@@ -12,13 +12,13 @@ type Messages struct {
 	Unchoke       chan *Peer
 	Interested    chan *Peer
 	NotInterested chan *Peer
-	Have          chan Have
 	HaveAll       chan *Peer
+	Have          chan Have
+	AllowedFast   chan Have
 	Bitfield      chan Bitfield
 	Request       chan Request
-	Piece         chan Piece
 	Reject        chan Request
-	AllowedFast   chan Have
+	Piece         chan Piece
 	// Cancel        chan Cancel
 }
 
@@ -30,13 +30,13 @@ func NewMessages() *Messages {
 		Unchoke:       make(chan *Peer),
 		Interested:    make(chan *Peer),
 		NotInterested: make(chan *Peer),
-		Have:          make(chan Have),
 		HaveAll:       make(chan *Peer),
+		Have:          make(chan Have),
+		AllowedFast:   make(chan Have),
 		Bitfield:      make(chan Bitfield),
 		Request:       make(chan Request),
-		Piece:         make(chan Piece),
 		Reject:        make(chan Request),
-		AllowedFast:   make(chan Have),
+		Piece:         make(chan Piece),
 		// Cancel:        make(chan Cancel),
 	}
 }

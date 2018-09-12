@@ -177,6 +177,10 @@ func (d *Downloader) Run(stopC chan struct{}) {
 					go d.sendPiece(pe, msg)
 				}
 			}
+		case msg := <-d.messages.Reject:
+			if pd, ok := d.downloads[msg.Peer]; ok {
+				pd.RejectC <- msg
+			}
 		case <-unchokeTimer.C:
 			peers := make([]*Peer, 0, len(d.connectedPeers))
 			for _, pe := range d.connectedPeers {
