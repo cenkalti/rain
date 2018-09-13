@@ -25,7 +25,7 @@ func TestTorrent(t *testing.T) {
 		t.Errorf("invalid length: %d", tor.Info.Length)
 	}
 
-	if hex.EncodeToString(tor.Info.Hash[:]) != "2d066c94480adcf52bfd1185a75eb4ddc1777673" {
-		t.Errorf("invalid info hash: %q must be '2d066c94480adcf52bfd1185a75eb4ddc1777673'", tor.Info.Hash)
+	if hex.EncodeToString(tor.InfoHash[:]) != "2d066c94480adcf52bfd1185a75eb4ddc1777673" {
+		t.Errorf("invalid info hash: %q must be '2d066c94480adcf52bfd1185a75eb4ddc1777673'", tor.InfoHash)
 	}
 }

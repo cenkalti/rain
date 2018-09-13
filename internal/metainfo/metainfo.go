@@ -2,7 +2,7 @@
 package metainfo
 
 import (
-	"crypto/sha1"
+	"crypto/sha1" // nolint: gosec
 	"errors"
 	"io"
 
@@ -13,6 +13,7 @@ import (
 type MetaInfo struct {
 	Info         *Info              `bencode:"-"`
 	RawInfo      bencode.RawMessage `bencode:"info" json:"-"`
+	InfoHash     [20]byte           `bencode:"-" json:"-"`
 	Announce     string             `bencode:"announce"`
 	AnnounceList [][]string         `bencode:"announce-list"`
 	CreationDate int64              `bencode:"creation date"`
@@ -33,7 +34,6 @@ type Info struct {
 	// Multiple File mode
 	Files []FileDict `bencode:"files" json:"files"`
 	// Calculated fileds
-	Hash        [20]byte `bencode:"-" json:"-"`
 	PieceHashes [][]byte `bencode:"-" json:"-"`
 	TotalLength int64    `bencode:"-" json:"-"`
 	NumPieces   uint32   `bencode:"-" json:"-"`
@@ -57,6 +57,9 @@ func New(r io.Reader) (*MetaInfo, error) {
 		return nil, errors.New("no info dict in torrent file")
 	}
 	t.Info, err = NewInfo(t.RawInfo)
+	hash := sha1.New()    // nolint: gosec
+	hash.Write(t.RawInfo) // nolint: gosec
+	copy(t.InfoHash[:], hash.Sum(nil))
 	return &t, err
 }
 
@@ -66,9 +69,6 @@ func NewInfo(b []byte) (*Info, error) {
 	if err := bencode.DecodeBytes(b, &i); err != nil {
 		return nil, err
 	}
-	hash := sha1.New()
-	hash.Write(b) // nolint: gosec
-	copy(i.Hash[:], hash.Sum(nil))
 	i.NumPieces = uint32(len(i.Pieces)) / sha1.Size
 	i.MultiFile = len(i.Files) != 0
 	if !i.MultiFile {
