@@ -109,7 +109,7 @@ func (t *Torrent) Start() {
 	t.workers.Start(an)
 
 	// manage peer connections
-	pm := peermanager.New(t.port, pl, t.peerID, t.metainfo.InfoHash, t.data, t.log)
+	pm := peermanager.New(t.port, pl, t.peerID, t.metainfo.Info.Hash, t.data, t.log)
 	t.workers.Start(pm)
 
 	// request missing pieces from peers
@@ -170,7 +170,7 @@ func (t *Torrent) BytesCompleted() int64 {
 func (t *Torrent) PeerID() [20]byte { return t.peerID }
 
 // InfoHash identifies the torrent file that is being downloaded.
-func (t *Torrent) InfoHash() [20]byte { return t.metainfo.InfoHash }
+func (t *Torrent) InfoHash() [20]byte { return t.metainfo.Info.Hash }
 
 // NotifyComplete returns a channel that is closed once all pieces are downloaded successfully.
 func (t *Torrent) NotifyComplete() <-chan struct{} { return t.data.Completed }
