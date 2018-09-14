@@ -335,10 +335,9 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			d.unchokePeer(pe)
 			d.optimisticUnchokedPeer = pe
 		case p := <-d.messages.Connect:
-			pe := NewPeer(p)
+			pe := NewPeer(p, d.data.Bitfield().Copy())
 			d.workers.Start(pe)
 			d.connectedPeers[p] = pe
-			pe.writer.BitfieldC <- d.data.Bitfield()
 			if len(d.connectedPeers) <= 4 {
 				d.unchokePeer(pe)
 			}

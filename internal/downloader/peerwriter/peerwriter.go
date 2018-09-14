@@ -7,20 +7,20 @@ import (
 
 type PeerWriter struct {
 	*peer.Peer
-	requests  []Request
-	RequestC  chan Request
-	ChokeC    chan struct{}
-	BitfieldC chan *bitfield.Bitfield
-	writeC    chan Request
+	bitfield *bitfield.Bitfield
+	requests []Request
+	RequestC chan Request
+	ChokeC   chan struct{}
+	writeC   chan Request
 }
 
-func New(p *peer.Peer) *PeerWriter {
+func New(p *peer.Peer, bf *bitfield.Bitfield) *PeerWriter {
 	return &PeerWriter{
-		Peer:      p,
-		RequestC:  make(chan Request),
-		ChokeC:    make(chan struct{}, 1),
-		BitfieldC: make(chan *bitfield.Bitfield),
-		writeC:    make(chan Request),
+		Peer:     p,
+		bitfield: bf,
+		RequestC: make(chan Request),
+		ChokeC:   make(chan struct{}, 1),
+		writeC:   make(chan Request),
 	}
 }
 
@@ -51,6 +51,18 @@ func (p *PeerWriter) Run(stopC chan struct{}) {
 }
 
 func (p *PeerWriter) writer(stopC chan struct{}) {
+	var err error
+	if p.FastExtension && p.bitfield != nil && p.bitfield.All() {
+		err = p.SendHaveAll()
+	} else if p.FastExtension && p.bitfield != nil && p.bitfield.Count() == 0 {
+		err = p.SendHaveNone()
+	} else if p.bitfield != nil {
+		err = p.SendBitfield(p.bitfield)
+	}
+	if err != nil {
+		p.Logger().Errorln("cannot send bitfield", err)
+	}
+
 	buf := make([]byte, peer.MaxAllowedBlockSize)
 	for {
 		select {
@@ -80,18 +92,6 @@ func (p *PeerWriter) writer(stopC chan struct{}) {
 				}
 			}
 			p.requests = nil
-		case bf := <-p.BitfieldC:
-			var err error
-			if p.FastExtension && bf != nil && bf.All() {
-				err = p.SendHaveAll()
-			} else if p.FastExtension && bf != nil && bf.Count() == 0 {
-				err = p.SendHaveNone()
-			} else if bf != nil {
-				err = p.SendBitfield(bf)
-			}
-			if err != nil {
-				p.Logger().Errorln("cannot send bitfield", err)
-			}
 		case <-stopC:
 			return
 		}

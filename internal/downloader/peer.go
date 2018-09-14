@@ -1,6 +1,7 @@
 package downloader
 
 import (
+	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/downloader/peerwriter"
 	"github.com/cenkalti/rain/internal/peer"
 )
@@ -23,12 +24,12 @@ type Peer struct {
 	allowedFastMessages []peer.HaveMessage
 }
 
-func NewPeer(p *peer.Peer) *Peer {
+func NewPeer(p *peer.Peer, bf *bitfield.Bitfield) *Peer {
 	return &Peer{
 		Peer:        p,
 		amChoking:   true,
 		peerChoking: true,
-		writer:      peerwriter.New(p),
+		writer:      peerwriter.New(p, bf),
 	}
 }
 
