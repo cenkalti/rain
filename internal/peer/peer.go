@@ -10,7 +10,7 @@ import (
 
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/messageid"
+	"github.com/cenkalti/rain/internal/peer/peerprotocol"
 )
 
 const connReadTimeout = 3 * time.Minute
@@ -96,7 +96,7 @@ func (p *Peer) Run(stopC chan struct{}) {
 			continue
 		}
 
-		var id messageid.MessageID
+		var id peerprotocol.MessageID
 		err = binary.Read(p.conn, binary.BigEndian, &id)
 		if err != nil {
 			p.log.Error(err)
@@ -107,32 +107,32 @@ func (p *Peer) Run(stopC chan struct{}) {
 		p.log.Debugf("Received message of type: %q", id)
 
 		switch id {
-		case messageid.Choke:
+		case peerprotocol.Choke:
 			select {
 			case p.messages.Choke <- p:
 			case <-stopC:
 				return
 			}
-		case messageid.Unchoke:
+		case peerprotocol.Unchoke:
 			select {
 			case p.messages.Unchoke <- p:
 			case <-stopC:
 				return
 			}
-		case messageid.Interested:
+		case peerprotocol.Interested:
 			select {
 			case p.messages.Interested <- p:
 			case <-stopC:
 				return
 			}
-		case messageid.NotInterested:
+		case peerprotocol.NotInterested:
 			select {
 			case p.messages.NotInterested <- p:
 			case <-stopC:
 				return
 			}
-		case messageid.Have:
-			var msg HaveMessage
+		case peerprotocol.Have:
+			var msg peerprotocol.HaveMessage
 			err = binary.Read(p.conn, binary.BigEndian, &msg)
 			if err != nil {
 				p.log.Error(err)
@@ -143,7 +143,7 @@ func (p *Peer) Run(stopC chan struct{}) {
 			case <-stopC:
 				return
 			}
-		case messageid.Bitfield:
+		case peerprotocol.Bitfield:
 			if !first {
 				p.log.Error("bitfield can only be sent after handshake")
 				return
@@ -159,8 +159,8 @@ func (p *Peer) Run(stopC chan struct{}) {
 			case <-stopC:
 				return
 			}
-		case messageid.Request:
-			var msg RequestMessage
+		case peerprotocol.Request:
+			var msg peerprotocol.RequestMessage
 			err = binary.Read(p.conn, binary.BigEndian, &msg)
 			if err != nil {
 				p.log.Error(err)
@@ -177,12 +177,12 @@ func (p *Peer) Run(stopC chan struct{}) {
 			case <-stopC:
 				return
 			}
-		case messageid.Reject:
+		case peerprotocol.Reject:
 			if !p.FastExtension {
 				p.log.Error("reject message received but fast extensions is not enabled")
 				return
 			}
-			var msg RequestMessage
+			var msg peerprotocol.RequestMessage
 			err = binary.Read(p.conn, binary.BigEndian, &msg)
 			if err != nil {
 				p.log.Error(err)
@@ -199,8 +199,8 @@ func (p *Peer) Run(stopC chan struct{}) {
 			case <-stopC:
 				return
 			}
-		case messageid.Piece:
-			var msg PieceMessage
+		case peerprotocol.Piece:
+			var msg peerprotocol.PieceMessage
 			err = binary.Read(p.conn, binary.BigEndian, &msg)
 			if err != nil {
 				p.log.Error(err)
@@ -218,7 +218,7 @@ func (p *Peer) Run(stopC chan struct{}) {
 			case <-stopC:
 				return
 			}
-		case messageid.HaveAll:
+		case peerprotocol.HaveAll:
 			if !p.FastExtension {
 				p.log.Error("have_all message received but fast extensions is not enabled")
 				return
@@ -232,7 +232,7 @@ func (p *Peer) Run(stopC chan struct{}) {
 			case <-stopC:
 				return
 			}
-		case messageid.HaveNone:
+		case peerprotocol.HaveNone:
 			if !p.FastExtension {
 				p.log.Error("have_none message received but fast extensions is not enabled")
 				return
@@ -241,9 +241,9 @@ func (p *Peer) Run(stopC chan struct{}) {
 				p.log.Error("have_none can only be sent after handshake")
 				return
 			}
-		case messageid.Suggest:
-		case messageid.AllowedFast:
-			var msg HaveMessage
+		case peerprotocol.Suggest:
+		case peerprotocol.AllowedFast:
+			var msg peerprotocol.HaveMessage
 			err = binary.Read(p.conn, binary.BigEndian, &msg)
 			if err != nil {
 				p.log.Error(err)
@@ -254,7 +254,7 @@ func (p *Peer) Run(stopC chan struct{}) {
 			case <-stopC:
 				return
 			}
-		// case messageid.Cancel: TODO handle cancel messages
+		// case peerprotocol.Cancel: TODO handle cancel messages
 		default:
 			p.log.Debugf("unhandled message type: %s", id)
 			p.log.Debugln("Discarding", length, "bytes...")
@@ -273,71 +273,71 @@ func (p *Peer) SendBitfield(b *bitfield.Bitfield) error {
 	if b.Count() == 0 {
 		return nil
 	}
-	return p.writeMessage(messageid.Bitfield, b.Bytes())
+	return p.writeMessage(peerprotocol.Bitfield, b.Bytes())
 }
 
 func (p *Peer) SendInterested() error {
-	return p.writeMessage(messageid.Interested, nil)
+	return p.writeMessage(peerprotocol.Interested, nil)
 }
 
 func (p *Peer) SendNotInterested() error {
-	return p.writeMessage(messageid.NotInterested, nil)
+	return p.writeMessage(peerprotocol.NotInterested, nil)
 }
 
 func (p *Peer) SendChoke() error {
-	return p.writeMessage(messageid.Choke, nil)
+	return p.writeMessage(peerprotocol.Choke, nil)
 }
 
 func (p *Peer) SendUnchoke() error {
-	return p.writeMessage(messageid.Unchoke, nil)
+	return p.writeMessage(peerprotocol.Unchoke, nil)
 }
 
 func (p *Peer) SendHave(piece uint32) error {
-	req := HaveMessage{piece}
+	req := peerprotocol.HaveMessage{piece}
 	buf := bytes.NewBuffer(make([]byte, 0, 4))
 	_ = binary.Write(buf, binary.BigEndian, &req)
-	return p.writeMessage(messageid.Have, buf.Bytes())
+	return p.writeMessage(peerprotocol.Have, buf.Bytes())
 }
 
 func (p *Peer) SendHaveAll() error {
-	return p.writeMessage(messageid.HaveAll, nil)
+	return p.writeMessage(peerprotocol.HaveAll, nil)
 }
 
 func (p *Peer) SendHaveNone() error {
-	return p.writeMessage(messageid.HaveNone, nil)
+	return p.writeMessage(peerprotocol.HaveNone, nil)
 }
 
 func (p *Peer) SendRequest(piece, begin, length uint32) error {
-	req := RequestMessage{piece, begin, length}
+	req := peerprotocol.RequestMessage{piece, begin, length}
 	p.log.Debugf("Sending Request: %+v", req)
 	buf := bytes.NewBuffer(make([]byte, 0, 12))
 	_ = binary.Write(buf, binary.BigEndian, &req)
-	return p.writeMessage(messageid.Request, buf.Bytes())
+	return p.writeMessage(peerprotocol.Request, buf.Bytes())
 }
 
 func (p *Peer) SendPiece(index, begin uint32, block []byte) error {
-	msg := PieceMessage{index, begin}
+	msg := peerprotocol.PieceMessage{index, begin}
 	p.log.Debugf("Sending Piece: %+v", msg)
 	buf := bytes.NewBuffer(make([]byte, 0, 8))
 	_ = binary.Write(buf, binary.BigEndian, msg)
 	buf.Write(block)
-	return p.writeMessage(messageid.Piece, buf.Bytes())
+	return p.writeMessage(peerprotocol.Piece, buf.Bytes())
 }
 
 func (p *Peer) SendReject(piece, begin, length uint32) error {
-	req := RequestMessage{piece, begin, length}
+	req := peerprotocol.RequestMessage{piece, begin, length}
 	p.log.Debugf("Sending Reject: %+v", req)
 	buf := bytes.NewBuffer(make([]byte, 0, 12))
 	_ = binary.Write(buf, binary.BigEndian, &req)
-	return p.writeMessage(messageid.Request, buf.Bytes())
+	return p.writeMessage(peerprotocol.Request, buf.Bytes())
 }
 
-func (p *Peer) writeMessage(id messageid.MessageID, payload []byte) error {
+func (p *Peer) writeMessage(id peerprotocol.MessageID, payload []byte) error {
 	p.log.Debugf("Sending message of type: %q", id)
 	buf := bytes.NewBuffer(make([]byte, 0, 4+1+len(payload)))
 	var header = struct {
 		Length uint32
-		ID     messageid.MessageID
+		ID     peerprotocol.MessageID
 	}{
 		uint32(1 + len(payload)),
 		id,

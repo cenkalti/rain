@@ -4,6 +4,7 @@ import (
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/downloader/peerwriter"
 	"github.com/cenkalti/rain/internal/peer"
+	"github.com/cenkalti/rain/internal/peer/peerprotocol"
 )
 
 type Peer struct {
@@ -18,10 +19,10 @@ type Peer struct {
 
 	// TODO process saved messages after getting info.
 	// Save space for some messages that is received while info does not exist.
-	haveMessages        []peer.HaveMessage
+	haveMessages        []peerprotocol.HaveMessage
 	bitfieldMessage     []byte
 	haveAllMessage      bool
-	allowedFastMessages []peer.HaveMessage
+	allowedFastMessages []peerprotocol.HaveMessage
 }
 
 func NewPeer(p *peer.Peer, bf *bitfield.Bitfield) *Peer {

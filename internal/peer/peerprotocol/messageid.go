@@ -1,4 +1,4 @@
-package messageid
+package peerprotocol
 
 import "strconv"
 

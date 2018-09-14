@@ -1,5 +1,9 @@
 package peer
 
+import (
+	"github.com/cenkalti/rain/internal/peer/peerprotocol"
+)
+
 type Messages struct {
 	Connect       chan *Peer
 	Disconnect    chan *Peer
@@ -14,6 +18,7 @@ type Messages struct {
 	Request       chan Request
 	Reject        chan Request
 	Piece         chan Piece
+	// TODO handle cancel message
 	// Cancel        chan Cancel
 }
 
@@ -32,13 +37,14 @@ func NewMessages() *Messages {
 		Request:       make(chan Request),
 		Reject:        make(chan Request),
 		Piece:         make(chan Piece),
+		// TODO handle cancel message
 		// Cancel:        make(chan Cancel),
 	}
 }
 
 type Have struct {
 	Peer *Peer
-	HaveMessage
+	peerprotocol.HaveMessage
 }
 
 type Bitfield struct {
@@ -48,23 +54,11 @@ type Bitfield struct {
 
 type Request struct {
 	Peer *Peer
-	RequestMessage
+	peerprotocol.RequestMessage
 }
 
 type Piece struct {
 	Peer *Peer
-	PieceMessage
+	peerprotocol.PieceMessage
 	Data []byte
-}
-
-type HaveMessage struct {
-	Index uint32
-}
-
-type RequestMessage struct {
-	Index, Begin, Length uint32
-}
-
-type PieceMessage struct {
-	Index, Begin uint32
 }
