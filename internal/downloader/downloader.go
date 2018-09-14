@@ -123,7 +123,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			d.pieces[resp.Request.Piece.Index].writing = false
 			if resp.Error != nil {
 				d.errC <- resp.Error
-				continue
+				return
 			}
 			d.data.Bitfield().Set(resp.Request.Piece.Index)
 			d.data.CheckCompletion()
