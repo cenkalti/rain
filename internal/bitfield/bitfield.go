@@ -45,6 +45,15 @@ func NewBytes(b []byte, length uint32) *Bitfield {
 	}
 }
 
+func (b *Bitfield) Copy() *Bitfield {
+	b2 := &Bitfield{
+		bytes:  make([]byte, len(b.bytes)),
+		length: b.length,
+	}
+	copy(b2.bytes, b.bytes)
+	return b2
+}
+
 // Bytes returns bytes in b. If you modify the returned slice the bits in b are modified too.
 func (b *Bitfield) Bytes() []byte { return b.bytes }
 
