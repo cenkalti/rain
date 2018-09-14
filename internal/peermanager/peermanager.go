@@ -1,7 +1,6 @@
 package peermanager
 
 import (
-	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peerlist"
@@ -17,20 +16,18 @@ type PeerManager struct {
 	peerIDs  *peerids.PeerIDs
 	peerID   [20]byte
 	infoHash [20]byte
-	bitfield *bitfield.Bitfield
 	messages *peer.Messages
 	workers  worker.Workers
 	log      logger.Logger
 }
 
-func New(port int, pl *peerlist.PeerList, peerID, infoHash [20]byte, bf *bitfield.Bitfield, l logger.Logger) *PeerManager {
+func New(port int, pl *peerlist.PeerList, peerID, infoHash [20]byte, l logger.Logger) *PeerManager {
 	return &PeerManager{
 		port:     port,
 		peerList: pl,
 		peerIDs:  peerids.New(),
 		peerID:   peerID,
 		infoHash: infoHash,
-		bitfield: bf,
 		messages: peer.NewMessages(),
 		log:      l,
 	}
@@ -41,10 +38,10 @@ func (m *PeerManager) PeerMessages() *peer.Messages {
 }
 
 func (m *PeerManager) Run(stopC chan struct{}) {
-	a := acceptor.New(m.port, m.peerIDs, m.peerID, m.infoHash, m.bitfield, m.messages, m.log)
+	a := acceptor.New(m.port, m.peerIDs, m.peerID, m.infoHash, m.messages, m.log)
 	m.workers.Start(a)
 
-	d := dialer.New(m.peerList, m.peerIDs, m.peerID, m.infoHash, m.bitfield, m.messages, m.log)
+	d := dialer.New(m.peerList, m.peerIDs, m.peerID, m.infoHash, m.messages, m.log)
 	m.workers.Start(d)
 
 	<-stopC

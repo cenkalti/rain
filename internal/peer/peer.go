@@ -27,11 +27,10 @@ type Peer struct {
 	log           logger.Logger
 }
 
-func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, bf *bitfield.Bitfield, l logger.Logger, messages *Messages) *Peer {
+func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, l logger.Logger, messages *Messages) *Peer {
 	return &Peer{
 		conn:          conn,
 		id:            id,
-		bitfield:      bf,
 		messages:      messages,
 		FastExtension: extensions.Test(61),
 		log:           l,
@@ -65,19 +64,6 @@ func (p *Peer) Run(stopC chan struct{}) {
 		case <-stopC:
 		}
 	}()
-
-	var err error
-	if p.FastExtension && p.bitfield.All() {
-		err = p.sendHaveAll()
-	} else if p.FastExtension && p.bitfield.Count() == 0 {
-		err = p.sendHaveNone()
-	} else {
-		err = p.sendBitfield(p.bitfield)
-	}
-	if err != nil {
-		p.log.Error(err)
-		return
-	}
 
 	select {
 	case p.messages.Connect <- p:
@@ -276,7 +262,7 @@ func (p *Peer) Run(stopC chan struct{}) {
 	}
 }
 
-func (p *Peer) sendBitfield(b *bitfield.Bitfield) error {
+func (p *Peer) SendBitfield(b *bitfield.Bitfield) error {
 	// Sending bitfield may be omitted if have no pieces.
 	if b.Count() == 0 {
 		return nil
@@ -307,11 +293,11 @@ func (p *Peer) SendHave(piece uint32) error {
 	return p.writeMessage(messageid.Have, buf.Bytes())
 }
 
-func (p *Peer) sendHaveAll() error {
+func (p *Peer) SendHaveAll() error {
 	return p.writeMessage(messageid.HaveAll, nil)
 }
 
-func (p *Peer) sendHaveNone() error {
+func (p *Peer) SendHaveNone() error {
 	return p.writeMessage(messageid.HaveNone, nil)
 }
 

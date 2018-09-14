@@ -1,23 +1,26 @@
 package peerwriter
 
 import (
+	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/peer"
 )
 
 type PeerWriter struct {
 	*peer.Peer
-	requests []Request
-	RequestC chan Request
-	ChokeC   chan struct{}
-	writeC   chan Request
+	requests  []Request
+	RequestC  chan Request
+	ChokeC    chan struct{}
+	BitfieldC chan *bitfield.Bitfield
+	writeC    chan Request
 }
 
 func New(p *peer.Peer) *PeerWriter {
 	return &PeerWriter{
-		Peer:     p,
-		RequestC: make(chan Request),
-		ChokeC:   make(chan struct{}, 1),
-		writeC:   make(chan Request),
+		Peer:      p,
+		RequestC:  make(chan Request),
+		ChokeC:    make(chan struct{}, 1),
+		BitfieldC: make(chan *bitfield.Bitfield),
+		writeC:    make(chan Request),
 	}
 }
 
@@ -56,17 +59,39 @@ func (p *PeerWriter) writer(stopC chan struct{}) {
 			err := req.Piece.Data.ReadAt(b, int64(req.Request.Begin))
 			if err != nil {
 				p.Logger().Errorln("cannot read piece data:", err)
-				p.Peer.Close()
-				return
+				break
 			}
-			req.Request.Peer.SendPiece(req.Piece.Index, req.Request.Begin, b)
+			err = req.Request.Peer.SendPiece(req.Piece.Index, req.Request.Begin, b)
+			if err != nil {
+				p.Logger().Errorln("cannot send piece:", err)
+				break
+			}
 		case <-p.ChokeC:
-			_ = p.Peer.SendChoke()
+			err := p.Peer.SendChoke()
+			if err != nil {
+				p.Logger().Errorln("cannot send choke:", err)
+				break
+			}
 			// TODO ignore allowed fast set
 			for _, req := range p.requests {
-				_ = p.Peer.SendReject(req.Piece.Index, req.Request.Begin, req.Request.Length)
+				err = p.Peer.SendReject(req.Piece.Index, req.Request.Begin, req.Request.Length)
+				if err != nil {
+					p.Logger().Errorln("cannot send reject:", err)
+				}
 			}
 			p.requests = nil
+		case bf := <-p.BitfieldC:
+			var err error
+			if p.FastExtension && bf != nil && bf.All() {
+				err = p.SendHaveAll()
+			} else if p.FastExtension && bf != nil && bf.Count() == 0 {
+				err = p.SendHaveNone()
+			} else if bf != nil {
+				err = p.SendBitfield(bf)
+			}
+			if err != nil {
+				p.Logger().Errorln("cannot send bitfield", err)
+			}
 		case <-stopC:
 			return
 		}

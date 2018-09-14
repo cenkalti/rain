@@ -109,7 +109,7 @@ func (t *Torrent) Start() {
 	t.workers.Start(an)
 
 	// manage peer connections
-	pm := peermanager.New(t.port, pl, t.peerID, t.metainfo.Info.Hash, t.data.Bitfield(), t.log)
+	pm := peermanager.New(t.port, pl, t.peerID, t.metainfo.Info.Hash, t.log)
 	t.workers.Start(pm)
 
 	// request missing pieces from peers
