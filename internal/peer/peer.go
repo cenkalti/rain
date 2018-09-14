@@ -54,7 +54,7 @@ func (p *Peer) Logger() logger.Logger {
 }
 
 // Run reads and processes incoming messages after handshake.
-// TODO send keep-alive messages to peers at interval.
+// TODO send keep-alive messages to peers every 2 minutes.
 func (p *Peer) Run(stopC chan struct{}) {
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 	defer func() {
@@ -120,20 +120,27 @@ func (p *Peer) Run(stopC chan struct{}) {
 			case <-stopC:
 				return
 			}
-			// TODO implement
 		case messageid.Interested:
-			// TODO implement
+			select {
+			case p.messages.Interested <- p:
+			case <-stopC:
+				return
+			}
 		case messageid.NotInterested:
-			// TODO implement
+			select {
+			case p.messages.NotInterested <- p:
+			case <-stopC:
+				return
+			}
 		case messageid.Have:
-			var h HaveMessage
-			err = binary.Read(p.conn, binary.BigEndian, &h)
+			var msg HaveMessage
+			err = binary.Read(p.conn, binary.BigEndian, &msg)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
 			select {
-			case p.messages.Have <- Have{p, h}:
+			case p.messages.Have <- Have{p, msg}:
 			case <-stopC:
 				return
 			}
@@ -154,20 +161,20 @@ func (p *Peer) Run(stopC chan struct{}) {
 				return
 			}
 		case messageid.Request:
-			var req RequestMessage
-			err = binary.Read(p.conn, binary.BigEndian, &req)
+			var msg RequestMessage
+			err = binary.Read(p.conn, binary.BigEndian, &msg)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
-			p.log.Debugf("Received Request: %+v", req)
+			p.log.Debugf("Received Request: %+v", msg)
 
-			if req.Length > MaxAllowedBlockSize {
+			if msg.Length > MaxAllowedBlockSize {
 				p.log.Error("received a request with block size larger than allowed")
 				return
 			}
 			select {
-			case p.messages.Request <- Request{p, req}:
+			case p.messages.Request <- Request{p, msg}:
 			case <-stopC:
 				return
 			}
@@ -176,20 +183,20 @@ func (p *Peer) Run(stopC chan struct{}) {
 				p.log.Error("reject message received but fast extensions is not enabled")
 				return
 			}
-			var req RequestMessage
-			err = binary.Read(p.conn, binary.BigEndian, &req)
+			var msg RequestMessage
+			err = binary.Read(p.conn, binary.BigEndian, &msg)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
-			p.log.Debugf("Received Reject: %+v", req)
+			p.log.Debugf("Received Reject: %+v", msg)
 
-			if req.Length > MaxAllowedBlockSize {
+			if msg.Length > MaxAllowedBlockSize {
 				p.log.Error("received a reject with block size larger than allowed")
 				return
 			}
 			select {
-			case p.messages.Reject <- Request{p, req}:
+			case p.messages.Reject <- Request{p, msg}:
 			case <-stopC:
 				return
 			}
@@ -237,14 +244,14 @@ func (p *Peer) Run(stopC chan struct{}) {
 			}
 		case messageid.Suggest:
 		case messageid.AllowedFast:
-			var h HaveMessage
-			err = binary.Read(p.conn, binary.BigEndian, &h)
+			var msg HaveMessage
+			err = binary.Read(p.conn, binary.BigEndian, &msg)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
 			select {
-			case p.messages.AllowedFast <- Have{p, h}:
+			case p.messages.AllowedFast <- Have{p, msg}:
 			case <-stopC:
 				return
 			}
