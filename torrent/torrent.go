@@ -109,11 +109,11 @@ func (t *Torrent) Start() {
 	t.workers.Start(an)
 
 	// manage peer connections
-	pm := peermanager.New(t.port, pl, t.peerID, t.metainfo.Info.Hash, t.data, t.log)
+	pm := peermanager.New(t.port, pl, t.peerID, t.metainfo.Info.Hash, t.data.Bitfield(), t.log)
 	t.workers.Start(pm)
 
 	// request missing pieces from peers
-	do := downloader.New(t.data, pm.PeerMessages(), t.errC, t.log)
+	do := downloader.New(t.metainfo.Info, t.data, pm.PeerMessages(), t.errC, t.log)
 	t.workers.StartWithOnFinishHandler(do, func() { t.Stop() })
 
 	// send requested blocks

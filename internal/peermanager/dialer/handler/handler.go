@@ -8,24 +8,23 @@ import (
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peermanager/peerids"
-	"github.com/cenkalti/rain/internal/torrentdata"
 )
 
 type Handler struct {
 	addr     net.Addr
 	peerIDs  *peerids.PeerIDs
-	data     *torrentdata.Data
+	bitfield *bitfield.Bitfield
 	peerID   [20]byte
 	infoHash [20]byte
 	messages *peer.Messages
 	log      logger.Logger
 }
 
-func New(addr net.Addr, peerIDs *peerids.PeerIDs, data *torrentdata.Data, peerID, infoHash [20]byte, messages *peer.Messages, l logger.Logger) *Handler {
+func New(addr net.Addr, peerIDs *peerids.PeerIDs, bf *bitfield.Bitfield, peerID, infoHash [20]byte, messages *peer.Messages, l logger.Logger) *Handler {
 	return &Handler{
 		addr:     addr,
 		peerIDs:  peerIDs,
-		data:     data,
+		bitfield: bf,
 		peerID:   peerID,
 		infoHash: infoHash,
 		messages: messages,
@@ -62,6 +61,6 @@ func (h *Handler) Run(stopC chan struct{}) {
 	peerbf := bitfield.NewBytes(peerExtensions[:], 64)
 	extensions := ourbf.And(peerbf)
 
-	p := peer.New(conn, peerID, extensions, h.data, log, h.messages)
+	p := peer.New(conn, peerID, extensions, h.bitfield, log, h.messages)
 	p.Run(stopC)
 }

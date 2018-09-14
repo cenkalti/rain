@@ -5,10 +5,14 @@ import (
 	"sort"
 	"time"
 
+	"github.com/cenkalti/rain/internal/bitfield"
+	"github.com/cenkalti/rain/internal/downloader/peerwriter"
 	"github.com/cenkalti/rain/internal/downloader/piecedownloader"
 	"github.com/cenkalti/rain/internal/downloader/piecewriter"
 	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/peer"
+	"github.com/cenkalti/rain/internal/piece"
 	"github.com/cenkalti/rain/internal/semaphore"
 	"github.com/cenkalti/rain/internal/torrentdata"
 	"github.com/cenkalti/rain/internal/worker"
@@ -19,6 +23,7 @@ const parallelPieceDownloads = 4
 const parallelPieceWrites = 4
 
 type Downloader struct {
+	info                   *metainfo.Info
 	data                   *torrentdata.Data
 	messages               *peer.Messages
 	pieces                 []Piece
@@ -34,7 +39,7 @@ type Downloader struct {
 	workers                worker.Workers
 }
 
-func New(d *torrentdata.Data, m *peer.Messages, errC chan error, l logger.Logger) *Downloader {
+func New(info *metainfo.Info, d *torrentdata.Data, m *peer.Messages, errC chan error, l logger.Logger) *Downloader {
 	pieces := make([]Piece, len(d.Pieces))
 	sortedPieces := make([]*Piece, len(d.Pieces))
 	for i := range d.Pieces {
@@ -47,6 +52,7 @@ func New(d *torrentdata.Data, m *peer.Messages, errC chan error, l logger.Logger
 		sortedPieces[i] = &pieces[i]
 	}
 	return &Downloader{
+		info:           info,
 		data:           d,
 		messages:       m,
 		pieces:         pieces,
@@ -127,20 +133,52 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				d.updateInterestedState(pe)
 			}
 		case msg := <-d.messages.Have:
+			// Save have messages for processesing later received while we don't have info yet.
+			if d.info == nil {
+				pe := d.connectedPeers[msg.Peer]
+				pe.haveMessages = append(pe.haveMessages, msg.HaveMessage)
+				break
+			}
+			if msg.Index >= uint32(len(d.data.Pieces)) {
+				msg.Peer.Logger().Errorln("unexpected piece index:", msg.Index)
+				msg.Peer.Close()
+				break
+			}
+			pi := &d.data.Pieces[msg.Index]
+			msg.Peer.Logger().Debug("Peer ", msg.Peer.String(), " has piece #", pi.Index)
 			downloaders.Signal(1)
-			d.pieces[msg.Piece.Index].havingPeers[msg.Peer] = d.connectedPeers[msg.Peer]
+			d.pieces[pi.Index].havingPeers[msg.Peer] = d.connectedPeers[msg.Peer]
 			pe := d.connectedPeers[msg.Peer]
 			d.updateInterestedState(pe)
 		case msg := <-d.messages.Bitfield:
-			for i := uint32(0); i < msg.Bitfield.Len(); i++ {
-				if msg.Bitfield.Test(i) {
+			// Save bitfield messages while we don't have info yet.
+			if d.info == nil {
+				pe := d.connectedPeers[msg.Peer]
+				pe.bitfieldMessage = msg.Data
+				break
+			}
+			numBytes := uint32(bitfield.NumBytes(uint32(len(d.data.Pieces))))
+			if uint32(len(msg.Data)) != numBytes {
+				msg.Peer.Logger().Errorln("invalid bitfield length:", len(msg.Data))
+				msg.Peer.Close()
+				break
+			}
+			bf := bitfield.NewBytes(msg.Data, uint32(len(d.data.Pieces)))
+			msg.Peer.Logger().Debugln("Received bitfield:", bf.Hex())
+			for i := uint32(0); i < bf.Len(); i++ {
+				if bf.Test(i) {
 					d.pieces[i].havingPeers[msg.Peer] = d.connectedPeers[msg.Peer]
 				}
 			}
-			downloaders.Signal(msg.Bitfield.Count())
+			downloaders.Signal(bf.Count())
 			pe := d.connectedPeers[msg.Peer]
 			d.updateInterestedState(pe)
 		case pe := <-d.messages.HaveAll:
+			if d.info == nil {
+				pe := d.connectedPeers[pe]
+				pe.haveAllMessage = true
+				break
+			}
 			for i := range d.pieces {
 				d.pieces[i].havingPeers[pe] = d.connectedPeers[pe]
 			}
@@ -148,7 +186,19 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			p := d.connectedPeers[pe]
 			d.updateInterestedState(p)
 		case msg := <-d.messages.AllowedFast:
-			d.pieces[msg.Piece.Index].allowedFastPeers[msg.Peer] = d.connectedPeers[msg.Peer]
+			if d.info == nil {
+				pe := d.connectedPeers[msg.Peer]
+				pe.allowedFastMessages = append(pe.allowedFastMessages, msg.HaveMessage)
+				break
+			}
+			if msg.Index >= uint32(len(d.data.Pieces)) {
+				msg.Peer.Logger().Errorln("invalid allowed fast piece index:", msg.Index)
+				msg.Peer.Close()
+				break
+			}
+			pi := &d.data.Pieces[msg.Index]
+			msg.Peer.Logger().Debug("Peer ", msg.Peer.String(), " has allowed fast for piece #", pi.Index)
+			d.pieces[msg.Index].allowedFastPeers[msg.Peer] = d.connectedPeers[msg.Peer]
 		case pe := <-d.messages.Unchoke:
 			downloaders.Signal(1)
 			d.connectedPeers[pe].peerChoking = false
@@ -161,13 +211,46 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				pd.ChokeC <- struct{}{}
 			}
 		case msg := <-d.messages.Piece:
+			if msg.Index >= uint32(len(d.data.Pieces)) {
+				msg.Peer.Logger().Errorln("invalid piece index:", msg.Index)
+				msg.Peer.Close()
+				break
+			}
+			piece := &d.data.Pieces[msg.Index]
+			block := piece.GetBlock(msg.Begin)
+			if block == nil {
+				msg.Peer.Logger().Errorln("invalid piece begin:", msg.Begin)
+				msg.Peer.Close()
+				break
+			}
+			if uint32(len(msg.Data)) != block.Length {
+				msg.Peer.Logger().Errorln("invalid piece length:", len(msg.Data))
+				msg.Peer.Close()
+				break
+			}
 			if pe, ok := d.connectedPeers[msg.Peer]; ok {
 				pe.bytesDownlaodedInChokePeriod += int64(len(msg.Data))
 			}
 			if pd, ok := d.downloads[msg.Peer]; ok {
-				pd.PieceC <- msg
+				pd.PieceC <- piecedownloader.Piece{Block: block, Data: msg.Data}
 			}
 		case msg := <-d.messages.Request:
+			if d.info == nil {
+				msg.Peer.Logger().Error("request received but we don't have info")
+				msg.Peer.Close()
+				break
+			}
+			if msg.Index >= uint32(len(d.data.Pieces)) {
+				msg.Peer.Logger().Errorln("invalid request index:", msg.Index)
+				msg.Peer.Close()
+				break
+			}
+			if msg.Begin+msg.Length > d.data.Pieces[msg.Index].Length {
+				msg.Peer.Logger().Errorln("invalid request length:", msg.Length)
+				msg.Peer.Close()
+				break
+			}
+			pi := &d.data.Pieces[msg.Index]
 			if pe, ok := d.connectedPeers[msg.Peer]; ok {
 				if pe.amChoking {
 					if msg.Peer.FastExtension {
@@ -175,16 +258,43 @@ func (d *Downloader) Run(stopC chan struct{}) {
 					}
 				} else {
 					select {
-					case pe.writer.RequestC <- msg:
+					case pe.writer.RequestC <- peerwriter.Request{Piece: pi, Request: msg}:
 					case <-stopC:
 						return
 					}
 				}
 			}
 		case msg := <-d.messages.Reject:
-			if pd, ok := d.downloads[msg.Peer]; ok {
-				pd.RejectC <- msg
+			if d.info == nil {
+				msg.Peer.Logger().Error("reject received but we don't have info")
+				msg.Peer.Close()
+				break
 			}
+
+			if msg.Index >= uint32(len(d.data.Pieces)) {
+				msg.Peer.Logger().Errorln("invalid reject index:", msg.Index)
+				msg.Peer.Close()
+				break
+			}
+			piece := &d.data.Pieces[msg.Index]
+			block := piece.GetBlock(msg.Begin)
+			if block == nil {
+				msg.Peer.Logger().Errorln("invalid reject begin:", msg.Begin)
+				msg.Peer.Close()
+				break
+			}
+			if msg.Length != block.Length {
+				msg.Peer.Logger().Errorln("invalid reject length:", msg.Length)
+				msg.Peer.Close()
+				break
+			}
+			pd, ok := d.downloads[msg.Peer]
+			if !ok {
+				msg.Peer.Logger().Error("reject received but we don't have active download")
+				msg.Peer.Close()
+				break
+			}
+			pd.RejectC <- block
 		case <-unchokeTimer.C:
 			peers := make([]*Peer, 0, len(d.connectedPeers))
 			for _, pe := range d.connectedPeers {
@@ -325,16 +435,16 @@ func (d *Downloader) unchokePeer(pe *Peer) {
 	}
 }
 
-func (d *Downloader) sendPiece(pe *Peer, msg peer.Request) {
+func (d *Downloader) sendPiece(pe *Peer, msg peer.Request, pi *piece.Piece) {
 	buf := make([]byte, msg.Length)
-	err := msg.Piece.Data.ReadAt(buf, int64(msg.Begin))
+	err := pi.Data.ReadAt(buf, int64(msg.Begin))
 	if err != nil {
 		// TODO handle cannot read piece data for uploading
 		return
 	}
-	msg.Peer.SendPiece(msg.Piece.Index, msg.Begin, buf)
+	msg.Peer.SendPiece(msg.Index, msg.Begin, buf)
 }
 
 func (d *Downloader) rejectPiece(pe *Peer, msg peer.Request) {
-	go msg.Peer.SendReject(msg.Piece.Index, msg.Begin, msg.Length)
+	go msg.Peer.SendReject(msg.Index, msg.Begin, msg.Length)
 }

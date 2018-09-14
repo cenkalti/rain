@@ -14,6 +14,13 @@ type Peer struct {
 	bytesDownlaodedInChokePeriod int64
 	optimisticUnhoked            bool
 	writer                       *peerwriter.PeerWriter
+
+	// TODO process saved messages after getting info.
+	// Save space for some messages that is received while info does not exist.
+	haveMessages        []peer.HaveMessage
+	bitfieldMessage     []byte
+	haveAllMessage      bool
+	allowedFastMessages []peer.HaveMessage
 }
 
 func NewPeer(p *peer.Peer) *Peer {

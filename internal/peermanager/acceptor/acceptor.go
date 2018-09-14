@@ -3,12 +3,12 @@ package acceptor
 import (
 	"net"
 
+	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/mse"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peermanager/acceptor/handler"
 	"github.com/cenkalti/rain/internal/peermanager/peerids"
-	"github.com/cenkalti/rain/internal/torrentdata"
 	"github.com/cenkalti/rain/internal/worker"
 )
 
@@ -17,7 +17,7 @@ const maxAccept = 40
 type Acceptor struct {
 	port     int
 	peerIDs  *peerids.PeerIDs
-	data     *torrentdata.Data
+	bitfield *bitfield.Bitfield
 	peerID   [20]byte
 	sKeyHash [20]byte
 	infoHash [20]byte
@@ -27,11 +27,11 @@ type Acceptor struct {
 	log      logger.Logger
 }
 
-func New(port int, peerIDs *peerids.PeerIDs, peerID, infoHash [20]byte, data *torrentdata.Data, messages *peer.Messages, l logger.Logger) *Acceptor {
+func New(port int, peerIDs *peerids.PeerIDs, peerID, infoHash [20]byte, bf *bitfield.Bitfield, messages *peer.Messages, l logger.Logger) *Acceptor {
 	return &Acceptor{
 		port:     port,
 		peerIDs:  peerIDs,
-		data:     data,
+		bitfield: bf,
 		peerID:   peerID,
 		sKeyHash: mse.HashSKey(infoHash[:]),
 		infoHash: infoHash,
@@ -68,7 +68,7 @@ func (a *Acceptor) Run(stopC chan struct{}) {
 		}
 		select {
 		case a.limiter <- struct{}{}:
-			h := handler.New(conn, a.peerIDs, a.data, a.peerID, a.sKeyHash, a.infoHash, a.messages, a.log)
+			h := handler.New(conn, a.peerIDs, a.bitfield, a.peerID, a.sKeyHash, a.infoHash, a.messages, a.log)
 			a.workers.StartWithOnFinishHandler(h, func() { <-a.limiter })
 		case <-stopC:
 			a.workers.Stop()

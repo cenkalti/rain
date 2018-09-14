@@ -1,10 +1,5 @@
 package peer
 
-import (
-	"github.com/cenkalti/rain/internal/bitfield"
-	"github.com/cenkalti/rain/internal/piece"
-)
-
 type Messages struct {
 	Connect       chan *Peer
 	Disconnect    chan *Peer
@@ -42,37 +37,34 @@ func NewMessages() *Messages {
 }
 
 type Have struct {
-	Peer  *Peer
-	Piece *piece.Piece
+	Peer *Peer
+	HaveMessage
 }
 
 type Bitfield struct {
-	Peer     *Peer
-	Bitfield *bitfield.Bitfield
+	Peer *Peer
+	Data []byte
 }
 
 type Request struct {
-	Peer   *Peer
-	Piece  *piece.Piece
-	Begin  uint32
-	Length uint32
+	Peer *Peer
+	RequestMessage
 }
 
 type Piece struct {
-	Peer  *Peer
-	Piece *piece.Piece
-	Block *piece.Block
-	Data  []byte
+	Peer *Peer
+	PieceMessage
+	Data []byte
 }
 
-type haveMessage struct {
+type HaveMessage struct {
 	Index uint32
 }
 
-type requestMessage struct {
+type RequestMessage struct {
 	Index, Begin, Length uint32
 }
 
-type pieceMessage struct {
+type PieceMessage struct {
 	Index, Begin uint32
 }

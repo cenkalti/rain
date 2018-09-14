@@ -11,28 +11,27 @@ import (
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/messageid"
-	"github.com/cenkalti/rain/internal/torrentdata"
 )
 
 const connReadTimeout = 3 * time.Minute
 
-// Reject requests larger than this size.
+// MaxAllowedBlockSize is the max size of block data that we accept from peers.
 const MaxAllowedBlockSize = 32 * 1024
 
 type Peer struct {
 	conn          net.Conn
 	id            [20]byte
-	data          *torrentdata.Data
+	bitfield      *bitfield.Bitfield
 	messages      *Messages
 	FastExtension bool
 	log           logger.Logger
 }
 
-func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, d *torrentdata.Data, l logger.Logger, messages *Messages) *Peer {
+func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, bf *bitfield.Bitfield, l logger.Logger, messages *Messages) *Peer {
 	return &Peer{
 		conn:          conn,
 		id:            id,
-		data:          d,
+		bitfield:      bf,
 		messages:      messages,
 		FastExtension: extensions.Test(61),
 		log:           l,
@@ -68,12 +67,12 @@ func (p *Peer) Run(stopC chan struct{}) {
 	}()
 
 	var err error
-	if p.FastExtension && p.data.Bitfield().All() {
+	if p.FastExtension && p.bitfield.All() {
 		err = p.sendHaveAll()
-	} else if p.FastExtension && p.data.Bitfield().Count() == 0 {
+	} else if p.FastExtension && p.bitfield.Count() == 0 {
 		err = p.sendHaveNone()
 	} else {
-		err = p.sendBitfield(p.data.Bitfield())
+		err = p.sendBitfield(p.bitfield)
 	}
 	if err != nil {
 		p.log.Error(err)
@@ -141,20 +140,14 @@ func (p *Peer) Run(stopC chan struct{}) {
 		case messageid.NotInterested:
 			// TODO implement
 		case messageid.Have:
-			var h haveMessage
+			var h HaveMessage
 			err = binary.Read(p.conn, binary.BigEndian, &h)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
-			if h.Index >= uint32(len(p.data.Pieces)) {
-				p.log.Error("unexpected piece index")
-				return
-			}
-			pi := &p.data.Pieces[h.Index]
-			p.log.Debug("Peer ", p.conn.RemoteAddr(), " has piece #", pi.Index)
 			select {
-			case p.messages.Have <- Have{p, pi}:
+			case p.messages.Have <- Have{p, h}:
 			case <-stopC:
 				return
 			}
@@ -163,26 +156,19 @@ func (p *Peer) Run(stopC chan struct{}) {
 				p.log.Error("bitfield can only be sent after handshake")
 				return
 			}
-			numBytes := uint32(bitfield.NumBytes(uint32(len(p.data.Pieces))))
-			if length != numBytes {
-				p.log.Error("invalid bitfield length")
-				return
-			}
-			b := make([]byte, numBytes)
+			b := make([]byte, length)
 			_, err = io.ReadFull(p.conn, b)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
-			bf := bitfield.NewBytes(b, uint32(len(p.data.Pieces)))
-			p.log.Debugln("Received bitfield:", bf.Hex())
 			select {
-			case p.messages.Bitfield <- Bitfield{p, bf}:
+			case p.messages.Bitfield <- Bitfield{p, b}:
 			case <-stopC:
 				return
 			}
 		case messageid.Request:
-			var req requestMessage
+			var req RequestMessage
 			err = binary.Read(p.conn, binary.BigEndian, &req)
 			if err != nil {
 				p.log.Error(err)
@@ -190,21 +176,12 @@ func (p *Peer) Run(stopC chan struct{}) {
 			}
 			p.log.Debugf("Received Request: %+v", req)
 
-			if req.Index >= uint32(len(p.data.Pieces)) {
-				p.log.Error("invalid request: index")
-				return
-			}
 			if req.Length > MaxAllowedBlockSize {
 				p.log.Error("received a request with block size larger than allowed")
 				return
 			}
-			if req.Begin+req.Length > p.data.Pieces[req.Index].Length {
-				p.log.Error("invalid request: length")
-			}
-
-			pi := &p.data.Pieces[req.Index]
 			select {
-			case p.messages.Request <- Request{p, pi, req.Begin, req.Length}:
+			case p.messages.Request <- Request{p, req}:
 			case <-stopC:
 				return
 			}
@@ -213,7 +190,7 @@ func (p *Peer) Run(stopC chan struct{}) {
 				p.log.Error("reject message received but fast extensions is not enabled")
 				return
 			}
-			var req requestMessage
+			var req RequestMessage
 			err = binary.Read(p.conn, binary.BigEndian, &req)
 			if err != nil {
 				p.log.Error(err)
@@ -221,26 +198,17 @@ func (p *Peer) Run(stopC chan struct{}) {
 			}
 			p.log.Debugf("Received Reject: %+v", req)
 
-			if req.Index >= uint32(len(p.data.Pieces)) {
-				p.log.Error("invalid reject: index")
-				return
-			}
 			if req.Length > MaxAllowedBlockSize {
 				p.log.Error("received a reject with block size larger than allowed")
 				return
 			}
-			if req.Begin+req.Length > p.data.Pieces[req.Index].Length {
-				p.log.Error("invalid reject: length")
-			}
-
-			pi := &p.data.Pieces[req.Index]
 			select {
-			case p.messages.Reject <- Request{p, pi, req.Begin, req.Length}:
+			case p.messages.Reject <- Request{p, req}:
 			case <-stopC:
 				return
 			}
 		case messageid.Piece:
-			var msg pieceMessage
+			var msg PieceMessage
 			err = binary.Read(p.conn, binary.BigEndian, &msg)
 			if err != nil {
 				p.log.Error(err)
@@ -248,31 +216,13 @@ func (p *Peer) Run(stopC chan struct{}) {
 			}
 			length -= 8
 
-			if msg.Index >= uint32(len(p.data.Pieces)) {
-				p.log.Error("invalid piece index")
-				return
-			}
-			piece := &p.data.Pieces[msg.Index]
-
-			block := piece.GetBlock(msg.Begin)
-			if block == nil {
-				p.log.Error("invalid block begin")
-				return
-			}
-			if length != block.Length {
-				p.log.Error("invalid block length")
-				return
-			}
-
-			pm := Piece{Peer: p, Piece: piece, Block: block}
-			pm.Data = make([]byte, length)
-			if _, err = io.ReadFull(p.conn, pm.Data); err != nil {
+			data := make([]byte, length)
+			if _, err = io.ReadFull(p.conn, data); err != nil {
 				p.log.Error(err)
 				return
 			}
-
 			select {
-			case p.messages.Piece <- pm:
+			case p.messages.Piece <- Piece{p, msg, data}:
 			case <-stopC:
 				return
 			}
@@ -301,20 +251,14 @@ func (p *Peer) Run(stopC chan struct{}) {
 			}
 		case messageid.Suggest:
 		case messageid.AllowedFast:
-			var h haveMessage
+			var h HaveMessage
 			err = binary.Read(p.conn, binary.BigEndian, &h)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
-			if h.Index >= uint32(len(p.data.Pieces)) {
-				p.log.Error("unexpected piece index")
-				return
-			}
-			pi := &p.data.Pieces[h.Index]
-			p.log.Debug("Peer ", p.conn.RemoteAddr(), " has allowed fast for piece #", pi.Index)
 			select {
-			case p.messages.AllowedFast <- Have{p, pi}:
+			case p.messages.AllowedFast <- Have{p, h}:
 			case <-stopC:
 				return
 			}
@@ -357,7 +301,7 @@ func (p *Peer) SendUnchoke() error {
 }
 
 func (p *Peer) SendHave(piece uint32) error {
-	req := haveMessage{piece}
+	req := HaveMessage{piece}
 	buf := bytes.NewBuffer(make([]byte, 0, 4))
 	_ = binary.Write(buf, binary.BigEndian, &req)
 	return p.writeMessage(messageid.Have, buf.Bytes())
@@ -372,7 +316,7 @@ func (p *Peer) sendHaveNone() error {
 }
 
 func (p *Peer) SendRequest(piece, begin, length uint32) error {
-	req := requestMessage{piece, begin, length}
+	req := RequestMessage{piece, begin, length}
 	p.log.Debugf("Sending Request: %+v", req)
 	buf := bytes.NewBuffer(make([]byte, 0, 12))
 	_ = binary.Write(buf, binary.BigEndian, &req)
@@ -380,7 +324,7 @@ func (p *Peer) SendRequest(piece, begin, length uint32) error {
 }
 
 func (p *Peer) SendPiece(index, begin uint32, block []byte) error {
-	msg := pieceMessage{index, begin}
+	msg := PieceMessage{index, begin}
 	p.log.Debugf("Sending Piece: %+v", msg)
 	buf := bytes.NewBuffer(make([]byte, 0, 8))
 	_ = binary.Write(buf, binary.BigEndian, msg)
@@ -389,7 +333,7 @@ func (p *Peer) SendPiece(index, begin uint32, block []byte) error {
 }
 
 func (p *Peer) SendReject(piece, begin, length uint32) error {
-	req := requestMessage{piece, begin, length}
+	req := RequestMessage{piece, begin, length}
 	p.log.Debugf("Sending Reject: %+v", req)
 	buf := bytes.NewBuffer(make([]byte, 0, 12))
 	_ = binary.Write(buf, binary.BigEndian, &req)

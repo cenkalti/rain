@@ -16,8 +16,8 @@ type PieceDownloader struct {
 	Peer     *peer.Peer
 	blocks   []block
 	limiter  chan struct{}
-	PieceC   chan peer.Piece
-	RejectC  chan peer.Request
+	PieceC   chan Piece
+	RejectC  chan *piece.Block
 	ChokeC   chan struct{}
 	UnchokeC chan struct{}
 	DoneC    chan []byte
@@ -40,8 +40,8 @@ func New(pi *piece.Piece, pe *peer.Peer) *PieceDownloader {
 		Peer:     pe,
 		blocks:   blocks,
 		limiter:  make(chan struct{}, maxQueuedBlocks),
-		PieceC:   make(chan peer.Piece),
-		RejectC:  make(chan peer.Request),
+		PieceC:   make(chan Piece),
+		RejectC:  make(chan *piece.Block),
 		ChokeC:   make(chan struct{}),
 		UnchokeC: make(chan struct{}),
 		DoneC:    make(chan []byte, 1),
@@ -73,14 +73,14 @@ func (d *PieceDownloader) Run(stopC chan struct{}) {
 				d.DoneC <- d.assembleBlocks().Bytes()
 				return
 			}
-		case req := <-d.RejectC:
-			b := d.blocks[req.Piece.Index]
+		case blk := <-d.RejectC:
+			b := d.blocks[blk.Index]
 			if !b.requested {
 				d.Peer.Close()
 				d.ErrC <- errors.New("received invalid reject message")
 				return
 			}
-			d.blocks[req.Piece.Index].requested = false
+			d.blocks[blk.Index].requested = false
 		case <-d.ChokeC:
 			for i := range d.blocks {
 				if d.blocks[i].data == nil && d.blocks[i].requested {

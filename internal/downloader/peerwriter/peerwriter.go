@@ -6,18 +6,18 @@ import (
 
 type PeerWriter struct {
 	*peer.Peer
-	requests []peer.Request
-	RequestC chan (peer.Request)
-	ChokeC   chan (struct{})
-	writeC   chan (peer.Request)
+	requests []Request
+	RequestC chan Request
+	ChokeC   chan struct{}
+	writeC   chan Request
 }
 
 func New(p *peer.Peer) *PeerWriter {
 	return &PeerWriter{
 		Peer:     p,
-		RequestC: make(chan peer.Request),
+		RequestC: make(chan Request),
 		ChokeC:   make(chan struct{}, 1),
-		writeC:   make(chan peer.Request),
+		writeC:   make(chan Request),
 	}
 }
 
@@ -52,19 +52,19 @@ func (p *PeerWriter) writer(stopC chan struct{}) {
 	for {
 		select {
 		case req := <-p.writeC:
-			b := buf[:req.Length]
-			err := req.Piece.Data.ReadAt(b, int64(req.Begin))
+			b := buf[:req.Request.Length]
+			err := req.Piece.Data.ReadAt(b, int64(req.Request.Begin))
 			if err != nil {
 				p.Logger().Errorln("cannot read piece data:", err)
 				p.Peer.Close()
 				return
 			}
-			req.Peer.SendPiece(req.Piece.Index, req.Begin, b)
+			req.Request.Peer.SendPiece(req.Piece.Index, req.Request.Begin, b)
 		case <-p.ChokeC:
 			_ = p.Peer.SendChoke()
 			// TODO ignore allowed fast set
 			for _, req := range p.requests {
-				_ = p.Peer.SendReject(req.Piece.Index, req.Begin, req.Length)
+				_ = p.Peer.SendReject(req.Piece.Index, req.Request.Begin, req.Request.Length)
 			}
 			p.requests = nil
 		case <-stopC:
