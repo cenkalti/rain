@@ -3,7 +3,6 @@ package bitfield
 
 import (
 	"encoding/hex"
-	"sync"
 )
 
 func NumBytes(length uint32) int {
@@ -14,7 +13,6 @@ func NumBytes(length uint32) int {
 type Bitfield struct {
 	bytes  []byte
 	length uint32
-	m      sync.RWMutex
 }
 
 // New creates a new Bitfield of length bits.
@@ -55,18 +53,14 @@ func (b *Bitfield) Len() uint32 { return b.length }
 
 // Hex returns bytes as string. If not all the bits in last byte are used, they encode as not set.
 func (b *Bitfield) Hex() string {
-	b.m.RLock()
-	defer b.m.RUnlock()
 	return hex.EncodeToString(b.bytes)
 }
 
 // Set bit i. 0 is the most significant bit. Panics if i >= b.Len().
 func (b *Bitfield) Set(i uint32) {
 	b.checkIndex(i)
-	b.m.Lock()
 	div, mod := divMod32(i, 8)
 	b.bytes[div] |= 1 << (7 - mod)
-	b.m.Unlock()
 }
 
 // SetTo sets bit i to value. Panics if i >= b.Len().
@@ -82,16 +76,12 @@ func (b *Bitfield) SetTo(i uint32, value bool) {
 // Clear bit i. 0 is the most significant bit. Panics if i >= b.Len().
 func (b *Bitfield) Clear(i uint32) {
 	b.checkIndex(i)
-	b.m.Lock()
 	div, mod := divMod32(i, 8)
 	b.bytes[div] &= ^(1 << (7 - mod))
-	b.m.Unlock()
 }
 
 // FirstSet returns the index of the first bit that is set starting from start.
 func (b *Bitfield) FirstSet(start uint32) (uint32, bool) {
-	b.m.RLock()
-	defer b.m.RUnlock()
 	for i := start; i < b.length; i++ {
 		if b.Test(i) {
 			return i, true
@@ -102,8 +92,6 @@ func (b *Bitfield) FirstSet(start uint32) (uint32, bool) {
 
 // FirstClear returns the index of the first bit that is not set starting from start.
 func (b *Bitfield) FirstClear(start uint32) (uint32, bool) {
-	b.m.RUnlock()
-	defer b.m.RUnlock()
 	for i := start; i < b.length; i++ {
 		if !b.Test(i) {
 			return i, true
@@ -114,18 +102,14 @@ func (b *Bitfield) FirstClear(start uint32) (uint32, bool) {
 
 // ClearAll clears all bits.
 func (b *Bitfield) ClearAll() {
-	b.m.Lock()
 	for i := range b.bytes {
 		b.bytes[i] = 0
 	}
-	b.m.Unlock()
 }
 
 // Test bit i. 0 is the most significant bit. Panics if i >= b.Len().
 func (b *Bitfield) Test(i uint32) bool {
 	b.checkIndex(i)
-	b.m.RLock()
-	defer b.m.RUnlock()
 	div, mod := divMod32(i, 8)
 	return (b.bytes[div] & (1 << (7 - mod))) > 0
 }
@@ -152,11 +136,9 @@ var countCache = [256]byte{
 // Count returns the count of set bits.
 func (b *Bitfield) Count() uint32 {
 	var total uint32
-	b.m.RLock()
 	for _, v := range b.bytes {
 		total += uint32(countCache[v])
 	}
-	b.m.RUnlock()
 	return total
 }
 
