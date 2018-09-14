@@ -21,7 +21,6 @@ const MaxAllowedBlockSize = 32 * 1024
 type Peer struct {
 	conn          net.Conn
 	id            [20]byte
-	bitfield      *bitfield.Bitfield
 	messages      *Messages
 	FastExtension bool
 	log           logger.Logger
