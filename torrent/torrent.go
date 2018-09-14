@@ -13,7 +13,6 @@ import (
 	"github.com/cenkalti/rain/internal/peerlist"
 	"github.com/cenkalti/rain/internal/peermanager"
 	"github.com/cenkalti/rain/internal/torrentdata"
-	"github.com/cenkalti/rain/internal/uploader"
 	"github.com/cenkalti/rain/internal/worker"
 )
 
@@ -115,10 +114,6 @@ func (t *Torrent) Start() {
 	// request missing pieces from peers
 	do := downloader.New(t.metainfo.Info, t.data, pm.PeerMessages(), t.errC, t.log)
 	t.workers.StartWithOnFinishHandler(do, func() { t.Stop() })
-
-	// send requested blocks
-	up := uploader.New()
-	t.workers.Start(up)
 }
 
 // Stop downloading and uploading, disconnect all peers and close peer port.
