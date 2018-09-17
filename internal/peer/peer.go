@@ -5,12 +5,16 @@ import (
 
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/internal/peer/peerprotocol"
 )
 
 type Peer struct {
 	conn          net.Conn
 	id            [20]byte
 	messages      *Messages
+	queueC        chan peerprotocol.Message
+	writeQueue    []peerprotocol.Message
+	writeC        chan peerprotocol.Message
 	FastExtension bool
 	log           logger.Logger
 }
@@ -20,6 +24,9 @@ func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, l logger.Log
 		conn:          conn,
 		id:            id,
 		messages:      messages,
+		queueC:        make(chan peerprotocol.Message),
+		writeQueue:    make([]peerprotocol.Message, 0),
+		writeC:        make(chan peerprotocol.Message),
 		FastExtension: extensions.Test(61),
 		log:           l,
 	}
@@ -65,11 +72,18 @@ func (p *Peer) Run(stopC chan struct{}) {
 		close(readerDone)
 	}()
 
-	go p.writer(stopC)
+	writerDone := make(chan struct{})
+	go func() {
+		p.writer(stopC)
+		close(writerDone)
+	}()
 
 	select {
 	case <-stopC:
 		p.conn.Close()
 	case <-readerDone:
+		<-writerDone
+	case <-writerDone:
+		<-readerDone
 	}
 }

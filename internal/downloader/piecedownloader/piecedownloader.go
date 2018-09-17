@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/cenkalti/rain/internal/peer"
+	"github.com/cenkalti/rain/internal/peer/peerprotocol"
 	"github.com/cenkalti/rain/internal/piece"
 )
 
@@ -22,6 +23,7 @@ type PieceDownloader struct {
 	UnchokeC chan struct{}
 	DoneC    chan []byte
 	ErrC     chan error
+	closeC   chan struct{}
 }
 
 type block struct {
@@ -46,7 +48,12 @@ func New(pi *piece.Piece, pe *peer.Peer) *PieceDownloader {
 		UnchokeC: make(chan struct{}),
 		DoneC:    make(chan []byte, 1),
 		ErrC:     make(chan error, 1),
+		closeC:   make(chan struct{}),
 	}
+}
+
+func (d *PieceDownloader) Close() {
+	close(d.closeC)
 }
 
 func (d *PieceDownloader) Run(stopC chan struct{}) {
@@ -58,11 +65,8 @@ func (d *PieceDownloader) Run(stopC chan struct{}) {
 				d.limiter = nil
 				break
 			}
-			err := d.Peer.SendRequest(d.Piece.Index, b.Begin, b.Length)
-			if err != nil {
-				d.ErrC <- err
-				return
-			}
+			msg := peerprotocol.RequestMessage{Index: d.Piece.Index, Begin: b.Begin, Length: b.Length}
+			d.Peer.SendMessage(msg, stopC)
 		case p := <-d.PieceC:
 			b := &d.blocks[p.Block.Index]
 			if b.requested && b.data == nil && d.limiter != nil {
@@ -91,6 +95,8 @@ func (d *PieceDownloader) Run(stopC chan struct{}) {
 		case <-d.UnchokeC:
 			d.limiter = make(chan struct{}, maxQueuedBlocks)
 		case <-stopC:
+			return
+		case <-d.closeC:
 			return
 		}
 	}

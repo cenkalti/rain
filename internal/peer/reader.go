@@ -145,21 +145,20 @@ func (p *Peer) reader(stopC chan struct{}) {
 				return
 			}
 		case peerprotocol.Piece:
-			var msg peerprotocol.PieceMessage
-			err = binary.Read(p.conn, binary.BigEndian, &msg)
+			buf := make([]byte, length)
+			_, err = io.ReadFull(p.conn, buf)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
-			length -= 8
-
-			data := make([]byte, length)
-			if _, err = io.ReadFull(p.conn, data); err != nil {
+			msg := peerprotocol.PieceMessage{Length: length - 8}
+			err = msg.UnmarshalBinary(buf)
+			if err != nil {
 				p.log.Error(err)
 				return
 			}
 			select {
-			case p.messages.Piece <- Piece{p, msg, data}:
+			case p.messages.Piece <- Piece{p, msg, msg.Data}:
 			case <-stopC:
 				return
 			}

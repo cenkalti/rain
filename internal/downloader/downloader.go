@@ -6,21 +6,23 @@ import (
 	"time"
 
 	"github.com/cenkalti/rain/internal/bitfield"
-	"github.com/cenkalti/rain/internal/downloader/peerwriter"
 	"github.com/cenkalti/rain/internal/downloader/piecedownloader"
+	"github.com/cenkalti/rain/internal/downloader/piecereader"
 	"github.com/cenkalti/rain/internal/downloader/piecewriter"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/peer"
-	"github.com/cenkalti/rain/internal/piece"
+	"github.com/cenkalti/rain/internal/peer/peerprotocol"
 	"github.com/cenkalti/rain/internal/semaphore"
 	"github.com/cenkalti/rain/internal/torrentdata"
 	"github.com/cenkalti/rain/internal/worker"
 )
 
-const parallelPieceDownloads = 4
-
-const parallelPieceWrites = 4
+const (
+	parallelPieceDownloads = 4
+	parallelPieceWrites    = 4
+	parallelPieceReads     = 4
+)
 
 type Downloader struct {
 	info                   *metainfo.Info
@@ -33,6 +35,8 @@ type Downloader struct {
 	downloadDone           chan *piecedownloader.PieceDownloader
 	writeRequests          chan piecewriter.Request
 	writeResponses         chan piecewriter.Response
+	readRequests           chan piecereader.Request
+	readResponses          chan piecereader.Response
 	optimisticUnchokedPeer *Peer
 	errC                   chan error
 	log                    logger.Logger
@@ -62,8 +66,11 @@ func New(info *metainfo.Info, d *torrentdata.Data, m *peer.Messages, errC chan e
 		downloadDone:   make(chan *piecedownloader.PieceDownloader),
 		writeRequests:  make(chan piecewriter.Request, 1),
 		writeResponses: make(chan piecewriter.Response),
-		errC:           errC,
-		log:            l,
+		// TODO queue read requests
+		readRequests:  make(chan piecereader.Request, 1),
+		readResponses: make(chan piecereader.Response),
+		errC:          errC,
+		log:           l,
 	}
 }
 
@@ -71,6 +78,10 @@ func (d *Downloader) Run(stopC chan struct{}) {
 	defer d.workers.Stop()
 	for i := 0; i < parallelPieceWrites; i++ {
 		w := piecewriter.New(d.writeRequests, d.writeResponses, d.log)
+		d.workers.Start(w)
+	}
+	for i := 0; i < parallelPieceReads; i++ {
+		w := piecereader.New(d.readRequests, d.readResponses, d.log)
 		d.workers.Start(w)
 	}
 	downloaders := semaphore.New(parallelPieceDownloads)
@@ -90,6 +101,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			d.log.Debugln("downloading piece", pd.Piece.Index, "from", pd.Peer.String())
 			d.downloads[pd.Peer] = pd
 			d.pieces[pd.Piece.Index].requestedPeers[pd.Peer] = pd
+			d.connectedPeers[pd.Peer].downloader = pd
 			d.workers.StartWithOnFinishHandler(pd, func() {
 				select {
 				case d.downloadDone <- pd:
@@ -98,6 +110,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				}
 			})
 		case pd := <-d.downloadDone:
+			d.connectedPeers[pd.Peer].downloader = nil
 			delete(d.downloads, pd.Peer)
 			delete(d.pieces[pd.Piece.Index].requestedPeers, pd.Peer)
 			downloaders.Signal(1)
@@ -129,9 +142,13 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			d.data.CheckCompletion()
 			// Tell everyone that we have this piece
 			for _, pe := range d.connectedPeers {
-				go pe.SendHave(resp.Request.Piece.Index)
-				d.updateInterestedState(pe)
+				msg := peerprotocol.HaveMessage{Index: resp.Request.Piece.Index}
+				pe.SendMessage(msg, stopC)
+				d.updateInterestedState(pe, stopC)
 			}
+		case resp := <-d.readResponses:
+			msg := peerprotocol.PieceMessage{Index: resp.Index, Begin: resp.Begin, Data: resp.Data}
+			resp.Peer.SendMessage(msg, stopC)
 		case msg := <-d.messages.Have:
 			// Save have messages for processesing later received while we don't have info yet.
 			if d.info == nil {
@@ -149,7 +166,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			downloaders.Signal(1)
 			d.pieces[pi.Index].havingPeers[msg.Peer] = d.connectedPeers[msg.Peer]
 			pe := d.connectedPeers[msg.Peer]
-			d.updateInterestedState(pe)
+			d.updateInterestedState(pe, stopC)
 		case msg := <-d.messages.Bitfield:
 			// Save bitfield messages while we don't have info yet.
 			if d.info == nil {
@@ -172,7 +189,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			}
 			downloaders.Signal(bf.Count())
 			pe := d.connectedPeers[msg.Peer]
-			d.updateInterestedState(pe)
+			d.updateInterestedState(pe, stopC)
 		case pe := <-d.messages.HaveAll:
 			if d.info == nil {
 				pe := d.connectedPeers[pe]
@@ -184,7 +201,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			}
 			downloaders.Signal(uint32(len(d.pieces)))
 			p := d.connectedPeers[pe]
-			d.updateInterestedState(p)
+			d.updateInterestedState(p, stopC)
 		case msg := <-d.messages.AllowedFast:
 			if d.info == nil {
 				pe := d.connectedPeers[msg.Peer]
@@ -210,6 +227,12 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			if pd, ok := d.downloads[pe]; ok {
 				pd.ChokeC <- struct{}{}
 			}
+		case pe := <-d.messages.Interested:
+			// TODO handle intereseted messages
+			_ = pe
+		case pe := <-d.messages.NotInterested:
+			// TODO handle not intereseted messages
+			_ = pe
 		case msg := <-d.messages.Piece:
 			if msg.Index >= uint32(len(d.data.Pieces)) {
 				msg.Peer.Logger().Errorln("invalid piece index:", msg.Index)
@@ -254,11 +277,12 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			if pe, ok := d.connectedPeers[msg.Peer]; ok {
 				if pe.amChoking {
 					if msg.Peer.FastExtension {
-						d.rejectPiece(pe, msg)
+						m := peerprotocol.RejectMessage{RequestMessage: msg.RequestMessage}
+						pe.SendMessage(m, stopC)
 					}
 				} else {
 					select {
-					case pe.writer.RequestC <- peerwriter.Request{Piece: pi, Request: msg}:
+					case d.readRequests <- piecereader.Request{Peer: msg.Peer, Piece: pi, Begin: msg.Begin, Length: msg.Length}:
 					case <-stopC:
 						return
 					}
@@ -311,7 +335,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				if i == 3 {
 					break
 				}
-				d.unchokePeer(pe)
+				d.unchokePeer(pe, stopC)
 				unchokedPeers[pe] = struct{}{}
 			}
 			for _, pe := range d.connectedPeers {
@@ -332,21 +356,37 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			}
 			pe := peers[rand.Intn(len(peers))]
 			pe.optimisticUnhoked = true
-			d.unchokePeer(pe)
+			d.unchokePeer(pe, stopC)
 			d.optimisticUnchokedPeer = pe
 		case p := <-d.messages.Connect:
-			pe := NewPeer(p, d.data.Bitfield().Copy())
-			d.workers.Start(pe)
+			pe := NewPeer(p)
 			d.connectedPeers[p] = pe
-			if len(d.connectedPeers) <= 4 {
-				d.unchokePeer(pe)
+			bf := d.data.Bitfield()
+			if p.FastExtension && bf != nil && bf.All() {
+				msg := peerprotocol.HaveAllMessage{}
+				p.SendMessage(msg, stopC)
+			} else if p.FastExtension && bf != nil && bf.Count() == 0 {
+				msg := peerprotocol.HaveNoneMessage{}
+				p.SendMessage(msg, stopC)
+			} else if bf != nil {
+				bitfieldData := make([]byte, len(bf.Bytes()))
+				copy(bitfieldData, bf.Bytes())
+				msg := peerprotocol.BitfieldMessage{Data: bitfieldData}
+				p.SendMessage(msg, stopC)
 			}
-		case pe := <-d.messages.Disconnect:
-			delete(d.connectedPeers, pe)
+			if len(d.connectedPeers) <= 4 {
+				d.unchokePeer(pe, stopC)
+			}
+		case p := <-d.messages.Disconnect:
+			pe := d.connectedPeers[p]
+			if pe.downloader != nil {
+				pe.downloader.Close()
+			}
+			delete(d.connectedPeers, p)
 			for i := range d.pieces {
-				delete(d.pieces[i].havingPeers, pe)
-				delete(d.pieces[i].allowedFastPeers, pe)
-				delete(d.pieces[i].requestedPeers, pe)
+				delete(d.pieces[i].havingPeers, p)
+				delete(d.pieces[i].allowedFastPeers, p)
+				delete(d.pieces[i].requestedPeers, p)
 			}
 		case <-stopC:
 			return
@@ -395,7 +435,7 @@ func (d *Downloader) nextDownload() *piecedownloader.PieceDownloader {
 	return nil
 }
 
-func (d *Downloader) updateInterestedState(pe *Peer) {
+func (d *Downloader) updateInterestedState(pe *Peer, stopC chan struct{}) {
 	interested := false
 	for i := uint32(0); i < d.data.Bitfield().Len(); i++ {
 		weHave := d.data.Bitfield().Test(i)
@@ -407,12 +447,14 @@ func (d *Downloader) updateInterestedState(pe *Peer) {
 	}
 	if !pe.amInterested && interested {
 		pe.amInterested = true
-		go pe.Peer.SendInterested()
+		msg := peerprotocol.InterestedMessage{}
+		pe.Peer.SendMessage(msg, stopC)
 		return
 	}
 	if pe.amInterested && !interested {
 		pe.amInterested = false
-		go pe.Peer.SendNotInterested()
+		msg := peerprotocol.NotInterestedMessage{}
+		pe.Peer.SendMessage(msg, stopC)
 		return
 	}
 }
@@ -420,31 +462,15 @@ func (d *Downloader) updateInterestedState(pe *Peer) {
 func (d *Downloader) chokePeer(pe *Peer, stopC chan struct{}) {
 	if !pe.amChoking {
 		pe.amChoking = true
-		select {
-		case pe.writer.ChokeC <- struct{}{}:
-		case <-stopC:
-			return
-		}
+		msg := peerprotocol.ChokeMessage{}
+		pe.SendMessage(msg, stopC)
 	}
 }
 
-func (d *Downloader) unchokePeer(pe *Peer) {
+func (d *Downloader) unchokePeer(pe *Peer, stopC chan struct{}) {
 	if pe.amChoking {
 		pe.amChoking = false
-		go pe.Peer.SendUnchoke()
+		msg := peerprotocol.UnchokeMessage{}
+		pe.SendMessage(msg, stopC)
 	}
-}
-
-func (d *Downloader) sendPiece(pe *Peer, msg peer.Request, pi *piece.Piece) {
-	buf := make([]byte, msg.Length)
-	err := pi.Data.ReadAt(buf, int64(msg.Begin))
-	if err != nil {
-		// TODO handle cannot read piece data for uploading
-		return
-	}
-	msg.Peer.SendPiece(msg.Index, msg.Begin, buf)
-}
-
-func (d *Downloader) rejectPiece(pe *Peer, msg peer.Request) {
-	go msg.Peer.SendReject(msg.Index, msg.Begin, msg.Length)
 }

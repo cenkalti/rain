@@ -1,21 +1,20 @@
 package downloader
 
 import (
-	"github.com/cenkalti/rain/internal/bitfield"
-	"github.com/cenkalti/rain/internal/downloader/peerwriter"
+	"github.com/cenkalti/rain/internal/downloader/piecedownloader"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peer/peerprotocol"
 )
 
 type Peer struct {
 	*peer.Peer
+	downloader                   *piecedownloader.PieceDownloader
 	amChoking                    bool
 	amInterested                 bool
 	peerChoking                  bool
 	peerInterested               bool
 	bytesDownlaodedInChokePeriod int64
 	optimisticUnhoked            bool
-	writer                       *peerwriter.PeerWriter
 
 	// TODO process saved messages after getting info.
 	// Save space for some messages that is received while info does not exist.
@@ -25,17 +24,12 @@ type Peer struct {
 	allowedFastMessages []peerprotocol.HaveMessage
 }
 
-func NewPeer(p *peer.Peer, bf *bitfield.Bitfield) *Peer {
+func NewPeer(p *peer.Peer) *Peer {
 	return &Peer{
 		Peer:        p,
 		amChoking:   true,
 		peerChoking: true,
-		writer:      peerwriter.New(p, bf),
 	}
-}
-
-func (p *Peer) Run(stopC chan struct{}) {
-	p.writer.Run(stopC)
 }
 
 type ByDownloadRate []*Peer
