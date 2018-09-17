@@ -1,6 +1,7 @@
 package downloader
 
 import (
+	"github.com/cenkalti/rain/internal/downloader/infodownloader"
 	"github.com/cenkalti/rain/internal/downloader/piecedownloader"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peer/peerprotocol"
@@ -8,7 +9,10 @@ import (
 
 type Peer struct {
 	*peer.Peer
-	downloader                   *piecedownloader.PieceDownloader
+
+	downloader     *piecedownloader.PieceDownloader
+	infoDownloader *infodownloader.InfoDownloader
+
 	amChoking                    bool
 	amInterested                 bool
 	peerChoking                  bool

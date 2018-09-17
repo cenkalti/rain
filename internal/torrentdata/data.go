@@ -1,7 +1,7 @@
 package torrentdata
 
 import (
-	"crypto/sha1"
+	"crypto/sha1" // nolint: gosec
 	"os"
 	"sync"
 
@@ -18,11 +18,11 @@ type Data struct {
 	bitfield      *bitfield.Bitfield // keeps track of the pieces we have
 	checkHash     bool
 	pieceLength   uint32
-	Completed     chan struct{}
+	completeC     chan struct{}
 	onceCompleted sync.Once // for closing completed channel only once
 }
 
-func New(info *metainfo.Info, dest string) (*Data, error) {
+func New(info *metainfo.Info, dest string, completeC chan struct{}) (*Data, error) {
 	files, checkHash, err := prepareFiles(info, dest)
 	if err != nil {
 		return nil, err
@@ -34,7 +34,7 @@ func New(info *metainfo.Info, dest string) (*Data, error) {
 		bitfield:    bitfield.New(uint32(len(pieces))),
 		checkHash:   checkHash,
 		pieceLength: info.PieceLength,
-		Completed:   make(chan struct{}),
+		completeC:   completeC,
 	}, nil
 }
 
@@ -58,7 +58,7 @@ func (d *Data) Verify() error {
 		return nil
 	}
 	buf := make([]byte, d.pieceLength)
-	hash := sha1.New()
+	hash := sha1.New() // nolint: gosec
 	for _, p := range d.Pieces {
 		err := p.Data.ReadFull(buf)
 		if err != nil {
@@ -75,7 +75,7 @@ func (d *Data) Verify() error {
 func (d *Data) CheckCompletion() {
 	if d.Bitfield().All() {
 		d.onceCompleted.Do(func() {
-			close(d.Completed)
+			close(d.completeC)
 		})
 	}
 }

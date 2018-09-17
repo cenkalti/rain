@@ -12,7 +12,6 @@ import (
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/peerlist"
 	"github.com/cenkalti/rain/internal/peermanager"
-	"github.com/cenkalti/rain/internal/torrentdata"
 	"github.com/cenkalti/rain/internal/worker"
 )
 
@@ -26,17 +25,17 @@ var (
 
 // Torrent connect to peers and downloads files from swarm.
 type Torrent struct {
-	peerID   [20]byte           // unique id per torrent
-	metainfo *metainfo.MetaInfo // parsed torrent file
-	data     *torrentdata.Data  // provides access to files on disk
-	dest     string             // path of files on disk
-	port     int                // listen for peer connections
-	running  bool               // true after Start() is called
-	closed   bool               // true after Close() is called
-	m        sync.Mutex         // protects running and closed state
-	errC     chan error         // downlaoder sends critical error to this channel
-	workers  worker.Workers
-	log      logger.Logger
+	peerID    [20]byte           // unique id per torrent
+	metainfo  *metainfo.MetaInfo // parsed torrent file
+	dest      string             // path of files on disk
+	port      int                // listen for peer connections
+	running   bool               // true after Start() is called
+	closed    bool               // true after Close() is called
+	m         sync.Mutex         // protects running and closed state
+	errC      chan error         // downloader sends critical error to this channel
+	completeC chan struct{}      // downloader closes this channel when all pieces are downloaded
+	workers   worker.Workers
+	log       logger.Logger
 }
 
 // New returns a new torrent by reading a metainfo file.
@@ -64,18 +63,9 @@ func New(r io.Reader, dest string, port int) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
-	data, err := torrentdata.New(m.Info, dest)
-	if err != nil {
-		return nil, err
-	}
-	err = data.Verify()
-	if err != nil {
-		return nil, err
-	}
 	return &Torrent{
 		peerID:   peerID,
 		metainfo: m,
-		data:     data,
 		dest:     dest,
 		port:     port,
 		log:      logger.New("download " + logName),
@@ -98,13 +88,14 @@ func (t *Torrent) Start() {
 	}
 
 	t.errC = make(chan error, 1)
+	t.completeC = make(chan struct{})
 
 	// keep list of peer addresses to connect
 	pl := peerlist.New()
 	t.workers.Start(pl)
 
 	// get peers from tracker
-	an := announcer.New(t.metainfo.Announce, t, t.data.Completed, pl, t.log)
+	an := announcer.New(t.metainfo.Announce, t, t.completeC, pl, t.log) // TODO send completed channel
 	t.workers.Start(an)
 
 	// manage peer connections
@@ -112,7 +103,7 @@ func (t *Torrent) Start() {
 	t.workers.Start(pm)
 
 	// request missing pieces from peers
-	do := downloader.New(t.metainfo.Info, t.data, pm.PeerMessages(), t.errC, t.log)
+	do := downloader.New(t.metainfo.Info.Hash, t.dest, t.metainfo.Info, pm.PeerMessages(), t.completeC, t.errC, t.log)
 	t.workers.StartWithOnFinishHandler(do, func() { t.Stop() })
 }
 
@@ -139,7 +130,7 @@ func (t *Torrent) Close() error {
 	if t.running {
 		t.Stop()
 	}
-	return t.data.Close()
+	return nil
 }
 
 // Port returns the port number that the client is listening.
@@ -149,16 +140,18 @@ func (t *Torrent) Port() int {
 
 // BytesCompleted returns the number of bytes downlaoded and passed hash check.
 func (t *Torrent) BytesCompleted() int64 {
-	bf := t.data.Bitfield()
-	sum := int64(bf.Count() * t.metainfo.Info.PieceLength)
+	return 0
+	// TODO implement
+	// bf := t.data.Bitfield()
+	// sum := int64(bf.Count() * t.metainfo.Info.PieceLength)
 
-	// Last piece usually not in full size.
-	lastPiece := len(t.data.Pieces) - 1
-	if bf.Test(uint32(lastPiece)) {
-		sum -= int64(t.metainfo.Info.PieceLength)
-		sum += int64(t.data.Pieces[lastPiece].Length)
-	}
-	return sum
+	// // Last piece usually not in full size.
+	// lastPiece := len(t.data.Pieces) - 1
+	// if bf.Test(uint32(lastPiece)) {
+	// 	sum -= int64(t.metainfo.Info.PieceLength)
+	// 	sum += int64(t.data.Pieces[lastPiece].Length)
+	// }
+	// return sum
 }
 
 // PeerID is unique per torrent.
@@ -168,7 +161,7 @@ func (t *Torrent) PeerID() [20]byte { return t.peerID }
 func (t *Torrent) InfoHash() [20]byte { return t.metainfo.Info.Hash }
 
 // NotifyComplete returns a channel that is closed once all pieces are downloaded successfully.
-func (t *Torrent) NotifyComplete() <-chan struct{} { return t.data.Completed }
+func (t *Torrent) NotifyComplete() <-chan struct{} { return t.completeC }
 
 // NotifyError returns a new channel for waiting download errors.
 //
