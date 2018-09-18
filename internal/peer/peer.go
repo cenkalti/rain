@@ -59,13 +59,6 @@ func (p *Peer) Run(stopC chan struct{}) {
 		return
 	}
 
-	defer func() {
-		select {
-		case p.messages.Disconnect <- p:
-		case <-stopC:
-		}
-	}()
-
 	readerDone := make(chan struct{})
 	go func() {
 		p.reader(stopC)
@@ -81,9 +74,18 @@ func (p *Peer) Run(stopC chan struct{}) {
 	select {
 	case <-stopC:
 		p.conn.Close()
+		<-readerDone
+		<-writerDone
 	case <-readerDone:
+		p.conn.Close()
 		<-writerDone
 	case <-writerDone:
+		p.conn.Close()
 		<-readerDone
+	}
+
+	select {
+	case p.messages.Disconnect <- p:
+	case <-stopC:
 	}
 }
