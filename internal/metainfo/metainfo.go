@@ -2,7 +2,7 @@
 package metainfo
 
 import (
-	"crypto/sha1"
+	"crypto/sha1" // nolint: gosec
 	"errors"
 	"io"
 
@@ -38,6 +38,7 @@ type Info struct {
 	TotalLength int64    `bencode:"-" json:"-"`
 	NumPieces   uint32   `bencode:"-" json:"-"`
 	MultiFile   bool     `bencode:"-" json:"-"`
+	InfoSize    uint32   `bencode:"-" json:"-"`
 }
 
 type FileDict struct {
@@ -66,8 +67,8 @@ func NewInfo(b []byte) (*Info, error) {
 	if err := bencode.DecodeBytes(b, &i); err != nil {
 		return nil, err
 	}
-	hash := sha1.New()
-	hash.Write(b) // nolint: gosec
+	hash := sha1.New() // nolint: gosec
+	hash.Write(b)      // nolint: gosec
 	copy(i.Hash[:], hash.Sum(nil))
 	i.NumPieces = uint32(len(i.Pieces)) / sha1.Size
 	i.MultiFile = len(i.Files) != 0
@@ -84,6 +85,7 @@ func NewInfo(b []byte) (*Info, error) {
 		end := begin + sha1.Size
 		i.PieceHashes[idx] = i.Pieces[begin:end]
 	}
+	i.InfoSize = uint32(len(b))
 	return &i, nil
 }
 

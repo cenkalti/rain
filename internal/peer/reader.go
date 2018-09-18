@@ -199,6 +199,25 @@ func (p *Peer) reader(stopC chan struct{}) {
 				return
 			}
 		// case peerprotocol.Cancel: TODO handle cancel messages
+		// TODO handle extension messages
+		case peerprotocol.Extension:
+			buf := make([]byte, length)
+			_, err = io.ReadFull(p.conn, buf)
+			if err != nil {
+				p.log.Error(err)
+				return
+			}
+			msg := peerprotocol.NewExtensionMessage(length - 1)
+			err = msg.UnmarshalBinary(buf)
+			if err != nil {
+				p.log.Error(err)
+				return
+			}
+			select {
+			case p.messages.Extension <- Extension{p, msg.Payload}:
+			case <-stopC:
+				return
+			}
 		default:
 			p.log.Debugf("unhandled message type: %s", id)
 			p.log.Debugln("Discarding", length, "bytes...")

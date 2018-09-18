@@ -400,6 +400,21 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			pe.optimisticUnhoked = true
 			d.unchokePeer(pe, stopC)
 			d.optimisticUnchokedPeer = pe
+		case msg := <-d.messages.Extension:
+			// TODO handle extension message
+			switch extMsg := msg.ExtensionMessage.(type) {
+			case *peerprotocol.ExtensionHandshakeMessage:
+				d.log.Debugln("extension handshake successful", extMsg)
+				// TODO handle extension reply
+				// TODO update peer struct
+				// case Metadata:
+				// 	//  TODO
+				// 	switch msg2.ID {
+				// 	case Request:
+				// 	case Data:
+				// 	case Reject:
+				// 	}
+			}
 		case p := <-d.messages.Connect:
 			pe := NewPeer(p)
 			d.connectedPeers[p] = pe
@@ -416,6 +431,16 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				msg := peerprotocol.BitfieldMessage{Data: bitfieldData}
 				p.SendMessage(msg, stopC)
 			}
+			// TODO send extension handshake message
+			extHandshakeMsg := peerprotocol.NewExtensionHandshake()
+			if d.info != nil {
+				extHandshakeMsg.MetadataSize = d.info.InfoSize
+			}
+			msg := peerprotocol.ExtensionMessage{
+				ExtendedMessageID: peerprotocol.ExtensionHandshakeID,
+				Payload:           extHandshakeMsg,
+			}
+			p.SendMessage(msg, stopC)
 			if len(d.connectedPeers) <= 4 {
 				d.unchokePeer(pe, stopC)
 			}

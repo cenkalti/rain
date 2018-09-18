@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/cenkalti/rain/internal/peer"
-	"github.com/cenkalti/rain/internal/peer/peerprotocol"
+	// "github.com/cenkalti/rain/internal/peer/peerprotocol"
 	"github.com/cenkalti/rain/internal/piece"
 )
 
@@ -65,18 +65,18 @@ func (d *InfoDownloader) Run(stopC chan struct{}) {
 				d.limiter = nil
 				break
 			}
-			msg := peerprotocol.RequestMessage{Index: d.Piece.Index, Begin: b.Begin, Length: b.Length}
-			d.Peer.SendMessage(msg, stopC)
-		case _ = <-d.PieceC:
-			b := &d.blocks[0]
-			if b.requested && b.data == nil && d.limiter != nil {
-				<-d.limiter
-			}
-			// b.data = p.Data
-			if d.allDone() {
-				d.DoneC <- d.assembleBlocks().Bytes()
-				return
-			}
+			// msg := peerprotocol.ExtensionMessage{Request{}}
+			// d.Peer.SendMessage(msg, stopC)
+		// case _ = <-d.DataC:
+		// b := &d.blocks[0]
+		// if b.requested && b.data == nil && d.limiter != nil {
+		// 	<-d.limiter
+		// }
+		// // b.data = p.Data
+		// if d.allDone() {
+		// 	d.DoneC <- d.assembleBlocks().Bytes()
+		// 	return
+		// }
 		case blk := <-d.RejectC:
 			b := d.blocks[blk.Index]
 			if !b.requested {
@@ -85,15 +85,6 @@ func (d *InfoDownloader) Run(stopC chan struct{}) {
 				return
 			}
 			d.blocks[blk.Index].requested = false
-		case <-d.ChokeC:
-			for i := range d.blocks {
-				if d.blocks[i].data == nil && d.blocks[i].requested {
-					d.blocks[i].requested = false
-				}
-			}
-			d.limiter = nil
-		case <-d.UnchokeC:
-			d.limiter = make(chan struct{}, maxQueuedBlocks)
 		case <-stopC:
 			return
 		case <-d.closeC:

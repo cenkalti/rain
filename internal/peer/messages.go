@@ -18,6 +18,7 @@ type Messages struct {
 	Request       chan Request
 	Reject        chan Request
 	Piece         chan Piece
+	Extension     chan Extension
 	// TODO handle cancel message
 	// Cancel        chan Cancel
 }
@@ -37,6 +38,7 @@ func NewMessages() *Messages {
 		Request:       make(chan Request),
 		Reject:        make(chan Request),
 		Piece:         make(chan Piece),
+		Extension:     make(chan Extension),
 		// TODO handle cancel message
 		// Cancel:        make(chan Cancel),
 	}
@@ -61,4 +63,9 @@ type Piece struct {
 	Peer *Peer
 	peerprotocol.PieceMessage
 	Data []byte
+}
+
+type Extension struct {
+	Peer             *Peer
+	ExtensionMessage interface{}
 }
