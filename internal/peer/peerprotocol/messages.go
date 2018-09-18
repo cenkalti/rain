@@ -154,7 +154,15 @@ func (m *ExtensionMessage) UnmarshalBinary(data []byte) error {
 	default:
 		return fmt.Errorf("peer sent invalid extension message id: %d", m.ExtendedMessageID)
 	}
-	return bencode.NewDecoder(bytes.NewReader(payload)).Decode(m.Payload)
+	dec := bencode.NewDecoder(bytes.NewReader(payload))
+	err = dec.Decode(m.Payload)
+	if err != nil {
+		return err
+	}
+	if mm, ok := m.Payload.(*ExtensionMetadataMessage); ok {
+		mm.Data = payload[dec.BytesParsed():]
+	}
+	return nil
 }
 
 type ExtensionHandshakeMessage struct {
@@ -166,12 +174,21 @@ type ExtensionMetadataMessage struct {
 	Type      uint32 `bencode:"msg_type"`
 	Piece     uint32 `bencode:"piece"`
 	TotalSize uint32 `bencode:"total_size"`
+	Data      []byte `bencode:"-"`
 }
 
 func NewExtensionHandshake() ExtensionHandshakeMessage {
 	return ExtensionHandshakeMessage{
 		M: map[string]uint8{
-			"LT_metadata": ExtensionMetadataID,
+			ExtensionMetadataKey: ExtensionMetadataID,
 		},
 	}
 }
+
+const (
+	ExtensionMetadataMessageTypeRequest = iota
+	ExtensionMetadataMessageTypeData
+	ExtensionMetadataMessageTypeReject
+)
+
+const ExtensionMetadataKey = "LT_metadata"

@@ -407,22 +407,34 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				d.log.Debugln("extension handshake received", extMsg)
 				pe := d.connectedPeers[msg.Peer]
 				pe.extensionHandshake = extMsg
-				// case Metadata:
-				// 	//  TODO
-				// 	switch msg2.ID {
-				// 	case Request:
-				// 	case Data:
-				// 	case Reject:
-				// 	}
+			case *peerprotocol.ExtensionMetadataMessage:
+				switch extMsg.Type {
+				case peerprotocol.ExtensionMetadataMessageTypeData:
+					id, ok := d.infoDownloads[msg.Peer]
+					if !ok {
+						msg.Peer.Logger().Warningln("received unexpected metadata piece:", extMsg.Piece)
+						break
+					}
+					select {
+					case id.DataC <- infodownloader.Data{Index: extMsg.Piece, Data: extMsg.Data}:
+					case <-stopC:
+						return
+					}
+				case peerprotocol.ExtensionMetadataMessageTypeReject:
+					// TODO handle metadata piece reject
+				}
 			}
 		case p := <-d.messages.Connect:
 			pe := NewPeer(p)
 			d.connectedPeers[p] = pe
-			bf := d.data.Bitfield()
+			var bf *bitfield.Bitfield
+			if d.info != nil {
+				bf = d.data.Bitfield()
+			}
 			if p.FastExtension && bf != nil && bf.All() {
 				msg := peerprotocol.HaveAllMessage{}
 				p.SendMessage(msg, stopC)
-			} else if p.FastExtension && bf != nil && bf.Count() == 0 {
+			} else if p.FastExtension && (bf == nil || bf != nil && bf.Count() == 0) {
 				msg := peerprotocol.HaveNoneMessage{}
 				p.SendMessage(msg, stopC)
 			} else if bf != nil {
@@ -488,7 +500,16 @@ func (d *Downloader) processInfo() error {
 }
 
 func (d *Downloader) nextInfoDownload() *infodownloader.InfoDownloader {
-	// TODO implement
+	for _, pe := range d.connectedPeers {
+		if pe.infoDownloader != nil {
+			continue
+		}
+		extID, ok := pe.extensionHandshake.M[peerprotocol.ExtensionMetadataKey]
+		if !ok {
+			continue
+		}
+		return infodownloader.New(pe.Peer, extID, pe.extensionHandshake.MetadataSize)
+	}
 	return nil
 }
 

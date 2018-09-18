@@ -9,6 +9,7 @@ import (
 	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/downloader"
 	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/internal/magnet"
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/peerlist"
 	"github.com/cenkalti/rain/internal/peermanager"
@@ -25,15 +26,17 @@ var (
 
 // Torrent connect to peers and downloads files from swarm.
 type Torrent struct {
-	peerID    [20]byte           // unique id per torrent
-	metainfo  *metainfo.MetaInfo // parsed torrent file
-	dest      string             // path of files on disk
-	port      int                // listen for peer connections
-	running   bool               // true after Start() is called
-	closed    bool               // true after Close() is called
-	m         sync.Mutex         // protects running and closed state
-	errC      chan error         // downloader sends critical error to this channel
-	completeC chan struct{}      // downloader closes this channel when all pieces are downloaded
+	peerID    [20]byte // unique id per torrent
+	infoHash  [20]byte
+	announce  string
+	info      *metainfo.Info
+	dest      string        // path of files on disk
+	port      int           // listen for peer connections
+	running   bool          // true after Start() is called
+	closed    bool          // true after Close() is called
+	m         sync.Mutex    // protects running and closed state
+	errC      chan error    // downloader sends critical error to this channel
+	completeC chan struct{} // downloader closes this channel when all pieces are downloaded
 	workers   worker.Workers
 	log       logger.Logger
 }
@@ -65,7 +68,37 @@ func New(r io.Reader, dest string, port int) (*Torrent, error) {
 	}
 	return &Torrent{
 		peerID:   peerID,
-		metainfo: m,
+		infoHash: m.Info.Hash,
+		announce: m.Announce,
+		info:     m.Info,
+		dest:     dest,
+		port:     port,
+		log:      logger.New("download " + logName),
+	}, nil
+}
+
+func NewMagnet(magnetLink string, dest string, port int) (*Torrent, error) {
+	if port <= 0 {
+		return nil, errors.New("invalid port number")
+	}
+	m, err := magnet.New(magnetLink)
+	if err != nil {
+		return nil, err
+	}
+	logName := m.Name
+	if len(logName) > 8 {
+		logName = logName[:8]
+	}
+	var peerID [20]byte
+	copy(peerID[:], peerIDPrefix)
+	_, err = rand.Read(peerID[len(peerIDPrefix):]) // nolint: gosec
+	if err != nil {
+		return nil, err
+	}
+	return &Torrent{
+		peerID:   peerID,
+		infoHash: m.InfoHash,
+		announce: m.Trackers[0],
 		dest:     dest,
 		port:     port,
 		log:      logger.New("download " + logName),
@@ -95,15 +128,15 @@ func (t *Torrent) Start() {
 	t.workers.Start(pl)
 
 	// get peers from tracker
-	an := announcer.New(t.metainfo.Announce, t, t.completeC, pl, t.log) // TODO send completed channel
+	an := announcer.New(t.announce, t, t.completeC, pl, t.log) // TODO send completed channel
 	t.workers.Start(an)
 
 	// manage peer connections
-	pm := peermanager.New(t.port, pl, t.peerID, t.metainfo.Info.Hash, t.log)
+	pm := peermanager.New(t.port, pl, t.peerID, t.infoHash, t.log)
 	t.workers.Start(pm)
 
 	// request missing pieces from peers
-	do := downloader.New(t.metainfo.Info.Hash, t.dest, t.metainfo.Info, pm.PeerMessages(), t.completeC, t.errC, t.log)
+	do := downloader.New(t.infoHash, t.dest, t.info, pm.PeerMessages(), t.completeC, t.errC, t.log)
 	t.workers.StartWithOnFinishHandler(do, func() { t.Stop() })
 }
 
@@ -158,7 +191,7 @@ func (t *Torrent) BytesCompleted() int64 {
 func (t *Torrent) PeerID() [20]byte { return t.peerID }
 
 // InfoHash identifies the torrent file that is being downloaded.
-func (t *Torrent) InfoHash() [20]byte { return t.metainfo.Info.Hash }
+func (t *Torrent) InfoHash() [20]byte { return t.infoHash }
 
 // NotifyComplete returns a channel that is closed once all pieces are downloaded successfully.
 func (t *Torrent) NotifyComplete() <-chan struct{} { return t.completeC }
@@ -180,4 +213,10 @@ func (t *Torrent) BytesUploaded() int64 { return 0 } // TODO count uploaded byte
 func (t *Torrent) BytesLeft() int64 { return t.BytesTotal() - t.BytesCompleted() }
 
 // BytesTotal is the number of total bytes of files in torrent.
-func (t *Torrent) BytesTotal() int64 { return t.metainfo.Info.TotalLength }
+func (t *Torrent) BytesTotal() int64 {
+	// TODO get from downloader
+	if t.info == nil {
+		return 1
+	}
+	return t.info.Length
+}
