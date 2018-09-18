@@ -74,33 +74,6 @@ func New(infoHash [20]byte, dest string, info *metainfo.Info, m *peer.Messages, 
 	}
 }
 
-func (d *Downloader) processInfo() error {
-	var err error
-	d.data, err = torrentdata.New(d.info, d.dest, d.completeC)
-	if err != nil {
-		return err
-	}
-	// TODO defer data.Close()
-	err = d.data.Verify()
-	if err != nil {
-		return err
-	}
-	pieces := make([]Piece, len(d.data.Pieces))
-	sortedPieces := make([]*Piece, len(d.data.Pieces))
-	for i := range d.data.Pieces {
-		pieces[i] = Piece{
-			Piece:            &d.data.Pieces[i],
-			havingPeers:      make(map[*peer.Peer]*Peer),
-			allowedFastPeers: make(map[*peer.Peer]*Peer),
-			requestedPeers:   make(map[*peer.Peer]*piecedownloader.PieceDownloader),
-		}
-		sortedPieces[i] = &pieces[i]
-	}
-	d.pieces = pieces
-	d.sortedPieces = sortedPieces
-	return nil
-}
-
 func (d *Downloader) Run(stopC chan struct{}) {
 	defer d.workers.Stop()
 	for i := 0; i < parallelPieceWrites; i++ {
@@ -193,6 +166,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				}
 			})
 		case pd := <-d.downloadDoneC:
+			d.log.Debugln("piece download completed. index:", pd.Piece.Index)
 			d.connectedPeers[pd.Peer].downloader = nil
 			delete(d.downloads, pd.Peer)
 			delete(d.pieces[pd.Piece.Index].requestedPeers, pd.Peer)
@@ -212,6 +186,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				}
 			case err := <-pd.ErrC:
 				d.log.Errorln("could not download piece:", err)
+				// TODO handle piece download error
 			case <-stopC:
 				return
 			}
@@ -224,6 +199,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			d.data.Bitfield().Set(resp.Request.Piece.Index)
 			d.data.CheckCompletion()
 			// Tell everyone that we have this piece
+			// TODO skip peers already having that piece
 			for _, pe := range d.connectedPeers {
 				msg := peerprotocol.HaveMessage{Index: resp.Request.Piece.Index}
 				pe.SendMessage(msg, stopC)
@@ -475,6 +451,33 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			return
 		}
 	}
+}
+
+func (d *Downloader) processInfo() error {
+	var err error
+	d.data, err = torrentdata.New(d.info, d.dest, d.completeC)
+	if err != nil {
+		return err
+	}
+	// TODO defer data.Close()
+	err = d.data.Verify()
+	if err != nil {
+		return err
+	}
+	pieces := make([]Piece, len(d.data.Pieces))
+	sortedPieces := make([]*Piece, len(d.data.Pieces))
+	for i := range d.data.Pieces {
+		pieces[i] = Piece{
+			Piece:            &d.data.Pieces[i],
+			havingPeers:      make(map[*peer.Peer]*Peer),
+			allowedFastPeers: make(map[*peer.Peer]*Peer),
+			requestedPeers:   make(map[*peer.Peer]*piecedownloader.PieceDownloader),
+		}
+		sortedPieces[i] = &pieces[i]
+	}
+	d.pieces = pieces
+	d.sortedPieces = sortedPieces
+	return nil
 }
 
 func (d *Downloader) nextInfoDownload() *infodownloader.InfoDownloader {
