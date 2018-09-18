@@ -7,6 +7,13 @@ import (
 	"github.com/cenkalti/rain/internal/peer/peerprotocol"
 )
 
+func (p *Peer) SendMessage(msg peerprotocol.Message, stopC chan struct{}) {
+	select {
+	case p.queueC <- msg:
+	case <-stopC:
+	}
+}
+
 func (p *Peer) writer(stopC chan struct{}) {
 	go p.messageWriter(stopC)
 	for {
@@ -72,12 +79,5 @@ func (p *Peer) messageWriter(stopC chan struct{}) {
 		case <-stopC:
 			return
 		}
-	}
-}
-
-func (p *Peer) SendMessage(msg peerprotocol.Message, stopC chan struct{}) {
-	select {
-	case p.queueC <- msg:
-	case <-stopC:
 	}
 }
