@@ -404,9 +404,9 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			// TODO handle extension message
 			switch extMsg := msg.ExtensionMessage.(type) {
 			case *peerprotocol.ExtensionHandshakeMessage:
-				d.log.Debugln("extension handshake successful", extMsg)
-				// TODO handle extension reply
-				// TODO update peer struct
+				d.log.Debugln("extension handshake received", extMsg)
+				pe := d.connectedPeers[msg.Peer]
+				pe.extensionHandshake = extMsg
 				// case Metadata:
 				// 	//  TODO
 				// 	switch msg2.ID {
@@ -431,7 +431,6 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				msg := peerprotocol.BitfieldMessage{Data: bitfieldData}
 				p.SendMessage(msg, stopC)
 			}
-			// TODO send extension handshake message
 			extHandshakeMsg := peerprotocol.NewExtensionHandshake()
 			if d.info != nil {
 				extHandshakeMsg.MetadataSize = d.info.InfoSize

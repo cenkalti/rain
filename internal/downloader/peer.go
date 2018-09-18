@@ -26,6 +26,8 @@ type Peer struct {
 	bitfieldMessage     []byte
 	haveAllMessage      bool
 	allowedFastMessages []peerprotocol.HaveMessage
+
+	extensionHandshake *peerprotocol.ExtensionHandshakeMessage
 }
 
 func NewPeer(p *peer.Peer) *Peer {
