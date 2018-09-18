@@ -6,16 +6,16 @@ import (
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/peer/peerprotocol"
+	"github.com/cenkalti/rain/internal/peer/peerwriter"
+	"github.com/cenkalti/rain/internal/piece"
 )
 
 type Peer struct {
 	conn          net.Conn
 	id            [20]byte
-	messages      *Messages
-	queueC        chan peerprotocol.Message
-	writeQueue    []peerprotocol.Message
-	writeC        chan peerprotocol.Message
 	FastExtension bool
+	messages      *Messages
+	writer        *peerwriter.PeerWriter
 	log           logger.Logger
 }
 
@@ -23,11 +23,9 @@ func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, l logger.Log
 	return &Peer{
 		conn:          conn,
 		id:            id,
-		messages:      messages,
-		queueC:        make(chan peerprotocol.Message),
-		writeQueue:    make([]peerprotocol.Message, 0),
-		writeC:        make(chan peerprotocol.Message),
 		FastExtension: extensions.Test(61),
+		messages:      messages,
+		writer:        peerwriter.New(conn, l),
 		log:           l,
 	}
 }
@@ -46,6 +44,14 @@ func (p *Peer) Close() {
 
 func (p *Peer) Logger() logger.Logger {
 	return p.log
+}
+
+func (p *Peer) SendMessage(msg peerprotocol.Message, stopC chan struct{}) {
+	p.writer.SendMessage(msg, stopC)
+}
+
+func (p *Peer) SendPiece(msg peerprotocol.RequestMessage, pi *piece.Piece, stopC chan struct{}) {
+	p.writer.SendPiece(msg, pi, stopC)
 }
 
 // Run reads and processes incoming messages after handshake.
@@ -67,7 +73,7 @@ func (p *Peer) Run(stopC chan struct{}) {
 
 	writerDone := make(chan struct{})
 	go func() {
-		p.writer(stopC)
+		p.writer.Run(stopC)
 		close(writerDone)
 	}()
 

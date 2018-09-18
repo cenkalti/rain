@@ -10,7 +10,6 @@ import (
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/downloader/infodownloader"
 	"github.com/cenkalti/rain/internal/downloader/piecedownloader"
-	"github.com/cenkalti/rain/internal/downloader/piecereader"
 	"github.com/cenkalti/rain/internal/downloader/piecewriter"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/metainfo"
@@ -43,8 +42,6 @@ type Downloader struct {
 	infoDownloadDoneC      chan *infodownloader.InfoDownloader
 	writeRequestC          chan piecewriter.Request
 	writeResponseC         chan piecewriter.Response
-	readRequestC           chan piecereader.Request
-	readResponseC          chan piecereader.Response
 	optimisticUnchokedPeer *Peer
 	completeC              chan struct{}
 	errC                   chan error
@@ -65,12 +62,9 @@ func New(infoHash [20]byte, dest string, info *metainfo.Info, m *peer.Messages, 
 		infoDownloadDoneC: make(chan *infodownloader.InfoDownloader),
 		writeRequestC:     make(chan piecewriter.Request, 1),
 		writeResponseC:    make(chan piecewriter.Response),
-		// TODO queue read requests
-		readRequestC:  make(chan piecereader.Request, 1),
-		readResponseC: make(chan piecereader.Response),
-		completeC:     completeC,
-		errC:          errC,
-		log:           l,
+		completeC:         completeC,
+		errC:              errC,
+		log:               l,
 	}
 }
 
@@ -78,10 +72,6 @@ func (d *Downloader) Run(stopC chan struct{}) {
 	defer d.workers.Stop()
 	for i := 0; i < parallelPieceWrites; i++ {
 		w := piecewriter.New(d.writeRequestC, d.writeResponseC, d.log)
-		d.workers.Start(w)
-	}
-	for i := 0; i < parallelPieceReads; i++ {
-		w := piecereader.New(d.readRequestC, d.readResponseC, d.log)
 		d.workers.Start(w)
 	}
 	unchokeTimer := time.NewTicker(10 * time.Second)
@@ -205,9 +195,6 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				pe.SendMessage(msg, stopC)
 				d.updateInterestedState(pe, stopC)
 			}
-		case resp := <-d.readResponseC:
-			msg := peerprotocol.PieceMessage{Index: resp.Index, Begin: resp.Begin, Data: resp.Data}
-			resp.Peer.SendMessage(msg, stopC)
 		case msg := <-d.messages.Have:
 			// Save have messages for processesing later received while we don't have info yet.
 			if d.info == nil {
@@ -340,11 +327,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 						pe.SendMessage(m, stopC)
 					}
 				} else {
-					select {
-					case d.readRequestC <- piecereader.Request{Peer: msg.Peer, Piece: pi, Begin: msg.Begin, Length: msg.Length}:
-					case <-stopC:
-						return
-					}
+					msg.Peer.SendPiece(msg.RequestMessage, pi, stopC)
 				}
 			}
 		case msg := <-d.messages.Reject:

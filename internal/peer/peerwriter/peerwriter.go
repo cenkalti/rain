@@ -1,20 +1,49 @@
-package peer
+package peerwriter
 
 import (
 	"bytes"
 	"encoding/binary"
+	"net"
 
+	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/peer/peerprotocol"
+	"github.com/cenkalti/rain/internal/piece"
 )
 
-func (p *Peer) SendMessage(msg peerprotocol.Message, stopC chan struct{}) {
+type PeerWriter struct {
+	conn       net.Conn
+	queueC     chan peerprotocol.Message
+	writeQueue []peerprotocol.Message
+	writeC     chan peerprotocol.Message
+	log        logger.Logger
+}
+
+func New(conn net.Conn, l logger.Logger) *PeerWriter {
+	return &PeerWriter{
+		conn:       conn,
+		queueC:     make(chan peerprotocol.Message),
+		writeQueue: make([]peerprotocol.Message, 0),
+		writeC:     make(chan peerprotocol.Message),
+		log:        l,
+	}
+}
+
+func (p *PeerWriter) SendMessage(msg peerprotocol.Message, stopC chan struct{}) {
 	select {
 	case p.queueC <- msg:
 	case <-stopC:
 	}
 }
 
-func (p *Peer) writer(stopC chan struct{}) {
+func (p *PeerWriter) SendPiece(msg peerprotocol.RequestMessage, pi *piece.Piece, stopC chan struct{}) {
+	m := Piece{Piece: pi, Begin: msg.Begin, Length: msg.Length}
+	select {
+	case p.queueC <- m:
+	case <-stopC:
+	}
+}
+
+func (p *PeerWriter) Run(stopC chan struct{}) {
 	go p.messageWriter(stopC)
 	for {
 		if len(p.writeQueue) == 0 {
@@ -49,7 +78,7 @@ func (p *Peer) writer(stopC chan struct{}) {
 	}
 }
 
-func (p *Peer) messageWriter(stopC chan struct{}) {
+func (p *PeerWriter) messageWriter(stopC chan struct{}) {
 	for {
 		select {
 		case msg := <-p.writeC:
@@ -76,6 +105,7 @@ func (p *Peer) messageWriter(stopC chan struct{}) {
 				p.conn.Close()
 				return
 			}
+		// case msg := <-p.reqeustC:
 		case <-stopC:
 			return
 		}
