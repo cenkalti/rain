@@ -39,12 +39,12 @@ type Downloader struct {
 	connectedPeers         map[*peer.Peer]*Peer
 	downloads              map[*peer.Peer]*piecedownloader.PieceDownloader
 	infoDownloads          map[*peer.Peer]*infodownloader.InfoDownloader
-	downloadDone           chan *piecedownloader.PieceDownloader
-	infoDownloadDone       chan *infodownloader.InfoDownloader
-	writeRequests          chan piecewriter.Request
-	writeResponses         chan piecewriter.Response
-	readRequests           chan piecereader.Request
-	readResponses          chan piecereader.Response
+	downloadDoneC          chan *piecedownloader.PieceDownloader
+	infoDownloadDoneC      chan *infodownloader.InfoDownloader
+	writeRequestC          chan piecewriter.Request
+	writeResponseC         chan piecewriter.Response
+	readRequestC           chan piecereader.Request
+	readResponseC          chan piecereader.Response
 	optimisticUnchokedPeer *Peer
 	completeC              chan struct{}
 	errC                   chan error
@@ -54,20 +54,20 @@ type Downloader struct {
 
 func New(infoHash [20]byte, dest string, info *metainfo.Info, m *peer.Messages, completeC chan struct{}, errC chan error, l logger.Logger) *Downloader {
 	return &Downloader{
-		infoHash:         infoHash,
-		dest:             dest,
-		info:             info,
-		messages:         m,
-		connectedPeers:   make(map[*peer.Peer]*Peer),
-		downloads:        make(map[*peer.Peer]*piecedownloader.PieceDownloader),
-		infoDownloads:    make(map[*peer.Peer]*infodownloader.InfoDownloader),
-		downloadDone:     make(chan *piecedownloader.PieceDownloader),
-		infoDownloadDone: make(chan *infodownloader.InfoDownloader),
-		writeRequests:    make(chan piecewriter.Request, 1),
-		writeResponses:   make(chan piecewriter.Response),
+		infoHash:          infoHash,
+		dest:              dest,
+		info:              info,
+		messages:          m,
+		connectedPeers:    make(map[*peer.Peer]*Peer),
+		downloads:         make(map[*peer.Peer]*piecedownloader.PieceDownloader),
+		infoDownloads:     make(map[*peer.Peer]*infodownloader.InfoDownloader),
+		downloadDoneC:     make(chan *piecedownloader.PieceDownloader),
+		infoDownloadDoneC: make(chan *infodownloader.InfoDownloader),
+		writeRequestC:     make(chan piecewriter.Request, 1),
+		writeResponseC:    make(chan piecewriter.Response),
 		// TODO queue read requests
-		readRequests:  make(chan piecereader.Request, 1),
-		readResponses: make(chan piecereader.Response),
+		readRequestC:  make(chan piecereader.Request, 1),
+		readResponseC: make(chan piecereader.Response),
 		completeC:     completeC,
 		errC:          errC,
 		log:           l,
@@ -104,11 +104,11 @@ func (d *Downloader) processInfo() error {
 func (d *Downloader) Run(stopC chan struct{}) {
 	defer d.workers.Stop()
 	for i := 0; i < parallelPieceWrites; i++ {
-		w := piecewriter.New(d.writeRequests, d.writeResponses, d.log)
+		w := piecewriter.New(d.writeRequestC, d.writeResponseC, d.log)
 		d.workers.Start(w)
 	}
 	for i := 0; i < parallelPieceReads; i++ {
-		w := piecereader.New(d.readRequests, d.readResponses, d.log)
+		w := piecereader.New(d.readRequestC, d.readResponseC, d.log)
 		d.workers.Start(w)
 	}
 	unchokeTimer := time.NewTicker(10 * time.Second)
@@ -116,10 +116,10 @@ func (d *Downloader) Run(stopC chan struct{}) {
 	optimisticUnchokeTimer := time.NewTicker(30 * time.Second)
 	defer optimisticUnchokeTimer.Stop()
 
-	downloaders := semaphore.New(parallelPieceDownloads)
+	pieceDownloaders := semaphore.New(parallelPieceDownloads)
 	infoDownloaders := semaphore.New(parallelInfoDownloads)
 	if d.info == nil {
-		downloaders.Block()
+		pieceDownloaders.Block()
 	} else {
 		infoDownloaders.Block()
 		err := d.processInfo()
@@ -142,12 +142,12 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			d.connectedPeers[id.Peer].infoDownloader = id
 			d.workers.StartWithOnFinishHandler(id, func() {
 				select {
-				case d.infoDownloadDone <- id:
+				case d.infoDownloadDoneC <- id:
 				case <-stopC:
 					return
 				}
 			})
-		case id := <-d.infoDownloadDone:
+		case id := <-d.infoDownloadDoneC:
 			d.connectedPeers[id.Peer].infoDownloader = nil
 			delete(d.infoDownloads, id.Peer)
 			select {
@@ -171,14 +171,14 @@ func (d *Downloader) Run(stopC chan struct{}) {
 					return
 				}
 				infoDownloaders.Block()
-				downloaders.Signal(parallelPieceDownloads)
+				pieceDownloaders.Signal(parallelPieceDownloads)
 			}
 		// 	// TODO handle error
-		case <-downloaders.Wait:
+		case <-pieceDownloaders.Wait:
 			// TODO check status of existing downloads
 			pd := d.nextDownload()
 			if pd == nil {
-				downloaders.Block()
+				pieceDownloaders.Block()
 				continue
 			}
 			d.log.Debugln("downloading piece", pd.Piece.Index, "from", pd.Peer.String())
@@ -187,16 +187,16 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			d.connectedPeers[pd.Peer].downloader = pd
 			d.workers.StartWithOnFinishHandler(pd, func() {
 				select {
-				case d.downloadDone <- pd:
+				case d.downloadDoneC <- pd:
 				case <-stopC:
 					return
 				}
 			})
-		case pd := <-d.downloadDone:
+		case pd := <-d.downloadDoneC:
 			d.connectedPeers[pd.Peer].downloader = nil
 			delete(d.downloads, pd.Peer)
 			delete(d.pieces[pd.Piece.Index].requestedPeers, pd.Peer)
-			downloaders.Signal(1)
+			pieceDownloaders.Signal(1)
 			select {
 			case buf := <-pd.DoneC:
 				ok := d.pieces[pd.Piece.Index].Piece.Verify(buf)
@@ -205,7 +205,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 					continue
 				}
 				select {
-				case d.writeRequests <- piecewriter.Request{Piece: pd.Piece, Data: buf}:
+				case d.writeRequestC <- piecewriter.Request{Piece: pd.Piece, Data: buf}:
 					d.pieces[pd.Piece.Index].writing = true
 				case <-stopC:
 					return
@@ -215,7 +215,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			case <-stopC:
 				return
 			}
-		case resp := <-d.writeResponses:
+		case resp := <-d.writeResponseC:
 			d.pieces[resp.Request.Piece.Index].writing = false
 			if resp.Error != nil {
 				d.errC <- resp.Error
@@ -229,7 +229,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				pe.SendMessage(msg, stopC)
 				d.updateInterestedState(pe, stopC)
 			}
-		case resp := <-d.readResponses:
+		case resp := <-d.readResponseC:
 			msg := peerprotocol.PieceMessage{Index: resp.Index, Begin: resp.Begin, Data: resp.Data}
 			resp.Peer.SendMessage(msg, stopC)
 		case msg := <-d.messages.Have:
@@ -246,7 +246,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			}
 			pi := &d.data.Pieces[msg.Index]
 			msg.Peer.Logger().Debug("Peer ", msg.Peer.String(), " has piece #", pi.Index)
-			downloaders.Signal(1)
+			pieceDownloaders.Signal(1)
 			d.pieces[pi.Index].havingPeers[msg.Peer] = d.connectedPeers[msg.Peer]
 			pe := d.connectedPeers[msg.Peer]
 			d.updateInterestedState(pe, stopC)
@@ -270,7 +270,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 					d.pieces[i].havingPeers[msg.Peer] = d.connectedPeers[msg.Peer]
 				}
 			}
-			downloaders.Signal(bf.Count())
+			pieceDownloaders.Signal(bf.Count())
 			pe := d.connectedPeers[msg.Peer]
 			d.updateInterestedState(pe, stopC)
 		case pe := <-d.messages.HaveAll:
@@ -282,7 +282,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			for i := range d.pieces {
 				d.pieces[i].havingPeers[pe] = d.connectedPeers[pe]
 			}
-			downloaders.Signal(uint32(len(d.pieces)))
+			pieceDownloaders.Signal(uint32(len(d.pieces)))
 			p := d.connectedPeers[pe]
 			d.updateInterestedState(p, stopC)
 		case msg := <-d.messages.AllowedFast:
@@ -300,7 +300,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			msg.Peer.Logger().Debug("Peer ", msg.Peer.String(), " has allowed fast for piece #", pi.Index)
 			d.pieces[msg.Index].allowedFastPeers[msg.Peer] = d.connectedPeers[msg.Peer]
 		case pe := <-d.messages.Unchoke:
-			downloaders.Signal(1)
+			pieceDownloaders.Signal(1)
 			d.connectedPeers[pe].peerChoking = false
 			if pd, ok := d.downloads[pe]; ok {
 				pd.UnchokeC <- struct{}{}
@@ -365,7 +365,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 					}
 				} else {
 					select {
-					case d.readRequests <- piecereader.Request{Peer: msg.Peer, Piece: pi, Begin: msg.Begin, Length: msg.Length}:
+					case d.readRequestC <- piecereader.Request{Peer: msg.Peer, Piece: pi, Begin: msg.Begin, Length: msg.Length}:
 					case <-stopC:
 						return
 					}
