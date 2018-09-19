@@ -130,7 +130,13 @@ func (m ExtensionMessage) MarshalBinary() ([]byte, error) {
 	var buf bytes.Buffer
 	buf.WriteByte(m.ExtendedMessageID)
 	err := bencode.NewEncoder(&buf).Encode(m.Payload)
-	return buf.Bytes(), err
+	if err != nil {
+		return nil, err
+	}
+	if mm, ok := m.Payload.(*ExtensionMetadataMessage); ok {
+		buf.Write(mm.Data)
+	}
+	return buf.Bytes(), nil
 }
 
 func (m *ExtensionMessage) UnmarshalBinary(data []byte) error {

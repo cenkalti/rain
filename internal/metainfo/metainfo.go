@@ -39,6 +39,7 @@ type Info struct {
 	NumPieces   uint32   `bencode:"-" json:"-"`
 	MultiFile   bool     `bencode:"-" json:"-"`
 	InfoSize    uint32   `bencode:"-" json:"-"`
+	Bytes       []byte   `bencode:"-" json:"-"`
 }
 
 type FileDict struct {
@@ -86,6 +87,7 @@ func NewInfo(b []byte) (*Info, error) {
 		i.PieceHashes[idx] = i.Pieces[begin:end]
 	}
 	i.InfoSize = uint32(len(b))
+	i.Bytes = b
 	return &i, nil
 }
 

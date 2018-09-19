@@ -2,9 +2,11 @@ package infodownloader
 
 import (
 	"bytes"
+	"log"
 
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peer/peerprotocol"
+	"github.com/cenkalti/rain/internal/semaphore"
 )
 
 const blockSize = 16 * 1024
@@ -17,7 +19,7 @@ type InfoDownloader struct {
 	totalSize uint32
 	Peer      *peer.Peer
 	blocks    []block
-	limiter   chan struct{}
+	semaphore *semaphore.Semaphore
 	DataC     chan Data
 	// RejectC chan *piece.Block
 	DoneC  chan []byte
@@ -32,25 +34,34 @@ type Data struct {
 
 type block struct {
 	index     uint32
+	size      uint32
 	requested bool
 	data      []byte
 }
 
 func New(pe *peer.Peer, extID uint8, totalSize uint32) *InfoDownloader {
 	numBlocks := totalSize / blockSize
-	if totalSize > (numBlocks * blockSize) {
+	mod := totalSize % blockSize
+	if mod != 0 {
 		numBlocks++
 	}
+	log.Println("num blocks", numBlocks)
 	blocks := make([]block, numBlocks)
 	for i := range blocks {
-		blocks[i] = block{index: uint32(i)}
+		blocks[i] = block{
+			index: uint32(i),
+			size:  blockSize,
+		}
+	}
+	if mod != 0 && len(blocks) > 0 {
+		blocks[len(blocks)-1].size = mod
 	}
 	return &InfoDownloader{
 		extID:     extID,
 		totalSize: totalSize,
 		Peer:      pe,
 		blocks:    blocks,
-		limiter:   make(chan struct{}, maxQueuedBlocks),
+		semaphore: semaphore.New(maxQueuedBlocks),
 		DataC:     make(chan Data),
 		// RejectC: make(chan *piece.Block),
 		DoneC:  make(chan []byte, 1),
@@ -66,10 +77,11 @@ func (d *InfoDownloader) Close() {
 func (d *InfoDownloader) Run(stopC chan struct{}) {
 	for {
 		select {
-		case d.limiter <- struct{}{}:
+		case <-d.semaphore.Wait:
 			b := d.nextBlock()
+			log.Println("chosed block", b)
 			if b == nil {
-				d.limiter = nil
+				d.semaphore.Block()
 				break
 			}
 			msg := peerprotocol.ExtensionMessage{
@@ -79,11 +91,23 @@ func (d *InfoDownloader) Run(stopC chan struct{}) {
 					Piece: b.index,
 				},
 			}
+			log.Println("sending info request", b.index)
 			d.Peer.SendMessage(msg, stopC)
+			log.Println("info request sent", b.index)
 		case msg := <-d.DataC:
+			if msg.Index >= uint32(len(d.blocks)) {
+				d.Peer.Logger().Errorln("peer sent invalid index for metadata message:", msg.Index)
+				d.Peer.Close()
+				break
+			}
 			b := &d.blocks[msg.Index]
-			if b.requested && b.data == nil && d.limiter != nil {
-				<-d.limiter
+			if uint32(len(msg.Data)) != b.size {
+				d.Peer.Logger().Errorln("peer sent invalid size for metadata message", len(msg.Data))
+				d.Peer.Close()
+				break
+			}
+			if b.requested && b.data == nil {
+				d.semaphore.Signal(1)
 			}
 			b.data = msg.Data
 			if d.allDone() {
