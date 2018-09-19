@@ -67,6 +67,12 @@
   revision = "d522839ac797fc43269dae6a04a1f8be475a915d"
 
 [[projects]]
+  name = "go.etcd.io/bbolt"
+  packages = ["."]
+  revision = "583e8937c61f1af6513608ccc75c97b6abdf4ff9"
+  version = "v1.3.0"
+
+[[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
@@ -90,6 +96,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b29ada99522c43086615bbc909772ac86eace0a98a34ce6a4b2fbf0b5e77bb4a"
+  inputs-digest = "a5ff83b9683fed2e954b8be63091e431ac5f427d727f4a1c850fbf70b6629ed6"
   solver-name = "gps-cdcl"
   solver-version = 1
