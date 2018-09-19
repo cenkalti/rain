@@ -36,7 +36,7 @@ type Downloader struct {
 	pieces                 []Piece
 	sortedPieces           []*Piece
 	connectedPeers         map[*peer.Peer]*Peer
-	downloads              map[*peer.Peer]*piecedownloader.PieceDownloader
+	pieceDownloads         map[*peer.Peer]*piecedownloader.PieceDownloader
 	infoDownloads          map[*peer.Peer]*infodownloader.InfoDownloader
 	downloadDoneC          chan *piecedownloader.PieceDownloader
 	infoDownloadDoneC      chan *infodownloader.InfoDownloader
@@ -56,7 +56,7 @@ func New(infoHash [20]byte, dest string, info *metainfo.Info, m *peer.Messages, 
 		info:              info,
 		messages:          m,
 		connectedPeers:    make(map[*peer.Peer]*Peer),
-		downloads:         make(map[*peer.Peer]*piecedownloader.PieceDownloader),
+		pieceDownloads:    make(map[*peer.Peer]*piecedownloader.PieceDownloader),
 		infoDownloads:     make(map[*peer.Peer]*infodownloader.InfoDownloader),
 		downloadDoneC:     make(chan *piecedownloader.PieceDownloader),
 		infoDownloadDoneC: make(chan *infodownloader.InfoDownloader),
@@ -158,7 +158,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				break
 			}
 			d.log.Debugln("downloading piece", pd.Piece.Index, "from", pd.Peer.String())
-			d.downloads[pd.Peer] = pd
+			d.pieceDownloads[pd.Peer] = pd
 			d.pieces[pd.Piece.Index].requestedPeers[pd.Peer] = pd
 			d.connectedPeers[pd.Peer].downloader = pd
 			d.workers.StartWithOnFinishHandler(pd, func() {
@@ -171,7 +171,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 		case pd := <-d.downloadDoneC:
 			d.log.Debugln("piece download completed. index:", pd.Piece.Index)
 			d.connectedPeers[pd.Peer].downloader = nil
-			delete(d.downloads, pd.Peer)
+			delete(d.pieceDownloads, pd.Peer)
 			delete(d.pieces[pd.Piece.Index].requestedPeers, pd.Peer)
 			pieceDownloaders.Signal(1)
 			select {
@@ -278,12 +278,12 @@ func (d *Downloader) Run(stopC chan struct{}) {
 		case pe := <-d.messages.Unchoke:
 			pieceDownloaders.Signal(1)
 			d.connectedPeers[pe].peerChoking = false
-			if pd, ok := d.downloads[pe]; ok {
+			if pd, ok := d.pieceDownloads[pe]; ok {
 				pd.UnchokeC <- struct{}{}
 			}
 		case pe := <-d.messages.Choke:
 			d.connectedPeers[pe].peerChoking = true
-			if pd, ok := d.downloads[pe]; ok {
+			if pd, ok := d.pieceDownloads[pe]; ok {
 				pd.ChokeC <- struct{}{}
 			}
 		case pe := <-d.messages.Interested:
@@ -313,7 +313,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			if pe, ok := d.connectedPeers[msg.Peer]; ok {
 				pe.bytesDownlaodedInChokePeriod += int64(len(msg.Data))
 			}
-			if pd, ok := d.downloads[msg.Peer]; ok {
+			if pd, ok := d.pieceDownloads[msg.Peer]; ok {
 				pd.PieceC <- piecedownloader.Piece{Block: block, Data: msg.Data}
 			}
 		case msg := <-d.messages.Request:
@@ -367,7 +367,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				msg.Peer.Close()
 				break
 			}
-			pd, ok := d.downloads[msg.Peer]
+			pd, ok := d.pieceDownloads[msg.Peer]
 			if !ok {
 				msg.Peer.Logger().Error("reject received but we don't have active download")
 				msg.Peer.Close()
@@ -576,7 +576,7 @@ func (d *Downloader) nextDownload() *piecedownloader.PieceDownloader {
 			if _, ok := p.allowedFastPeers[pe.Peer]; !ok {
 				continue
 			}
-			if _, ok := d.downloads[pe.Peer]; ok {
+			if _, ok := d.pieceDownloads[pe.Peer]; ok {
 				continue
 			}
 			// TODO selecting first peer having the piece, change to more smart decision
@@ -586,7 +586,7 @@ func (d *Downloader) nextDownload() *piecedownloader.PieceDownloader {
 			if pe.peerChoking {
 				continue
 			}
-			if _, ok := d.downloads[pe.Peer]; ok {
+			if _, ok := d.pieceDownloads[pe.Peer]; ok {
 				continue
 			}
 			// TODO selecting first peer having the piece, change to more smart decision
