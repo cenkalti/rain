@@ -54,6 +54,7 @@ func (d *Data) Close() error {
 }
 
 func (d *Data) Verify() error {
+	// TODO set bitfield bits according to resume data
 	if !d.checkHash {
 		return nil
 	}

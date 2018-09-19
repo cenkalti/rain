@@ -1,9 +1,9 @@
 package torrent_test
 
 import (
+	"context"
 	"io"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -13,11 +13,11 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/cenkalti/log"
+	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/internal/resume"
+	"github.com/cenkalti/rain/torrent"
 	"github.com/crosbymichael/tracker/registry/inmem"
 	"github.com/crosbymichael/tracker/server"
-
-	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/torrent"
 )
 
 var (
@@ -32,20 +32,31 @@ func init() {
 	logger.SetLogLevel(log.DEBUG)
 }
 
-func xTestDownload(t *testing.T) {
+func TestDownloadTorrent(t *testing.T) {
 	where, err := ioutil.TempDir("", "rain-")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	startTracker(t)
+	resumeFile, err := ioutil.TempFile("", "rain-test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resumePath := resumeFile.Name()
+	res, err := resume.New(resumePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Close()
+
+	defer startTracker(t)()
 
 	f, err := os.Open(torrentFile)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	t1, err := torrent.New(f, torrentDataDir, 6881)
+	t1, err := torrent.New(f, torrentDataDir, 6881, res)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +67,7 @@ func xTestDownload(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	f.Seek(0, io.SeekStart)
-	t2, err := torrent.New(f, where, 6882)
+	t2, err := torrent.New(f, where, 6882, res)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,16 +96,30 @@ func xTestDownload(t *testing.T) {
 	}
 }
 
-func startTracker(t *testing.T) {
+func startTracker(t *testing.T) (stop func()) {
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
 	registry := inmem.New()
 	s := server.New(120, 30, registry, logger)
-	l, err := net.Listen("tcp", trackerAddr)
-	if err != nil {
-		t.Fatal(err)
+	srv := http.Server{
+		Addr:    trackerAddr,
+		Handler: s,
 	}
-	go http.Serve(l, s)
+	go func() {
+		err := srv.ListenAndServe()
+		if err == http.ErrServerClosed {
+			return
+		}
+		t.Fatal(err)
+	}()
+	return func() {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		err := srv.Shutdown(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
 }
 
 func TestDownloadMagnet(t *testing.T) {
@@ -103,14 +128,25 @@ func TestDownloadMagnet(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	startTracker(t)
+	resumeFile, err := ioutil.TempFile("", "rain-test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resumePath := resumeFile.Name()
+	res, err := resume.New(resumePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Close()
+
+	defer startTracker(t)()
 
 	f, err := os.Open(torrentFile)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	t1, err := torrent.New(f, torrentDataDir, 6881)
+	t1, err := torrent.New(f, torrentDataDir, 6881, res)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +158,7 @@ func TestDownloadMagnet(t *testing.T) {
 
 	f.Seek(0, io.SeekStart)
 	magnetLink := "magnet:?xt=urn:btih:0a8e2e8c9371a91e9047ed189ceffbc460803262&dn=10mb&tr=http%3A%2F%2F127.0.0.1%3A5000%2Fannounce"
-	t2, err := torrent.NewMagnet(magnetLink, where, 6882)
+	t2, err := torrent.NewMagnet(magnetLink, where, 6882, res)
 	if err != nil {
 		t.Fatal(err)
 	}

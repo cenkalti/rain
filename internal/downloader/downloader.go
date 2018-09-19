@@ -15,6 +15,7 @@ import (
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peer/peerprotocol"
+	"github.com/cenkalti/rain/internal/resume"
 	"github.com/cenkalti/rain/internal/semaphore"
 	"github.com/cenkalti/rain/internal/torrentdata"
 	"github.com/cenkalti/rain/internal/worker"
@@ -30,6 +31,7 @@ const (
 type Downloader struct {
 	infoHash               [20]byte
 	dest                   string
+	resume                 *resume.Resume
 	info                   *metainfo.Info
 	data                   *torrentdata.Data
 	messages               *peer.Messages
@@ -49,10 +51,11 @@ type Downloader struct {
 	workers                worker.Workers
 }
 
-func New(infoHash [20]byte, dest string, info *metainfo.Info, m *peer.Messages, completeC chan struct{}, errC chan error, l logger.Logger) *Downloader {
+func New(infoHash [20]byte, dest string, res *resume.Resume, info *metainfo.Info, m *peer.Messages, completeC chan struct{}, errC chan error, l logger.Logger) *Downloader {
 	return &Downloader{
 		infoHash:          infoHash,
 		dest:              dest,
+		resume:            res,
 		info:              info,
 		messages:          m,
 		connectedPeers:    make(map[*peer.Peer]*Peer),
@@ -201,6 +204,8 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			}
 			d.data.Bitfield().Set(resp.Request.Piece.Index)
 			d.data.CheckCompletion()
+			// TODO set bitfiled in resume data
+			// d.resumeFile.bitfield[resp.Request.Piece.Index] = true
 			// Tell everyone that we have this piece
 			// TODO skip peers already having that piece
 			for _, pe := range d.connectedPeers {

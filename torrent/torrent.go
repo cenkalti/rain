@@ -2,7 +2,6 @@ package torrent
 
 import (
 	"crypto/rand"
-	"errors"
 	"io"
 	"sync"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/peerlist"
 	"github.com/cenkalti/rain/internal/peermanager"
+	"github.com/cenkalti/rain/internal/resume"
 	"github.com/cenkalti/rain/internal/worker"
 )
 
@@ -30,7 +30,8 @@ type Torrent struct {
 	infoHash  [20]byte
 	announce  string
 	info      *metainfo.Info
-	dest      string        // path of files on disk
+	dest      string // path of files on disk
+	resume    *resume.Resume
 	port      int           // listen for peer connections
 	running   bool          // true after Start() is called
 	closed    bool          // true after Close() is called
@@ -48,58 +49,40 @@ type Torrent struct {
 // Returned torrent is in stopped state.
 //
 // Close must be called before discarding the torrent.
-func New(r io.Reader, dest string, port int) (*Torrent, error) {
-	if port <= 0 {
-		return nil, errors.New("invalid port number")
-	}
+func New(r io.Reader, dest string, port int, res *resume.Resume) (*Torrent, error) {
 	m, err := metainfo.New(r)
 	if err != nil {
 		return nil, err
 	}
-	logName := m.Info.Name
-	if len(logName) > 8 {
-		logName = logName[:8]
-	}
-	var peerID [20]byte
-	copy(peerID[:], peerIDPrefix)
-	_, err = rand.Read(peerID[len(peerIDPrefix):]) // nolint: gosec
-	if err != nil {
-		return nil, err
-	}
-	return &Torrent{
-		peerID:   peerID,
-		infoHash: m.Info.Hash,
-		announce: m.Announce,
-		info:     m.Info,
-		dest:     dest,
-		port:     port,
-		log:      logger.New("download " + logName),
-	}, nil
+	return newTorrent(m.Info.Name, dest, port, m.Info.Hash, m.Info, m.Announce, res)
 }
 
-func NewMagnet(magnetLink string, dest string, port int) (*Torrent, error) {
-	if port <= 0 {
-		return nil, errors.New("invalid port number")
-	}
+func NewMagnet(magnetLink, dest string, port int, res *resume.Resume) (*Torrent, error) {
 	m, err := magnet.New(magnetLink)
 	if err != nil {
 		return nil, err
 	}
-	logName := m.Name
+	return newTorrent(m.Name, dest, port, m.InfoHash, nil, m.Trackers[0], res)
+}
+
+func newTorrent(name, dest string, port int, infoHash [20]byte, info *metainfo.Info, announce string, res *resume.Resume) (*Torrent, error) {
+	logName := name
 	if len(logName) > 8 {
 		logName = logName[:8]
 	}
 	var peerID [20]byte
 	copy(peerID[:], peerIDPrefix)
-	_, err = rand.Read(peerID[len(peerIDPrefix):]) // nolint: gosec
+	_, err := rand.Read(peerID[len(peerIDPrefix):]) // nolint: gosec
 	if err != nil {
 		return nil, err
 	}
 	return &Torrent{
 		peerID:   peerID,
-		infoHash: m.InfoHash,
-		announce: m.Trackers[0],
+		infoHash: infoHash,
+		info:     info,
+		announce: announce,
 		dest:     dest,
+		resume:   res,
 		port:     port,
 		log:      logger.New("download " + logName),
 	}, nil
@@ -136,7 +119,7 @@ func (t *Torrent) Start() {
 	t.workers.Start(pm)
 
 	// request missing pieces from peers
-	do := downloader.New(t.infoHash, t.dest, t.info, pm.PeerMessages(), t.completeC, t.errC, t.log)
+	do := downloader.New(t.infoHash, t.dest, t.resume, t.info, pm.PeerMessages(), t.completeC, t.errC, t.log)
 	t.workers.StartWithOnFinishHandler(do, func() { t.Stop() })
 }
 
@@ -214,9 +197,10 @@ func (t *Torrent) BytesLeft() int64 { return t.BytesTotal() - t.BytesCompleted()
 
 // BytesTotal is the number of total bytes of files in torrent.
 func (t *Torrent) BytesTotal() int64 {
-	// TODO get from downloader
-	if t.info == nil {
-		return 1
-	}
-	return t.info.Length
+	// // TODO get from downloader
+	return 10
+	// if t.info == nil {
+	// 	return 1
+	// }
+	// return t.info.Length
 }
