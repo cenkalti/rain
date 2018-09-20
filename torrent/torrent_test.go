@@ -38,6 +38,7 @@ func newResumeFile(t *testing.T) *torrentresume.TorrentResume {
 		t.Fatal(err)
 	}
 	resumePath := resumeFile.Name()
+	println("XXX", resumePath)
 	res, err := torrentresume.New(resumePath)
 	if err != nil {
 		t.Fatal(err)
@@ -53,6 +54,7 @@ func TestDownloadTorrent(t *testing.T) {
 	}
 
 	res1 := newResumeFile(t)
+	defer res1.Close()
 
 	defer startTracker(t)()
 
@@ -72,6 +74,7 @@ func TestDownloadTorrent(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	res2 := newResumeFile(t)
+	defer res2.Close()
 
 	f.Seek(0, io.SeekStart)
 	t2, err := torrent.New(f, where, 6882, res2)
@@ -136,6 +139,7 @@ func TestDownloadMagnet(t *testing.T) {
 	}
 
 	res1 := newResumeFile(t)
+	defer res1.Close()
 
 	defer startTracker(t)()
 
@@ -155,6 +159,7 @@ func TestDownloadMagnet(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	res2 := newResumeFile(t)
+	defer res2.Close()
 
 	f.Seek(0, io.SeekStart)
 	magnetLink := "magnet:?xt=urn:btih:0a8e2e8c9371a91e9047ed189ceffbc460803262&dn=10mb&tr=http%3A%2F%2F127.0.0.1%3A5000%2Fannounce"
