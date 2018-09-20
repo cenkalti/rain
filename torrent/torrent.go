@@ -96,9 +96,6 @@ func NewResume(res resume.ResumeInfo) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
-	var infoHash [20]byte
-	copy(infoHash[:], spec.InfoHash)
-	// TODO pass bitfield
 	return newTorrent(spec, res)
 }
 
@@ -172,7 +169,7 @@ func (t *Torrent) Start() {
 	t.workers.Start(pl)
 
 	// get peers from tracker
-	an := announcer.New(t.announce, t, t.completeC, pl, t.log) // TODO send completed channel
+	an := announcer.New(t.announce, t, t.completeC, pl, t.log)
 	t.workers.Start(an)
 
 	// manage peer connections
