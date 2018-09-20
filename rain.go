@@ -1,5 +1,3 @@
-// +build ignore
-
 package main
 
 import (
@@ -13,6 +11,7 @@ import (
 	"github.com/cenkalti/log"
 	"github.com/cenkalti/rain/client"
 	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/internal/resume"
 	"github.com/cenkalti/rain/torrent"
 	"github.com/mitchellh/go-homedir"
 )
@@ -66,7 +65,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	t, err := torrent.New(f, *dest, *port)
+	res, err := resume.New("rain.resume")
+	if err != nil {
+		log.Fatal(err)
+	}
+	t, err := torrent.New(f, *dest, *port, res)
 	if err != nil {
 		log.Fatal(err)
 	}
