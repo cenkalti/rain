@@ -1,11 +1,13 @@
-package peer
+package peerreader
 
 import (
 	"encoding/binary"
 	"io"
 	"io/ioutil"
+	"net"
 	"time"
 
+	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/peer/peerprotocol"
 )
 
@@ -14,7 +16,28 @@ const MaxAllowedBlockSize = 32 * 1024
 
 const connReadTimeout = 3 * time.Minute
 
-func (p *Peer) reader(stopC chan struct{}) {
+type PeerReader struct {
+	conn          net.Conn
+	log           logger.Logger
+	messages      chan interface{}
+	fastExtension bool
+}
+
+func New(conn net.Conn, l logger.Logger, fastExtension bool) *PeerReader {
+	return &PeerReader{
+		conn:          conn,
+		log:           l,
+		messages:      make(chan interface{}),
+		fastExtension: fastExtension,
+	}
+}
+
+func (p *PeerReader) Messages() <-chan interface{} {
+	return p.messages
+}
+
+func (p *PeerReader) Run(stopC chan struct{}) {
+	defer close(p.messages)
 	first := true
 	for {
 		err := p.conn.SetReadDeadline(time.Now().Add(connReadTimeout))
@@ -51,119 +74,88 @@ func (p *Peer) reader(stopC chan struct{}) {
 
 		p.log.Debugf("Received message of type: %q", id)
 
+		// TODO consider defining a type for peer message
+		var msg interface{}
+
 		switch id {
 		case peerprotocol.Choke:
-			select {
-			case p.messages.Choke <- p:
-			case <-stopC:
-				return
-			}
+			msg = peerprotocol.ChokeMessage{}
 		case peerprotocol.Unchoke:
-			select {
-			case p.messages.Unchoke <- p:
-			case <-stopC:
-				return
-			}
+			msg = peerprotocol.UnchokeMessage{}
 		case peerprotocol.Interested:
-			select {
-			case p.messages.Interested <- p:
-			case <-stopC:
-				return
-			}
+			msg = peerprotocol.InterestedMessage{}
 		case peerprotocol.NotInterested:
-			select {
-			case p.messages.NotInterested <- p:
-			case <-stopC:
-				return
-			}
+			msg = peerprotocol.NotInterestedMessage{}
 		case peerprotocol.Have:
-			var msg peerprotocol.HaveMessage
-			err = binary.Read(p.conn, binary.BigEndian, &msg)
+			var hm peerprotocol.HaveMessage
+			err = binary.Read(p.conn, binary.BigEndian, &hm)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
-			select {
-			case p.messages.Have <- Have{p, msg}:
-			case <-stopC:
-				return
-			}
+			msg = hm
 		case peerprotocol.Bitfield:
 			if !first {
 				p.log.Error("bitfield can only be sent after handshake")
 				return
 			}
-			b := make([]byte, length)
-			_, err = io.ReadFull(p.conn, b)
+			var bm peerprotocol.BitfieldMessage
+			bm.Data = make([]byte, length)
+			_, err = io.ReadFull(p.conn, bm.Data)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
-			select {
-			case p.messages.Bitfield <- Bitfield{p, b}:
-			case <-stopC:
-				return
-			}
+			msg = bm
 		case peerprotocol.Request:
-			var msg peerprotocol.RequestMessage
-			err = binary.Read(p.conn, binary.BigEndian, &msg)
+			var rm peerprotocol.RequestMessage
+			err = binary.Read(p.conn, binary.BigEndian, &rm)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
-			p.log.Debugf("Received Request: %+v", msg)
+			p.log.Debugf("Received Request: %+v", rm)
 
-			if msg.Length > MaxAllowedBlockSize {
+			if rm.Length > MaxAllowedBlockSize {
 				p.log.Error("received a request with block size larger than allowed")
 				return
 			}
-			select {
-			case p.messages.Request <- Request{p, msg}:
-			case <-stopC:
-				return
-			}
+			msg = rm
 		case peerprotocol.Reject:
-			if !p.FastExtension {
+			if !p.fastExtension {
 				p.log.Error("reject message received but fast extensions is not enabled")
 				return
 			}
-			var msg peerprotocol.RequestMessage
-			err = binary.Read(p.conn, binary.BigEndian, &msg)
+			var rm peerprotocol.RejectMessage
+			err = binary.Read(p.conn, binary.BigEndian, &rm)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
-			p.log.Debugf("Received Reject: %+v", msg)
+			p.log.Debugf("Received Reject: %+v", rm)
 
-			if msg.Length > MaxAllowedBlockSize {
+			if rm.Length > MaxAllowedBlockSize {
 				p.log.Error("received a reject with block size larger than allowed")
 				return
 			}
-			select {
-			case p.messages.Reject <- Request{p, msg}:
-			case <-stopC:
-				return
-			}
+			msg = rm
 		case peerprotocol.Piece:
+			// TODO send a reader as message to read directly onto the piece buffer
 			buf := make([]byte, length)
 			_, err = io.ReadFull(p.conn, buf)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
-			msg := peerprotocol.PieceMessage{Length: length - 8}
-			err = msg.UnmarshalBinary(buf)
+			pm := peerprotocol.PieceMessage{Length: length - 8}
+			err = pm.UnmarshalBinary(buf)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
-			select {
-			case p.messages.Piece <- Piece{p, msg, msg.Data}:
-			case <-stopC:
-				return
-			}
+			msg = pm
 		case peerprotocol.HaveAll:
-			if !p.FastExtension {
+			if !p.fastExtension {
 				p.log.Error("have_all message received but fast extensions is not enabled")
 				return
 			}
@@ -171,13 +163,9 @@ func (p *Peer) reader(stopC chan struct{}) {
 				p.log.Error("have_all can only be sent after handshake")
 				return
 			}
-			select {
-			case p.messages.HaveAll <- p:
-			case <-stopC:
-				return
-			}
+			msg = peerprotocol.HaveAllMessage{}
 		case peerprotocol.HaveNone:
-			if !p.FastExtension {
+			if !p.fastExtension {
 				p.log.Error("have_none message received but fast extensions is not enabled")
 				return
 			}
@@ -185,19 +173,16 @@ func (p *Peer) reader(stopC chan struct{}) {
 				p.log.Error("have_none can only be sent after handshake")
 				return
 			}
+			msg = peerprotocol.HaveNoneMessage{}
 		case peerprotocol.Suggest:
 		case peerprotocol.AllowedFast:
-			var msg peerprotocol.HaveMessage
-			err = binary.Read(p.conn, binary.BigEndian, &msg)
+			var am peerprotocol.AllowedFastMessage
+			err = binary.Read(p.conn, binary.BigEndian, &am)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
-			select {
-			case p.messages.AllowedFast <- Have{p, msg}:
-			case <-stopC:
-				return
-			}
+			msg = am
 		// case peerprotocol.Cancel: TODO handle cancel messages
 		// TODO handle extension messages
 		case peerprotocol.Extension:
@@ -207,17 +192,13 @@ func (p *Peer) reader(stopC chan struct{}) {
 				p.log.Error(err)
 				return
 			}
-			msg := peerprotocol.NewExtensionMessage(length - 1)
-			err = msg.UnmarshalBinary(buf)
+			em := peerprotocol.NewExtensionMessage(length - 1)
+			err = em.UnmarshalBinary(buf)
 			if err != nil {
 				p.log.Error(err)
 				return
 			}
-			select {
-			case p.messages.Extension <- Extension{p, msg.Payload}:
-			case <-stopC:
-				return
-			}
+			msg = em.Payload
 		default:
 			p.log.Debugf("unhandled message type: %s", id)
 			p.log.Debugln("Discarding", length, "bytes...")
@@ -228,5 +209,13 @@ func (p *Peer) reader(stopC chan struct{}) {
 			}
 		}
 		first = false
+		if msg == nil {
+			panic("msg unset")
+		}
+		select {
+		case p.messages <- msg:
+		case <-stopC:
+			return
+		}
 	}
 }

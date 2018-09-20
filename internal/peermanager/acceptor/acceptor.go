@@ -19,20 +19,20 @@ type Acceptor struct {
 	peerID   [20]byte
 	sKeyHash [20]byte
 	infoHash [20]byte
-	messages *peer.Messages
+	newPeers chan *peer.Peer
 	workers  worker.Workers
 	limiter  chan struct{}
 	log      logger.Logger
 }
 
-func New(port int, peerIDs *peerids.PeerIDs, peerID, infoHash [20]byte, messages *peer.Messages, l logger.Logger) *Acceptor {
+func New(port int, peerIDs *peerids.PeerIDs, peerID, infoHash [20]byte, newPeers chan *peer.Peer, l logger.Logger) *Acceptor {
 	return &Acceptor{
 		port:     port,
 		peerIDs:  peerIDs,
 		peerID:   peerID,
 		sKeyHash: mse.HashSKey(infoHash[:]),
 		infoHash: infoHash,
-		messages: messages,
+		newPeers: newPeers,
 		limiter:  make(chan struct{}, maxAccept),
 		log:      l,
 	}
@@ -65,7 +65,7 @@ func (a *Acceptor) Run(stopC chan struct{}) {
 		}
 		select {
 		case a.limiter <- struct{}{}:
-			h := handler.New(conn, a.peerIDs, a.peerID, a.sKeyHash, a.infoHash, a.messages, a.log)
+			h := handler.New(conn, a.peerIDs, a.peerID, a.sKeyHash, a.infoHash, a.newPeers, a.log)
 			a.workers.StartWithOnFinishHandler(h, func() { <-a.limiter })
 		case <-stopC:
 			a.workers.Stop()

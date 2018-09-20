@@ -91,6 +91,8 @@ func (m emptyMessage) MarshalBinary() ([]byte, error) {
 	return []byte{}, nil
 }
 
+type AllowedFastMessage struct{ HaveMessage }
+
 type ChokeMessage struct{ emptyMessage }
 type UnchokeMessage struct{ emptyMessage }
 type InterestedMessage struct{ emptyMessage }

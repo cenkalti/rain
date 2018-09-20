@@ -17,18 +17,18 @@ type Handler struct {
 	peerID   [20]byte
 	sKeyHash [20]byte
 	infoHash [20]byte
-	messages *peer.Messages
+	newPeers chan *peer.Peer
 	log      logger.Logger
 }
 
-func New(conn net.Conn, peerIDs *peerids.PeerIDs, peerID, sKeyHash, infoHash [20]byte, messages *peer.Messages, l logger.Logger) *Handler {
+func New(conn net.Conn, peerIDs *peerids.PeerIDs, peerID, sKeyHash, infoHash [20]byte, newPeers chan *peer.Peer, l logger.Logger) *Handler {
 	return &Handler{
 		conn:     conn,
 		peerIDs:  peerIDs,
 		peerID:   peerID,
 		sKeyHash: sKeyHash,
 		infoHash: infoHash,
-		messages: messages,
+		newPeers: newPeers,
 		log:      l,
 	}
 }
@@ -63,8 +63,12 @@ func (h *Handler) Run(stopC chan struct{}) {
 	peerbf := bitfield.NewBytes(peerExtensions[:], 64)
 	extensions := ourbf.And(peerbf)
 
-	p := peer.New(encConn, peerID, extensions, log, h.messages)
-	p.Run(stopC)
+	p := peer.New(encConn, peerID, extensions, log)
+	select {
+	case h.newPeers <- p:
+		p.Run(stopC)
+	case <-stopC:
+	}
 }
 
 func (h *Handler) getSKey(sKeyHash [20]byte) []byte {

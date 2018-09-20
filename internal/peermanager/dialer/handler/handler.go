@@ -16,17 +16,17 @@ type Handler struct {
 	bitfield *bitfield.Bitfield
 	peerID   [20]byte
 	infoHash [20]byte
-	messages *peer.Messages
+	newPeers chan *peer.Peer
 	log      logger.Logger
 }
 
-func New(addr net.Addr, peerIDs *peerids.PeerIDs, peerID, infoHash [20]byte, messages *peer.Messages, l logger.Logger) *Handler {
+func New(addr net.Addr, peerIDs *peerids.PeerIDs, peerID, infoHash [20]byte, newPeers chan *peer.Peer, l logger.Logger) *Handler {
 	return &Handler{
 		addr:     addr,
 		peerIDs:  peerIDs,
 		peerID:   peerID,
 		infoHash: infoHash,
-		messages: messages,
+		newPeers: newPeers,
 		log:      l,
 	}
 }
@@ -60,6 +60,10 @@ func (h *Handler) Run(stopC chan struct{}) {
 	peerbf := bitfield.NewBytes(peerExtensions[:], 64)
 	extensions := ourbf.And(peerbf)
 
-	p := peer.New(conn, peerID, extensions, log, h.messages)
-	p.Run(stopC)
+	p := peer.New(conn, peerID, extensions, log)
+	select {
+	case h.newPeers <- p:
+		p.Run(stopC)
+	case <-stopC:
+	}
 }

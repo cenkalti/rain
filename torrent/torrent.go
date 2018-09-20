@@ -119,7 +119,7 @@ func (t *Torrent) Start() {
 	t.workers.Start(pm)
 
 	// request missing pieces from peers
-	do := downloader.New(t.infoHash, t.dest, t.resume, t.info, pm.PeerMessages(), t.completeC, t.errC, t.log)
+	do := downloader.New(t.infoHash, t.dest, t.resume, t.info, pm.NewPeers(), t.completeC, t.errC, t.log)
 	t.workers.StartWithOnFinishHandler(do, func() { t.Stop() })
 }
 

@@ -16,7 +16,7 @@ type PeerManager struct {
 	peerIDs  *peerids.PeerIDs
 	peerID   [20]byte
 	infoHash [20]byte
-	messages *peer.Messages
+	newPeers chan *peer.Peer
 	workers  worker.Workers
 	log      logger.Logger
 }
@@ -28,20 +28,20 @@ func New(port int, pl *peerlist.PeerList, peerID, infoHash [20]byte, l logger.Lo
 		peerIDs:  peerids.New(),
 		peerID:   peerID,
 		infoHash: infoHash,
-		messages: peer.NewMessages(),
+		newPeers: make(chan *peer.Peer),
 		log:      l,
 	}
 }
 
-func (m *PeerManager) PeerMessages() *peer.Messages {
-	return m.messages
+func (m *PeerManager) NewPeers() <-chan *peer.Peer {
+	return m.newPeers
 }
 
 func (m *PeerManager) Run(stopC chan struct{}) {
-	a := acceptor.New(m.port, m.peerIDs, m.peerID, m.infoHash, m.messages, m.log)
+	a := acceptor.New(m.port, m.peerIDs, m.peerID, m.infoHash, m.newPeers, m.log)
 	m.workers.Start(a)
 
-	d := dialer.New(m.peerList, m.peerIDs, m.peerID, m.infoHash, m.messages, m.log)
+	d := dialer.New(m.peerList, m.peerIDs, m.peerID, m.infoHash, m.newPeers, m.log)
 	m.workers.Start(d)
 
 	<-stopC

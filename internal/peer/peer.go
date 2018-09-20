@@ -6,6 +6,7 @@ import (
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/peer/peerprotocol"
+	"github.com/cenkalti/rain/internal/peer/peerreader"
 	"github.com/cenkalti/rain/internal/peer/peerwriter"
 	"github.com/cenkalti/rain/internal/piece"
 )
@@ -14,17 +15,18 @@ type Peer struct {
 	conn          net.Conn
 	id            [20]byte
 	FastExtension bool
-	messages      *Messages
+	reader        *peerreader.PeerReader
 	writer        *peerwriter.PeerWriter
 	log           logger.Logger
 }
 
-func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, l logger.Logger, messages *Messages) *Peer {
+func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, l logger.Logger) *Peer {
+	fastExtension := extensions.Test(61)
 	return &Peer{
 		conn:          conn,
 		id:            id,
-		FastExtension: extensions.Test(61),
-		messages:      messages,
+		FastExtension: fastExtension,
+		reader:        peerreader.New(conn, l, fastExtension),
 		writer:        peerwriter.New(conn, l),
 		log:           l,
 	}
@@ -46,6 +48,10 @@ func (p *Peer) Logger() logger.Logger {
 	return p.log
 }
 
+func (p *Peer) Messages() <-chan interface{} {
+	return p.reader.Messages()
+}
+
 func (p *Peer) SendMessage(msg peerprotocol.Message, stopC chan struct{}) {
 	p.writer.SendMessage(msg, stopC)
 }
@@ -59,15 +65,9 @@ func (p *Peer) SendPiece(msg peerprotocol.RequestMessage, pi *piece.Piece, stopC
 func (p *Peer) Run(stopC chan struct{}) {
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 
-	select {
-	case p.messages.Connect <- p:
-	case <-stopC:
-		return
-	}
-
 	readerDone := make(chan struct{})
 	go func() {
-		p.reader(stopC)
+		p.reader.Run(stopC)
 		close(readerDone)
 	}()
 
@@ -88,10 +88,5 @@ func (p *Peer) Run(stopC chan struct{}) {
 	case <-writerDone:
 		p.conn.Close()
 		<-readerDone
-	}
-
-	select {
-	case p.messages.Disconnect <- p:
-	case <-stopC:
 	}
 }
