@@ -231,8 +231,6 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				return
 			}
 			d.checkCompletion()
-			// TODO set bitfiled in resume data
-			// d.resumeFile.bitfield[resp.Request.Piece.Index] = true
 			// Tell everyone that we have this piece
 			// TODO skip peers already having that piece
 			for _, pe := range d.connectedPeers {
