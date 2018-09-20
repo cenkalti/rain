@@ -313,7 +313,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			case peerprotocol.HaveMessage:
 				// Save have messages for processesing later received while we don't have info yet.
 				if d.info == nil {
-					pe.haveMessages = append(pe.haveMessages, msg)
+					pe.messages = append(pe.messages, msg)
 					break
 				}
 				if msg.Index >= uint32(len(d.data.Pieces)) {
@@ -329,7 +329,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 			case peerprotocol.BitfieldMessage:
 				// Save bitfield messages while we don't have info yet.
 				if d.info == nil {
-					pe.bitfieldMessage = msg.Data
+					pe.messages = append(pe.messages, msg)
 					break
 				}
 				numBytes := uint32(bitfield.NumBytes(uint32(len(d.data.Pieces))))
@@ -349,7 +349,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				d.updateInterestedState(pe, stopC)
 			case peerprotocol.HaveAllMessage:
 				if d.info == nil {
-					pe.haveAllMessage = true
+					pe.messages = append(pe.messages, msg)
 					break
 				}
 				for i := range d.pieces {
@@ -361,7 +361,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				// TODO handle?
 			case peerprotocol.AllowedFastMessage:
 				if d.info == nil {
-					pe.allowedFastMessages = append(pe.allowedFastMessages, msg.HaveMessage)
+					pe.messages = append(pe.messages, msg)
 					break
 				}
 				if msg.Index >= uint32(len(d.data.Pieces)) {
@@ -657,30 +657,9 @@ func (d *Downloader) readMessages(pe *peer.Peer) {
 }
 
 func (d *Downloader) resendMessages(pe *Peer, stopC chan struct{}) {
-	// TODO save all messages in single slice
-	if pe.haveAllMessage {
+	for _, msg := range pe.messages {
 		select {
-		case d.messages <- PeerMessage{Peer: pe.Peer, Message: peerprotocol.HaveAllMessage{}}:
-		case <-stopC:
-			return
-		}
-	} else {
-		select {
-		case d.messages <- PeerMessage{Peer: pe.Peer, Message: pe.bitfieldMessage}:
-		case <-stopC:
-			return
-		}
-		for _, hm := range pe.haveMessages {
-			select {
-			case d.messages <- PeerMessage{Peer: pe.Peer, Message: hm}:
-			case <-stopC:
-				return
-			}
-		}
-	}
-	for _, afm := range pe.allowedFastMessages {
-		select {
-		case d.messages <- PeerMessage{Peer: pe.Peer, Message: afm}:
+		case d.messages <- PeerMessage{Peer: pe.Peer, Message: msg}:
 		case <-stopC:
 			return
 		}

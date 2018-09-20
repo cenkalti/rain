@@ -20,12 +20,8 @@ type Peer struct {
 	bytesDownlaodedInChokePeriod int64
 	optimisticUnhoked            bool
 
-	// TODO process saved messages after getting info.
-	// Save space for some messages that is received while info does not exist.
-	haveMessages        []peerprotocol.HaveMessage
-	bitfieldMessage     []byte
-	haveAllMessage      bool
-	allowedFastMessages []peerprotocol.HaveMessage
+	// Messages received while we don't have info yet are saved here.
+	messages []interface{}
 
 	extensionHandshake *peerprotocol.ExtensionHandshakeMessage
 }
