@@ -553,7 +553,7 @@ func (d *Downloader) processInfo() error {
 			buf := make([]byte, d.info.PieceLength)
 			hash := sha1.New() // nolint: gosec
 			for _, p := range d.data.Pieces {
-				err := p.Data.ReadFull(buf)
+				err = p.Data.ReadFull(buf)
 				if err != nil {
 					return err
 				}
@@ -562,6 +562,10 @@ func (d *Downloader) processInfo() error {
 				hash.Reset()
 			}
 			d.checkCompletion()
+		}
+		err = d.resume.WriteBitfield(d.bitfield.Bytes())
+		if err != nil {
+			return err
 		}
 	}
 

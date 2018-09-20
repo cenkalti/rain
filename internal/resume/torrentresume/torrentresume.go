@@ -108,20 +108,13 @@ func (r *TorrentResume) Write(spec resume.Spec) error {
 func (r *TorrentResume) WriteInfo(value []byte) error {
 	return r.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bucketName)
-		b.Put(infoKey, value)
-		return nil
+		return b.Put(infoKey, value)
 	})
 }
 
 func (r *TorrentResume) WriteBitfield(value []byte) error {
-	val := make([]byte, len(value))
-	copy(val, value)
-
 	return r.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bucketName)
-		println("XXX value", len(value), value)
-		// b.Put(bitfieldKey, val)
-		b.Put([]byte("foo"), []byte("asdf"))
-		return nil
+		return b.Put(bitfieldKey, value)
 	})
 }
