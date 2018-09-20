@@ -2,14 +2,11 @@ package torrentresume
 
 import (
 	"encoding/json"
-	"errors"
 	"strconv"
 
 	"github.com/cenkalti/rain/internal/resume"
 	bolt "go.etcd.io/bbolt"
 )
-
-var ErrInvalidResumeInfo = errors.New("invalid resume info")
 
 var (
 	bucketName = []byte("resume")

@@ -11,7 +11,7 @@ import (
 	"github.com/cenkalti/log"
 	"github.com/cenkalti/rain/client"
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/resume"
+	"github.com/cenkalti/rain/internal/resume/torrentresume"
 	"github.com/cenkalti/rain/torrent"
 	"github.com/mitchellh/go-homedir"
 )
@@ -65,7 +65,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	res, err := resume.New("rain.resume")
+	res, err := torrentresume.New("rain.resume")
 	if err != nil {
 		log.Fatal(err)
 	}
