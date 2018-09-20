@@ -224,7 +224,6 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				return
 			}
 			d.bitfield.Set(resp.Request.Piece.Index)
-			println("XXX bitfield", d.bitfield.Hex(), len(d.bitfield.Bytes()), d.bitfield.Len())
 			err := d.resume.WriteBitfield(d.bitfield.Bytes())
 			if err != nil {
 				d.log.Errorln("cannot write bitfield to resume db:", err)
