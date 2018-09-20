@@ -14,7 +14,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/cenkalti/log"
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/resume"
+	"github.com/cenkalti/rain/internal/resume/torrentresume"
 	"github.com/cenkalti/rain/torrent"
 	"github.com/crosbymichael/tracker/registry/inmem"
 	"github.com/crosbymichael/tracker/server"
@@ -32,22 +32,27 @@ func init() {
 	logger.SetLogLevel(log.DEBUG)
 }
 
+func newResumeFile(t *testing.T) *torrentresume.TorrentResume {
+	resumeFile, err := ioutil.TempFile("", "rain-test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resumePath := resumeFile.Name()
+	res, err := torrentresume.New(resumePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return res
+	// TODO remove tempfile
+}
+
 func TestDownloadTorrent(t *testing.T) {
 	where, err := ioutil.TempDir("", "rain-")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	resumeFile, err := ioutil.TempFile("", "rain-test-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	resumePath := resumeFile.Name()
-	res, err := resume.New(resumePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer res.Close()
+	res1 := newResumeFile(t)
 
 	defer startTracker(t)()
 
@@ -56,7 +61,7 @@ func TestDownloadTorrent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t1, err := torrent.New(f, torrentDataDir, 6881, res)
+	t1, err := torrent.New(f, torrentDataDir, 6881, res1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,8 +71,10 @@ func TestDownloadTorrent(t *testing.T) {
 	// Wait for seeder to announce to tracker.
 	time.Sleep(100 * time.Millisecond)
 
+	res2 := newResumeFile(t)
+
 	f.Seek(0, io.SeekStart)
-	t2, err := torrent.New(f, where, 6882, res)
+	t2, err := torrent.New(f, where, 6882, res2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,16 +135,7 @@ func TestDownloadMagnet(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resumeFile, err := ioutil.TempFile("", "rain-test-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	resumePath := resumeFile.Name()
-	res, err := resume.New(resumePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer res.Close()
+	res1 := newResumeFile(t)
 
 	defer startTracker(t)()
 
@@ -146,7 +144,7 @@ func TestDownloadMagnet(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t1, err := torrent.New(f, torrentDataDir, 6881, res)
+	t1, err := torrent.New(f, torrentDataDir, 6881, res1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,9 +154,11 @@ func TestDownloadMagnet(t *testing.T) {
 	// Wait for seeder to announce to tracker.
 	time.Sleep(100 * time.Millisecond)
 
+	res2 := newResumeFile(t)
+
 	f.Seek(0, io.SeekStart)
 	magnetLink := "magnet:?xt=urn:btih:0a8e2e8c9371a91e9047ed189ceffbc460803262&dn=10mb&tr=http%3A%2F%2F127.0.0.1%3A5000%2Fannounce"
-	t2, err := torrent.NewMagnet(magnetLink, where, 6882, res)
+	t2, err := torrent.NewMagnet(magnetLink, where, 6882, res2)
 	if err != nil {
 		t.Fatal(err)
 	}

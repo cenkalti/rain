@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/cenkalti/rain/internal/announcer"
+	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/downloader"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/magnet"
@@ -30,8 +31,9 @@ type Torrent struct {
 	infoHash  [20]byte
 	announce  string
 	info      *metainfo.Info
+	bitfield  *bitfield.Bitfield
 	dest      string // path of files on disk
-	resume    *resume.Resume
+	resume    resume.ResumeInfo
 	port      int           // listen for peer connections
 	running   bool          // true after Start() is called
 	closed    bool          // true after Close() is called
@@ -49,41 +51,100 @@ type Torrent struct {
 // Returned torrent is in stopped state.
 //
 // Close must be called before discarding the torrent.
-func New(r io.Reader, dest string, port int, res *resume.Resume) (*Torrent, error) {
+func New(r io.Reader, dest string, port int, res resume.ResumeInfo) (*Torrent, error) {
 	m, err := metainfo.New(r)
 	if err != nil {
 		return nil, err
 	}
-	return newTorrent(m.Info.Name, dest, port, m.Info.Hash, m.Info, m.Announce, res)
+	spec := resume.Spec{
+		InfoHash: m.Info.Hash[:],
+		Port:     port,
+		Name:     m.Info.Name,
+		Dest:     dest,
+		// TODO save every tracker
+		Trackers: []string{m.Announce},
+		Info:     m.Info.Bytes,
+	}
+	err = res.Write(spec)
+	if err != nil {
+		return nil, err
+	}
+	return newTorrent(spec, res)
 }
 
-func NewMagnet(magnetLink, dest string, port int, res *resume.Resume) (*Torrent, error) {
+func NewMagnet(magnetLink, dest string, port int, res resume.ResumeInfo) (*Torrent, error) {
 	m, err := magnet.New(magnetLink)
 	if err != nil {
 		return nil, err
 	}
-	return newTorrent(m.Name, dest, port, m.InfoHash, nil, m.Trackers[0], res)
+	spec := resume.Spec{
+		InfoHash: m.InfoHash[:],
+		Port:     port,
+		Name:     m.Name,
+		Dest:     dest,
+		Trackers: m.Trackers,
+	}
+	err = res.Write(spec)
+	if err != nil {
+		return nil, err
+	}
+	return newTorrent(spec, res)
 }
 
-func newTorrent(name, dest string, port int, infoHash [20]byte, info *metainfo.Info, announce string, res *resume.Resume) (*Torrent, error) {
-	logName := name
+func NewResume(res resume.ResumeInfo) (*Torrent, error) {
+	spec, err := res.Read()
+	if err != nil {
+		return nil, err
+	}
+	var infoHash [20]byte
+	copy(infoHash[:], spec.InfoHash)
+	// TODO pass bitfield
+	return newTorrent(spec, res)
+}
+
+func newTorrent(spec resume.Spec, res resume.ResumeInfo) (*Torrent, error) {
+	logName := spec.Name
 	if len(logName) > 8 {
 		logName = logName[:8]
 	}
+
 	var peerID [20]byte
 	copy(peerID[:], peerIDPrefix)
 	_, err := rand.Read(peerID[len(peerIDPrefix):]) // nolint: gosec
 	if err != nil {
 		return nil, err
 	}
+
+	var infoHash [20]byte
+	copy(infoHash[:], spec.InfoHash)
+
+	// TODO this is already parsed in New func
+	var info *metainfo.Info
+	if spec.Info != nil {
+		info, err = metainfo.NewInfo(spec.Info)
+		if err != nil {
+			return nil, err
+		}
+
+	}
+
+	// TODO this is already parsed
+	var bf *bitfield.Bitfield
+	if spec.Bitfield != nil {
+		bf = bitfield.New(info.NumPieces)
+		copy(bf.Bytes(), spec.Bitfield)
+	}
+
 	return &Torrent{
 		peerID:   peerID,
 		infoHash: infoHash,
 		info:     info,
-		announce: announce,
-		dest:     dest,
+		bitfield: bf,
+		// TODO pass every tracker to downloader
+		announce: spec.Trackers[0],
+		dest:     spec.Dest,
 		resume:   res,
-		port:     port,
+		port:     spec.Port,
 		log:      logger.New("download " + logName),
 	}, nil
 }
@@ -119,7 +180,7 @@ func (t *Torrent) Start() {
 	t.workers.Start(pm)
 
 	// request missing pieces from peers
-	do := downloader.New(t.infoHash, t.dest, t.resume, t.info, pm.NewPeers(), t.completeC, t.errC, t.log)
+	do := downloader.New(t.infoHash, t.dest, t.resume, t.info, t.bitfield, pm.NewPeers(), t.completeC, t.errC, t.log)
 	t.workers.StartWithOnFinishHandler(do, func() { t.Stop() })
 }
 

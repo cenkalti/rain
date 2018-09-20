@@ -37,9 +37,11 @@ type PeerMessage struct {
 type Downloader struct {
 	infoHash               [20]byte
 	dest                   string
-	resume                 *resume.Resume
+	resume                 resume.ResumeInfo
 	info                   *metainfo.Info
+	bitfield               *bitfield.Bitfield
 	data                   *torrentdata.Data
+	completed              bool
 	pieces                 []Piece
 	sortedPieces           []*Piece
 	newPeers               <-chan *peer.Peer
@@ -59,12 +61,13 @@ type Downloader struct {
 	workers                worker.Workers
 }
 
-func New(infoHash [20]byte, dest string, res *resume.Resume, info *metainfo.Info, newPeers <-chan *peer.Peer, completeC chan struct{}, errC chan error, l logger.Logger) *Downloader {
+func New(infoHash [20]byte, dest string, res resume.ResumeInfo, info *metainfo.Info, bf *bitfield.Bitfield, newPeers <-chan *peer.Peer, completeC chan struct{}, errC chan error, l logger.Logger) *Downloader {
 	return &Downloader{
 		infoHash:          infoHash,
 		dest:              dest,
 		resume:            res,
 		info:              info,
+		bitfield:          bf,
 		newPeers:          newPeers,
 		disconnectedPeers: make(chan *peer.Peer),
 		messages:          make(chan PeerMessage),
@@ -143,11 +146,19 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				var err error
 				d.info, err = metainfo.NewInfo(buf)
 				if err != nil {
+					d.log.Errorln("cannot parse info bytes:", err)
+					d.errC <- err
+					return
+				}
+				err = d.resume.WriteInfo(d.info.Bytes)
+				if err != nil {
+					d.log.Errorln("cannot write resume info:", err)
 					d.errC <- err
 					return
 				}
 				err = d.processInfo()
 				if err != nil {
+					d.log.Errorln("cannot process info:", err)
 					d.errC <- err
 					return
 				}
@@ -212,8 +223,14 @@ func (d *Downloader) Run(stopC chan struct{}) {
 				d.errC <- resp.Error
 				return
 			}
-			d.data.Bitfield().Set(resp.Request.Piece.Index)
-			d.data.CheckCompletion()
+			d.bitfield.Set(resp.Request.Piece.Index)
+			err := d.resume.WriteBitfield(d.bitfield.Bytes())
+			if err != nil {
+				d.log.Errorln("cannot write bitfield to resume db:", err)
+				d.errC <- err
+				return
+			}
+			d.checkCompletion()
 			// TODO set bitfiled in resume data
 			// d.resumeFile.bitfield[resp.Request.Piece.Index] = true
 			// Tell everyone that we have this piece
@@ -265,10 +282,7 @@ func (d *Downloader) Run(stopC chan struct{}) {
 		case p := <-d.newPeers:
 			pe := NewPeer(p)
 			d.connectedPeers[p] = pe
-			var bf *bitfield.Bitfield
-			if d.info != nil {
-				bf = d.data.Bitfield()
-			}
+			bf := d.bitfield
 			if p.FastExtension && bf != nil && bf.All() {
 				msg := peerprotocol.HaveAllMessage{}
 				p.SendMessage(msg, stopC)
@@ -526,15 +540,34 @@ func (d *Downloader) Run(stopC chan struct{}) {
 
 func (d *Downloader) processInfo() error {
 	var err error
-	d.data, err = torrentdata.New(d.info, d.dest, d.completeC)
+	d.data, err = torrentdata.New(d.info, d.dest)
 	if err != nil {
 		return err
 	}
 	// TODO defer data.Close()
-	err = d.data.Verify()
-	if err != nil {
-		return err
+
+	if d.bitfield == nil {
+		d.bitfield = bitfield.New(d.info.NumPieces)
+		if d.data.Exists {
+			buf := make([]byte, d.info.PieceLength)
+			hash := sha1.New() // nolint: gosec
+			for _, p := range d.data.Pieces {
+				err := p.Data.ReadFull(buf)
+				if err != nil {
+					return err
+				}
+				ok := p.VerifyHash(buf[:p.Length], hash)
+				d.bitfield.SetTo(p.Index, ok)
+				hash.Reset()
+			}
+			d.checkCompletion()
+		}
 	}
+
+	d.preparePieces()
+	return nil
+}
+func (d *Downloader) preparePieces() {
 	pieces := make([]Piece, len(d.data.Pieces))
 	sortedPieces := make([]*Piece, len(d.data.Pieces))
 	for i := range d.data.Pieces {
@@ -548,7 +581,6 @@ func (d *Downloader) processInfo() error {
 	}
 	d.pieces = pieces
 	d.sortedPieces = sortedPieces
-	return nil
 }
 
 func (d *Downloader) nextInfoDownload() *infodownloader.InfoDownloader {
@@ -569,7 +601,7 @@ func (d *Downloader) nextDownload() *piecedownloader.PieceDownloader {
 	// TODO request first 4 pieces randomly
 	sort.Sort(ByAvailability(d.sortedPieces))
 	for _, p := range d.sortedPieces {
-		if d.data.Bitfield().Test(p.Index) {
+		if d.bitfield.Test(p.Index) {
 			continue
 		}
 		if len(p.requestedPeers) > 0 {
@@ -611,8 +643,8 @@ func (d *Downloader) updateInterestedState(pe *Peer, stopC chan struct{}) {
 		return
 	}
 	interested := false
-	for i := uint32(0); i < d.data.Bitfield().Len(); i++ {
-		weHave := d.data.Bitfield().Test(i)
+	for i := uint32(0); i < d.bitfield.Len(); i++ {
+		weHave := d.bitfield.Test(i)
 		_, peerHave := d.pieces[i].havingPeers[pe.Peer]
 		if !weHave && peerHave {
 			interested = true
@@ -663,5 +695,14 @@ func (d *Downloader) resendMessages(pe *Peer, stopC chan struct{}) {
 		case <-stopC:
 			return
 		}
+	}
+}
+
+func (d *Downloader) checkCompletion() {
+	if d.completed {
+		return
+	}
+	if d.bitfield.All() {
+		close(d.completeC)
 	}
 }
