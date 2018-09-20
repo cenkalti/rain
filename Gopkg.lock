@@ -2,100 +2,148 @@
 
 
 [[projects]]
+  digest = "1:d867dfa6751c8d7a435821ad3b736310c2ed68945d05b50fb9d23aee0540c8cc"
   name = "github.com/Sirupsen/logrus"
   packages = ["."]
+  pruneopts = "UT"
   revision = "3e01752db0189b9157070a0e1668a620f9a85da2"
   version = "v1.0.6"
 
 [[projects]]
   branch = "master"
+  digest = "1:c7c97afc7fc4235c8d3c9f95609183a541f9af3127214d677d0feda0a004eaaa"
   name = "github.com/cenkalti/backoff"
   packages = ["."]
+  pruneopts = "UT"
   revision = "b7325b0f3f1097c6546ea5e83c4a23267e58ad71"
 
 [[projects]]
   branch = "master"
+  digest = "1:402a67c6210dea95b32f6d3cb07dce7197d2c30b04f943dee44035c6c0aec18a"
   name = "github.com/cenkalti/log"
   packages = ["."]
+  pruneopts = "UT"
   revision = "e1cf6d40cbc30759a410e0552991897df9a91189"
 
 [[projects]]
   branch = "master"
+  digest = "1:8b626f4c0c8964c429b91bed5cd1744f0d40b46765653dc8d68d481c3eb613ca"
   name = "github.com/crosbymichael/tracker"
   packages = [
     "peer",
     "registry",
     "registry/inmem",
-    "server"
+    "server",
   ]
+  pruneopts = "UT"
   revision = "d54763ad6ba1d5176543b24ac4f36531eda24f30"
 
 [[projects]]
   branch = "master"
+  digest = "1:d1971637b21871ec2033a44ca87c99c5608a7340cb34ec75fab8d2ab503276c9"
   name = "github.com/hashicorp/errwrap"
   packages = ["."]
+  pruneopts = "UT"
   revision = "d6c0cd88035724dd42e0f335ae30161c20575ecc"
 
 [[projects]]
   branch = "master"
+  digest = "1:46fb6a9f1b9667f32ac93e08b1da118b2c666991424ea12e848b05d4fe5155ef"
   name = "github.com/hashicorp/go-multierror"
   packages = ["."]
+  pruneopts = "UT"
   revision = "3d5d8f294aa03d8e98859feac328afbdf1ae0703"
 
 [[projects]]
+  digest = "1:d4d17353dbd05cb52a2a52b7fe1771883b682806f68db442b436294926bbfafb"
   name = "github.com/mattn/go-isatty"
   packages = ["."]
+  pruneopts = "UT"
   revision = "0360b2af4f38e8d38c7fce2a9f4e702702d73a39"
   version = "v0.0.3"
 
 [[projects]]
   branch = "master"
+  digest = "1:c7354463195544b1ab3c1f1fadb41430947f5d28dfbf2cdbd38268c5717a5a03"
   name = "github.com/mitchellh/go-homedir"
   packages = ["."]
+  pruneopts = "UT"
   revision = "58046073cbffe2f25d425fe1331102f55cf719de"
 
 [[projects]]
+  digest = "1:b24d38b282bacf9791408a080f606370efa3d364e4b5fd9ba0f7b87786d3b679"
+  name = "github.com/urfave/cli"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "cfb38830724cc34fedffe9a2a29fb54fa9169cd1"
+  version = "v1.20.0"
+
+[[projects]]
   branch = "master"
+  digest = "1:989cecc9b845907b709cd9e7c383d9a68249f9bc32505005346f6f1b2460bf7f"
   name = "github.com/vbatts/go-bt"
   packages = ["bencode"]
+  pruneopts = "UT"
   revision = "c9343672f0c1407aecf0c0c7a19c5bfadde27651"
 
 [[projects]]
   branch = "master"
+  digest = "1:45bbd451f918a413e45507b5d4c4163b5f1257aeabcba4186b60f97b02a68526"
   name = "github.com/zeebo/bencode"
   packages = ["."]
+  pruneopts = "UT"
   revision = "d522839ac797fc43269dae6a04a1f8be475a915d"
 
 [[projects]]
+  digest = "1:c28625428387b63dd7154eb857f51e700465cfbf7c06f619e71f2da33cefe47e"
   name = "go.etcd.io/bbolt"
   packages = ["."]
+  pruneopts = "UT"
   revision = "583e8937c61f1af6513608ccc75c97b6abdf4ff9"
   version = "v1.3.0"
 
 [[projects]]
   branch = "master"
+  digest = "1:3f3a05ae0b95893d90b9b3b5afdb79a9b3d96e4e36e099d841ae602e4aca0da8"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
+  pruneopts = "UT"
   revision = "f027049dab0ad238e394a753dba2d14753473a04"
 
 [[projects]]
   branch = "master"
+  digest = "1:de7f8e5ca9182a3bb6ef237c20d7a43dd57f6123c455b7131467765f2d981bcf"
   name = "golang.org/x/sys"
   packages = [
     "unix",
-    "windows"
+    "windows",
   ]
+  pruneopts = "UT"
   revision = "0718ef2ef256118d53a01598f179001ec2af7626"
 
 [[projects]]
+  digest = "1:342378ac4dcb378a5448dd723f0784ae519383532f5e70ade24132c4c8693202"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
+  pruneopts = "UT"
   revision = "5420a8b6744d3b0345ab293f6fcba19c978f1183"
   version = "v2.2.1"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "a5ff83b9683fed2e954b8be63091e431ac5f427d727f4a1c850fbf70b6629ed6"
+  input-imports = [
+    "github.com/Sirupsen/logrus",
+    "github.com/cenkalti/backoff",
+    "github.com/cenkalti/log",
+    "github.com/crosbymichael/tracker/registry/inmem",
+    "github.com/crosbymichael/tracker/server",
+    "github.com/hashicorp/go-multierror",
+    "github.com/mitchellh/go-homedir",
+    "github.com/urfave/cli",
+    "github.com/zeebo/bencode",
+    "go.etcd.io/bbolt",
+    "gopkg.in/yaml.v2",
+  ]
   solver-name = "gps-cdcl"
   solver-version = 1
