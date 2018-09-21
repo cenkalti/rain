@@ -70,11 +70,12 @@ func main() {
 	if strings.HasPrefix(args[0], "magnet:") {
 		t, err = torrent.NewMagnet(args[0], *dest, *port, res)
 	} else {
-		f, err := os.Open(args[0])
-		if err != nil {
-			log.Fatal(err)
+		f, err2 := os.Open(args[0])
+		if err2 != nil {
+			log.Fatal(err2)
 		}
 		t, err = torrent.New(f, *dest, *port, res)
+		f.Close()
 	}
 	if err != nil {
 		log.Fatal(err)
