@@ -33,7 +33,7 @@ type Torrent struct {
 	info      *metainfo.Info
 	bitfield  *bitfield.Bitfield
 	dest      string // path of files on disk
-	resume    resume.ResumeInfo
+	resume    resume.DB
 	port      int           // listen for peer connections
 	running   bool          // true after Start() is called
 	closed    bool          // true after Close() is called
@@ -51,7 +51,7 @@ type Torrent struct {
 // Returned torrent is in stopped state.
 //
 // Close must be called before discarding the torrent.
-func New(r io.Reader, dest string, port int, res resume.ResumeInfo) (*Torrent, error) {
+func New(r io.Reader, dest string, port int, res resume.DB) (*Torrent, error) {
 	m, err := metainfo.New(r)
 	if err != nil {
 		return nil, err
@@ -72,7 +72,7 @@ func New(r io.Reader, dest string, port int, res resume.ResumeInfo) (*Torrent, e
 	return newTorrent(spec, res)
 }
 
-func NewMagnet(magnetLink, dest string, port int, res resume.ResumeInfo) (*Torrent, error) {
+func NewMagnet(magnetLink, dest string, port int, res resume.DB) (*Torrent, error) {
 	m, err := magnet.New(magnetLink)
 	if err != nil {
 		return nil, err
@@ -91,7 +91,7 @@ func NewMagnet(magnetLink, dest string, port int, res resume.ResumeInfo) (*Torre
 	return newTorrent(spec, res)
 }
 
-func NewResume(res resume.ResumeInfo) (*Torrent, error) {
+func NewResume(res resume.DB) (*Torrent, error) {
 	spec, err := res.Read()
 	if err != nil {
 		return nil, err
@@ -99,7 +99,7 @@ func NewResume(res resume.ResumeInfo) (*Torrent, error) {
 	return newTorrent(spec, res)
 }
 
-func newTorrent(spec resume.Spec, res resume.ResumeInfo) (*Torrent, error) {
+func newTorrent(spec resume.Spec, res resume.DB) (*Torrent, error) {
 	logName := spec.Name
 	if len(logName) > 8 {
 		logName = logName[:8]

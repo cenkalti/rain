@@ -1,7 +1,7 @@
 package resume
 
-// ResumeInfo TODO this is for single torrent
-type ResumeInfo interface {
+// DB provides operations to save and load resume info for a Torrent.
+type DB interface {
 	Read() (Spec, error)
 	Write(spec Spec) error
 	WriteInfo([]byte) error

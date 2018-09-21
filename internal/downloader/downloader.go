@@ -37,7 +37,7 @@ type PeerMessage struct {
 type Downloader struct {
 	infoHash               [20]byte
 	dest                   string
-	resume                 resume.ResumeInfo
+	resume                 resume.DB
 	info                   *metainfo.Info
 	bitfield               *bitfield.Bitfield
 	data                   *torrentdata.Data
@@ -61,7 +61,7 @@ type Downloader struct {
 	workers                worker.Workers
 }
 
-func New(infoHash [20]byte, dest string, res resume.ResumeInfo, info *metainfo.Info, bf *bitfield.Bitfield, newPeers <-chan *peer.Peer, completeC chan struct{}, errC chan error, l logger.Logger) *Downloader {
+func New(infoHash [20]byte, dest string, res resume.DB, info *metainfo.Info, bf *bitfield.Bitfield, newPeers <-chan *peer.Peer, completeC chan struct{}, errC chan error, l logger.Logger) *Downloader {
 	return &Downloader{
 		infoHash:          infoHash,
 		dest:              dest,
