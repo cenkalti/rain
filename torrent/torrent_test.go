@@ -123,9 +123,7 @@ func startTracker(t *testing.T) (stop func()) {
 		t.Fatal(err)
 	}()
 	return func() {
-		ctx, cancel := context.WithCancel(context.Background())
-		cancel()
-		err := srv.Shutdown(ctx)
+		err := srv.Shutdown(context.Background())
 		if err != nil {
 			t.Fatal(err)
 		}
