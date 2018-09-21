@@ -75,7 +75,7 @@ func main() {
 			log.Fatal(err2)
 		}
 		t, err = torrent.New(f, *dest, *port, res)
-		f.Close()
+		_ = f.Close()
 	}
 	if err != nil {
 		log.Fatal(err)
