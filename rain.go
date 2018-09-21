@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime/pprof"
+	"strings"
 	"syscall"
 
 	"github.com/cenkalti/log"
@@ -61,15 +62,20 @@ func main() {
 			log.Fatal(err)
 		}
 	}
-	f, err := os.Open(args[0])
-	if err != nil {
-		log.Fatal(err)
-	}
 	res, err := torrentresume.New("rain.resume")
 	if err != nil {
 		log.Fatal(err)
 	}
-	t, err := torrent.New(f, *dest, *port, res)
+	var t *torrent.Torrent
+	if strings.HasPrefix(args[0], "magnet:") {
+		t, err = torrent.NewMagnet(args[0], *dest, *port, res)
+	} else {
+		f, err := os.Open(args[0])
+		if err != nil {
+			log.Fatal(err)
+		}
+		t, err = torrent.New(f, *dest, *port, res)
+	}
 	if err != nil {
 		log.Fatal(err)
 	}
