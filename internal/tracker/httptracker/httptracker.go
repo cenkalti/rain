@@ -28,18 +28,20 @@ type HTTPTracker struct {
 }
 
 func New(u *url.URL) *HTTPTracker {
-	return &HTTPTracker{
-		url: u,
-		log: logger.New("tracker " + u.String()),
-		http: &http.Client{
+	transport := &http.Transport{
+		Dial: (&net.Dialer{
 			Timeout: httpTimeout,
-			Transport: &http.Transport{
-				Dial: (&net.Dialer{
-					Timeout: httpTimeout,
-				}).Dial,
-				TLSHandshakeTimeout: httpTimeout,
-				DisableKeepAlives:   true,
-			},
+		}).Dial,
+		TLSHandshakeTimeout: httpTimeout,
+		DisableKeepAlives:   true,
+	}
+	return &HTTPTracker{
+		url:       u,
+		log:       logger.New("tracker " + u.String()),
+		transport: transport,
+		http: &http.Client{
+			Timeout:   httpTimeout,
+			Transport: transport,
 		},
 	}
 }
