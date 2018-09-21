@@ -27,21 +27,17 @@ var (
 
 // Torrent connect to peers and downloads files from swarm.
 type Torrent struct {
-	peerID    [20]byte // unique id per torrent
-	infoHash  [20]byte
-	announce  string
-	info      *metainfo.Info
-	bitfield  *bitfield.Bitfield
-	dest      string // path of files on disk
-	resume    resume.DB
-	port      int           // listen for peer connections
-	running   bool          // true after Start() is called
-	closed    bool          // true after Close() is called
-	m         sync.Mutex    // protects running and closed state
-	errC      chan error    // downloader sends critical error to this channel
-	completeC chan struct{} // downloader closes this channel when all pieces are downloaded
-	workers   worker.Workers
-	log       logger.Logger
+	peerID     [20]byte // unique id per torrent
+	infoHash   [20]byte
+	announce   string
+	port       int           // listen for peer connections
+	running    bool          // true after Start() is called
+	closed     bool          // true after Close() is called
+	m          sync.Mutex    // protects running and closed state
+	completeC  chan struct{} // downloader closes this channel when all pieces are downloaded
+	workers    worker.Workers
+	log        logger.Logger
+	downloader *downloader.Downloader
 }
 
 // New returns a new torrent by reading a metainfo file.
@@ -132,17 +128,18 @@ func newTorrent(spec resume.Spec, res resume.DB) (*Torrent, error) {
 		copy(bf.Bytes(), spec.Bitfield)
 	}
 
+	completeC := make(chan struct{})
+	l := logger.New("download " + logName)
+
 	return &Torrent{
 		peerID:   peerID,
 		infoHash: infoHash,
-		info:     info,
-		bitfield: bf,
 		// TODO pass every tracker to downloader
-		announce: spec.Trackers[0],
-		dest:     spec.Dest,
-		resume:   res,
-		port:     spec.Port,
-		log:      logger.New("download " + logName),
+		announce:   spec.Trackers[0],
+		port:       spec.Port,
+		log:        l,
+		completeC:  completeC,
+		downloader: downloader.New(infoHash, spec.Dest, res, info, bf, completeC, l),
 	}, nil
 }
 
@@ -161,9 +158,6 @@ func (t *Torrent) Start() {
 		return
 	}
 
-	t.errC = make(chan error, 1)
-	t.completeC = make(chan struct{})
-
 	// keep list of peer addresses to connect
 	pl := peerlist.New()
 	t.workers.Start(pl)
@@ -173,12 +167,11 @@ func (t *Torrent) Start() {
 	t.workers.Start(an)
 
 	// manage peer connections
-	pm := peermanager.New(t.port, pl, t.peerID, t.infoHash, t.log)
+	pm := peermanager.New(t.port, pl, t.peerID, t.infoHash, t.downloader.NewPeers(), t.log)
 	t.workers.Start(pm)
 
 	// request missing pieces from peers
-	do := downloader.New(t.infoHash, t.dest, t.resume, t.info, t.bitfield, pm.NewPeers(), t.completeC, t.errC, t.log)
-	t.workers.StartWithOnFinishHandler(do, func() { t.Stop() })
+	t.workers.StartWithOnFinishHandler(t.downloader, func() { t.Stop() })
 }
 
 // Stop downloading and uploading, disconnect all peers and close peer port.
@@ -240,7 +233,7 @@ func (t *Torrent) NotifyComplete() <-chan struct{} { return t.completeC }
 // NotifyError returns a new channel for waiting download errors.
 //
 // When error is sent to the channel, torrent is stopped automatically.
-func (t *Torrent) NotifyError() <-chan error { return t.errC }
+func (t *Torrent) NotifyError() <-chan error { return t.downloader.ErrC() }
 
 // BytesDownloaded is the number of bytes downloaded from swarm.
 //

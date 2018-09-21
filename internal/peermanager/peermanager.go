@@ -21,14 +21,14 @@ type PeerManager struct {
 	log      logger.Logger
 }
 
-func New(port int, pl *peerlist.PeerList, peerID, infoHash [20]byte, l logger.Logger) *PeerManager {
+func New(port int, pl *peerlist.PeerList, peerID, infoHash [20]byte, newPeers chan *peer.Peer, l logger.Logger) *PeerManager {
 	return &PeerManager{
 		port:     port,
 		peerList: pl,
 		peerIDs:  peerids.New(),
 		peerID:   peerID,
 		infoHash: infoHash,
-		newPeers: make(chan *peer.Peer),
+		newPeers: newPeers,
 		log:      l,
 	}
 }

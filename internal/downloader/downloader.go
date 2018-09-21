@@ -44,7 +44,7 @@ type Downloader struct {
 	completed              bool
 	pieces                 []Piece
 	sortedPieces           []*Piece
-	newPeers               <-chan *peer.Peer
+	newPeers               chan *peer.Peer
 	disconnectedPeers      chan *peer.Peer
 	messages               chan PeerMessage
 	connectedPeers         map[*peer.Peer]*Peer
@@ -61,14 +61,14 @@ type Downloader struct {
 	workers                worker.Workers
 }
 
-func New(infoHash [20]byte, dest string, res resume.DB, info *metainfo.Info, bf *bitfield.Bitfield, newPeers <-chan *peer.Peer, completeC chan struct{}, errC chan error, l logger.Logger) *Downloader {
+func New(infoHash [20]byte, dest string, res resume.DB, info *metainfo.Info, bf *bitfield.Bitfield, completeC chan struct{}, l logger.Logger) *Downloader {
 	return &Downloader{
 		infoHash:          infoHash,
 		dest:              dest,
 		resume:            res,
 		info:              info,
 		bitfield:          bf,
-		newPeers:          newPeers,
+		newPeers:          make(chan *peer.Peer),
 		disconnectedPeers: make(chan *peer.Peer),
 		messages:          make(chan PeerMessage),
 		connectedPeers:    make(map[*peer.Peer]*Peer),
@@ -79,9 +79,17 @@ func New(infoHash [20]byte, dest string, res resume.DB, info *metainfo.Info, bf 
 		writeRequestC:     make(chan piecewriter.Request, 1),
 		writeResponseC:    make(chan piecewriter.Response),
 		completeC:         completeC,
-		errC:              errC,
+		errC:              make(chan error),
 		log:               l,
 	}
+}
+
+func (d *Downloader) NewPeers() chan *peer.Peer {
+	return d.newPeers
+}
+
+func (d *Downloader) ErrC() chan error {
+	return d.errC
 }
 
 func (d *Downloader) Run(stopC chan struct{}) {
