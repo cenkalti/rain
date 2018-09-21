@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha1" // nolint: gosec
 	"fmt"
+	"math"
 	"math/rand"
 	"sort"
 	"time"
@@ -140,6 +141,8 @@ func (d *Downloader) run() {
 				stats.BytesIncomplete = stats.BytesTotal - stats.BytesComplete
 				// TODO calculate bytes downloaded
 				// TODO calculate bytes uploaded
+			} else {
+				stats.BytesIncomplete = math.MaxUint32
 			}
 			req.Response <- stats
 		case <-infoDownloaders.Wait:
