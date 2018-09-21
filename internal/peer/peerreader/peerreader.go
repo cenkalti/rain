@@ -174,7 +174,7 @@ func (p *PeerReader) Run(stopC chan struct{}) {
 				return
 			}
 			msg = peerprotocol.HaveNoneMessage{}
-		case peerprotocol.Suggest:
+		// case peerprotocol.Suggest:
 		case peerprotocol.AllowedFast:
 			var am peerprotocol.AllowedFastMessage
 			err = binary.Read(p.conn, binary.BigEndian, &am)
@@ -207,6 +207,8 @@ func (p *PeerReader) Run(stopC chan struct{}) {
 				p.log.Error(err)
 				return
 			}
+			first = false
+			continue
 		}
 		first = false
 		if msg == nil {
