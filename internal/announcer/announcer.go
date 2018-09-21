@@ -69,7 +69,7 @@ func (a *Announcer) Run(stopC chan struct{}) {
 			a.announce(tracker.EventCompleted, stopC)
 			a.completedC = nil
 		case <-stopC:
-			go a.announceStopAndClose()
+			//a.announceStopAndClose() // TODO make async, don't wait
 			return
 		}
 	}

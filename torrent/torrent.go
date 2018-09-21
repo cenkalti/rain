@@ -161,12 +161,12 @@ func newTorrent(spec resume.Spec, res resume.DB) (*Torrent, error) {
 // Close this torrent and release all resources.
 func (t *Torrent) Close() error {
 	t.m.Lock()
-	defer t.m.Unlock()
-
 	if t.closed {
+		t.m.Unlock()
 		return nil
 	}
 	t.closed = true
+	t.m.Unlock()
 
 	t.workers.Stop()
 	t.downloader.Close()
@@ -176,22 +176,6 @@ func (t *Torrent) Close() error {
 // Port returns the port number that the client is listening.
 func (t *Torrent) Port() int {
 	return t.port
-}
-
-// BytesCompleted returns the number of bytes downlaoded and passed hash check.
-func (t *Torrent) BytesCompleted() int64 {
-	return 0
-	// TODO implement
-	// bf := t.data.Bitfield()
-	// sum := int64(bf.Count() * t.metainfo.Info.PieceLength)
-
-	// // Last piece usually not in full size.
-	// lastPiece := len(t.data.Pieces) - 1
-	// if bf.Test(uint32(lastPiece)) {
-	// 	sum -= int64(t.metainfo.Info.PieceLength)
-	// 	sum += int64(t.data.Pieces[lastPiece].Length)
-	// }
-	// return sum
 }
 
 // PeerID is unique per torrent.
@@ -208,23 +192,42 @@ func (t *Torrent) NotifyComplete() <-chan struct{} { return t.completeC }
 // When error is sent to the channel, torrent is stopped automatically.
 func (t *Torrent) NotifyError() <-chan error { return t.downloader.ErrC() }
 
-// BytesDownloaded is the number of bytes downloaded from swarm.
-//
-// Because some pieces may be downloaded more than once, this number may be greater than BytesCompleted returns.
-func (t *Torrent) BytesDownloaded() int64 { return t.BytesCompleted() } // TODO not the same thing
+type Stats struct {
+	// Bytes that are downloaded and passed hash check.
+	BytesComplete int64
 
-// BytesUploaded is the number of bytes uploaded to the swarm.
-func (t *Torrent) BytesUploaded() int64 { return 0 } // TODO count uploaded bytes
+	// BytesLeft is the number of bytes that is needed to complete all missing pieces.
+	BytesIncomplete int64
 
-// BytesLeft is the number of bytes that is needed to complete all missing pieces.
-func (t *Torrent) BytesLeft() int64 { return t.BytesTotal() - t.BytesCompleted() }
+	// BytesTotal is the number of total bytes of files in torrent.
+	//
+	// BytesTotal = BytesComplete + BytesIncomplete
+	BytesTotal int64
 
-// BytesTotal is the number of total bytes of files in torrent.
-func (t *Torrent) BytesTotal() int64 {
-	// // TODO get from downloader
-	return 10
-	// if t.info == nil {
-	// 	return 1
-	// }
-	// return t.info.Length
+	// BytesDownloaded is the number of bytes downloaded from swarm.
+	// Because some pieces may be downloaded more than once, this number may be greater than BytesCompleted returns.
+	// BytesDownloaded int64
+
+	// BytesUploaded is the number of bytes uploaded to the swarm.
+	// BytesUploaded   int64
 }
+
+func (t *Torrent) Stats() *Stats {
+	t.m.Lock()
+	defer t.m.Unlock()
+
+	if t.closed {
+		return nil
+	}
+
+	ds := t.downloader.Stats()
+	return &Stats{
+		BytesComplete:   ds.BytesComplete,
+		BytesIncomplete: ds.BytesIncomplete,
+		BytesTotal:      ds.BytesTotal,
+	}
+}
+
+func (t *Torrent) BytesDownloaded() int64 { return t.Stats().BytesComplete } // TODO not the same thing
+func (t *Torrent) BytesUploaded() int64   { return 0 }                       // TODO implememnt
+func (t *Torrent) BytesLeft() int64       { return t.Stats().BytesIncomplete }

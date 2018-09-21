@@ -60,6 +60,7 @@ type Downloader struct {
 	log                    logger.Logger
 	workers                worker.Workers
 	closeC                 chan struct{}
+	statsC                 chan StatsRequest
 }
 
 func New(infoHash [20]byte, dest string, res resume.DB, info *metainfo.Info, bf *bitfield.Bitfield, completeC chan struct{}, l logger.Logger) *Downloader {
@@ -83,6 +84,7 @@ func New(infoHash [20]byte, dest string, res resume.DB, info *metainfo.Info, bf 
 		errC:              make(chan error),
 		log:               l,
 		closeC:            make(chan struct{}),
+		statsC:            make(chan StatsRequest),
 	}
 	go d.run()
 	return d
@@ -130,6 +132,16 @@ func (d *Downloader) run() {
 		select {
 		case <-d.closeC:
 			return
+		case req := <-d.statsC:
+			var stats Stats
+			if d.info != nil {
+				stats.BytesTotal = d.info.TotalLength
+				stats.BytesComplete = int64(d.info.PieceLength) * int64(d.bitfield.Count())
+				stats.BytesIncomplete = stats.BytesTotal - stats.BytesComplete
+				// TODO calculate bytes downloaded
+				// TODO calculate bytes uploaded
+			}
+			req.Response <- stats
 		case <-infoDownloaders.Wait:
 			if d.info != nil {
 				infoDownloaders.Block()
@@ -292,6 +304,10 @@ func (d *Downloader) run() {
 			if d.optimisticUnchokedPeer != nil {
 				d.optimisticUnchokedPeer.optimisticUnhoked = false
 				d.chokePeer(d.optimisticUnchokedPeer, stopC)
+			}
+			if len(peers) == 0 {
+				d.optimisticUnchokedPeer = nil
+				break
 			}
 			pe := peers[rand.Intn(len(peers))]
 			pe.optimisticUnhoked = true
@@ -727,4 +743,30 @@ func (d *Downloader) checkCompletion() {
 	if d.bitfield.All() {
 		close(d.completeC)
 	}
+}
+
+type Stats struct {
+	// BytesDownloaded int64
+	// BytesUploaded   int64
+	BytesComplete   int64
+	BytesIncomplete int64
+	BytesTotal      int64
+}
+
+type StatsRequest struct {
+	Response chan Stats
+}
+
+func (d *Downloader) Stats() Stats {
+	var stats Stats
+	req := StatsRequest{Response: make(chan Stats, 1)}
+	select {
+	case d.statsC <- req:
+	case <-d.closeC:
+	}
+	select {
+	case stats = <-req.Response:
+	case <-d.closeC:
+	}
+	return stats
 }
