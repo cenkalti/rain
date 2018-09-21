@@ -73,7 +73,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	t.Start()
 
 	sigC := make(chan os.Signal, 1)
 	signal.Notify(sigC, syscall.SIGINT, syscall.SIGTERM)
