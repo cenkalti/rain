@@ -31,7 +31,6 @@ type Torrent struct {
 	infoHash   [20]byte
 	announce   string
 	port       int           // listen for peer connections
-	running    bool          // true after Start() is called
 	closed     bool          // true after Close() is called
 	m          sync.Mutex    // protects running and closed state
 	completeC  chan struct{} // downloader closes this channel when all pieces are downloaded
@@ -44,9 +43,11 @@ type Torrent struct {
 //
 // Files are read from disk. If there are existing files, hash check will be done.
 //
-// Returned torrent is in stopped state.
-//
 // Close must be called before discarding the torrent.
+//
+// Seeding continues after all files are downloaded.
+//
+// You should listen NotifyComplete and NotifyError channels after starting the torrent.
 func New(r io.Reader, dest string, port int, res resume.DB) (*Torrent, error) {
 	m, err := metainfo.New(r)
 	if err != nil {
@@ -131,7 +132,7 @@ func newTorrent(spec resume.Spec, res resume.DB) (*Torrent, error) {
 	completeC := make(chan struct{})
 	l := logger.New("download " + logName)
 
-	return &Torrent{
+	t := &Torrent{
 		peerID:   peerID,
 		infoHash: infoHash,
 		// TODO pass every tracker to downloader
@@ -140,22 +141,6 @@ func newTorrent(spec resume.Spec, res resume.DB) (*Torrent, error) {
 		log:        l,
 		completeC:  completeC,
 		downloader: downloader.New(infoHash, spec.Dest, res, info, bf, completeC, l),
-	}, nil
-}
-
-// Start listening peer port, accepting incoming peer connections and download missing pieces.
-//
-// Seeding continues after all files are downloaded.
-//
-// You should listen NotifyComplete and NotifyError channels after starting the torrent.
-func (t *Torrent) Start() {
-	t.m.Lock()
-	defer t.m.Unlock()
-	if t.closed {
-		panic("torrent is closed")
-	}
-	if t.running {
-		return
 	}
 
 	// keep list of peer addresses to connect
@@ -170,33 +155,21 @@ func (t *Torrent) Start() {
 	pm := peermanager.New(t.port, pl, t.peerID, t.infoHash, t.downloader.NewPeers(), t.log)
 	t.workers.Start(pm)
 
-	// request missing pieces from peers
-	t.workers.StartWithOnFinishHandler(t.downloader, func() { t.Stop() })
-}
-
-// Stop downloading and uploading, disconnect all peers and close peer port.
-func (t *Torrent) Stop() {
-	t.m.Lock()
-	defer t.m.Unlock()
-	if t.closed {
-		panic("torrent is closed")
-	}
-	if !t.running {
-		return
-	}
-	t.workers.Stop()
+	return t, nil
 }
 
 // Close this torrent and release all resources.
 func (t *Torrent) Close() error {
 	t.m.Lock()
 	defer t.m.Unlock()
+
 	if t.closed {
 		return nil
 	}
-	if t.running {
-		t.Stop()
-	}
+	t.closed = true
+
+	t.workers.Stop()
+	t.downloader.Close()
 	return nil
 }
 

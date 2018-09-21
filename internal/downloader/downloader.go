@@ -59,10 +59,11 @@ type Downloader struct {
 	errC                   chan error
 	log                    logger.Logger
 	workers                worker.Workers
+	closeC                 chan struct{}
 }
 
 func New(infoHash [20]byte, dest string, res resume.DB, info *metainfo.Info, bf *bitfield.Bitfield, completeC chan struct{}, l logger.Logger) *Downloader {
-	return &Downloader{
+	d := &Downloader{
 		infoHash:          infoHash,
 		dest:              dest,
 		resume:            res,
@@ -81,7 +82,10 @@ func New(infoHash [20]byte, dest string, res resume.DB, info *metainfo.Info, bf 
 		completeC:         completeC,
 		errC:              make(chan error),
 		log:               l,
+		closeC:            make(chan struct{}),
 	}
+	go d.run()
+	return d
 }
 
 func (d *Downloader) NewPeers() chan *peer.Peer {
@@ -92,7 +96,13 @@ func (d *Downloader) ErrC() chan error {
 	return d.errC
 }
 
-func (d *Downloader) Run(stopC chan struct{}) {
+func (d *Downloader) Close() {
+	close(d.closeC)
+}
+
+func (d *Downloader) run() {
+	stopC := d.closeC
+
 	if d.info != nil {
 		err := d.processInfo()
 		if err != nil {
@@ -118,6 +128,8 @@ func (d *Downloader) Run(stopC chan struct{}) {
 
 	for {
 		select {
+		case <-d.closeC:
+			return
 		case <-infoDownloaders.Wait:
 			if d.info != nil {
 				infoDownloaders.Block()

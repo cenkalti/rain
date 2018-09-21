@@ -68,7 +68,6 @@ func TestDownloadTorrent(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer t1.Close()
-	t1.Start()
 
 	// Wait for seeder to announce to tracker.
 	time.Sleep(100 * time.Millisecond)
@@ -82,7 +81,6 @@ func TestDownloadTorrent(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer t2.Close()
-	t2.Start()
 
 	select {
 	case <-t2.NotifyComplete():
@@ -151,7 +149,6 @@ func TestDownloadMagnet(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer t1.Close()
-	t1.Start()
 
 	// Wait for seeder to announce to tracker.
 	time.Sleep(100 * time.Millisecond)
@@ -166,7 +163,6 @@ func TestDownloadMagnet(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer t2.Close()
-	t2.Start()
 
 	select {
 	case <-t2.NotifyComplete():
