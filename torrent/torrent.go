@@ -166,6 +166,14 @@ func newTorrent(spec *resume.Spec, sto storage.Storage, res resume.DB) (*Torrent
 	completeC := make(chan struct{})
 	l := logger.New("download " + logName)
 
+	dspec := &downloader.Spec{
+		InfoHash: infoHash,
+		Storage:  sto,
+		Resume:   res,
+		Info:     info,
+		Bitfield: bf,
+	}
+
 	t := &Torrent{
 		peerID:   peerID,
 		infoHash: infoHash,
@@ -174,7 +182,7 @@ func newTorrent(spec *resume.Spec, sto storage.Storage, res resume.DB) (*Torrent
 		port:       spec.Port,
 		log:        l,
 		completeC:  completeC,
-		downloader: downloader.New(infoHash, sto, res, info, bf, completeC, l),
+		downloader: downloader.New(dspec, completeC, l),
 	}
 
 	// keep list of peer addresses to connect

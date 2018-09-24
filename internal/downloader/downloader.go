@@ -65,13 +65,13 @@ type Downloader struct {
 	statsC                 chan StatsRequest
 }
 
-func New(infoHash [20]byte, sto storage.Storage, res resume.DB, info *metainfo.Info, bf *bitfield.Bitfield, completeC chan struct{}, l logger.Logger) *Downloader {
+func New(spec *Spec, completeC chan struct{}, l logger.Logger) *Downloader {
 	d := &Downloader{
-		infoHash:          infoHash,
-		storage:           sto,
-		resume:            res,
-		info:              info,
-		bitfield:          bf,
+		infoHash:          spec.InfoHash,
+		storage:           spec.Storage,
+		resume:            spec.Resume,
+		info:              spec.Info,
+		bitfield:          spec.Bitfield,
 		newPeers:          make(chan *peer.Peer),
 		disconnectedPeers: make(chan *peer.Peer),
 		messages:          make(chan PeerMessage),
