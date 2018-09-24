@@ -1,24 +1,22 @@
 package torrent_test
 
 import (
-	"context"
 	"io"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/cenkalti/log"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/resume/torrentresume"
 	"github.com/cenkalti/rain/storage/filestorage"
 	"github.com/cenkalti/rain/torrent"
-	"github.com/crosbymichael/tracker/registry/inmem"
-	"github.com/crosbymichael/tracker/server"
+	"github.com/chihaya/chihaya/config"
+	"github.com/chihaya/chihaya/http"
+	"github.com/chihaya/chihaya/tracker"
 )
 
 var (
@@ -39,7 +37,6 @@ func newResumeFile(t *testing.T) *torrentresume.TorrentResume {
 		t.Fatal(err)
 	}
 	resumePath := resumeFile.Name()
-	println("XXX", resumePath)
 	res, err := torrentresume.New(resumePath)
 	if err != nil {
 		t.Fatal(err)
@@ -107,23 +104,18 @@ func TestDownloadTorrent(t *testing.T) {
 }
 
 func startTracker(t *testing.T) (stop func()) {
-	logger := logrus.New()
-	logger.Level = logrus.DebugLevel
-	registry := inmem.New()
-	s := server.New(120, 30, registry, logger)
-	srv := http.Server{
-		Addr:    trackerAddr,
-		Handler: s,
-	}
-	go func() {
-		err := srv.ListenAndServe()
-		if err == http.ErrServerClosed {
-			return
-		}
+	var cfg = new(config.Config)
+	*cfg = config.DefaultConfig
+	cfg.HTTPConfig.ListenAddr = "localhost:5000"
+	trk, err := tracker.New(cfg)
+	if err != nil {
 		t.Fatal(err)
-	}()
+	}
+	srv := http.NewServer(cfg, trk)
+	go srv.Serve()
 	return func() {
-		err := srv.Shutdown(context.Background())
+		srv.Stop()
+		err := trk.Close()
 		if err != nil {
 			t.Fatal(err)
 		}
