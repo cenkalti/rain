@@ -217,7 +217,7 @@ func TestDownloadMagnet(t *testing.T) {
 }
 
 func TestDownloadTorrentUDP(t *testing.T) {
-	defer startHTTPTracker(t)()
+	startUDPTracker(t, 5000) // TODO this does not get closed
 
 	where, err := ioutil.TempDir("", "rain-")
 	if err != nil {
