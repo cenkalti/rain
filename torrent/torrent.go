@@ -52,86 +52,122 @@ type Torrent struct {
 //
 // You should listen NotifyComplete and NotifyError channels after starting the torrent.
 func DownloadTorrent(r io.Reader, port int, sto storage.Storage, res resume.DB) (*Torrent, error) {
+	if res != nil {
+		rspec, err := res.Read()
+		if err != nil {
+			return nil, err
+		}
+		if rspec != nil {
+			return loadResumeSpec(rspec)
+		}
+	}
 	m, err := metainfo.New(r)
 	if err != nil {
 		return nil, err
 	}
-	spec := &resume.Spec{
-		InfoHash: m.Info.Hash[:],
-		Port:     port,
-		Name:     m.Info.Name,
-		// TODO save every tracker
-		Trackers:    []string{m.Announce},
-		StorageType: sto.Type(),
-		StorageArgs: sto.Args(),
-		Info:        m.Info.Bytes,
+	spec := &downloader.Spec{
+		InfoHash: m.Info.Hash,
+		Storage:  sto,
+		Resume:   res,
+		Info:     m.Info,
 	}
 	if res != nil {
-		resumeSpec, err := res.Read()
-		if err != nil {
-			return nil, err
-		}
-		if resumeSpec != nil {
-			return newTorrent(resumeSpec, sto, res)
-		}
-		err = res.Write(spec)
+		err = writeResume(res, spec, port, m.Info.Name, m.Announce)
 		if err != nil {
 			return nil, err
 		}
 	}
-	return newTorrent(spec, sto, res)
+	return newTorrent(spec, port, m.Info.Name, m.Announce)
 }
 
 func DownloadMagnet(magnetLink string, port int, sto storage.Storage, res resume.DB) (*Torrent, error) {
+	if res != nil {
+		rspec, err := res.Read()
+		if err != nil {
+			return nil, err
+		}
+		if rspec != nil {
+			return loadResumeSpec(rspec)
+		}
+	}
 	m, err := magnet.New(magnetLink)
 	if err != nil {
 		return nil, err
 	}
-	spec := &resume.Spec{
-		InfoHash:    m.InfoHash[:],
-		Port:        port,
-		Name:        m.Name,
-		Trackers:    m.Trackers,
-		StorageType: sto.Type(),
-		StorageArgs: sto.Args(),
+	spec := &downloader.Spec{
+		InfoHash: m.InfoHash,
+		Storage:  sto,
+		Resume:   res,
 	}
 	if res != nil {
-		resumeSpec, err := res.Read()
-		if err != nil {
-			return nil, err
-		}
-		if resumeSpec != nil {
-			return newTorrent(resumeSpec, sto, res)
-		}
-		err = res.Write(spec)
+		err = writeResume(res, spec, port, m.Name, m.Trackers[0])
 		if err != nil {
 			return nil, err
 		}
 	}
-	return newTorrent(spec, sto, res)
+	return newTorrent(spec, port, m.Name, m.Trackers[0])
 }
 
-func Resume(res resume.DB) (*Torrent, error) {
+func Resume(res resume.DB, port int) (*Torrent, error) {
 	spec, err := res.Read()
 	if err != nil {
 		return nil, err
 	}
-	var sto storage.Storage
+	if spec == nil {
+		return nil, errors.New("no resume info")
+	}
+	return loadResumeSpec(spec)
+}
+
+func loadResumeSpec(spec *resume.Spec) (*Torrent, error) {
+	var err error
+	dspec := &downloader.Spec{}
+	copy(dspec.InfoHash[:], spec.InfoHash)
+	if spec.Info != nil {
+		dspec.Info, err = metainfo.NewInfo(spec.Info)
+		if err != nil {
+			return nil, err
+		}
+		if spec.Bitfield != nil {
+			dspec.Bitfield = bitfield.New(dspec.Info.NumPieces)
+			copy(dspec.Bitfield.Bytes(), spec.Bitfield)
+		}
+	}
 	switch spec.StorageType {
 	case filestorage.StorageType:
-		sto = &filestorage.FileStorage{}
+		dspec.Storage = &filestorage.FileStorage{}
 	default:
 		return nil, errors.New("unknown storage type: " + spec.StorageType)
 	}
-	err = sto.Load(spec.StorageArgs)
+	err = dspec.Storage.Load(spec.StorageArgs)
 	if err != nil {
 		return nil, err
 	}
-	return newTorrent(spec, sto, res)
+	return newTorrent(dspec, spec.Port, spec.Name, spec.Trackers[0])
 }
 
-func newTorrent(spec *resume.Spec, sto storage.Storage, res resume.DB) (*Torrent, error) {
-	logName := spec.Name
+func writeResume(res resume.DB, dspec *downloader.Spec, port int, name string, tracker string) error {
+	rspec := &resume.Spec{
+		InfoHash: dspec.InfoHash[:],
+		Port:     port,
+		Name:     name,
+		// TODO save every tracker
+		Trackers:    []string{tracker},
+		StorageType: dspec.Storage.Type(),
+		StorageArgs: dspec.Storage.Args(),
+	}
+	if dspec.Info != nil {
+		rspec.Info = dspec.Info.Bytes
+	}
+	if dspec.Bitfield != nil {
+		rspec.Bitfield = dspec.Bitfield.Bytes()
+	}
+	return res.Write(rspec)
+}
+
+// TODO pass every tracker
+func newTorrent(spec *downloader.Spec, port int, name string, tracker string) (*Torrent, error) {
+	logName := name
 	if len(logName) > 8 {
 		logName = logName[:8]
 	}
@@ -143,46 +179,18 @@ func newTorrent(spec *resume.Spec, sto storage.Storage, res resume.DB) (*Torrent
 		return nil, err
 	}
 
-	var infoHash [20]byte
-	copy(infoHash[:], spec.InfoHash)
-
-	// TODO this is already parsed in New func
-	var info *metainfo.Info
-	if spec.Info != nil {
-		info, err = metainfo.NewInfo(spec.Info)
-		if err != nil {
-			return nil, err
-		}
-
-	}
-
-	// TODO this is already parsed
-	var bf *bitfield.Bitfield
-	if spec.Bitfield != nil {
-		bf = bitfield.New(info.NumPieces)
-		copy(bf.Bytes(), spec.Bitfield)
-	}
-
 	completeC := make(chan struct{})
 	l := logger.New("download " + logName)
 
-	dspec := &downloader.Spec{
-		InfoHash: infoHash,
-		Storage:  sto,
-		Resume:   res,
-		Info:     info,
-		Bitfield: bf,
-	}
-
 	t := &Torrent{
 		peerID:   peerID,
-		infoHash: infoHash,
+		infoHash: spec.InfoHash,
 		// TODO pass every tracker to downloader
-		announce:   spec.Trackers[0],
-		port:       spec.Port,
+		announce:   tracker,
+		port:       port,
 		log:        l,
 		completeC:  completeC,
-		downloader: downloader.New(dspec, completeC, l),
+		downloader: downloader.New(spec, completeC, l),
 	}
 
 	// keep list of peer addresses to connect

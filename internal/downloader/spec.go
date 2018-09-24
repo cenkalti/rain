@@ -7,6 +7,7 @@ import (
 	"github.com/cenkalti/rain/storage"
 )
 
+// Spec contains parameters for Download constructor.
 type Spec struct {
 	InfoHash [20]byte
 	Storage  storage.Storage
