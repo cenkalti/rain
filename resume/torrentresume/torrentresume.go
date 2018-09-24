@@ -113,7 +113,7 @@ func (r *TorrentResume) Write(spec *resume.Spec) error {
 		b.Put(portKey, []byte(port))
 		b.Put(nameKey, []byte(spec.Name))
 		b.Put(storageTypeKey, []byte(spec.StorageType))
-		b.Put(storageTypeKey, storageArgs)
+		b.Put(storageArgsKey, storageArgs)
 		b.Put(trackersKey, trackers)
 		b.Put(infoKey, spec.Info)
 		b.Put(bitfieldKey, spec.Bitfield)
