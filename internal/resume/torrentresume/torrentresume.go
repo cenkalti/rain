@@ -24,6 +24,8 @@ type TorrentResume struct {
 	db *bolt.DB
 }
 
+var _ resume.DB = (*TorrentResume)(nil)
+
 func New(path string) (*TorrentResume, error) {
 	db, err := bolt.Open(path, 0600, nil)
 	if err != nil {
