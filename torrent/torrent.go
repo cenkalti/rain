@@ -123,12 +123,12 @@ func loadResumeSpec(spec *resume.Spec) (*Torrent, error) {
 	var err error
 	dspec := &downloader.Spec{}
 	copy(dspec.InfoHash[:], spec.InfoHash)
-	if spec.Info != nil {
+	if len(spec.Info) > 0 {
 		dspec.Info, err = metainfo.NewInfo(spec.Info)
 		if err != nil {
 			return nil, err
 		}
-		if spec.Bitfield != nil {
+		if len(spec.Bitfield) > 0 {
 			dspec.Bitfield = bitfield.New(dspec.Info.NumPieces)
 			copy(dspec.Bitfield.Bytes(), spec.Bitfield)
 		}
