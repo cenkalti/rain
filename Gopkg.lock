@@ -2,6 +2,22 @@
 
 
 [[projects]]
+  digest = "1:d867dfa6751c8d7a435821ad3b736310c2ed68945d05b50fb9d23aee0540c8cc"
+  name = "github.com/Sirupsen/logrus"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "3e01752db0189b9157070a0e1668a620f9a85da2"
+  version = "v1.0.6"
+
+[[projects]]
+  branch = "master"
+  digest = "1:d6afaeed1502aa28e80a4ed0981d570ad91b2579193404256ce672ed0a609e0d"
+  name = "github.com/beorn7/perks"
+  packages = ["quantile"]
+  pruneopts = "UT"
+  revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
+
+[[projects]]
   branch = "master"
   digest = "1:c7c97afc7fc4235c8d3c9f95609183a541f9af3127214d677d0feda0a004eaaa"
   name = "github.com/cenkalti/backoff"
@@ -18,47 +34,39 @@
   revision = "e1cf6d40cbc30759a410e0552991897df9a91189"
 
 [[projects]]
-  branch = "master"
-  digest = "1:b7a998cbfb041658a0a88f8f2a7776921e587fb6e08e08def4745525d8b983ef"
-  name = "github.com/chihaya/bencode"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "641906563e269b7b7ce906da1d0d752f43f90155"
-
-[[projects]]
-  digest = "1:4944f37f9ff1a58e41084d9d3934402faba40eb44377c51cce8a3a45da1f3a44"
+  digest = "1:77eb70fb114d55b487d84c84af6fd8edb1e2edbeb22d5eaa96fac197da4c3b4f"
   name = "github.com/chihaya/chihaya"
   packages = [
-    "config",
-    "http",
-    "http/query",
-    "stats",
-    "tracker",
-    "tracker/models",
-    "udp",
+    "bittorrent",
+    "frontend",
+    "frontend/http",
+    "frontend/http/bencode",
+    "frontend/udp",
+    "frontend/udp/bytepool",
+    "middleware",
+    "pkg/stop",
+    "storage",
+    "storage/memory",
   ]
   pruneopts = "UT"
-  revision = "c994988ad53eb85aeab8a5839f3a6c301b1c0c28"
-  version = "v1.0.2"
+  revision = "fa6dcddcb6f7e063fcd9baf36c43373aab459b1f"
+  version = "v2.0.0-rc.2"
 
 [[projects]]
-  branch = "master"
-  digest = "1:a246a8d5c0f4fd783d7479be5ce3bbccdbbc7becb5ded47b554659a82fa0ef1d"
-  name = "github.com/coreos/go-oidc"
-  packages = [
-    "http",
-    "jose",
-  ]
+  digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
+  name = "github.com/davecgh/go-spew"
+  packages = ["spew"]
   pruneopts = "UT"
-  revision = "a93f71fdfe73d2c0f5413c0565eea0af6523a6df"
+  revision = "8991bc29aa16c548c550c7ff78260e27b9ab7c73"
+  version = "v1.1.1"
 
 [[projects]]
-  branch = "master"
-  digest = "1:1ba1d79f2810270045c328ae5d674321db34e3aae468eb4233883b473c5c0467"
-  name = "github.com/golang/glog"
-  packages = ["."]
+  digest = "1:97df918963298c287643883209a2c3f642e6593379f97ab400c2a2e219ab647d"
+  name = "github.com/golang/protobuf"
+  packages = ["proto"]
   pruneopts = "UT"
-  revision = "23def4e6c14b4da8ac2ed8007337bc5eb5007998"
+  revision = "aa810b61a9c79d51363740d207bb46cf8e620ed5"
+  version = "v1.2.0"
 
 [[projects]]
   branch = "master"
@@ -93,6 +101,22 @@
   version = "v0.0.3"
 
 [[projects]]
+  digest = "1:ff5ebae34cfbf047d505ee150de27e60570e8c394b3b8fdbb720ff6ac71985fc"
+  name = "github.com/matttproud/golang_protobuf_extensions"
+  packages = ["pbutil"]
+  pruneopts = "UT"
+  revision = "c12348ce28de40eed0136aa2b644d0ee0650e56c"
+  version = "v1.0.1"
+
+[[projects]]
+  branch = "master"
+  digest = "1:17e048d1af8833670439d1ad0c92305fc1ad503e5d03f37ee667c0074df0fd03"
+  name = "github.com/minio/sha256-simd"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "ad98a36ba0da87206e3378c556abbfeaeaa98668"
+
+[[projects]]
   branch = "master"
   digest = "1:c7354463195544b1ab3c1f1fadb41430947f5d28dfbf2cdbd38268c5717a5a03"
   name = "github.com/mitchellh/go-homedir"
@@ -101,36 +125,64 @@
   revision = "58046073cbffe2f25d425fe1331102f55cf719de"
 
 [[projects]]
-  branch = "master"
-  digest = "1:85250dcb178458b41eaf816d3c0e0cf065ba6541f1f12d2e36c143ec92e0d7ba"
-  name = "github.com/pushrax/bufferpool"
-  packages = ["."]
+  digest = "1:0028cb19b2e4c3112225cd871870f2d9cf49b9b4276531f03438a88e94be86fe"
+  name = "github.com/pmezard/go-difflib"
+  packages = ["difflib"]
   pruneopts = "UT"
-  revision = "7d6e1653dee10a165d1f357f3a57bc8031e9621b"
+  revision = "792786c7400a136282c1664665ae0a8db921c6c2"
+  version = "v1.0.0"
+
+[[projects]]
+  digest = "1:b6221ec0f8903b556e127c449e7106b63e6867170c2d10a7c058623d086f2081"
+  name = "github.com/prometheus/client_golang"
+  packages = ["prometheus"]
+  pruneopts = "UT"
+  revision = "c5b7fccd204277076155f10851dad72b76a49317"
+  version = "v0.8.0"
 
 [[projects]]
   branch = "master"
-  digest = "1:2d5e69f056dc4047d8b94691be225ea0201c6508b88285ddffb03ebc2a86c272"
-  name = "github.com/pushrax/faststats"
-  packages = ["."]
+  digest = "1:2d5cd61daa5565187e1d96bae64dbbc6080dacf741448e9629c64fd93203b0d4"
+  name = "github.com/prometheus/client_model"
+  packages = ["go"]
   pruneopts = "UT"
-  revision = "0fc2c5e41a187240ffaa09320eea7df9f8071388"
+  revision = "5c3871d89910bfb32f5fcab2aa4b9ec68e65a99f"
 
 [[projects]]
   branch = "master"
-  digest = "1:20044ff0100299ab29512371b218054c081fa0488ca9f31768cf73b51b538896"
-  name = "github.com/pushrax/flatjson"
-  packages = ["."]
+  digest = "1:63b68062b8968092eb86bedc4e68894bd096ea6b24920faca8b9dcf451f54bb5"
+  name = "github.com/prometheus/common"
+  packages = [
+    "expfmt",
+    "internal/bitbucket.org/ww/goautoneg",
+    "model",
+  ]
   pruneopts = "UT"
-  revision = "86044f1c998d49053e13293029414ddb63f3a422"
+  revision = "c7de2306084e37d54b8be01f3541a8464345e9a5"
 
 [[projects]]
-  digest = "1:43b8a34f6390d8fbdcfd300ed52103064e9eaaecc7e50b7e3518fe246ebe8403"
-  name = "github.com/tylerb/graceful"
-  packages = ["."]
+  branch = "master"
+  digest = "1:ef1dd9945e58ee9b635273d28c0ef3fa3742a7dedc038ebe207fd63e6ce000ef"
+  name = "github.com/prometheus/procfs"
+  packages = [
+    ".",
+    "internal/util",
+    "nfs",
+    "xfs",
+  ]
   pruneopts = "UT"
-  revision = "4654dfbb6ad53cb5e27f37d99b02e16c1872fbbb"
-  version = "v1.2.15"
+  revision = "418d78d0b9a7b7de3a6bbc8a23def624cc977bb2"
+
+[[projects]]
+  digest = "1:c40d65817cdd41fac9aa7af8bed56927bb2d6d47e4fea566a74880f5c2b1c41e"
+  name = "github.com/stretchr/testify"
+  packages = [
+    "assert",
+    "require",
+  ]
+  pruneopts = "UT"
+  revision = "f35b8ab0b5a2cef36673838d662e249dd9c94686"
+  version = "v1.2.2"
 
 [[projects]]
   branch = "master"
@@ -150,9 +202,20 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:c24d11f20c017c884f7645f73f753374f7697f8804a2e2293d7d4167ce852033"
+  digest = "1:3f3a05ae0b95893d90b9b3b5afdb79a9b3d96e4e36e099d841ae602e4aca0da8"
+  name = "golang.org/x/crypto"
+  packages = ["ssh/terminal"]
+  pruneopts = "UT"
+  revision = "0e37d006457bf46f9e6692014ba72ef82c33022c"
+
+[[projects]]
+  branch = "master"
+  digest = "1:de7f8e5ca9182a3bb6ef237c20d7a43dd57f6123c455b7131467765f2d981bcf"
   name = "golang.org/x/sys"
-  packages = ["unix"]
+  packages = [
+    "unix",
+    "windows",
+  ]
   pruneopts = "UT"
   revision = "0718ef2ef256118d53a01598f179001ec2af7626"
 
@@ -170,10 +233,11 @@
   input-imports = [
     "github.com/cenkalti/backoff",
     "github.com/cenkalti/log",
-    "github.com/chihaya/chihaya/config",
-    "github.com/chihaya/chihaya/http",
-    "github.com/chihaya/chihaya/tracker",
-    "github.com/chihaya/chihaya/udp",
+    "github.com/chihaya/chihaya/frontend/http",
+    "github.com/chihaya/chihaya/frontend/udp",
+    "github.com/chihaya/chihaya/middleware",
+    "github.com/chihaya/chihaya/storage",
+    "github.com/chihaya/chihaya/storage/memory",
     "github.com/hashicorp/go-multierror",
     "github.com/mitchellh/go-homedir",
     "github.com/zeebo/bencode",

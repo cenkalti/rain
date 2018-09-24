@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -14,10 +15,11 @@ import (
 	"github.com/cenkalti/rain/resume/torrentresume"
 	"github.com/cenkalti/rain/storage/filestorage"
 	"github.com/cenkalti/rain/torrent"
-	"github.com/chihaya/chihaya/config"
-	"github.com/chihaya/chihaya/http"
-	"github.com/chihaya/chihaya/tracker"
-	"github.com/chihaya/chihaya/udp"
+	"github.com/chihaya/chihaya/frontend/http"
+	"github.com/chihaya/chihaya/frontend/udp"
+	"github.com/chihaya/chihaya/middleware"
+	"github.com/chihaya/chihaya/storage"
+	_ "github.com/chihaya/chihaya/storage/memory"
 )
 
 var (
@@ -47,7 +49,7 @@ func newResumeFile(t *testing.T) *torrentresume.TorrentResume {
 }
 
 func TestDownloadTorrent(t *testing.T) {
-	defer startTracker(t)()
+	defer startHTTPTracker(t)()
 
 	where, err := ioutil.TempDir("", "rain-")
 	if err != nil {
@@ -104,30 +106,58 @@ func TestDownloadTorrent(t *testing.T) {
 	}
 }
 
-func startTracker(t *testing.T) (stop func()) {
-	var cfg = new(config.Config)
-	*cfg = config.DefaultConfig
-	cfg.HTTPConfig.ListenAddr = "localhost:5000"
-	trk, err := tracker.New(cfg)
+func trackerLogic(t *testing.T) *middleware.Logic {
+	responseConfig := middleware.Config{
+		AnnounceInterval:    time.Minute,
+		MaxNumWant:          200,
+		DefaultNumWant:      50,
+		MaxScrapeInfoHashes: 400,
+	}
+	ps, err := storage.NewPeerStore("memory", map[string]interface{}{
+		"gc_interval":                   3 * time.Minute,
+		"peer_lifetime":                 31 * time.Minute,
+		"shard_count":                   1024,
+		"prometheus_reporting_interval": time.Second,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	httpServer := http.NewServer(cfg, trk)
-	go httpServer.Serve()
-	udpServer := udp.NewServer(cfg, trk)
-	go udpServer.Serve()
+	return middleware.NewLogic(responseConfig, ps, nil, nil)
+}
+
+func startHTTPTracker(t *testing.T) (stop func()) {
+	lgc := trackerLogic(t)
+	httpfe, err := http.NewFrontend(lgc, http.Config{
+		Addr:         "127.0.0.1:5000",
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	return func() {
-		httpServer.Stop()
-		udpServer.Stop()
-		err := trk.Close()
+		errC := httpfe.Stop()
+		err := <-errC
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 }
 
+func startUDPTracker(t *testing.T, port int) {
+	lgc := trackerLogic(t)
+	_, err := udp.NewFrontend(lgc, udp.Config{
+		Addr:            "127.0.0.1:" + strconv.Itoa(port),
+		MaxClockSkew:    time.Minute,
+		AllowIPSpoofing: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestDownloadMagnet(t *testing.T) {
-	defer startTracker(t)()
+	defer startHTTPTracker(t)()
 
 	where, err := ioutil.TempDir("", "rain-")
 	if err != nil {
