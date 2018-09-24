@@ -1,6 +1,7 @@
 package torrent
 
 import (
+	"bytes"
 	"crypto/rand"
 	"errors"
 	"io"
@@ -26,6 +27,8 @@ var (
 
 	// http://www.bittorrent.org/beps/bep_0020.html
 	peerIDPrefix = []byte("-RN" + Version + "-")
+
+	errInvalidResumeFile = errors.New("invalid resume file (info hashes does not match)")
 )
 
 // Torrent connect to peers and downloads files from swarm.
@@ -52,18 +55,21 @@ type Torrent struct {
 //
 // You should listen NotifyComplete and NotifyError channels after starting the torrent.
 func DownloadTorrent(r io.Reader, port int, sto storage.Storage, res resume.DB) (*Torrent, error) {
+	m, err := metainfo.New(r)
+	if err != nil {
+		return nil, err
+	}
 	if res != nil {
-		rspec, err := res.Read()
-		if err != nil {
-			return nil, err
+		rspec, err2 := res.Read()
+		if err2 != nil {
+			return nil, err2
+		}
+		if !bytes.Equal(rspec.InfoHash, m.Info.Hash[:]) {
+			return nil, errInvalidResumeFile
 		}
 		if rspec != nil {
 			return loadResumeSpec(rspec)
 		}
-	}
-	m, err := metainfo.New(r)
-	if err != nil {
-		return nil, err
 	}
 	spec := &downloader.Spec{
 		InfoHash: m.Info.Hash,
@@ -81,18 +87,21 @@ func DownloadTorrent(r io.Reader, port int, sto storage.Storage, res resume.DB) 
 }
 
 func DownloadMagnet(magnetLink string, port int, sto storage.Storage, res resume.DB) (*Torrent, error) {
+	m, err := magnet.New(magnetLink)
+	if err != nil {
+		return nil, err
+	}
 	if res != nil {
-		rspec, err := res.Read()
-		if err != nil {
-			return nil, err
+		rspec, err2 := res.Read()
+		if err2 != nil {
+			return nil, err2
+		}
+		if !bytes.Equal(rspec.InfoHash, m.InfoHash[:]) {
+			return nil, errInvalidResumeFile
 		}
 		if rspec != nil {
 			return loadResumeSpec(rspec)
 		}
-	}
-	m, err := magnet.New(magnetLink)
-	if err != nil {
-		return nil, err
 	}
 	spec := &downloader.Spec{
 		InfoHash: m.InfoHash,
