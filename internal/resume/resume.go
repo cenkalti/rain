@@ -2,8 +2,8 @@ package resume
 
 // DB provides operations to save and load resume info for a Torrent.
 type DB interface {
-	Read() (Spec, error)
-	Write(spec Spec) error
+	Read() (*Spec, error)
+	Write(spec *Spec) error
 	WriteInfo([]byte) error
 	WriteBitfield([]byte) error
 }

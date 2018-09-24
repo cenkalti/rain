@@ -42,12 +42,17 @@ func (r *TorrentResume) Close() error {
 	return r.db.Close()
 }
 
-func (r *TorrentResume) Read() (resume.Spec, error) {
-	var spec resume.Spec
+func (r *TorrentResume) Read() (*resume.Spec, error) {
+	var spec *resume.Spec
 	err := r.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bucketName)
 
 		value := b.Get(infoHashKey)
+		if value == nil {
+			return nil
+		}
+
+		spec = new(resume.Spec)
 		spec.InfoHash = make([]byte, len(value))
 		copy(spec.InfoHash, value)
 
@@ -83,7 +88,7 @@ func (r *TorrentResume) Read() (resume.Spec, error) {
 	return spec, err
 }
 
-func (r *TorrentResume) Write(spec resume.Spec) error {
+func (r *TorrentResume) Write(spec *resume.Spec) error {
 	port := strconv.Itoa(spec.Port)
 	trackers, err := json.Marshal(spec.Trackers)
 	if err != nil {

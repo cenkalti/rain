@@ -53,7 +53,14 @@ func New(r io.Reader, dest string, port int, res resume.DB) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
-	spec := resume.Spec{
+	resumeSpec, err := res.Read()
+	if err != nil {
+		return nil, err
+	}
+	if resumeSpec != nil {
+		return newTorrent(resumeSpec, res)
+	}
+	spec := &resume.Spec{
 		InfoHash: m.Info.Hash[:],
 		Port:     port,
 		Name:     m.Info.Name,
@@ -74,7 +81,14 @@ func NewMagnet(magnetLink, dest string, port int, res resume.DB) (*Torrent, erro
 	if err != nil {
 		return nil, err
 	}
-	spec := resume.Spec{
+	resumeSpec, err := res.Read()
+	if err != nil {
+		return nil, err
+	}
+	if resumeSpec != nil {
+		return newTorrent(resumeSpec, res)
+	}
+	spec := &resume.Spec{
 		InfoHash: m.InfoHash[:],
 		Port:     port,
 		Name:     m.Name,
@@ -96,7 +110,7 @@ func NewResume(res resume.DB) (*Torrent, error) {
 	return newTorrent(spec, res)
 }
 
-func newTorrent(spec resume.Spec, res resume.DB) (*Torrent, error) {
+func newTorrent(spec *resume.Spec, res resume.DB) (*Torrent, error) {
 	logName := spec.Name
 	if len(logName) > 8 {
 		logName = logName[:8]
