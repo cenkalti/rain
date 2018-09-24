@@ -9,11 +9,12 @@ type DB interface {
 }
 
 type Spec struct {
-	InfoHash []byte
-	Port     int
-	Name     string
-	Dest     string
-	Trackers []string
-	Info     []byte
-	Bitfield []byte
+	InfoHash    []byte
+	Port        int
+	Name        string
+	Trackers    []string
+	StorageType string
+	StorageArgs map[string]interface{}
+	Info        []byte
+	Bitfield    []byte
 }

@@ -1,21 +1,20 @@
 package torrentdata
 
 import (
-	"os"
-
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/piece"
+	"github.com/cenkalti/rain/storage"
 	"github.com/hashicorp/go-multierror"
 )
 
 type Data struct {
 	Pieces []piece.Piece
 	Exists bool
-	files  []*os.File
+	files  []storage.File
 }
 
-func New(info *metainfo.Info, dest string) (*Data, error) {
-	files, exists, err := prepareFiles(info, dest)
+func New(info *metainfo.Info, sto storage.Storage) (*Data, error) {
+	files, exists, err := prepareFiles(info, sto)
 	if err != nil {
 		return nil, err
 	}

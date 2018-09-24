@@ -15,6 +15,7 @@ import (
 	"github.com/cenkalti/log"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/resume/torrentresume"
+	"github.com/cenkalti/rain/storage/filestorage"
 	"github.com/cenkalti/rain/torrent"
 	"github.com/crosbymichael/tracker/registry/inmem"
 	"github.com/crosbymichael/tracker/server"
@@ -48,22 +49,22 @@ func newResumeFile(t *testing.T) *torrentresume.TorrentResume {
 }
 
 func TestDownloadTorrent(t *testing.T) {
+	defer startTracker(t)()
+
 	where, err := ioutil.TempDir("", "rain-")
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	sto1 := filestorage.New(torrentDataDir)
 	res1 := newResumeFile(t)
 	defer res1.Close()
-
-	defer startTracker(t)()
 
 	f, err := os.Open(torrentFile)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	t1, err := torrent.New(f, torrentDataDir, 6881, res1)
+	t1, err := torrent.New(f, 6881, sto1, res1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,11 +73,12 @@ func TestDownloadTorrent(t *testing.T) {
 	// Wait for seeder to announce to tracker.
 	time.Sleep(100 * time.Millisecond)
 
+	sto2 := filestorage.New(where)
 	res2 := newResumeFile(t)
 	defer res2.Close()
 
 	f.Seek(0, io.SeekStart)
-	t2, err := torrent.New(f, where, 6882, res2)
+	t2, err := torrent.New(f, 6882, sto2, res2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,22 +131,22 @@ func startTracker(t *testing.T) (stop func()) {
 }
 
 func TestDownloadMagnet(t *testing.T) {
+	defer startTracker(t)()
+
 	where, err := ioutil.TempDir("", "rain-")
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	sto1 := filestorage.New(torrentDataDir)
 	res1 := newResumeFile(t)
 	defer res1.Close()
-
-	defer startTracker(t)()
 
 	f, err := os.Open(torrentFile)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	t1, err := torrent.New(f, torrentDataDir, 6881, res1)
+	t1, err := torrent.New(f, 6881, sto1, res1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -153,12 +155,13 @@ func TestDownloadMagnet(t *testing.T) {
 	// Wait for seeder to announce to tracker.
 	time.Sleep(100 * time.Millisecond)
 
+	sto2 := filestorage.New(where)
 	res2 := newResumeFile(t)
 	defer res2.Close()
 
 	f.Seek(0, io.SeekStart)
 	magnetLink := "magnet:?xt=urn:btih:0a8e2e8c9371a91e9047ed189ceffbc460803262&dn=10mb&tr=http%3A%2F%2F127.0.0.1%3A5000%2Fannounce"
-	t2, err := torrent.NewMagnet(magnetLink, where, 6882, res2)
+	t2, err := torrent.NewMagnet(magnetLink, 6882, sto2, res2)
 	if err != nil {
 		t.Fatal(err)
 	}

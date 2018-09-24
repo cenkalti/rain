@@ -2,6 +2,7 @@ package torrent
 
 import (
 	"crypto/rand"
+	"errors"
 	"io"
 	"sync"
 
@@ -15,6 +16,8 @@ import (
 	"github.com/cenkalti/rain/internal/peermanager"
 	"github.com/cenkalti/rain/internal/worker"
 	"github.com/cenkalti/rain/resume"
+	"github.com/cenkalti/rain/storage"
+	"github.com/cenkalti/rain/storage/filestorage"
 )
 
 var (
@@ -48,7 +51,7 @@ type Torrent struct {
 // Seeding continues after all files are downloaded.
 //
 // You should listen NotifyComplete and NotifyError channels after starting the torrent.
-func New(r io.Reader, dest string, port int, res resume.DB) (*Torrent, error) {
+func New(r io.Reader, port int, sto storage.Storage, res resume.DB) (*Torrent, error) {
 	m, err := metainfo.New(r)
 	if err != nil {
 		return nil, err
@@ -58,25 +61,26 @@ func New(r io.Reader, dest string, port int, res resume.DB) (*Torrent, error) {
 		return nil, err
 	}
 	if resumeSpec != nil {
-		return newTorrent(resumeSpec, res)
+		return newTorrent(resumeSpec, sto, res)
 	}
 	spec := &resume.Spec{
 		InfoHash: m.Info.Hash[:],
 		Port:     port,
 		Name:     m.Info.Name,
-		Dest:     dest,
 		// TODO save every tracker
-		Trackers: []string{m.Announce},
-		Info:     m.Info.Bytes,
+		Trackers:    []string{m.Announce},
+		StorageType: sto.Type(),
+		StorageArgs: sto.Args(),
+		Info:        m.Info.Bytes,
 	}
 	err = res.Write(spec)
 	if err != nil {
 		return nil, err
 	}
-	return newTorrent(spec, res)
+	return newTorrent(spec, sto, res)
 }
 
-func NewMagnet(magnetLink, dest string, port int, res resume.DB) (*Torrent, error) {
+func NewMagnet(magnetLink string, port int, sto storage.Storage, res resume.DB) (*Torrent, error) {
 	m, err := magnet.New(magnetLink)
 	if err != nil {
 		return nil, err
@@ -86,20 +90,21 @@ func NewMagnet(magnetLink, dest string, port int, res resume.DB) (*Torrent, erro
 		return nil, err
 	}
 	if resumeSpec != nil {
-		return newTorrent(resumeSpec, res)
+		return newTorrent(resumeSpec, sto, res)
 	}
 	spec := &resume.Spec{
-		InfoHash: m.InfoHash[:],
-		Port:     port,
-		Name:     m.Name,
-		Dest:     dest,
-		Trackers: m.Trackers,
+		InfoHash:    m.InfoHash[:],
+		Port:        port,
+		Name:        m.Name,
+		Trackers:    m.Trackers,
+		StorageType: sto.Type(),
+		StorageArgs: sto.Args(),
 	}
 	err = res.Write(spec)
 	if err != nil {
 		return nil, err
 	}
-	return newTorrent(spec, res)
+	return newTorrent(spec, sto, res)
 }
 
 func NewResume(res resume.DB) (*Torrent, error) {
@@ -107,10 +112,21 @@ func NewResume(res resume.DB) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newTorrent(spec, res)
+	var sto storage.Storage
+	switch spec.StorageType {
+	case filestorage.StorageType:
+		sto = &filestorage.FileStorage{}
+	default:
+		return nil, errors.New("unknown storage type: " + spec.StorageType)
+	}
+	err = sto.Load(spec.StorageArgs)
+	if err != nil {
+		return nil, err
+	}
+	return newTorrent(spec, sto, res)
 }
 
-func newTorrent(spec *resume.Spec, res resume.DB) (*Torrent, error) {
+func newTorrent(spec *resume.Spec, sto storage.Storage, res resume.DB) (*Torrent, error) {
 	logName := spec.Name
 	if len(logName) > 8 {
 		logName = logName[:8]
@@ -154,7 +170,7 @@ func newTorrent(spec *resume.Spec, res resume.DB) (*Torrent, error) {
 		port:       spec.Port,
 		log:        l,
 		completeC:  completeC,
-		downloader: downloader.New(infoHash, spec.Dest, res, info, bf, completeC, l),
+		downloader: downloader.New(infoHash, sto, res, info, bf, completeC, l),
 	}
 
 	// keep list of peer addresses to connect

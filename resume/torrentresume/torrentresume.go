@@ -11,13 +11,14 @@ import (
 var (
 	bucketName = []byte("resume")
 
-	infoHashKey = []byte("infohash")
-	portKey     = []byte("port")
-	nameKey     = []byte("name")
-	destKey     = []byte("dest")
-	trackersKey = []byte("trackers")
-	infoKey     = []byte("info")
-	bitfieldKey = []byte("bitfield")
+	infoHashKey    = []byte("infohash")
+	portKey        = []byte("port")
+	nameKey        = []byte("name")
+	trackersKey    = []byte("trackers")
+	storageTypeKey = []byte("storage_type")
+	storageArgsKey = []byte("storage_args")
+	infoKey        = []byte("info")
+	bitfieldKey    = []byte("bitfield")
 )
 
 type TorrentResume struct {
@@ -68,11 +69,17 @@ func (r *TorrentResume) Read() (*resume.Spec, error) {
 		value = b.Get(nameKey)
 		spec.Name = string(value)
 
-		value = b.Get(destKey)
-		spec.Dest = string(value)
-
 		value = b.Get(trackersKey)
-		err = json.Unmarshal(value, &spec.Trackers)
+		err = json.Unmarshal(value, spec.Trackers)
+		if err != nil {
+			return err
+		}
+
+		value = b.Get(storageTypeKey)
+		spec.StorageType = string(value)
+
+		value = b.Get(storageArgsKey)
+		err = json.Unmarshal(value, spec.StorageArgs)
 		if err != nil {
 			return err
 		}
@@ -96,12 +103,17 @@ func (r *TorrentResume) Write(spec *resume.Spec) error {
 	if err != nil {
 		return err
 	}
+	storageArgs, err := json.Marshal(spec.StorageArgs)
+	if err != nil {
+		return err
+	}
 	return r.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bucketName)
 		b.Put(infoHashKey, spec.InfoHash)
 		b.Put(portKey, []byte(port))
 		b.Put(nameKey, []byte(spec.Name))
-		b.Put(destKey, []byte(spec.Dest))
+		b.Put(storageTypeKey, []byte(spec.StorageType))
+		b.Put(storageTypeKey, storageArgs)
 		b.Put(trackersKey, trackers)
 		b.Put(infoKey, spec.Info)
 		b.Put(bitfieldKey, spec.Bitfield)

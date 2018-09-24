@@ -21,6 +21,7 @@ import (
 	"github.com/cenkalti/rain/internal/torrentdata"
 	"github.com/cenkalti/rain/internal/worker"
 	"github.com/cenkalti/rain/resume"
+	"github.com/cenkalti/rain/storage"
 )
 
 const (
@@ -37,7 +38,7 @@ type PeerMessage struct {
 
 type Downloader struct {
 	infoHash               [20]byte
-	dest                   string
+	storage                storage.Storage
 	resume                 resume.DB
 	info                   *metainfo.Info
 	bitfield               *bitfield.Bitfield
@@ -64,10 +65,10 @@ type Downloader struct {
 	statsC                 chan StatsRequest
 }
 
-func New(infoHash [20]byte, dest string, res resume.DB, info *metainfo.Info, bf *bitfield.Bitfield, completeC chan struct{}, l logger.Logger) *Downloader {
+func New(infoHash [20]byte, sto storage.Storage, res resume.DB, info *metainfo.Info, bf *bitfield.Bitfield, completeC chan struct{}, l logger.Logger) *Downloader {
 	d := &Downloader{
 		infoHash:          infoHash,
-		dest:              dest,
+		storage:           sto,
 		resume:            res,
 		info:              info,
 		bitfield:          bf,
@@ -109,6 +110,7 @@ func (d *Downloader) run() {
 	if d.info != nil {
 		err := d.processInfo()
 		if err != nil {
+			d.log.Errorln("cannot process info:", err)
 			d.errC <- err
 			return
 		}
@@ -255,6 +257,7 @@ func (d *Downloader) run() {
 		case resp := <-d.writeResponseC:
 			d.pieces[resp.Request.Piece.Index].writing = false
 			if resp.Error != nil {
+				d.log.Errorln("cannot write piece data:", resp.Error)
 				d.errC <- resp.Error
 				return
 			}
@@ -577,7 +580,7 @@ func (d *Downloader) run() {
 
 func (d *Downloader) processInfo() error {
 	var err error
-	d.data, err = torrentdata.New(d.info, d.dest)
+	d.data, err = torrentdata.New(d.info, d.storage)
 	if err != nil {
 		return err
 	}

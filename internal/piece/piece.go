@@ -2,12 +2,12 @@ package piece
 
 import (
 	"bytes"
-	"crypto/sha1"
+	"crypto/sha1" // nolint: gosec
 	"hash"
-	"os"
 
 	"github.com/cenkalti/rain/internal/filesection"
 	"github.com/cenkalti/rain/internal/metainfo"
+	"github.com/cenkalti/rain/storage"
 )
 
 const BlockSize = 16 * 1024
@@ -21,7 +21,7 @@ type Piece struct {
 	Hash   []byte
 }
 
-func NewPieces(info *metainfo.Info, osFiles []*os.File) []Piece {
+func NewPieces(info *metainfo.Info, osFiles []storage.File) []Piece {
 	// TODO take interface rwcloser for osFiles
 	// TODO init all to zero, call nextFile to init
 	var (
@@ -117,7 +117,7 @@ func (p *Piece) GetBlock(begin uint32) *Block {
 }
 
 func (p *Piece) Verify(buf []byte) bool {
-	return p.VerifyHash(buf, sha1.New())
+	return p.VerifyHash(buf, sha1.New()) // nolint: gosec
 }
 
 func (p *Piece) VerifyHash(buf []byte, h hash.Hash) bool {
