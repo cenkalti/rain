@@ -70,7 +70,7 @@ func (r *TorrentResume) Read() (*resume.Spec, error) {
 		spec.Name = string(value)
 
 		value = b.Get(trackersKey)
-		err = json.Unmarshal(value, spec.Trackers)
+		err = json.Unmarshal(value, &spec.Trackers)
 		if err != nil {
 			return err
 		}
@@ -79,7 +79,7 @@ func (r *TorrentResume) Read() (*resume.Spec, error) {
 		spec.StorageType = string(value)
 
 		value = b.Get(storageArgsKey)
-		err = json.Unmarshal(value, spec.StorageArgs)
+		err = json.Unmarshal(value, &spec.StorageArgs)
 		if err != nil {
 			return err
 		}
