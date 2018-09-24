@@ -8,15 +8,13 @@ import (
 
 // Info contains information about torrent.
 type Info struct {
-	PieceLength uint32 `bencode:"piece length" json:"piece_length"`
-	Pieces      []byte `bencode:"pieces" json:"pieces"`
-	Private     byte   `bencode:"private" json:"private"`
-	Name        string `bencode:"name" json:"name"`
-	// Single File Mode
-	Length int64  `bencode:"length" json:"length"`
-	Md5sum string `bencode:"md5sum" json:"md5sum,omitempty"`
-	// Multiple File mode
-	Files []FileDict `bencode:"files" json:"files"`
+	PieceLength uint32     `bencode:"piece length" json:"piece_length"`
+	Pieces      []byte     `bencode:"pieces" json:"pieces"`
+	Private     byte       `bencode:"private" json:"private"`
+	Name        string     `bencode:"name" json:"name"`
+	Length      int64      `bencode:"length" json:"length"` // Single File Mode
+	Files       []FileDict `bencode:"files" json:"files"`   // Multiple File mode
+
 	// Calculated fileds
 	Hash        [20]byte `bencode:"-" json:"-"`
 	PieceHashes [][]byte `bencode:"-" json:"-"`
@@ -30,7 +28,6 @@ type Info struct {
 type FileDict struct {
 	Length int64    `bencode:"length" json:"length"`
 	Path   []string `bencode:"path" json:"path"`
-	Md5sum string   `bencode:"md5sum" json:"md5sum,omitempty"`
 }
 
 // NewInfo returns info from bencoded bytes in b.
@@ -67,5 +64,5 @@ func (i *Info) GetFiles() []FileDict {
 	if i.MultiFile {
 		return i.Files
 	}
-	return []FileDict{FileDict{i.Length, []string{i.Name}, i.Md5sum}}
+	return []FileDict{FileDict{i.Length, []string{i.Name}}}
 }
