@@ -185,11 +185,13 @@ func (d *Downloader) run() {
 					d.errC <- err
 					return
 				}
-				err = d.resume.WriteInfo(d.info.Bytes)
-				if err != nil {
-					d.log.Errorln("cannot write resume info:", err)
-					d.errC <- err
-					return
+				if d.resume != nil {
+					err = d.resume.WriteInfo(d.info.Bytes)
+					if err != nil {
+						d.log.Errorln("cannot write resume info:", err)
+						d.errC <- err
+						return
+					}
 				}
 				err = d.processInfo()
 				if err != nil {
@@ -260,11 +262,13 @@ func (d *Downloader) run() {
 				return
 			}
 			d.bitfield.Set(resp.Request.Piece.Index)
-			err := d.resume.WriteBitfield(d.bitfield.Bytes())
-			if err != nil {
-				d.log.Errorln("cannot write bitfield to resume db:", err)
-				d.errC <- err
-				return
+			if d.resume != nil {
+				err := d.resume.WriteBitfield(d.bitfield.Bytes())
+				if err != nil {
+					d.log.Errorln("cannot write bitfield to resume db:", err)
+					d.errC <- err
+					return
+				}
 			}
 			d.checkCompletion()
 			// Tell everyone that we have this piece
@@ -598,9 +602,11 @@ func (d *Downloader) processInfo() error {
 			}
 			d.checkCompletion()
 		}
-		err = d.resume.WriteBitfield(d.bitfield.Bytes())
-		if err != nil {
-			return err
+		if d.resume != nil {
+			err = d.resume.WriteBitfield(d.bitfield.Bytes())
+			if err != nil {
+				return err
+			}
 		}
 	}
 

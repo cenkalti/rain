@@ -12,7 +12,6 @@ import (
 
 	"github.com/cenkalti/log"
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/resume/torrentresume"
 	"github.com/cenkalti/rain/storage/filestorage"
 	"github.com/cenkalti/rain/torrent"
 	"github.com/chihaya/chihaya/frontend/http"
@@ -35,20 +34,6 @@ func init() {
 	logger.SetLogLevel(log.DEBUG)
 }
 
-func newResumeFile(t *testing.T) *torrentresume.TorrentResume {
-	resumeFile, err := ioutil.TempFile("", "rain-test-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	resumePath := resumeFile.Name()
-	res, err := torrentresume.New(resumePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return res
-	// TODO remove tempfile
-}
-
 func newFileStorage(t *testing.T, dir string) *filestorage.FileStorage {
 	sto, err := filestorage.New(dir)
 	if err != nil {
@@ -65,15 +50,11 @@ func TestDownloadTorrent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sto1 := newFileStorage(t, torrentDataDir)
-	res1 := newResumeFile(t)
-	defer res1.Close()
-
 	f, err := os.Open(torrentFile)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t1, err := torrent.DownloadTorrent(f, 6881, sto1, res1)
+	t1, err := torrent.DownloadTorrent(f, 6881, newFileStorage(t, torrentDataDir), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,12 +63,8 @@ func TestDownloadTorrent(t *testing.T) {
 	// Wait for seeder to announce to tracker.
 	time.Sleep(100 * time.Millisecond)
 
-	sto2 := newFileStorage(t, where)
-	res2 := newResumeFile(t)
-	defer res2.Close()
-
 	f.Seek(0, io.SeekStart)
-	t2, err := torrent.DownloadTorrent(f, 6882, sto2, res2)
+	t2, err := torrent.DownloadTorrent(f, 6882, newFileStorage(t, where), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -173,15 +150,11 @@ func TestDownloadMagnet(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sto1 := newFileStorage(t, torrentDataDir)
-	res1 := newResumeFile(t)
-	defer res1.Close()
-
 	f, err := os.Open(torrentFile)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t1, err := torrent.DownloadTorrent(f, 6881, sto1, res1)
+	t1, err := torrent.DownloadTorrent(f, 6881, newFileStorage(t, torrentDataDir), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,13 +163,9 @@ func TestDownloadMagnet(t *testing.T) {
 	// Wait for seeder to announce to tracker.
 	time.Sleep(100 * time.Millisecond)
 
-	sto2 := newFileStorage(t, where)
-	res2 := newResumeFile(t)
-	defer res2.Close()
-
 	f.Seek(0, io.SeekStart)
 	magnetLink := "magnet:?xt=urn:btih:0a8e2e8c9371a91e9047ed189ceffbc460803262&dn=10mb&tr=http%3A%2F%2F127.0.0.1%3A5000%2Fannounce"
-	t2, err := torrent.DownloadMagnet(magnetLink, 6882, sto2, res2)
+	t2, err := torrent.DownloadMagnet(magnetLink, 6882, newFileStorage(t, where), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -232,15 +201,11 @@ func TestDownloadTorrentUDP(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sto1 := newFileStorage(t, torrentDataDir)
-	res1 := newResumeFile(t)
-	defer res1.Close()
-
 	f, err := os.Open(torrentFileUDP)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t1, err := torrent.DownloadTorrent(f, 6881, sto1, res1)
+	t1, err := torrent.DownloadTorrent(f, 6881, newFileStorage(t, torrentDataDir), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,12 +214,8 @@ func TestDownloadTorrentUDP(t *testing.T) {
 	// Wait for seeder to announce to tracker.
 	time.Sleep(100 * time.Millisecond)
 
-	sto2 := newFileStorage(t, where)
-	res2 := newResumeFile(t)
-	defer res2.Close()
-
 	f.Seek(0, io.SeekStart)
-	t2, err := torrent.DownloadTorrent(f, 6882, sto2, res2)
+	t2, err := torrent.DownloadTorrent(f, 6882, newFileStorage(t, where), nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -56,13 +56,6 @@ func DownloadTorrent(r io.Reader, port int, sto storage.Storage, res resume.DB) 
 	if err != nil {
 		return nil, err
 	}
-	resumeSpec, err := res.Read()
-	if err != nil {
-		return nil, err
-	}
-	if resumeSpec != nil {
-		return newTorrent(resumeSpec, sto, res)
-	}
 	spec := &resume.Spec{
 		InfoHash: m.Info.Hash[:],
 		Port:     port,
@@ -73,9 +66,18 @@ func DownloadTorrent(r io.Reader, port int, sto storage.Storage, res resume.DB) 
 		StorageArgs: sto.Args(),
 		Info:        m.Info.Bytes,
 	}
-	err = res.Write(spec)
-	if err != nil {
-		return nil, err
+	if res != nil {
+		resumeSpec, err := res.Read()
+		if err != nil {
+			return nil, err
+		}
+		if resumeSpec != nil {
+			return newTorrent(resumeSpec, sto, res)
+		}
+		err = res.Write(spec)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return newTorrent(spec, sto, res)
 }
@@ -85,13 +87,6 @@ func DownloadMagnet(magnetLink string, port int, sto storage.Storage, res resume
 	if err != nil {
 		return nil, err
 	}
-	resumeSpec, err := res.Read()
-	if err != nil {
-		return nil, err
-	}
-	if resumeSpec != nil {
-		return newTorrent(resumeSpec, sto, res)
-	}
 	spec := &resume.Spec{
 		InfoHash:    m.InfoHash[:],
 		Port:        port,
@@ -100,9 +95,18 @@ func DownloadMagnet(magnetLink string, port int, sto storage.Storage, res resume
 		StorageType: sto.Type(),
 		StorageArgs: sto.Args(),
 	}
-	err = res.Write(spec)
-	if err != nil {
-		return nil, err
+	if res != nil {
+		resumeSpec, err := res.Read()
+		if err != nil {
+			return nil, err
+		}
+		if resumeSpec != nil {
+			return newTorrent(resumeSpec, sto, res)
+		}
+		err = res.Write(spec)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return newTorrent(spec, sto, res)
 }
