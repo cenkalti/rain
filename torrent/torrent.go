@@ -108,7 +108,7 @@ func DownloadMagnet(magnetLink string, port int, sto storage.Storage, res resume
 	return newTorrent(spec, port, m.Name, m.Trackers[0])
 }
 
-func Resume(res resume.DB, port int) (*Torrent, error) {
+func Resume(res resume.DB) (*Torrent, error) {
 	spec, err := res.Read()
 	if err != nil {
 		return nil, err
