@@ -26,7 +26,7 @@
   revision = "641906563e269b7b7ce906da1d0d752f43f90155"
 
 [[projects]]
-  digest = "1:9485e6c64d86948a7d6ac5dc4a2ce93596484fd12e87739d13bd41d3cfa54a8f"
+  digest = "1:4944f37f9ff1a58e41084d9d3934402faba40eb44377c51cce8a3a45da1f3a44"
   name = "github.com/chihaya/chihaya"
   packages = [
     "config",
@@ -35,6 +35,7 @@
     "stats",
     "tracker",
     "tracker/models",
+    "udp",
   ]
   pruneopts = "UT"
   revision = "c994988ad53eb85aeab8a5839f3a6c301b1c0c28"
@@ -101,6 +102,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:85250dcb178458b41eaf816d3c0e0cf065ba6541f1f12d2e36c143ec92e0d7ba"
+  name = "github.com/pushrax/bufferpool"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "7d6e1653dee10a165d1f357f3a57bc8031e9621b"
+
+[[projects]]
+  branch = "master"
   digest = "1:2d5e69f056dc4047d8b94691be225ea0201c6508b88285ddffb03ebc2a86c272"
   name = "github.com/pushrax/faststats"
   packages = ["."]
@@ -164,6 +173,7 @@
     "github.com/chihaya/chihaya/config",
     "github.com/chihaya/chihaya/http",
     "github.com/chihaya/chihaya/tracker",
+    "github.com/chihaya/chihaya/udp",
     "github.com/hashicorp/go-multierror",
     "github.com/mitchellh/go-homedir",
     "github.com/zeebo/bencode",

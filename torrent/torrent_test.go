@@ -17,6 +17,7 @@ import (
 	"github.com/chihaya/chihaya/config"
 	"github.com/chihaya/chihaya/http"
 	"github.com/chihaya/chihaya/tracker"
+	"github.com/chihaya/chihaya/udp"
 )
 
 var (
@@ -111,10 +112,13 @@ func startTracker(t *testing.T) (stop func()) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := http.NewServer(cfg, trk)
-	go srv.Serve()
+	httpServer := http.NewServer(cfg, trk)
+	go httpServer.Serve()
+	udpServer := udp.NewServer(cfg, trk)
+	go udpServer.Serve()
 	return func() {
-		srv.Stop()
+		httpServer.Stop()
+		udpServer.Stop()
 		err := trk.Close()
 		if err != nil {
 			t.Fatal(err)
