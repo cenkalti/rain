@@ -73,13 +73,13 @@ func main() {
 	}
 	var t *torrent.Torrent
 	if strings.HasPrefix(args[0], "magnet:") {
-		t, err = torrent.NewMagnet(args[0], *port, sto, res)
+		t, err = torrent.DownloadMagnet(args[0], *port, sto, res)
 	} else {
 		f, err2 := os.Open(args[0])
 		if err2 != nil {
 			log.Fatal(err2)
 		}
-		t, err = torrent.New(f, *port, sto, res)
+		t, err = torrent.DownloadTorrent(f, *port, sto, res)
 		_ = f.Close()
 	}
 	if err != nil {

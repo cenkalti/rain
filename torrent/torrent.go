@@ -42,7 +42,7 @@ type Torrent struct {
 	downloader *downloader.Downloader
 }
 
-// New returns a new torrent by reading a metainfo file.
+// DownloadTorrent returns a new torrent by reading a metainfo file.
 //
 // Files are read from disk. If there are existing files, hash check will be done.
 //
@@ -51,7 +51,7 @@ type Torrent struct {
 // Seeding continues after all files are downloaded.
 //
 // You should listen NotifyComplete and NotifyError channels after starting the torrent.
-func New(r io.Reader, port int, sto storage.Storage, res resume.DB) (*Torrent, error) {
+func DownloadTorrent(r io.Reader, port int, sto storage.Storage, res resume.DB) (*Torrent, error) {
 	m, err := metainfo.New(r)
 	if err != nil {
 		return nil, err
@@ -80,7 +80,7 @@ func New(r io.Reader, port int, sto storage.Storage, res resume.DB) (*Torrent, e
 	return newTorrent(spec, sto, res)
 }
 
-func NewMagnet(magnetLink string, port int, sto storage.Storage, res resume.DB) (*Torrent, error) {
+func DownloadMagnet(magnetLink string, port int, sto storage.Storage, res resume.DB) (*Torrent, error) {
 	m, err := magnet.New(magnetLink)
 	if err != nil {
 		return nil, err
@@ -107,7 +107,7 @@ func NewMagnet(magnetLink string, port int, sto storage.Storage, res resume.DB) 
 	return newTorrent(spec, sto, res)
 }
 
-func NewResume(res resume.DB) (*Torrent, error) {
+func Resume(res resume.DB) (*Torrent, error) {
 	spec, err := res.Read()
 	if err != nil {
 		return nil, err
