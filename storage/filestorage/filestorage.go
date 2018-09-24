@@ -16,8 +16,13 @@ type FileStorage struct {
 	dest string
 }
 
-func New(dest string) *FileStorage {
-	return &FileStorage{dest: dest}
+func New(dest string) (*FileStorage, error) {
+	var err error
+	dest, err = filepath.Abs(dest)
+	if err != nil {
+		return nil, err
+	}
+	return &FileStorage{dest: dest}, nil
 }
 
 var _ storage.Storage = (*FileStorage)(nil)

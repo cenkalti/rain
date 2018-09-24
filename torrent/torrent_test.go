@@ -49,6 +49,14 @@ func newResumeFile(t *testing.T) *torrentresume.TorrentResume {
 	// TODO remove tempfile
 }
 
+func newFileStorage(t *testing.T, dir string) *filestorage.FileStorage {
+	sto, err := filestorage.New(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return sto
+}
+
 func TestDownloadTorrent(t *testing.T) {
 	defer startHTTPTracker(t)()
 
@@ -57,7 +65,7 @@ func TestDownloadTorrent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sto1 := filestorage.New(torrentDataDir)
+	sto1 := newFileStorage(t, torrentDataDir)
 	res1 := newResumeFile(t)
 	defer res1.Close()
 
@@ -74,7 +82,7 @@ func TestDownloadTorrent(t *testing.T) {
 	// Wait for seeder to announce to tracker.
 	time.Sleep(100 * time.Millisecond)
 
-	sto2 := filestorage.New(where)
+	sto2 := newFileStorage(t, where)
 	res2 := newResumeFile(t)
 	defer res2.Close()
 
@@ -165,7 +173,7 @@ func TestDownloadMagnet(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sto1 := filestorage.New(torrentDataDir)
+	sto1 := newFileStorage(t, torrentDataDir)
 	res1 := newResumeFile(t)
 	defer res1.Close()
 
@@ -182,7 +190,7 @@ func TestDownloadMagnet(t *testing.T) {
 	// Wait for seeder to announce to tracker.
 	time.Sleep(100 * time.Millisecond)
 
-	sto2 := filestorage.New(where)
+	sto2 := newFileStorage(t, where)
 	res2 := newResumeFile(t)
 	defer res2.Close()
 
@@ -224,7 +232,7 @@ func TestDownloadTorrentUDP(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sto1 := filestorage.New(torrentDataDir)
+	sto1 := newFileStorage(t, torrentDataDir)
 	res1 := newResumeFile(t)
 	defer res1.Close()
 
@@ -241,7 +249,7 @@ func TestDownloadTorrentUDP(t *testing.T) {
 	// Wait for seeder to announce to tracker.
 	time.Sleep(100 * time.Millisecond)
 
-	sto2 := filestorage.New(where)
+	sto2 := newFileStorage(t, where)
 	res2 := newResumeFile(t)
 	defer res2.Close()
 

@@ -63,7 +63,10 @@ func main() {
 			log.Fatal(err)
 		}
 	}
-	sto := filestorage.New(*dest)
+	sto, err := filestorage.New(*dest)
+	if err != nil {
+		log.Fatal(err)
+	}
 	res, err := torrentresume.New("rain.resume")
 	if err != nil {
 		log.Fatal(err)
