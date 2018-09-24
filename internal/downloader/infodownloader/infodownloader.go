@@ -2,7 +2,6 @@ package infodownloader
 
 import (
 	"bytes"
-	"log"
 
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peer/peerprotocol"
@@ -45,7 +44,6 @@ func New(pe *peer.Peer, extID uint8, totalSize uint32) *InfoDownloader {
 	if mod != 0 {
 		numBlocks++
 	}
-	log.Println("num blocks", numBlocks)
 	blocks := make([]block, numBlocks)
 	for i := range blocks {
 		blocks[i] = block{
@@ -79,7 +77,6 @@ func (d *InfoDownloader) Run(stopC chan struct{}) {
 		select {
 		case <-d.semaphore.Wait:
 			b := d.nextBlock()
-			log.Println("chosed block", b)
 			if b == nil {
 				d.semaphore.Block()
 				break
@@ -91,9 +88,7 @@ func (d *InfoDownloader) Run(stopC chan struct{}) {
 					Piece: b.index,
 				},
 			}
-			log.Println("sending info request", b.index)
 			d.Peer.SendMessage(msg, stopC)
-			log.Println("info request sent", b.index)
 		case msg := <-d.DataC:
 			if msg.Index >= uint32(len(d.blocks)) {
 				d.Peer.Logger().Errorln("peer sent invalid index for metadata message:", msg.Index)
