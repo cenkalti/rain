@@ -12,7 +12,7 @@ import (
 	"github.com/cenkalti/log"
 	"github.com/cenkalti/rain/client"
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/resume/torrentresume"
+	"github.com/cenkalti/rain/resume/torrentresume"
 	"github.com/cenkalti/rain/torrent"
 	"github.com/mitchellh/go-homedir"
 )

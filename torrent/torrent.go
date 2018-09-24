@@ -13,8 +13,8 @@ import (
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/peerlist"
 	"github.com/cenkalti/rain/internal/peermanager"
-	"github.com/cenkalti/rain/internal/resume"
 	"github.com/cenkalti/rain/internal/worker"
+	"github.com/cenkalti/rain/resume"
 )
 
 var (

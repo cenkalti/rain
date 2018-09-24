@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"strconv"
 
-	"github.com/cenkalti/rain/internal/resume"
+	"github.com/cenkalti/rain/resume"
 	bolt "go.etcd.io/bbolt"
 )
 
