@@ -105,8 +105,6 @@ func (d *Downloader) Close() {
 }
 
 func (d *Downloader) run() {
-	stopC := d.closeC
-
 	if d.info != nil {
 		err := d.processInfo()
 		if err != nil {
@@ -163,7 +161,7 @@ func (d *Downloader) run() {
 			d.workers.StartWithOnFinishHandler(id, func() {
 				select {
 				case d.infoDownloadDoneC <- id:
-				case <-stopC:
+				case <-d.closeC:
 					return
 				}
 			})
@@ -201,7 +199,7 @@ func (d *Downloader) run() {
 				}
 				// process previously received messages
 				for _, pe := range d.connectedPeers {
-					go d.resendMessages(pe, stopC)
+					go d.resendMessages(pe, d.closeC)
 				}
 				infoDownloaders.Block()
 				pieceDownloaders.Signal(parallelPieceDownloads)
@@ -225,7 +223,7 @@ func (d *Downloader) run() {
 			d.workers.StartWithOnFinishHandler(pd, func() {
 				select {
 				case d.downloadDoneC <- pd:
-				case <-stopC:
+				case <-d.closeC:
 					return
 				}
 			})
@@ -245,13 +243,13 @@ func (d *Downloader) run() {
 				select {
 				case d.writeRequestC <- piecewriter.Request{Piece: pd.Piece, Data: buf}:
 					d.pieces[pd.Piece.Index].writing = true
-				case <-stopC:
+				case <-d.closeC:
 					return
 				}
 			case err := <-pd.ErrC:
 				d.log.Errorln("could not download piece:", err)
 				// TODO handle piece download error
-			case <-stopC:
+			case <-d.closeC:
 				return
 			}
 		case resp := <-d.writeResponseC:
@@ -273,8 +271,8 @@ func (d *Downloader) run() {
 			// TODO skip peers already having that piece
 			for _, pe := range d.connectedPeers {
 				msg := peerprotocol.HaveMessage{Index: resp.Request.Piece.Index}
-				pe.SendMessage(msg, stopC)
-				d.updateInterestedState(pe, stopC)
+				pe.SendMessage(msg, d.closeC)
+				d.updateInterestedState(pe, d.closeC)
 			}
 		case <-unchokeTimer.C:
 			peers := make([]*Peer, 0, len(d.connectedPeers))
@@ -292,12 +290,12 @@ func (d *Downloader) run() {
 				if i == 3 {
 					break
 				}
-				d.unchokePeer(pe, stopC)
+				d.unchokePeer(pe, d.closeC)
 				unchokedPeers[pe] = struct{}{}
 			}
 			for _, pe := range d.connectedPeers {
 				if _, ok := unchokedPeers[pe]; !ok {
-					d.chokePeer(pe, stopC)
+					d.chokePeer(pe, d.closeC)
 				}
 			}
 		case <-optimisticUnchokeTimer.C:
@@ -309,7 +307,7 @@ func (d *Downloader) run() {
 			}
 			if d.optimisticUnchokedPeer != nil {
 				d.optimisticUnchokedPeer.optimisticUnhoked = false
-				d.chokePeer(d.optimisticUnchokedPeer, stopC)
+				d.chokePeer(d.optimisticUnchokedPeer, d.closeC)
 			}
 			if len(peers) == 0 {
 				d.optimisticUnchokedPeer = nil
@@ -317,7 +315,7 @@ func (d *Downloader) run() {
 			}
 			pe := peers[rand.Intn(len(peers))]
 			pe.optimisticUnhoked = true
-			d.unchokePeer(pe, stopC)
+			d.unchokePeer(pe, d.closeC)
 			d.optimisticUnchokedPeer = pe
 		case p := <-d.newPeers:
 			pe := NewPeer(p)
@@ -325,15 +323,15 @@ func (d *Downloader) run() {
 			bf := d.bitfield
 			if p.FastExtension && bf != nil && bf.All() {
 				msg := peerprotocol.HaveAllMessage{}
-				p.SendMessage(msg, stopC)
+				p.SendMessage(msg, d.closeC)
 			} else if p.FastExtension && (bf == nil || bf != nil && bf.Count() == 0) {
 				msg := peerprotocol.HaveNoneMessage{}
-				p.SendMessage(msg, stopC)
+				p.SendMessage(msg, d.closeC)
 			} else if bf != nil {
 				bitfieldData := make([]byte, len(bf.Bytes()))
 				copy(bitfieldData, bf.Bytes())
 				msg := peerprotocol.BitfieldMessage{Data: bitfieldData}
-				p.SendMessage(msg, stopC)
+				p.SendMessage(msg, d.closeC)
 			}
 			extHandshakeMsg := peerprotocol.NewExtensionHandshake()
 			if d.info != nil {
@@ -343,9 +341,9 @@ func (d *Downloader) run() {
 				ExtendedMessageID: peerprotocol.ExtensionHandshakeID,
 				Payload:           extHandshakeMsg,
 			}
-			p.SendMessage(msg, stopC)
+			p.SendMessage(msg, d.closeC)
 			if len(d.connectedPeers) <= 4 {
-				d.unchokePeer(pe, stopC)
+				d.unchokePeer(pe, d.closeC)
 			}
 			go d.readMessages(pe.Peer)
 		case p := <-d.disconnectedPeers:
@@ -359,8 +357,6 @@ func (d *Downloader) run() {
 				delete(d.pieces[i].allowedFastPeers, p)
 				delete(d.pieces[i].requestedPeers, p)
 			}
-		case <-stopC:
-			return
 		case pm := <-d.messages:
 			pe := d.connectedPeers[pm.Peer]
 			switch msg := pm.Message.(type) {
@@ -379,7 +375,7 @@ func (d *Downloader) run() {
 				pe.Peer.Logger().Debug("Peer ", pe.Peer.String(), " has piece #", pi.Index)
 				pieceDownloaders.Signal(1)
 				d.pieces[pi.Index].havingPeers[pe.Peer] = d.connectedPeers[pe.Peer]
-				d.updateInterestedState(pe, stopC)
+				d.updateInterestedState(pe, d.closeC)
 			case peerprotocol.BitfieldMessage:
 				// Save bitfield messages while we don't have info yet.
 				if d.info == nil {
@@ -400,7 +396,7 @@ func (d *Downloader) run() {
 					}
 				}
 				pieceDownloaders.Signal(bf.Count())
-				d.updateInterestedState(pe, stopC)
+				d.updateInterestedState(pe, d.closeC)
 			case peerprotocol.HaveAllMessage:
 				if d.info == nil {
 					pe.messages = append(pe.messages, msg)
@@ -410,7 +406,7 @@ func (d *Downloader) run() {
 					d.pieces[i].havingPeers[pe.Peer] = pe
 				}
 				pieceDownloaders.Signal(uint32(len(d.pieces)))
-				d.updateInterestedState(pe, stopC)
+				d.updateInterestedState(pe, d.closeC)
 			case peerprotocol.HaveNoneMessage:
 				// TODO handle?
 			case peerprotocol.AllowedFastMessage:
@@ -485,10 +481,10 @@ func (d *Downloader) run() {
 				if pe.amChoking {
 					if pe.Peer.FastExtension {
 						m := peerprotocol.RejectMessage{RequestMessage: msg}
-						pe.SendMessage(m, stopC)
+						pe.SendMessage(m, d.closeC)
 					}
 				} else {
-					pe.Peer.SendPiece(msg, pi, stopC)
+					pe.Peer.SendPiece(msg, pi, d.closeC)
 				}
 			case peerprotocol.RejectMessage:
 				if d.info == nil {
@@ -556,7 +552,7 @@ func (d *Downloader) run() {
 						ExtendedMessageID: extMsgID,
 						Payload:           &dataMsg,
 					}
-					pe.Peer.SendMessage(extDataMsg, stopC)
+					pe.Peer.SendMessage(extDataMsg, d.closeC)
 				case peerprotocol.ExtensionMetadataMessageTypeData:
 					id, ok := d.infoDownloads[pe.Peer]
 					if !ok {
@@ -565,7 +561,7 @@ func (d *Downloader) run() {
 					}
 					select {
 					case id.DataC <- infodownloader.Data{Index: msg.Piece, Data: msg.Data}:
-					case <-stopC:
+					case <-d.closeC:
 						return
 					}
 				case peerprotocol.ExtensionMetadataMessageTypeReject:
