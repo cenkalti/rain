@@ -13,6 +13,7 @@ import (
 	"github.com/cenkalti/rain/client"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/resume/torrentresume"
+	"github.com/cenkalti/rain/storage/filestorage"
 	"github.com/cenkalti/rain/torrent"
 	"github.com/mitchellh/go-homedir"
 )
@@ -62,19 +63,20 @@ func main() {
 			log.Fatal(err)
 		}
 	}
+	sto := filestorage.New(*dest)
 	res, err := torrentresume.New("rain.resume")
 	if err != nil {
 		log.Fatal(err)
 	}
 	var t *torrent.Torrent
 	if strings.HasPrefix(args[0], "magnet:") {
-		t, err = torrent.NewMagnet(args[0], *dest, *port, res)
+		t, err = torrent.NewMagnet(args[0], *port, sto, res)
 	} else {
 		f, err2 := os.Open(args[0])
 		if err2 != nil {
 			log.Fatal(err2)
 		}
-		t, err = torrent.New(f, *dest, *port, res)
+		t, err = torrent.New(f, *port, sto, res)
 		_ = f.Close()
 	}
 	if err != nil {
