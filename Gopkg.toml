@@ -68,3 +68,7 @@
 [[constraint]]
   name = "github.com/urfave/cli"
   version = "1.20.0"
+
+[[constraint]]
+  name = "github.com/chihaya/chihaya"
+  version = "1.0.2"

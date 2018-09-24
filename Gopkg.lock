@@ -27,6 +27,43 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:b7a998cbfb041658a0a88f8f2a7776921e587fb6e08e08def4745525d8b983ef"
+  name = "github.com/chihaya/bencode"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "641906563e269b7b7ce906da1d0d752f43f90155"
+
+[[projects]]
+  digest = "1:2c88f4f57d874dfc149e9fb20fc85b33ca88cbf61b9265b2734cd22886d82a6b"
+  name = "github.com/chihaya/chihaya"
+  packages = [
+    ".",
+    "api",
+    "config",
+    "http",
+    "http/query",
+    "stats",
+    "tracker",
+    "tracker/models",
+    "udp",
+  ]
+  pruneopts = "UT"
+  revision = "c994988ad53eb85aeab8a5839f3a6c301b1c0c28"
+  version = "v1.0.2"
+
+[[projects]]
+  branch = "master"
+  digest = "1:a246a8d5c0f4fd783d7479be5ce3bbccdbbc7becb5ded47b554659a82fa0ef1d"
+  name = "github.com/coreos/go-oidc"
+  packages = [
+    "http",
+    "jose",
+  ]
+  pruneopts = "UT"
+  revision = "a93f71fdfe73d2c0f5413c0565eea0af6523a6df"
+
+[[projects]]
+  branch = "master"
   digest = "1:8b626f4c0c8964c429b91bed5cd1744f0d40b46765653dc8d68d481c3eb613ca"
   name = "github.com/crosbymichael/tracker"
   packages = [
@@ -37,6 +74,14 @@
   ]
   pruneopts = "UT"
   revision = "d54763ad6ba1d5176543b24ac4f36531eda24f30"
+
+[[projects]]
+  branch = "master"
+  digest = "1:1ba1d79f2810270045c328ae5d674321db34e3aae468eb4233883b473c5c0467"
+  name = "github.com/golang/glog"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "23def4e6c14b4da8ac2ed8007337bc5eb5007998"
 
 [[projects]]
   branch = "master"
@@ -55,6 +100,14 @@
   revision = "3d5d8f294aa03d8e98859feac328afbdf1ae0703"
 
 [[projects]]
+  digest = "1:ccfa094742ce1c97fd3f6481e1bf98f3d9862510eee2bc0eb56e2745396bd330"
+  name = "github.com/julienschmidt/httprouter"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "8c199fb6259ffc1af525cc3ad52ee60ba8359669"
+  version = "v1.1"
+
+[[projects]]
   digest = "1:d4d17353dbd05cb52a2a52b7fe1771883b682806f68db442b436294926bbfafb"
   name = "github.com/mattn/go-isatty"
   packages = ["."]
@@ -71,12 +124,36 @@
   revision = "58046073cbffe2f25d425fe1331102f55cf719de"
 
 [[projects]]
-  digest = "1:b24d38b282bacf9791408a080f606370efa3d364e4b5fd9ba0f7b87786d3b679"
-  name = "github.com/urfave/cli"
+  branch = "master"
+  digest = "1:85250dcb178458b41eaf816d3c0e0cf065ba6541f1f12d2e36c143ec92e0d7ba"
+  name = "github.com/pushrax/bufferpool"
   packages = ["."]
   pruneopts = "UT"
-  revision = "cfb38830724cc34fedffe9a2a29fb54fa9169cd1"
-  version = "v1.20.0"
+  revision = "7d6e1653dee10a165d1f357f3a57bc8031e9621b"
+
+[[projects]]
+  branch = "master"
+  digest = "1:2d5e69f056dc4047d8b94691be225ea0201c6508b88285ddffb03ebc2a86c272"
+  name = "github.com/pushrax/faststats"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "0fc2c5e41a187240ffaa09320eea7df9f8071388"
+
+[[projects]]
+  branch = "master"
+  digest = "1:20044ff0100299ab29512371b218054c081fa0488ca9f31768cf73b51b538896"
+  name = "github.com/pushrax/flatjson"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "86044f1c998d49053e13293029414ddb63f3a422"
+
+[[projects]]
+  digest = "1:43b8a34f6390d8fbdcfd300ed52103064e9eaaecc7e50b7e3518fe246ebe8403"
+  name = "github.com/tylerb/graceful"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "4654dfbb6ad53cb5e27f37d99b02e16c1872fbbb"
+  version = "v1.2.15"
 
 [[projects]]
   branch = "master"
@@ -136,11 +213,11 @@
     "github.com/Sirupsen/logrus",
     "github.com/cenkalti/backoff",
     "github.com/cenkalti/log",
+    "github.com/chihaya/chihaya",
     "github.com/crosbymichael/tracker/registry/inmem",
     "github.com/crosbymichael/tracker/server",
     "github.com/hashicorp/go-multierror",
     "github.com/mitchellh/go-homedir",
-    "github.com/urfave/cli",
     "github.com/zeebo/bencode",
     "go.etcd.io/bbolt",
     "gopkg.in/yaml.v2",
