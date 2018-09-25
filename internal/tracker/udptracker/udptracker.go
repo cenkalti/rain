@@ -218,13 +218,13 @@ func (t *UDPTracker) Announce(transfer tracker.Transfer, e tracker.Event, cancel
 	t.dialMutex.Unlock()
 
 	request := &announceRequest{
-		InfoHash:   transfer.InfoHash(),
-		PeerID:     transfer.PeerID(),
+		InfoHash:   transfer.InfoHash,
+		PeerID:     transfer.PeerID,
 		Event:      e,
 		IP:         0, // Tracker uses sender of this UDP packet.
 		Key:        0, // TODO set it
 		NumWant:    tracker.NumWant,
-		Port:       uint16(transfer.Port()),
+		Port:       uint16(transfer.Port),
 		Extensions: 0,
 	}
 	request.SetAction(actionAnnounce)

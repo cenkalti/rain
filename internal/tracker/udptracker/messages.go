@@ -79,9 +79,9 @@ type transferAnnounceRequest struct {
 func (r *transferAnnounceRequest) WriteTo(w io.Writer) (int64, error) {
 	buf := bufio.NewWriterSize(w, 98+2+255)
 
-	r.announceRequest.Downloaded = r.transfer.BytesDownloaded()
-	r.announceRequest.Uploaded = r.transfer.BytesUploaded()
-	r.announceRequest.Left = r.transfer.BytesLeft()
+	r.announceRequest.Downloaded = r.transfer.BytesDownloaded
+	r.announceRequest.Uploaded = r.transfer.BytesUploaded
+	r.announceRequest.Left = r.transfer.BytesLeft
 	err := binary.Write(buf, binary.BigEndian, r.announceRequest)
 	if err != nil {
 		return 0, err

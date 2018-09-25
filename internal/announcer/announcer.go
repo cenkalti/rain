@@ -1,37 +1,42 @@
 package announcer
 
 import (
-	"net/url"
 	"time"
 
 	"github.com/cenkalti/backoff"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/peerlist"
 	"github.com/cenkalti/rain/internal/tracker"
-	"github.com/cenkalti/rain/internal/tracker/httptracker"
-	"github.com/cenkalti/rain/internal/tracker/udptracker"
 )
 
 const stopEventTimeout = time.Minute
 
 type Announcer struct {
 	url          string
-	transfer     tracker.Transfer
 	log          logger.Logger
 	completedC   chan struct{}
 	peerList     *peerlist.PeerList
 	tracker      tracker.Tracker
 	backoff      backoff.BackOff
 	nextAnnounce time.Duration
+	requests     chan *Request
 }
 
-func New(trackerURL string, to tracker.Transfer, completedC chan struct{}, pl *peerlist.PeerList, l logger.Logger) *Announcer {
+type Request struct {
+	Response chan Response
+}
+
+type Response struct {
+	Transfer tracker.Transfer
+}
+
+func New(trk tracker.Tracker, requests chan *Request, completedC chan struct{}, pl *peerlist.PeerList, l logger.Logger) *Announcer {
 	return &Announcer{
-		url:        trackerURL,
-		transfer:   to,
+		tracker:    trk,
 		log:        l,
 		completedC: completedC,
 		peerList:   pl,
+		requests:   requests,
 		backoff: &backoff.ExponentialBackOff{
 			InitialInterval:     5 * time.Second,
 			RandomizationFactor: 0.5,
@@ -44,21 +49,6 @@ func New(trackerURL string, to tracker.Transfer, completedC chan struct{}, pl *p
 }
 
 func (a *Announcer) Run(stopC chan struct{}) {
-	u, err := url.Parse(a.url)
-	if err != nil {
-		a.log.Errorln("cannot parse tracker url:", err)
-		return
-	}
-	switch u.Scheme {
-	case "http", "https":
-		a.tracker = httptracker.New(u)
-	case "udp":
-		a.tracker = udptracker.New(u)
-	default:
-		a.log.Errorln("unsupported tracker scheme: %s", u.Scheme)
-		return
-	}
-
 	a.backoff.Reset()
 	a.announce(tracker.EventStarted, stopC)
 	for {
@@ -76,7 +66,21 @@ func (a *Announcer) Run(stopC chan struct{}) {
 }
 
 func (a *Announcer) announce(e tracker.Event, stopC chan struct{}) {
-	r, err := a.tracker.Announce(a.transfer, e, stopC)
+	req := &Request{
+		Response: make(chan Response),
+	}
+	select {
+	case a.requests <- req:
+	case <-stopC:
+		return
+	}
+	var resp Response
+	select {
+	case resp = <-req.Response:
+	case <-stopC:
+		return
+	}
+	r, err := a.tracker.Announce(resp.Transfer, e, stopC)
 	if err != nil {
 		a.log.Errorln("announce error:", err)
 		a.nextAnnounce = a.backoff.NextBackOff()

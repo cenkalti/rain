@@ -5,7 +5,7 @@ before_install:
 install:
 - dep ensure
 before_script:
-- GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -gcflags=-e -ldflags="-X main.Version=$TRAVIS_TAG"
+- GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -gcflags=-e -ldflags="-X github.com/cenkalti/rain/internal/version.Version=$TRAVIS_TAG"
 - go get github.com/alecthomas/gometalinter
 - gometalinter --install
 - gometalinter --config=gometalinter.json

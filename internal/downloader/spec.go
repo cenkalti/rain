@@ -10,7 +10,9 @@ import (
 // Spec contains parameters for Download constructor.
 type Spec struct {
 	InfoHash [20]byte
+	Trackers []string
 	Storage  storage.Storage
+	Port     int
 	Resume   resume.DB
 	Info     *metainfo.Info
 	Bitfield *bitfield.Bitfield

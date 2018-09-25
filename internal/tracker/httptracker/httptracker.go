@@ -47,15 +47,15 @@ func New(u *url.URL) *HTTPTracker {
 }
 
 func (t *HTTPTracker) Announce(transfer tracker.Transfer, e tracker.Event, cancel <-chan struct{}) (*tracker.AnnounceResponse, error) {
-	peerID := transfer.PeerID()
-	infoHash := transfer.InfoHash()
+	peerID := transfer.PeerID
+	infoHash := transfer.InfoHash
 	q := url.Values{}
 	q.Set("info_hash", string(infoHash[:]))
 	q.Set("peer_id", string(peerID[:]))
-	q.Set("port", strconv.FormatUint(uint64(transfer.Port()), 10))
-	q.Set("uploaded", strconv.FormatInt(transfer.BytesUploaded(), 10))
-	q.Set("downloaded", strconv.FormatInt(transfer.BytesDownloaded(), 10))
-	q.Set("left", strconv.FormatInt(transfer.BytesLeft(), 10))
+	q.Set("port", strconv.FormatUint(uint64(transfer.Port), 10))
+	q.Set("uploaded", strconv.FormatInt(transfer.BytesUploaded, 10))
+	q.Set("downloaded", strconv.FormatInt(transfer.BytesDownloaded, 10))
+	q.Set("left", strconv.FormatInt(transfer.BytesLeft, 10))
 	q.Set("compact", "1")
 	q.Set("no_peer_id", "1")
 	q.Set("numwant", strconv.Itoa(tracker.NumWant))

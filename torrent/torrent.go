@@ -2,45 +2,27 @@ package torrent
 
 import (
 	"bytes"
-	"crypto/rand"
 	"errors"
 	"io"
 	"sync"
 
-	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/downloader"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/magnet"
 	"github.com/cenkalti/rain/internal/metainfo"
-	"github.com/cenkalti/rain/internal/peerlist"
-	"github.com/cenkalti/rain/internal/peermanager"
-	"github.com/cenkalti/rain/internal/worker"
 	"github.com/cenkalti/rain/resume"
 	"github.com/cenkalti/rain/storage"
 	"github.com/cenkalti/rain/storage/filestorage"
 )
 
-var (
-	// Version of client. Set during build.
-	Version = "0000" // zero means development version
-
-	// http://www.bittorrent.org/beps/bep_0020.html
-	peerIDPrefix = []byte("-RN" + Version + "-")
-
-	errInvalidResumeFile = errors.New("invalid resume file (info hashes does not match)")
-)
+var errInvalidResumeFile = errors.New("invalid resume file (info hashes does not match)")
 
 // Torrent connect to peers and downloads files from swarm.
 type Torrent struct {
-	peerID     [20]byte // unique id per torrent
-	infoHash   [20]byte
-	announce   string
-	port       int           // listen for peer connections
-	closed     bool          // true after Close() is called
-	m          sync.Mutex    // protects running and closed state
-	completeC  chan struct{} // downloader closes this channel when all pieces are downloaded
-	workers    worker.Workers
+	// TODO remove mutex, use channels
+	m          sync.Mutex // protects running and closed state
+	closed     bool       // true after Close() is called
 	log        logger.Logger
 	downloader *downloader.Downloader
 }
@@ -73,17 +55,19 @@ func DownloadTorrent(r io.Reader, port int, sto storage.Storage, res resume.DB) 
 	}
 	spec := &downloader.Spec{
 		InfoHash: m.Info.Hash,
+		Trackers: m.GetTrackers(),
+		Port:     port,
 		Storage:  sto,
 		Resume:   res,
 		Info:     m.Info,
 	}
 	if res != nil {
-		err = writeResume(res, spec, port, m.Info.Name, m.Announce)
+		err = writeResume(res, spec, m.Info.Name)
 		if err != nil {
 			return nil, err
 		}
 	}
-	return newTorrent(spec, port, m.Info.Name, m.Announce)
+	return newTorrent(spec, m.Info.Name)
 }
 
 func DownloadMagnet(magnetLink string, port int, sto storage.Storage, res resume.DB) (*Torrent, error) {
@@ -105,16 +89,18 @@ func DownloadMagnet(magnetLink string, port int, sto storage.Storage, res resume
 	}
 	spec := &downloader.Spec{
 		InfoHash: m.InfoHash,
+		Trackers: m.Trackers,
+		Port:     port,
 		Storage:  sto,
 		Resume:   res,
 	}
 	if res != nil {
-		err = writeResume(res, spec, port, m.Name, m.Trackers[0])
+		err = writeResume(res, spec, m.Name)
 		if err != nil {
 			return nil, err
 		}
 	}
-	return newTorrent(spec, port, m.Name, m.Trackers[0])
+	return newTorrent(spec, m.Name)
 }
 
 func Resume(res resume.DB) (*Torrent, error) {
@@ -130,7 +116,9 @@ func Resume(res resume.DB) (*Torrent, error) {
 
 func loadResumeSpec(spec *resume.Spec) (*Torrent, error) {
 	var err error
-	dspec := &downloader.Spec{}
+	dspec := &downloader.Spec{
+		Port: spec.Port,
+	}
 	copy(dspec.InfoHash[:], spec.InfoHash)
 	if len(spec.Info) > 0 {
 		dspec.Info, err = metainfo.NewInfo(spec.Info)
@@ -152,16 +140,15 @@ func loadResumeSpec(spec *resume.Spec) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newTorrent(dspec, spec.Port, spec.Name, spec.Trackers[0])
+	return newTorrent(dspec, spec.Name)
 }
 
-func writeResume(res resume.DB, dspec *downloader.Spec, port int, name string, tracker string) error {
+func writeResume(res resume.DB, dspec *downloader.Spec, name string) error {
 	rspec := &resume.Spec{
-		InfoHash: dspec.InfoHash[:],
-		Port:     port,
-		Name:     name,
-		// TODO save every tracker
-		Trackers:    []string{tracker},
+		InfoHash:    dspec.InfoHash[:],
+		Port:        dspec.Port,
+		Name:        name,
+		Trackers:    dspec.Trackers,
 		StorageType: dspec.Storage.Type(),
 		StorageArgs: dspec.Storage.Args(),
 	}
@@ -174,77 +161,39 @@ func writeResume(res resume.DB, dspec *downloader.Spec, port int, name string, t
 	return res.Write(rspec)
 }
 
-// TODO pass every tracker
-func newTorrent(spec *downloader.Spec, port int, name string, tracker string) (*Torrent, error) {
+func newTorrent(spec *downloader.Spec, name string) (*Torrent, error) {
 	logName := name
 	if len(logName) > 8 {
 		logName = logName[:8]
 	}
 
-	var peerID [20]byte
-	copy(peerID[:], peerIDPrefix)
-	_, err := rand.Read(peerID[len(peerIDPrefix):]) // nolint: gosec
+	l := logger.New("download " + logName)
+
+	d, err := downloader.New(spec, l)
 	if err != nil {
 		return nil, err
 	}
-
-	completeC := make(chan struct{})
-	l := logger.New("download " + logName)
-
-	t := &Torrent{
-		peerID:   peerID,
-		infoHash: spec.InfoHash,
-		// TODO pass every tracker to downloader
-		announce:   tracker,
-		port:       port,
+	return &Torrent{
 		log:        l,
-		completeC:  completeC,
-		downloader: downloader.New(spec, completeC, l),
-	}
-
-	// keep list of peer addresses to connect
-	pl := peerlist.New()
-	t.workers.Start(pl)
-
-	// get peers from tracker
-	an := announcer.New(t.announce, t, t.completeC, pl, t.log)
-	t.workers.Start(an)
-
-	// manage peer connections
-	pm := peermanager.New(t.port, pl, t.peerID, t.infoHash, t.downloader.NewPeers(), t.log)
-	t.workers.Start(pm)
-
-	return t, nil
+		downloader: d,
+	}, nil
 }
 
 // Close this torrent and release all resources.
-func (t *Torrent) Close() error {
+func (t *Torrent) Close() {
 	t.m.Lock()
 	if t.closed {
 		t.m.Unlock()
-		return nil
+		return
 	}
 	t.closed = true
 	t.m.Unlock()
 
-	t.workers.Stop()
 	t.downloader.Close()
-	return nil
 }
-
-// Port returns the port number that the client is listening.
-func (t *Torrent) Port() int {
-	return t.port
-}
-
-// PeerID is unique per torrent.
-func (t *Torrent) PeerID() [20]byte { return t.peerID }
-
-// InfoHash identifies the torrent file that is being downloaded.
-func (t *Torrent) InfoHash() [20]byte { return t.infoHash }
 
 // NotifyComplete returns a channel that is closed once all pieces are downloaded successfully.
-func (t *Torrent) NotifyComplete() <-chan struct{} { return t.completeC }
+func (t *Torrent) NotifyComplete() <-chan struct{} { return t.downloader.NotifyComplete() }
 
 // NotifyError returns a new channel for waiting download errors.
 //
@@ -286,7 +235,3 @@ func (t *Torrent) Stats() *Stats {
 		BytesTotal:      ds.BytesTotal,
 	}
 }
-
-func (t *Torrent) BytesDownloaded() int64 { return t.Stats().BytesComplete } // TODO not the same thing
-func (t *Torrent) BytesUploaded() int64   { return 0 }                       // TODO implememnt
-func (t *Torrent) BytesLeft() int64       { return t.Stats().BytesIncomplete }

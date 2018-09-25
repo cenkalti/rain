@@ -3,12 +3,15 @@ package downloader
 import (
 	"bytes"
 	"crypto/sha1" // nolint: gosec
+	"errors"
 	"fmt"
 	"math"
 	"math/rand"
+	"net/url"
 	"sort"
 	"time"
 
+	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/downloader/infodownloader"
 	"github.com/cenkalti/rain/internal/downloader/piecedownloader"
@@ -17,8 +20,14 @@ import (
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peer/peerprotocol"
+	"github.com/cenkalti/rain/internal/peerlist"
+	"github.com/cenkalti/rain/internal/peermanager"
 	"github.com/cenkalti/rain/internal/semaphore"
 	"github.com/cenkalti/rain/internal/torrentdata"
+	"github.com/cenkalti/rain/internal/tracker"
+	"github.com/cenkalti/rain/internal/tracker/httptracker"
+	"github.com/cenkalti/rain/internal/tracker/udptracker"
+	"github.com/cenkalti/rain/internal/version"
 	"github.com/cenkalti/rain/internal/worker"
 	"github.com/cenkalti/rain/resume"
 	"github.com/cenkalti/rain/storage"
@@ -31,6 +40,11 @@ const (
 	parallelPieceReads     = 4
 )
 
+var (
+	// http://www.bittorrent.org/beps/bep_0020.html
+	peerIDPrefix = []byte("-RN" + version.Version + "-")
+)
+
 type PeerMessage struct {
 	*peer.Peer
 	Message interface{}
@@ -38,6 +52,9 @@ type PeerMessage struct {
 
 type Downloader struct {
 	infoHash               [20]byte
+	peerID                 [20]byte
+	port                   int
+	trackers               []string
 	storage                storage.Storage
 	resume                 resume.DB
 	info                   *metainfo.Info
@@ -62,12 +79,15 @@ type Downloader struct {
 	log                    logger.Logger
 	workers                worker.Workers
 	closeC                 chan struct{}
+	closedC                chan struct{}
 	statsC                 chan StatsRequest
 }
 
-func New(spec *Spec, completeC chan struct{}, l logger.Logger) *Downloader {
+func New(spec *Spec, l logger.Logger) (*Downloader, error) {
 	d := &Downloader{
 		infoHash:          spec.InfoHash,
+		trackers:          spec.Trackers,
+		port:              spec.Port,
 		storage:           spec.Storage,
 		resume:            spec.Resume,
 		info:              spec.Info,
@@ -82,18 +102,24 @@ func New(spec *Spec, completeC chan struct{}, l logger.Logger) *Downloader {
 		infoDownloadDoneC: make(chan *infodownloader.InfoDownloader),
 		writeRequestC:     make(chan piecewriter.Request, 1),
 		writeResponseC:    make(chan piecewriter.Response),
-		completeC:         completeC,
+		completeC:         make(chan struct{}),
 		errC:              make(chan error),
 		log:               l,
 		closeC:            make(chan struct{}),
+		closedC:           make(chan struct{}),
 		statsC:            make(chan StatsRequest),
 	}
+	copy(d.peerID[:], peerIDPrefix)
+	_, err := rand.Read(d.peerID[len(peerIDPrefix):]) // nolint: gosec
+	if err != nil {
+		return nil, err
+	}
 	go d.run()
-	return d
+	return d, nil
 }
 
-func (d *Downloader) NewPeers() chan *peer.Peer {
-	return d.newPeers
+func (d *Downloader) NotifyComplete() chan struct{} {
+	return d.completeC
 }
 
 func (d *Downloader) ErrC() chan error {
@@ -102,9 +128,41 @@ func (d *Downloader) ErrC() chan error {
 
 func (d *Downloader) Close() {
 	close(d.closeC)
+	<-d.closedC
+}
+
+func parseTrackers(trackers []string, log logger.Logger) ([]tracker.Tracker, error) {
+	var ret []tracker.Tracker
+	for _, s := range trackers {
+		u, err := url.Parse(s)
+		if err != nil {
+			log.Warningln("cannot parse tracker url:", err)
+			continue
+		}
+		switch u.Scheme {
+		case "http", "https":
+			ret = append(ret, httptracker.New(u))
+		case "udp":
+			ret = append(ret, udptracker.New(u))
+		default:
+			log.Warningln("unsupported tracker scheme: %s", u.Scheme)
+		}
+	}
+	if len(ret) == 0 {
+		return nil, errors.New("no tracker found")
+	}
+	return ret, nil
 }
 
 func (d *Downloader) run() {
+	defer close(d.closedC)
+
+	trackers, err := parseTrackers(d.trackers, d.log)
+	if err != nil {
+		d.log.Errorln("cannot parse trackers:", err)
+		d.errC <- err
+		return
+	}
 	if d.info != nil {
 		err := d.processInfo()
 		if err != nil {
@@ -115,6 +173,21 @@ func (d *Downloader) run() {
 	}
 
 	defer d.workers.Stop()
+
+	announcerRequests := make(chan *announcer.Request)
+
+	// keep list of peer addresses to connect
+	pl := peerlist.New()
+	d.workers.Start(pl)
+
+	// TODO announce to every tracker
+	an := announcer.New(trackers[0], announcerRequests, d.completeC, pl, d.log)
+	d.workers.Start(an)
+
+	// manage peer connections
+	pm := peermanager.New(d.port, pl, d.peerID, d.infoHash, d.newPeers, d.log)
+	d.workers.Start(pm)
+
 	for i := 0; i < parallelPieceWrites; i++ {
 		w := piecewriter.New(d.writeRequestC, d.writeResponseC, d.log)
 		d.workers.Start(w)
@@ -137,14 +210,34 @@ func (d *Downloader) run() {
 			var stats Stats
 			if d.info != nil {
 				stats.BytesTotal = d.info.TotalLength
+				// TODO this is wrong, pre-calculate complete and incomplete bytes
 				stats.BytesComplete = int64(d.info.PieceLength) * int64(d.bitfield.Count())
 				stats.BytesIncomplete = stats.BytesTotal - stats.BytesComplete
 				// TODO calculate bytes downloaded
 				// TODO calculate bytes uploaded
 			} else {
 				stats.BytesIncomplete = math.MaxUint32
+				// TODO this is wrong, pre-calculate complete and incomplete bytes
 			}
 			req.Response <- stats
+		case req := <-announcerRequests:
+			tr := tracker.Transfer{
+				InfoHash: d.infoHash,
+				PeerID:   d.peerID,
+				Port:     d.port,
+			}
+			if d.info == nil {
+				tr.BytesLeft = math.MaxUint32
+			} else {
+				// TODO this is wrong, pre-calculate complete and incomplete bytes
+				tr.BytesLeft = d.info.TotalLength - int64(d.info.PieceLength)*int64(d.bitfield.Count())
+			}
+			// TODO set bytes uploaded/downloaded
+			select {
+			case req.Response <- announcer.Response{Transfer: tr}:
+			case <-d.closeC:
+				return
+			}
 		case <-infoDownloaders.Wait:
 			if d.info != nil {
 				infoDownloaders.Block()

@@ -34,3 +34,17 @@ func New(r io.Reader) (*MetaInfo, error) {
 	t.Info, err = NewInfo(t.RawInfo)
 	return &t, err
 }
+
+func (m *MetaInfo) GetTrackers() []string {
+	var trackers []string
+	if len(m.AnnounceList) > 0 {
+		for _, t := range m.AnnounceList {
+			if len(t) > 0 {
+				trackers = append(trackers, t[0])
+			}
+		}
+	} else {
+		trackers = []string{m.Announce}
+	}
+	return trackers
+}
