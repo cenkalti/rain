@@ -46,10 +46,10 @@ func DownloadTorrent(r io.Reader, port int, sto storage.Storage, res resume.DB) 
 		if err2 != nil {
 			return nil, err2
 		}
-		if !bytes.Equal(rspec.InfoHash, m.Info.Hash[:]) {
-			return nil, errInvalidResumeFile
-		}
 		if rspec != nil {
+			if !bytes.Equal(rspec.InfoHash, m.Info.Hash[:]) {
+				return nil, errInvalidResumeFile
+			}
 			return loadResumeSpec(rspec)
 		}
 	}
@@ -80,10 +80,10 @@ func DownloadMagnet(magnetLink string, port int, sto storage.Storage, res resume
 		if err2 != nil {
 			return nil, err2
 		}
-		if !bytes.Equal(rspec.InfoHash, m.InfoHash[:]) {
-			return nil, errInvalidResumeFile
-		}
 		if rspec != nil {
+			if !bytes.Equal(rspec.InfoHash, m.InfoHash[:]) {
+				return nil, errInvalidResumeFile
+			}
 			return loadResumeSpec(rspec)
 		}
 	}
