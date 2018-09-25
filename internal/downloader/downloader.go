@@ -180,9 +180,10 @@ func (d *Downloader) run() {
 	pl := peerlist.New()
 	d.workers.Start(pl)
 
-	// TODO announce to every tracker
-	an := announcer.New(trackers[0], announcerRequests, d.completeC, pl, d.log)
-	d.workers.Start(an)
+	for _, tr := range trackers {
+		an := announcer.New(tr, announcerRequests, d.completeC, pl, d.log)
+		d.workers.Start(an)
+	}
 
 	// manage peer connections
 	pm := peermanager.New(d.port, pl, d.peerID, d.infoHash, d.newPeers, d.log)
