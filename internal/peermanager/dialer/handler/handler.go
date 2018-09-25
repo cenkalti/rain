@@ -11,23 +11,27 @@ import (
 )
 
 type Handler struct {
-	addr     net.Addr
-	peerIDs  *peerids.PeerIDs
-	bitfield *bitfield.Bitfield
-	peerID   [20]byte
-	infoHash [20]byte
-	newPeers chan *peer.Peer
-	log      logger.Logger
+	addr        net.Addr
+	peerIDs     *peerids.PeerIDs
+	bitfield    *bitfield.Bitfield
+	peerID      [20]byte
+	infoHash    [20]byte
+	newPeers    chan *peer.Peer
+	connectC    chan net.Conn
+	disconnectC chan net.Conn
+	log         logger.Logger
 }
 
-func New(addr net.Addr, peerIDs *peerids.PeerIDs, peerID, infoHash [20]byte, newPeers chan *peer.Peer, l logger.Logger) *Handler {
+func New(addr net.Addr, peerIDs *peerids.PeerIDs, peerID, infoHash [20]byte, newPeers chan *peer.Peer, connectC, disconnectC chan net.Conn, l logger.Logger) *Handler {
 	return &Handler{
-		addr:     addr,
-		peerIDs:  peerIDs,
-		peerID:   peerID,
-		infoHash: infoHash,
-		newPeers: newPeers,
-		log:      l,
+		addr:        addr,
+		peerIDs:     peerIDs,
+		peerID:      peerID,
+		infoHash:    infoHash,
+		newPeers:    newPeers,
+		connectC:    connectC,
+		disconnectC: disconnectC,
+		log:         l,
 	}
 }
 
@@ -43,16 +47,27 @@ func (h *Handler) Run(stopC chan struct{}) {
 	ourbf.Set(61) // Fast Extension
 
 	// TODO separate dial and handshake
-	conn, cipher, peerExtensions, peerID, err := btconn.Dial(h.addr, !encryptionDisableOutgoing, encryptionForceOutgoing, ourExtensions, h.infoHash, h.peerID)
+	conn, cipher, peerExtensions, peerID, err := btconn.Dial(h.addr, !encryptionDisableOutgoing, encryptionForceOutgoing, ourExtensions, h.infoHash, h.peerID, stopC, h.connectC, h.disconnectC)
 	if err != nil {
-		log.Errorln("cannot complete handshake:", err)
+		select {
+		case <-stopC:
+		default:
+			log.Errorln("cannot complete handshake:", err)
+		}
 		return
 	}
 	log.Infof("Connected to peer. (cipher=%s extensions=%x client=%q)", cipher, peerExtensions, peerID[:8])
 
+	defer func() {
+		conn.Close()
+		select {
+		case h.disconnectC <- conn:
+		case <-stopC:
+		}
+	}()
+
 	ok := h.peerIDs.Add(peerID)
 	if !ok {
-		_ = conn.Close()
 		return
 	}
 	defer h.peerIDs.Remove(peerID)

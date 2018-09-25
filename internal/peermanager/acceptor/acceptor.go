@@ -14,27 +14,31 @@ import (
 const maxAccept = 40
 
 type Acceptor struct {
-	port     int
-	peerIDs  *peerids.PeerIDs
-	peerID   [20]byte
-	sKeyHash [20]byte
-	infoHash [20]byte
-	newPeers chan *peer.Peer
-	workers  worker.Workers
-	limiter  chan struct{}
-	log      logger.Logger
+	port        int
+	peerIDs     *peerids.PeerIDs
+	peerID      [20]byte
+	sKeyHash    [20]byte
+	infoHash    [20]byte
+	newPeers    chan *peer.Peer
+	connectC    chan net.Conn
+	disconnectC chan net.Conn
+	workers     worker.Workers
+	limiter     chan struct{}
+	log         logger.Logger
 }
 
-func New(port int, peerIDs *peerids.PeerIDs, peerID, infoHash [20]byte, newPeers chan *peer.Peer, l logger.Logger) *Acceptor {
+func New(port int, peerIDs *peerids.PeerIDs, peerID, infoHash [20]byte, newPeers chan *peer.Peer, connectC, disconnectC chan net.Conn, l logger.Logger) *Acceptor {
 	return &Acceptor{
-		port:     port,
-		peerIDs:  peerIDs,
-		peerID:   peerID,
-		sKeyHash: mse.HashSKey(infoHash[:]),
-		infoHash: infoHash,
-		newPeers: newPeers,
-		limiter:  make(chan struct{}, maxAccept),
-		log:      l,
+		port:        port,
+		peerIDs:     peerIDs,
+		peerID:      peerID,
+		sKeyHash:    mse.HashSKey(infoHash[:]),
+		infoHash:    infoHash,
+		newPeers:    newPeers,
+		connectC:    connectC,
+		disconnectC: disconnectC,
+		limiter:     make(chan struct{}, maxAccept),
+		log:         l,
 	}
 }
 
@@ -64,8 +68,14 @@ func (a *Acceptor) Run(stopC chan struct{}) {
 			return
 		}
 		select {
+		case a.connectC <- conn:
+		case <-stopC:
+			a.workers.Stop()
+			return
+		}
+		select {
 		case a.limiter <- struct{}{}:
-			h := handler.New(conn, a.peerIDs, a.peerID, a.sKeyHash, a.infoHash, a.newPeers, a.log)
+			h := handler.New(conn, a.peerIDs, a.peerID, a.sKeyHash, a.infoHash, a.newPeers, a.disconnectC, a.log)
 			a.workers.StartWithOnFinishHandler(h, func() { <-a.limiter })
 		case <-stopC:
 			a.workers.Stop()

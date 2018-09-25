@@ -1,6 +1,8 @@
 package peermanager
 
 import (
+	"net"
+
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peerlist"
@@ -11,25 +13,31 @@ import (
 )
 
 type PeerManager struct {
-	port     int
-	peerList *peerlist.PeerList
-	peerIDs  *peerids.PeerIDs
-	peerID   [20]byte
-	infoHash [20]byte
-	newPeers chan *peer.Peer
-	workers  worker.Workers
-	log      logger.Logger
+	port        int
+	peerList    *peerlist.PeerList
+	peerIDs     *peerids.PeerIDs
+	peerID      [20]byte
+	infoHash    [20]byte
+	newPeers    chan *peer.Peer
+	conns       map[string]net.Conn
+	connectC    chan net.Conn
+	disconnectC chan net.Conn
+	workers     worker.Workers
+	log         logger.Logger
 }
 
 func New(port int, pl *peerlist.PeerList, peerID, infoHash [20]byte, newPeers chan *peer.Peer, l logger.Logger) *PeerManager {
 	return &PeerManager{
-		port:     port,
-		peerList: pl,
-		peerIDs:  peerids.New(),
-		peerID:   peerID,
-		infoHash: infoHash,
-		newPeers: newPeers,
-		log:      l,
+		port:        port,
+		peerList:    pl,
+		peerIDs:     peerids.New(),
+		peerID:      peerID,
+		infoHash:    infoHash,
+		newPeers:    newPeers,
+		conns:       make(map[string]net.Conn),
+		connectC:    make(chan net.Conn),
+		disconnectC: make(chan net.Conn),
+		log:         l,
 	}
 }
 
@@ -38,12 +46,24 @@ func (m *PeerManager) NewPeers() <-chan *peer.Peer {
 }
 
 func (m *PeerManager) Run(stopC chan struct{}) {
-	a := acceptor.New(m.port, m.peerIDs, m.peerID, m.infoHash, m.newPeers, m.log)
+	a := acceptor.New(m.port, m.peerIDs, m.peerID, m.infoHash, m.newPeers, m.connectC, m.disconnectC, m.log)
 	m.workers.Start(a)
 
-	d := dialer.New(m.peerList, m.peerIDs, m.peerID, m.infoHash, m.newPeers, m.log)
+	d := dialer.New(m.peerList, m.peerIDs, m.peerID, m.infoHash, m.newPeers, m.connectC, m.disconnectC, m.log)
 	m.workers.Start(d)
 
-	<-stopC
-	m.workers.Stop()
+	for {
+		select {
+		case conn := <-m.connectC:
+			m.conns[conn.RemoteAddr().String()] = conn
+		case conn := <-m.disconnectC:
+			delete(m.conns, conn.RemoteAddr().String())
+		case <-stopC:
+			for _, conn := range m.conns {
+				conn.Close()
+			}
+			m.workers.Stop()
+			return
+		}
+	}
 }

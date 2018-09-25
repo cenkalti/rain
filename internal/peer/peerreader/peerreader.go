@@ -50,9 +50,9 @@ func (p *PeerReader) Run(stopC chan struct{}) {
 		// p.log.Debug("Reading message...")
 		err = binary.Read(p.conn, binary.BigEndian, &length)
 		if err != nil {
-			if err == io.EOF {
-				p.log.Debug("Remote peer has closed the connection")
-			} else {
+			select {
+			case <-stopC:
+			default:
 				p.log.Error(err)
 			}
 			return

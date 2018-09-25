@@ -81,6 +81,9 @@ func (a *Announcer) announce(e tracker.Event, stopC chan struct{}) {
 		return
 	}
 	r, err := a.tracker.Announce(resp.Transfer, e, stopC)
+	if err == tracker.ErrRequestCancelled {
+		return
+	}
 	if err != nil {
 		a.log.Errorln("announce error:", err)
 		a.nextAnnounce = a.backoff.NextBackOff()

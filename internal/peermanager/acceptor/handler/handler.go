@@ -11,30 +11,40 @@ import (
 )
 
 type Handler struct {
-	conn     net.Conn
-	peerIDs  *peerids.PeerIDs
-	bitfield *bitfield.Bitfield
-	peerID   [20]byte
-	sKeyHash [20]byte
-	infoHash [20]byte
-	newPeers chan *peer.Peer
-	log      logger.Logger
+	conn        net.Conn
+	peerIDs     *peerids.PeerIDs
+	bitfield    *bitfield.Bitfield
+	peerID      [20]byte
+	sKeyHash    [20]byte
+	infoHash    [20]byte
+	newPeers    chan *peer.Peer
+	disconnectC chan net.Conn
+	log         logger.Logger
 }
 
-func New(conn net.Conn, peerIDs *peerids.PeerIDs, peerID, sKeyHash, infoHash [20]byte, newPeers chan *peer.Peer, l logger.Logger) *Handler {
+func New(conn net.Conn, peerIDs *peerids.PeerIDs, peerID, sKeyHash, infoHash [20]byte, newPeers chan *peer.Peer, disconnectC chan net.Conn, l logger.Logger) *Handler {
 	return &Handler{
-		conn:     conn,
-		peerIDs:  peerIDs,
-		peerID:   peerID,
-		sKeyHash: sKeyHash,
-		infoHash: infoHash,
-		newPeers: newPeers,
-		log:      l,
+		conn:        conn,
+		peerIDs:     peerIDs,
+		peerID:      peerID,
+		sKeyHash:    sKeyHash,
+		infoHash:    infoHash,
+		newPeers:    newPeers,
+		disconnectC: disconnectC,
+		log:         l,
 	}
 }
 
 func (h *Handler) Run(stopC chan struct{}) {
 	log := logger.New("peer <- " + h.conn.RemoteAddr().String())
+
+	defer func() {
+		_ = h.conn.Close()
+		select {
+		case h.disconnectC <- h.conn:
+		case <-stopC:
+		}
+	}()
 
 	// TODO get this from config
 	encryptionForceIncoming := false
@@ -55,7 +65,6 @@ func (h *Handler) Run(stopC chan struct{}) {
 
 	ok := h.peerIDs.Add(peerID)
 	if !ok {
-		_ = h.conn.Close()
 		return
 	}
 	defer h.peerIDs.Remove(peerID)
