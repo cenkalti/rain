@@ -12,6 +12,7 @@ import (
 	"github.com/cenkalti/log"
 	"github.com/cenkalti/rain/client"
 	"github.com/cenkalti/rain/internal/logger"
+	rainversion "github.com/cenkalti/rain/internal/version"
 	"github.com/cenkalti/rain/resume/torrentresume"
 	"github.com/cenkalti/rain/storage/filestorage"
 	"github.com/cenkalti/rain/torrent"
@@ -41,7 +42,7 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 	if *version {
-		fmt.Println(torrent.Version)
+		fmt.Println(rainversion.Version)
 		return
 	}
 	args := flag.Args()
@@ -102,8 +103,5 @@ LOOP:
 			os.Exit(1)
 		}
 	}
-	err = t.Close()
-	if err != nil {
-		log.Fatal(err)
-	}
+	t.Close()
 }
