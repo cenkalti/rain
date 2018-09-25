@@ -50,7 +50,7 @@ func DownloadTorrent(r io.Reader, port int, sto storage.Storage, res resume.DB) 
 			if !bytes.Equal(rspec.InfoHash, m.Info.Hash[:]) {
 				return nil, errInvalidResumeFile
 			}
-			return loadResumeSpec(rspec)
+			return loadResumeSpec(rspec, res)
 		}
 	}
 	spec := &downloader.Spec{
@@ -84,7 +84,7 @@ func DownloadMagnet(magnetLink string, port int, sto storage.Storage, res resume
 			if !bytes.Equal(rspec.InfoHash, m.InfoHash[:]) {
 				return nil, errInvalidResumeFile
 			}
-			return loadResumeSpec(rspec)
+			return loadResumeSpec(rspec, res)
 		}
 	}
 	spec := &downloader.Spec{
@@ -111,13 +111,15 @@ func Resume(res resume.DB) (*Torrent, error) {
 	if spec == nil {
 		return nil, errors.New("no resume info")
 	}
-	return loadResumeSpec(spec)
+	return loadResumeSpec(spec, res)
 }
 
-func loadResumeSpec(spec *resume.Spec) (*Torrent, error) {
+func loadResumeSpec(spec *resume.Spec, res resume.DB) (*Torrent, error) {
 	var err error
 	dspec := &downloader.Spec{
-		Port: spec.Port,
+		Port:     spec.Port,
+		Trackers: spec.Trackers,
+		Resume:   res,
 	}
 	copy(dspec.InfoHash[:], spec.InfoHash)
 	if len(spec.Info) > 0 {
