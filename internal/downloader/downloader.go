@@ -499,7 +499,7 @@ func (d *Downloader) run() {
 			if len(d.connectedPeers) <= 4 {
 				d.unchokePeer(pe, d.closeC)
 			}
-			go d.readMessages(pe.Peer)
+			go d.readMessages(pe.Peer, d.closeC)
 		case p := <-d.disconnectedPeers:
 			pe := d.connectedPeers[p]
 			if pe.downloader != nil {
@@ -877,11 +877,19 @@ func (d *Downloader) unchokePeer(pe *Peer, stopC chan struct{}) {
 	}
 }
 
-func (d *Downloader) readMessages(pe *peer.Peer) {
+func (d *Downloader) readMessages(pe *peer.Peer, stopC chan struct{}) {
 	for msg := range pe.Messages() {
-		d.messages <- PeerMessage{Peer: pe, Message: msg}
+		select {
+		case d.messages <- PeerMessage{Peer: pe, Message: msg}:
+		case <-stopC:
+			return
+		}
 	}
-	d.disconnectedPeers <- pe
+	select {
+	case d.disconnectedPeers <- pe:
+	case <-stopC:
+		return
+	}
 }
 
 func (d *Downloader) resendMessages(pe *Peer, stopC chan struct{}) {
