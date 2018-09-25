@@ -51,36 +51,92 @@ type PeerMessage struct {
 }
 
 type Downloader struct {
-	infoHash               [20]byte
-	peerID                 [20]byte
-	port                   int
-	trackers               []string
-	storage                storage.Storage
-	resume                 resume.DB
-	info                   *metainfo.Info
-	bitfield               *bitfield.Bitfield
-	data                   *torrentdata.Data
-	completed              bool
-	pieces                 []Piece
-	sortedPieces           []*Piece
-	newPeers               chan *peer.Peer
-	disconnectedPeers      chan *peer.Peer
-	messages               chan PeerMessage
-	connectedPeers         map[*peer.Peer]*Peer
-	pieceDownloads         map[*peer.Peer]*piecedownloader.PieceDownloader
-	infoDownloads          map[*peer.Peer]*infodownloader.InfoDownloader
-	downloadDoneC          chan *piecedownloader.PieceDownloader
-	infoDownloadDoneC      chan *infodownloader.InfoDownloader
-	writeRequestC          chan piecewriter.Request
-	writeResponseC         chan piecewriter.Response
+	// Identifies the torrent being downloaded.
+	infoHash [20]byte
+
+	// Unique peer ID is generated per downloader.
+	peerID [20]byte
+
+	// TCP Port to listen for peer connections.
+	port int
+
+	// List of addresses to announce this torrent.
+	trackers []string
+
+	// Storage implementation to save the files in torrent.
+	storage storage.Storage
+
+	// Optional DB implementation to save resume state of the torrent.
+	resume resume.DB
+
+	// Contains info about files in torrent. This can be nil at start for magnet downloads.
+	info *metainfo.Info
+
+	// Bitfield for pieces we have. It is created after we got info.
+	bitfield *bitfield.Bitfield
+
+	// Data provides IO access to pieces in torrent.
+	data *torrentdata.Data
+
+	// Boolean state to to tell if all pieces are downloaded.
+	completed bool
+
+	// Contains state about the pieces in torrent.
+	pieces []Piece
+
+	// Contains pieces in sorted order for piece selection function.
+	sortedPieces []*Piece
+
+	// New peers are are sent to this channel by peer manager.
+	newPeers chan *peer.Peer
+
+	// Peers are sent to this channel when they are disconnected.
+	disconnectedPeers chan *peer.Peer
+
+	// All messages coming from peers are sent to this channel.
+	messages chan PeerMessage
+
+	// We keep connected peers in this map after they complete handshake phase.
+	connectedPeers map[*peer.Peer]*Peer
+
+	// Active piece downloads are kept in this map.
+	pieceDownloads map[*peer.Peer]*piecedownloader.PieceDownloader
+
+	// Active metadata downloads are kept in this map.
+	infoDownloads map[*peer.Peer]*infodownloader.InfoDownloader
+
+	// When a piece is downloaded completely a message is sent to this channel.
+	downloadDoneC chan *piecedownloader.PieceDownloader
+
+	// When metadata of the torrent downloaded completely, a message is sent to this channel.
+	infoDownloadDoneC chan *infodownloader.InfoDownloader
+
+	// Downloader run loop sends a message to this channel for writing a piece to disk.
+	writeRequestC chan piecewriter.Request
+
+	// When a piece is written to the disk, a message is sent to this channel.
+	writeResponseC chan piecewriter.Response
+
+	// A peer is optimistically unchoked regardless of their download rate.
 	optimisticUnchokedPeer *Peer
-	completeC              chan struct{}
-	errC                   chan error
-	log                    logger.Logger
-	workers                worker.Workers
-	closeC                 chan struct{}
-	closedC                chan struct{}
-	statsC                 chan StatsRequest
+
+	// This channel is closed once all pieces are downloaded and verified.
+	completeC chan struct{}
+
+	// If any unrecoverable error occurs, it will be sent to this channel and download will be stopped.
+	errC chan error
+
+	// When Stop() is called, it will close this channel to signal all running goroutines to stop.
+	closeC chan struct{}
+
+	// This channel will be closed after run loop exists.
+	closedC chan struct{}
+
+	// A message is sent to this channel to get download stats.
+	statsC chan StatsRequest
+
+	log     logger.Logger
+	workers worker.Workers
 }
 
 func New(spec *Spec, l logger.Logger) (*Downloader, error) {
@@ -100,7 +156,7 @@ func New(spec *Spec, l logger.Logger) (*Downloader, error) {
 		infoDownloads:     make(map[*peer.Peer]*infodownloader.InfoDownloader),
 		downloadDoneC:     make(chan *piecedownloader.PieceDownloader),
 		infoDownloadDoneC: make(chan *infodownloader.InfoDownloader),
-		writeRequestC:     make(chan piecewriter.Request, 1),
+		writeRequestC:     make(chan piecewriter.Request),
 		writeResponseC:    make(chan piecewriter.Response),
 		completeC:         make(chan struct{}),
 		errC:              make(chan error),
