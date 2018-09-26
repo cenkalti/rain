@@ -108,7 +108,7 @@ func (p *Piece) newBlocks() []Block {
 	return blocks
 }
 
-func (p *Piece) GetBlock(begin uint32) *Block {
+func (p *Piece) FindBlock(begin, length uint32) *Block {
 	idx, mod := divMod32(begin, BlockSize)
 	if mod != 0 {
 		return nil
@@ -116,7 +116,11 @@ func (p *Piece) GetBlock(begin uint32) *Block {
 	if idx >= uint32(len(p.Blocks)) {
 		return nil
 	}
-	return &p.Blocks[idx]
+	b := &p.Blocks[idx]
+	if b.Length != length {
+		return nil
+	}
+	return b
 }
 
 func (p *Piece) Verify(buf []byte) bool {

@@ -600,14 +600,9 @@ func (d *Downloader) run() {
 					break
 				}
 				piece := &d.data.Pieces[msg.Index]
-				block := piece.GetBlock(msg.Begin)
+				block := piece.FindBlock(msg.Begin, msg.Length)
 				if block == nil {
-					pe.Peer.Logger().Errorln("invalid piece begin:", msg.Begin)
-					pe.Peer.Close()
-					break
-				}
-				if uint32(len(msg.Data)) != block.Length {
-					pe.Peer.Logger().Errorln("invalid piece length:", len(msg.Data))
+					pe.Peer.Logger().Errorln("invalid piece begin:", msg.Begin, "length:", msg.Length)
 					pe.Peer.Close()
 					break
 				}
@@ -653,14 +648,9 @@ func (d *Downloader) run() {
 					break
 				}
 				piece := &d.data.Pieces[msg.Index]
-				block := piece.GetBlock(msg.Begin)
+				block := piece.FindBlock(msg.Begin, msg.Length)
 				if block == nil {
-					pe.Peer.Logger().Errorln("invalid reject begin:", msg.Begin)
-					pe.Peer.Close()
-					break
-				}
-				if msg.Length != block.Length {
-					pe.Peer.Logger().Errorln("invalid reject length:", msg.Length)
+					pe.Peer.Logger().Errorln("invalid reject begin:", msg.Begin, "length:", msg.Length)
 					pe.Peer.Close()
 					break
 				}
