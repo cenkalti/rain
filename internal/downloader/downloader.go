@@ -21,7 +21,9 @@ import (
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peer/peerprotocol"
-	"github.com/cenkalti/rain/internal/peermanager"
+	"github.com/cenkalti/rain/internal/peermanager/acceptor"
+	"github.com/cenkalti/rain/internal/peermanager/dialer"
+	"github.com/cenkalti/rain/internal/peermanager/peerids"
 	"github.com/cenkalti/rain/internal/semaphore"
 	"github.com/cenkalti/rain/internal/torrentdata"
 	"github.com/cenkalti/rain/internal/tracker"
@@ -142,6 +144,11 @@ type Downloader struct {
 	peerAddrs         []*peerAddr          // contains peers not connected yet, sorted by oldest first
 	peerAddrsMap      map[string]*peerAddr // contains peers not connected yet, keyed by addr string
 	peerAddrToConnect chan *net.TCPAddr
+
+	peerIDs     *peerids.PeerIDs
+	conns       map[string]net.Conn
+	connectC    chan net.Conn
+	disconnectC chan net.Conn
 }
 
 type peerAddr struct {
@@ -177,6 +184,10 @@ func New(spec *Spec, l logger.Logger) (*Downloader, error) {
 		peerAddrsMap:      make(map[string]*peerAddr),
 		peersFromTrackers: make(chan []*net.TCPAddr),
 		peerAddrToConnect: make(chan *net.TCPAddr),
+		peerIDs:           peerids.New(),
+		conns:             make(map[string]net.Conn),
+		connectC:          make(chan net.Conn),
+		disconnectC:       make(chan net.Conn),
 	}
 	copy(d.peerID[:], peerIDPrefix)
 	_, err := rand.Read(d.peerID[len(peerIDPrefix):]) // nolint: gosec
@@ -277,9 +288,11 @@ func (d *Downloader) run() {
 		d.workers.Start(an)
 	}
 
-	// manage peer connections
-	pm := peermanager.New(d.port, d.peerAddrToConnect, d.peerID, d.infoHash, d.newPeers, d.log)
-	d.workers.Start(pm)
+	a := acceptor.New(d.port, d.peerIDs, d.peerID, d.infoHash, d.newPeers, d.connectC, d.disconnectC, d.log)
+	d.workers.Start(a)
+
+	di := dialer.New(d.peerAddrToConnect, d.peerIDs, d.peerID, d.infoHash, d.newPeers, d.connectC, d.disconnectC, d.log)
+	d.workers.Start(di)
 
 	for i := 0; i < parallelPieceWrites; i++ {
 		w := piecewriter.New(d.writeRequestC, d.writeResponseC, d.log)
@@ -300,10 +313,17 @@ func (d *Downloader) run() {
 	for {
 		select {
 		case <-d.closeC:
+			for _, conn := range d.conns {
+				conn.Close()
+			}
 			return
 		case addrs := <-d.peersFromTrackers:
 			d.savePeerAddresses(addrs)
 			dialLimit.Signal(uint32(len(addrs)))
+		case conn := <-d.connectC:
+			d.conns[conn.RemoteAddr().String()] = conn
+		case conn := <-d.disconnectC:
+			delete(d.conns, conn.RemoteAddr().String())
 		case req := <-d.statsC:
 			var stats Stats
 			if d.info != nil {
