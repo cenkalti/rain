@@ -22,12 +22,11 @@ type Piece struct {
 }
 
 func NewPieces(info *metainfo.Info, osFiles []storage.File) []Piece {
-	// TODO init all to zero, call nextFile to init
 	var (
 		fileIndex  int   // index of the current file in torrent
-		fileLength int64 = info.GetFiles()[fileIndex].Length
-		fileEnd          = fileLength // absolute position of end of the file among all pieces
-		fileOffset int64              // offset in file: [0, fileLength)
+		fileLength int64 // length of the file in fileIndex
+		fileEnd    int64 // absolute position of end of the file among all pieces
+		fileOffset int64 // offset in file: [0, fileLength)
 	)
 
 	nextFile := func() {
@@ -36,6 +35,11 @@ func NewPieces(info *metainfo.Info, osFiles []storage.File) []Piece {
 		fileEnd += fileLength
 		fileOffset = 0
 	}
+
+	// Init first file
+	fileIndex = -1
+	nextFile()
+
 	fileLeft := func() int64 { return fileLength - fileOffset }
 
 	// Construct pieces
