@@ -1,11 +1,11 @@
 package announcer
 
 import (
+	"net"
 	"time"
 
 	"github.com/cenkalti/backoff"
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/peerlist"
 	"github.com/cenkalti/rain/internal/tracker"
 )
 
@@ -15,7 +15,7 @@ type Announcer struct {
 	url          string
 	log          logger.Logger
 	completedC   chan struct{}
-	peerList     *peerlist.PeerList
+	newPeers     chan []*net.TCPAddr
 	tracker      tracker.Tracker
 	backoff      backoff.BackOff
 	nextAnnounce time.Duration
@@ -30,12 +30,12 @@ type Response struct {
 	Transfer tracker.Transfer
 }
 
-func New(trk tracker.Tracker, requests chan *Request, completedC chan struct{}, pl *peerlist.PeerList, l logger.Logger) *Announcer {
+func New(trk tracker.Tracker, requests chan *Request, completedC chan struct{}, newPeers chan []*net.TCPAddr, l logger.Logger) *Announcer {
 	return &Announcer{
 		tracker:    trk,
 		log:        l,
 		completedC: completedC,
-		peerList:   pl,
+		newPeers:   newPeers,
 		requests:   requests,
 		backoff: &backoff.ExponentialBackOff{
 			InitialInterval:     5 * time.Second,
@@ -91,7 +91,7 @@ func (a *Announcer) announce(e tracker.Event, stopC chan struct{}) {
 		a.backoff.Reset()
 		a.nextAnnounce = r.Interval
 		select {
-		case a.peerList.NewPeers <- r.Peers:
+		case a.newPeers <- r.Peers:
 		case <-stopC:
 		}
 	}

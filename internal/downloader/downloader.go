@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"net"
 	"net/url"
 	"sort"
 	"time"
@@ -20,7 +21,6 @@ import (
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peer/peerprotocol"
-	"github.com/cenkalti/rain/internal/peerlist"
 	"github.com/cenkalti/rain/internal/peermanager"
 	"github.com/cenkalti/rain/internal/semaphore"
 	"github.com/cenkalti/rain/internal/torrentdata"
@@ -137,6 +137,16 @@ type Downloader struct {
 
 	log     logger.Logger
 	workers worker.Workers
+
+	peersFromTrackers chan []*net.TCPAddr
+	peerAddrs         []*peerAddr          // contains peers not connected yet, sorted by oldest first
+	peerAddrsMap      map[string]*peerAddr // contains peers not connected yet, keyed by addr string
+	peerAddrToConnect chan *net.TCPAddr
+}
+
+type peerAddr struct {
+	*net.TCPAddr
+	timestamp time.Time
 }
 
 func New(spec *Spec, l logger.Logger) (*Downloader, error) {
@@ -164,6 +174,9 @@ func New(spec *Spec, l logger.Logger) (*Downloader, error) {
 		closeC:            make(chan struct{}),
 		closedC:           make(chan struct{}),
 		statsC:            make(chan StatsRequest),
+		peerAddrsMap:      make(map[string]*peerAddr),
+		peersFromTrackers: make(chan []*net.TCPAddr),
+		peerAddrToConnect: make(chan *net.TCPAddr),
 	}
 	copy(d.peerID[:], peerIDPrefix)
 	_, err := rand.Read(d.peerID[len(peerIDPrefix):]) // nolint: gosec
@@ -210,6 +223,33 @@ func parseTrackers(trackers []string, log logger.Logger) ([]tracker.Tracker, err
 	return ret, nil
 }
 
+func (d *Downloader) savePeerAddresses(addrs []*net.TCPAddr) {
+	now := time.Now()
+	for _, ad := range addrs {
+		// 0 port is invalid
+		if ad.Port == 0 {
+			continue
+		}
+		// TODO Discard own client
+		// if ad.IP.IsLoopback() && ad.Port == a.transfer.Port() {
+		// 	continue
+		// }
+		key := ad.String()
+		if p, ok := d.peerAddrsMap[key]; ok {
+			p.timestamp = now
+		} else {
+			p = &peerAddr{
+				TCPAddr:   ad,
+				timestamp: now,
+			}
+			d.peerAddrsMap[key] = p
+			d.peerAddrs = append(d.peerAddrs, p)
+		}
+	}
+	// TODO limit max peer addresses to keep
+	sort.Slice(d.peerAddrs, func(i, j int) bool { return d.peerAddrs[i].timestamp.Before(d.peerAddrs[j].timestamp) })
+}
+
 func (d *Downloader) run() {
 	defer close(d.closedC)
 
@@ -232,17 +272,13 @@ func (d *Downloader) run() {
 
 	announcerRequests := make(chan *announcer.Request)
 
-	// keep list of peer addresses to connect
-	pl := peerlist.New()
-	d.workers.Start(pl)
-
 	for _, tr := range trackers {
-		an := announcer.New(tr, announcerRequests, d.completeC, pl, d.log)
+		an := announcer.New(tr, announcerRequests, d.completeC, d.peersFromTrackers, d.log)
 		d.workers.Start(an)
 	}
 
 	// manage peer connections
-	pm := peermanager.New(d.port, pl, d.peerID, d.infoHash, d.newPeers, d.log)
+	pm := peermanager.New(d.port, d.peerAddrToConnect, d.peerID, d.infoHash, d.newPeers, d.log)
 	d.workers.Start(pm)
 
 	for i := 0; i < parallelPieceWrites; i++ {
@@ -259,10 +295,15 @@ func (d *Downloader) run() {
 	pieceDownloaders := semaphore.New(parallelPieceDownloads)
 	infoDownloaders := semaphore.New(parallelInfoDownloads)
 
+	dialLimit := semaphore.New(40)
+
 	for {
 		select {
 		case <-d.closeC:
 			return
+		case addrs := <-d.peersFromTrackers:
+			d.savePeerAddresses(addrs)
+			dialLimit.Signal(uint32(len(addrs)))
 		case req := <-d.statsC:
 			var stats Stats
 			if d.info != nil {
@@ -277,6 +318,18 @@ func (d *Downloader) run() {
 				// TODO this is wrong, pre-calculate complete and incomplete bytes
 			}
 			req.Response <- stats
+		case <-dialLimit.Wait:
+			if len(d.peerAddrs) == 0 {
+				dialLimit.Block()
+				break
+			}
+			addr := d.peerAddrs[len(d.peerAddrs)-1].TCPAddr
+			select {
+			case d.peerAddrToConnect <- addr:
+				d.peerAddrs = d.peerAddrs[:len(d.peerAddrs)-1]
+				delete(d.peerAddrsMap, addr.String())
+			case <-d.closeC:
+			}
 		case req := <-announcerRequests:
 			tr := tracker.Transfer{
 				InfoHash: d.infoHash,

@@ -5,7 +5,6 @@ import (
 
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/peer"
-	"github.com/cenkalti/rain/internal/peerlist"
 	"github.com/cenkalti/rain/internal/peermanager/acceptor"
 	"github.com/cenkalti/rain/internal/peermanager/dialer"
 	"github.com/cenkalti/rain/internal/peermanager/peerids"
@@ -14,7 +13,7 @@ import (
 
 type PeerManager struct {
 	port        int
-	peerList    *peerlist.PeerList
+	addrToCon   chan *net.TCPAddr
 	peerIDs     *peerids.PeerIDs
 	peerID      [20]byte
 	infoHash    [20]byte
@@ -26,10 +25,10 @@ type PeerManager struct {
 	log         logger.Logger
 }
 
-func New(port int, pl *peerlist.PeerList, peerID, infoHash [20]byte, newPeers chan *peer.Peer, l logger.Logger) *PeerManager {
+func New(port int, addrToCon chan *net.TCPAddr, peerID, infoHash [20]byte, newPeers chan *peer.Peer, l logger.Logger) *PeerManager {
 	return &PeerManager{
 		port:        port,
-		peerList:    pl,
+		addrToCon:   addrToCon,
 		peerIDs:     peerids.New(),
 		peerID:      peerID,
 		infoHash:    infoHash,
@@ -49,7 +48,7 @@ func (m *PeerManager) Run(stopC chan struct{}) {
 	a := acceptor.New(m.port, m.peerIDs, m.peerID, m.infoHash, m.newPeers, m.connectC, m.disconnectC, m.log)
 	m.workers.Start(a)
 
-	d := dialer.New(m.peerList, m.peerIDs, m.peerID, m.infoHash, m.newPeers, m.connectC, m.disconnectC, m.log)
+	d := dialer.New(m.addrToCon, m.peerIDs, m.peerID, m.infoHash, m.newPeers, m.connectC, m.disconnectC, m.log)
 	m.workers.Start(d)
 
 	for {
