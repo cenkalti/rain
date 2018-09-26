@@ -7,12 +7,10 @@ import (
 	"github.com/cenkalti/rain/internal/btconn"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/peer"
-	"github.com/cenkalti/rain/internal/peermanager/peerids"
 )
 
 type Handler struct {
 	addr        net.Addr
-	peerIDs     *peerids.PeerIDs
 	bitfield    *bitfield.Bitfield
 	peerID      [20]byte
 	infoHash    [20]byte
@@ -22,10 +20,9 @@ type Handler struct {
 	log         logger.Logger
 }
 
-func New(addr net.Addr, peerIDs *peerids.PeerIDs, peerID, infoHash [20]byte, newPeers chan *peer.Peer, connectC, disconnectC chan net.Conn, l logger.Logger) *Handler {
+func New(addr net.Addr, peerID, infoHash [20]byte, newPeers chan *peer.Peer, connectC, disconnectC chan net.Conn, l logger.Logger) *Handler {
 	return &Handler{
 		addr:        addr,
-		peerIDs:     peerIDs,
 		peerID:      peerID,
 		infoHash:    infoHash,
 		newPeers:    newPeers,
@@ -67,12 +64,6 @@ func (h *Handler) Run(stopC chan struct{}) {
 		case <-stopC:
 		}
 	}()
-
-	ok := h.peerIDs.Add(peerID)
-	if !ok {
-		return
-	}
-	defer h.peerIDs.Remove(peerID)
 
 	peerbf := bitfield.NewBytes(peerExtensions[:], 64)
 	extensions := ourbf.And(peerbf)

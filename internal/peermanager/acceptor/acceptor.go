@@ -7,7 +7,6 @@ import (
 	"github.com/cenkalti/rain/internal/mse"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peermanager/acceptor/handler"
-	"github.com/cenkalti/rain/internal/peermanager/peerids"
 	"github.com/cenkalti/rain/internal/worker"
 )
 
@@ -15,7 +14,6 @@ const maxAccept = 40
 
 type Acceptor struct {
 	port        int
-	peerIDs     *peerids.PeerIDs
 	peerID      [20]byte
 	sKeyHash    [20]byte
 	infoHash    [20]byte
@@ -27,10 +25,9 @@ type Acceptor struct {
 	log         logger.Logger
 }
 
-func New(port int, peerIDs *peerids.PeerIDs, peerID, infoHash [20]byte, newPeers chan *peer.Peer, connectC, disconnectC chan net.Conn, l logger.Logger) *Acceptor {
+func New(port int, peerID, infoHash [20]byte, newPeers chan *peer.Peer, connectC, disconnectC chan net.Conn, l logger.Logger) *Acceptor {
 	return &Acceptor{
 		port:        port,
-		peerIDs:     peerIDs,
 		peerID:      peerID,
 		sKeyHash:    mse.HashSKey(infoHash[:]),
 		infoHash:    infoHash,
@@ -75,7 +72,7 @@ func (a *Acceptor) Run(stopC chan struct{}) {
 		}
 		select {
 		case a.limiter <- struct{}{}:
-			h := handler.New(conn, a.peerIDs, a.peerID, a.sKeyHash, a.infoHash, a.newPeers, a.disconnectC, a.log)
+			h := handler.New(conn, a.peerID, a.sKeyHash, a.infoHash, a.newPeers, a.disconnectC, a.log)
 			a.workers.StartWithOnFinishHandler(h, func() { <-a.limiter })
 		case <-stopC:
 			a.workers.Stop()

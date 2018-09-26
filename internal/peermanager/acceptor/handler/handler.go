@@ -7,12 +7,10 @@ import (
 	"github.com/cenkalti/rain/internal/btconn"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/peer"
-	"github.com/cenkalti/rain/internal/peermanager/peerids"
 )
 
 type Handler struct {
 	conn        net.Conn
-	peerIDs     *peerids.PeerIDs
 	bitfield    *bitfield.Bitfield
 	peerID      [20]byte
 	sKeyHash    [20]byte
@@ -22,10 +20,9 @@ type Handler struct {
 	log         logger.Logger
 }
 
-func New(conn net.Conn, peerIDs *peerids.PeerIDs, peerID, sKeyHash, infoHash [20]byte, newPeers chan *peer.Peer, disconnectC chan net.Conn, l logger.Logger) *Handler {
+func New(conn net.Conn, peerID, sKeyHash, infoHash [20]byte, newPeers chan *peer.Peer, disconnectC chan net.Conn, l logger.Logger) *Handler {
 	return &Handler{
 		conn:        conn,
-		peerIDs:     peerIDs,
 		peerID:      peerID,
 		sKeyHash:    sKeyHash,
 		infoHash:    infoHash,
@@ -63,12 +60,6 @@ func (h *Handler) Run(stopC chan struct{}) {
 		return
 	}
 	log.Infof("Connection accepted. (cipher=%s extensions=%x client=%q)", cipher, peerExtensions, peerID[:8])
-
-	ok := h.peerIDs.Add(peerID)
-	if !ok {
-		return
-	}
-	defer h.peerIDs.Remove(peerID)
 
 	peerbf := bitfield.NewBytes(peerExtensions[:], 64)
 	extensions := ourbf.And(peerbf)

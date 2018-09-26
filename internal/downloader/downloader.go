@@ -23,7 +23,6 @@ import (
 	"github.com/cenkalti/rain/internal/peer/peerprotocol"
 	"github.com/cenkalti/rain/internal/peermanager/acceptor"
 	"github.com/cenkalti/rain/internal/peermanager/dialer"
-	"github.com/cenkalti/rain/internal/peermanager/peerids"
 	"github.com/cenkalti/rain/internal/semaphore"
 	"github.com/cenkalti/rain/internal/torrentdata"
 	"github.com/cenkalti/rain/internal/tracker"
@@ -145,10 +144,11 @@ type Downloader struct {
 	peerAddrsMap      map[string]*peerAddr // contains peers not connected yet, keyed by addr string
 	peerAddrToConnect chan *net.TCPAddr
 
-	peerIDs     *peerids.PeerIDs
 	conns       map[string]net.Conn
 	connectC    chan net.Conn
 	disconnectC chan net.Conn
+
+	peerIDs map[[20]byte]struct{}
 }
 
 type peerAddr struct {
@@ -184,7 +184,7 @@ func New(spec *Spec, l logger.Logger) (*Downloader, error) {
 		peerAddrsMap:      make(map[string]*peerAddr),
 		peersFromTrackers: make(chan []*net.TCPAddr),
 		peerAddrToConnect: make(chan *net.TCPAddr),
-		peerIDs:           peerids.New(),
+		peerIDs:           make(map[[20]byte]struct{}),
 		conns:             make(map[string]net.Conn),
 		connectC:          make(chan net.Conn),
 		disconnectC:       make(chan net.Conn),
@@ -288,10 +288,10 @@ func (d *Downloader) run() {
 		d.workers.Start(an)
 	}
 
-	a := acceptor.New(d.port, d.peerIDs, d.peerID, d.infoHash, d.newPeers, d.connectC, d.disconnectC, d.log)
+	a := acceptor.New(d.port, d.peerID, d.infoHash, d.newPeers, d.connectC, d.disconnectC, d.log)
 	d.workers.Start(a)
 
-	di := dialer.New(d.peerAddrToConnect, d.peerIDs, d.peerID, d.infoHash, d.newPeers, d.connectC, d.disconnectC, d.log)
+	di := dialer.New(d.peerAddrToConnect, d.peerID, d.infoHash, d.newPeers, d.connectC, d.disconnectC, d.log)
 	d.workers.Start(di)
 
 	for i := 0; i < parallelPieceWrites; i++ {
@@ -548,6 +548,14 @@ func (d *Downloader) run() {
 			d.unchokePeer(pe, d.closeC)
 			d.optimisticUnchokedPeer = pe
 		case p := <-d.newPeers:
+			_, ok := d.peerIDs[p.ID()]
+			if ok {
+				p.Logger().Errorln("peer with same id already connected:", p.ID())
+				p.Close()
+				break
+			}
+			d.peerIDs[p.ID()] = struct{}{}
+
 			pe := NewPeer(p)
 			d.connectedPeers[p] = pe
 			bf := d.bitfield
@@ -577,6 +585,7 @@ func (d *Downloader) run() {
 			}
 			go d.readMessages(pe.Peer, d.closeC)
 		case p := <-d.disconnectedPeers:
+			delete(d.peerIDs, p.ID())
 			pe := d.connectedPeers[p]
 			if pe.downloader != nil {
 				pe.downloader.Close()
