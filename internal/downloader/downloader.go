@@ -600,7 +600,7 @@ func (d *Downloader) run() {
 					break
 				}
 				piece := &d.data.Pieces[msg.Index]
-				block := piece.FindBlock(msg.Begin, msg.Length)
+				block := piece.Blocks.Find(msg.Begin, msg.Length)
 				if block == nil {
 					pe.Peer.Logger().Errorln("invalid piece begin:", msg.Begin, "length:", msg.Length)
 					pe.Peer.Close()
@@ -648,7 +648,7 @@ func (d *Downloader) run() {
 					break
 				}
 				piece := &d.data.Pieces[msg.Index]
-				block := piece.FindBlock(msg.Begin, msg.Length)
+				block := piece.Blocks.Find(msg.Begin, msg.Length)
 				if block == nil {
 					pe.Peer.Logger().Errorln("invalid reject begin:", msg.Begin, "length:", msg.Length)
 					pe.Peer.Close()

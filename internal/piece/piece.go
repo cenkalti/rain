@@ -10,13 +10,11 @@ import (
 	"github.com/cenkalti/rain/storage"
 )
 
-const BlockSize = 16 * 1024
-
 // Piece of a torrent.
 type Piece struct {
 	Index  uint32 // index in torrent
-	Length uint32 // always equal to BlockSize except last piece.
-	Blocks []Block
+	Length uint32 // always equal to Info.PieceLength except last piece
+	Blocks Blocks
 	Data   filesection.Sections // the place to write downloaded bytes
 	Hash   []byte
 }
@@ -78,49 +76,10 @@ func NewPieces(info *metainfo.Info, osFiles []storage.File) []Piece {
 			}
 		}
 
-		p.Blocks = p.newBlocks()
+		p.Blocks = newBlocks(p.Length)
 		pieces[i] = p
 	}
 	return pieces
-}
-
-func (p *Piece) newBlocks() []Block {
-	div, mod := divMod32(p.Length, BlockSize)
-	numBlocks := div
-	if mod != 0 {
-		numBlocks++
-	}
-	blocks := make([]Block, numBlocks)
-	for j := uint32(0); j < div; j++ {
-		blocks[j] = Block{
-			Index:  j,
-			Begin:  j * BlockSize,
-			Length: BlockSize,
-		}
-	}
-	if mod != 0 {
-		blocks[numBlocks-1] = Block{
-			Index:  numBlocks - 1,
-			Begin:  (numBlocks - 1) * BlockSize,
-			Length: mod,
-		}
-	}
-	return blocks
-}
-
-func (p *Piece) FindBlock(begin, length uint32) *Block {
-	idx, mod := divMod32(begin, BlockSize)
-	if mod != 0 {
-		return nil
-	}
-	if idx >= uint32(len(p.Blocks)) {
-		return nil
-	}
-	b := &p.Blocks[idx]
-	if b.Length != length {
-		return nil
-	}
-	return b
 }
 
 func (p *Piece) Verify(buf []byte) bool {
