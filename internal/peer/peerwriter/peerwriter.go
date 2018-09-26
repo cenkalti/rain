@@ -52,13 +52,7 @@ func (p *PeerWriter) Run(stopC chan struct{}) {
 		if len(p.writeQueue) == 0 {
 			select {
 			case msg := <-p.queueC:
-				// switch msg.(type) {
-				// case peerprotocol.PieceMessage:
-				// 	// TODO
-				// case peerprotocol.ChokeMessage:
-				// 	// TODO cancel pending pieces
-				// }
-				p.writeQueue = append(p.writeQueue, msg)
+				p.queueMessage(msg)
 			case <-stopC:
 				return
 			}
@@ -66,19 +60,18 @@ func (p *PeerWriter) Run(stopC chan struct{}) {
 		msg := p.writeQueue[0]
 		select {
 		case msg = <-p.queueC:
-			// switch msg.(type) {
-			// case peerprotocol.PieceMessage:
-			// 	// TODO
-			// case peerprotocol.ChokeMessage:
-			// 	// TODO cancel pending pieces
-			// }
-			p.writeQueue = append(p.writeQueue, msg)
+			p.queueMessage(msg)
 		case p.writeC <- msg:
 			p.writeQueue = p.writeQueue[1:]
 		case <-stopC:
 			return
 		}
 	}
+}
+
+func (p *PeerWriter) queueMessage(msg peerprotocol.Message) {
+	// TODO cancel pending requests on choke
+	p.writeQueue = append(p.writeQueue, msg)
 }
 
 func (p *PeerWriter) messageWriter(stopC chan struct{}) {
