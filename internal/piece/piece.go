@@ -22,7 +22,6 @@ type Piece struct {
 }
 
 func NewPieces(info *metainfo.Info, osFiles []storage.File) []Piece {
-	// TODO take interface rwcloser for osFiles
 	// TODO init all to zero, call nextFile to init
 	var (
 		fileIndex  int   // index of the current file in torrent
