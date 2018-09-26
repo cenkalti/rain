@@ -22,7 +22,7 @@ import (
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peer/peerprotocol"
 	"github.com/cenkalti/rain/internal/peermanager/acceptor"
-	"github.com/cenkalti/rain/internal/peermanager/dialer"
+	dialhandler "github.com/cenkalti/rain/internal/peermanager/dialer/handler"
 	"github.com/cenkalti/rain/internal/semaphore"
 	"github.com/cenkalti/rain/internal/torrentdata"
 	"github.com/cenkalti/rain/internal/tracker"
@@ -291,9 +291,6 @@ func (d *Downloader) run() {
 	a := acceptor.New(d.port, d.peerID, d.infoHash, d.newPeers, d.connectC, d.disconnectC, d.log)
 	d.workers.Start(a)
 
-	di := dialer.New(d.peerAddrToConnect, d.peerID, d.infoHash, d.newPeers, d.connectC, d.disconnectC, d.log)
-	d.workers.Start(di)
-
 	for i := 0; i < parallelPieceWrites; i++ {
 		w := piecewriter.New(d.writeRequestC, d.writeResponseC, d.log)
 		d.workers.Start(w)
@@ -344,12 +341,10 @@ func (d *Downloader) run() {
 				break
 			}
 			addr := d.peerAddrs[len(d.peerAddrs)-1].TCPAddr
-			select {
-			case d.peerAddrToConnect <- addr:
-				d.peerAddrs = d.peerAddrs[:len(d.peerAddrs)-1]
-				delete(d.peerAddrsMap, addr.String())
-			case <-d.closeC:
-			}
+			d.peerAddrs = d.peerAddrs[:len(d.peerAddrs)-1]
+			delete(d.peerAddrsMap, addr.String())
+			h := dialhandler.New(addr, d.peerID, d.infoHash, d.newPeers, d.connectC, d.disconnectC, d.log)
+			d.workers.Start(h)
 		case req := <-announcerRequests:
 			tr := tracker.Transfer{
 				InfoHash: d.infoHash,
