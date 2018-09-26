@@ -31,7 +31,7 @@ func (s Sections) ReadFull(buf []byte) error {
 // ReadAt implements io.ReaderAt interface.
 // It reads bytes from s at given offset into p.
 // Used when uploading blocks of a piece.
-func (s Sections) ReadAt(p []byte, off int64) error {
+func (s Sections) ReadAt(p []byte, off int64) (int, error) {
 	var readers []io.Reader
 	var i int
 	var pos int64
@@ -57,8 +57,7 @@ func (s Sections) ReadAt(p []byte, off int64) error {
 		}
 	}
 
-	_, err := io.ReadFull(io.MultiReader(readers...), p)
-	return err
+	return io.ReadFull(io.MultiReader(readers...), p)
 }
 
 // Write implements io.Writer interface.

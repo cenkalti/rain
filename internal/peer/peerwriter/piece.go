@@ -19,7 +19,7 @@ func (m Piece) ID() peerprotocol.MessageID { return peerprotocol.Piece }
 func (m Piece) MarshalBinary() ([]byte, error) {
 	// TODO reduce allocation
 	b := make([]byte, m.Length)
-	err := m.Piece.Data.ReadAt(b, int64(m.Begin))
+	_, err := m.Piece.Data.ReadAt(b, int64(m.Begin))
 	if err != nil {
 		return nil, err
 	}

@@ -732,7 +732,7 @@ func (d *Downloader) processInfo() error {
 			buf := make([]byte, d.info.PieceLength)
 			hash := sha1.New() // nolint: gosec
 			for _, p := range d.data.Pieces {
-				err = p.Data.ReadFull(buf)
+				_, err = p.Data.ReadAt(buf, 0)
 				if err != nil {
 					return err
 				}

@@ -74,7 +74,7 @@ func TestFiles(t *testing.T) {
 	}
 	for _, c := range cases {
 		b = make([]byte, c.size)
-		err = pf.ReadAt(b, c.offset)
+		_, err = pf.ReadAt(b, c.offset)
 		if err != nil {
 			t.Error(err)
 		}

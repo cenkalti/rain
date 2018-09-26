@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha1" // nolint: gosec
 	"hash"
+	"io"
 
 	"github.com/cenkalti/rain/internal/filesection"
 	"github.com/cenkalti/rain/internal/metainfo"
@@ -15,8 +16,13 @@ type Piece struct {
 	Index  uint32 // index in torrent
 	Length uint32 // always equal to Info.PieceLength except last piece
 	Blocks Blocks
-	Data   filesection.Sections // the place to write downloaded bytes
+	Data   Data // the place to write downloaded bytes
 	Hash   []byte
+}
+
+type Data interface {
+	io.ReaderAt
+	io.Writer
 }
 
 func NewPieces(info *metainfo.Info, osFiles []storage.File) []Piece {
@@ -49,6 +55,8 @@ func NewPieces(info *metainfo.Info, osFiles []storage.File) []Piece {
 			Hash:  info.PieceHashes[i],
 		}
 
+		var sections filesection.Sections
+
 		// Construct p.Files
 		var pieceOffset uint32
 		pieceLeft := func() uint32 { return info.PieceLength - pieceOffset }
@@ -60,7 +68,7 @@ func NewPieces(info *metainfo.Info, osFiles []storage.File) []Piece {
 				Offset: fileOffset,
 				Length: int64(n),
 			}
-			p.Data = append(p.Data, file)
+			sections = append(sections, file)
 
 			left -= n
 			p.Length += n
@@ -76,6 +84,7 @@ func NewPieces(info *metainfo.Info, osFiles []storage.File) []Piece {
 			}
 		}
 
+		p.Data = sections
 		p.Blocks = newBlocks(p.Length)
 		pieces[i] = p
 	}
