@@ -199,4 +199,4 @@ const (
 	ExtensionMetadataMessageTypeReject
 )
 
-const ExtensionMetadataKey = "LT_metadata"
+const ExtensionMetadataKey = "ut_metadata"

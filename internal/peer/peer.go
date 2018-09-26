@@ -22,11 +22,12 @@ type Peer struct {
 
 func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, l logger.Logger) *Peer {
 	fastExtension := extensions.Test(61)
+	extensionProtocol := extensions.Test(43)
 	return &Peer{
 		conn:          conn,
 		id:            id,
 		FastExtension: fastExtension,
-		reader:        peerreader.New(conn, l, fastExtension),
+		reader:        peerreader.New(conn, l, fastExtension, extensionProtocol),
 		writer:        peerwriter.New(conn, l),
 		log:           l,
 	}

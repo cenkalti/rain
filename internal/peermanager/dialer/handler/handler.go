@@ -42,9 +42,11 @@ func (h *Handler) Run(stopC chan struct{}) {
 	encryptionDisableOutgoing := false
 	encryptionForceOutgoing := false
 
+	// TODO get supported extensions from common place
 	var ourExtensions [8]byte
 	ourbf := bitfield.NewBytes(ourExtensions[:], 64)
-	ourbf.Set(61) // Fast Extension
+	ourbf.Set(61) // Fast Extension (BEP 6)
+	ourbf.Set(43) // Extension Protocol (BEP 10)
 
 	// TODO separate dial and handshake
 	conn, cipher, peerExtensions, peerID, err := btconn.Dial(h.addr, !encryptionDisableOutgoing, encryptionForceOutgoing, ourExtensions, h.infoHash, h.peerID, stopC, h.connectC, h.disconnectC)

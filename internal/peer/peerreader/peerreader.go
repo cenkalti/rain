@@ -17,18 +17,20 @@ const MaxAllowedBlockSize = 32 * 1024
 const connReadTimeout = 3 * time.Minute
 
 type PeerReader struct {
-	conn          net.Conn
-	log           logger.Logger
-	messages      chan interface{}
-	fastExtension bool
+	conn              net.Conn
+	log               logger.Logger
+	messages          chan interface{}
+	fastExtension     bool
+	extensionProtocol bool
 }
 
-func New(conn net.Conn, l logger.Logger, fastExtension bool) *PeerReader {
+func New(conn net.Conn, l logger.Logger, fastExtension, extensionProtocol bool) *PeerReader {
 	return &PeerReader{
-		conn:          conn,
-		log:           l,
-		messages:      make(chan interface{}),
-		fastExtension: fastExtension,
+		conn:              conn,
+		log:               l,
+		messages:          make(chan interface{}),
+		fastExtension:     fastExtension,
+		extensionProtocol: extensionProtocol,
 	}
 }
 
@@ -79,14 +81,19 @@ func (p *PeerReader) Run(stopC chan struct{}) {
 
 		switch id {
 		case peerprotocol.Choke:
+			first = false
 			msg = peerprotocol.ChokeMessage{}
 		case peerprotocol.Unchoke:
+			first = false
 			msg = peerprotocol.UnchokeMessage{}
 		case peerprotocol.Interested:
+			first = false
 			msg = peerprotocol.InterestedMessage{}
 		case peerprotocol.NotInterested:
+			first = false
 			msg = peerprotocol.NotInterestedMessage{}
 		case peerprotocol.Have:
+			first = false
 			var hm peerprotocol.HaveMessage
 			err = binary.Read(p.conn, binary.BigEndian, &hm)
 			if err != nil {
@@ -99,6 +106,7 @@ func (p *PeerReader) Run(stopC chan struct{}) {
 				p.log.Error("bitfield can only be sent after handshake")
 				return
 			}
+			first = false
 			var bm peerprotocol.BitfieldMessage
 			bm.Data = make([]byte, length)
 			_, err = io.ReadFull(p.conn, bm.Data)
@@ -108,6 +116,7 @@ func (p *PeerReader) Run(stopC chan struct{}) {
 			}
 			msg = bm
 		case peerprotocol.Request:
+			first = false
 			var rm peerprotocol.RequestMessage
 			err = binary.Read(p.conn, binary.BigEndian, &rm)
 			if err != nil {
@@ -140,6 +149,7 @@ func (p *PeerReader) Run(stopC chan struct{}) {
 			}
 			msg = rm
 		case peerprotocol.Piece:
+			first = false
 			// TODO send a reader as message to read directly onto the piece buffer
 			buf := make([]byte, length)
 			_, err = io.ReadFull(p.conn, buf)
@@ -163,6 +173,7 @@ func (p *PeerReader) Run(stopC chan struct{}) {
 				p.log.Error("have_all can only be sent after handshake")
 				return
 			}
+			first = false
 			msg = peerprotocol.HaveAllMessage{}
 		case peerprotocol.HaveNone:
 			if !p.fastExtension {
@@ -173,6 +184,7 @@ func (p *PeerReader) Run(stopC chan struct{}) {
 				p.log.Error("have_none can only be sent after handshake")
 				return
 			}
+			first = false
 			msg = peerprotocol.HaveNoneMessage{}
 		// case peerprotocol.Suggest:
 		case peerprotocol.AllowedFast:
@@ -192,6 +204,10 @@ func (p *PeerReader) Run(stopC chan struct{}) {
 				p.log.Error(err)
 				return
 			}
+			if !p.extensionProtocol {
+				p.log.Error("extension message received but it is not enabled in bitfield")
+				break
+			}
 			em := peerprotocol.NewExtensionMessage(length - 1)
 			err = em.UnmarshalBinary(buf)
 			if err != nil {
@@ -207,10 +223,8 @@ func (p *PeerReader) Run(stopC chan struct{}) {
 				p.log.Error(err)
 				return
 			}
-			first = false
 			continue
 		}
-		first = false
 		if msg == nil {
 			panic("msg unset")
 		}

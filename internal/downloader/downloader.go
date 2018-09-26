@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	parallelInfoDownloads  = 4
+	parallelInfoDownloads  = 400
 	parallelPieceDownloads = 4
 	parallelPieceWrites    = 4
 	parallelPieceReads     = 4

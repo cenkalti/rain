@@ -49,9 +49,11 @@ func (h *Handler) Run(stopC chan struct{}) {
 	// TODO get this from config
 	encryptionForceIncoming := false
 
+	// TODO get supported extensions from common place
 	ourExtensions := [8]byte{}
 	ourbf := bitfield.NewBytes(ourExtensions[:], 64)
-	ourbf.Set(61) // Fast Extension
+	ourbf.Set(61) // Fast Extension (BEP 6)
+	ourbf.Set(43) // Extension Protocol (BEP 10)
 
 	encConn, cipher, peerExtensions, peerID, _, err := btconn.Accept(
 		h.conn, h.getSKey, encryptionForceIncoming, h.checkInfoHash, ourExtensions, h.peerID)
