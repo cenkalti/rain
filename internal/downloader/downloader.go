@@ -252,10 +252,10 @@ func (d *Downloader) savePeerAddresses(addrs []*net.TCPAddr) {
 		if ad.Port == 0 {
 			continue
 		}
-		// TODO Discard own client
-		// if ad.IP.IsLoopback() && ad.Port == a.transfer.Port() {
-		// 	continue
-		// }
+		// Discard own client
+		if ad.IP.IsLoopback() && ad.Port == d.port {
+			continue
+		}
 		key := ad.String()
 		if p, ok := d.peerAddrsMap[key]; ok {
 			p.timestamp = now
