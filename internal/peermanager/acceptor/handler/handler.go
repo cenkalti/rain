@@ -53,7 +53,6 @@ func (h *Handler) Run(stopC chan struct{}) {
 	ourbf := bitfield.NewBytes(ourExtensions[:], 64)
 	ourbf.Set(61) // Fast Extension
 
-	// TODO close conn during handshake when stopC is closed
 	encConn, cipher, peerExtensions, peerID, _, err := btconn.Accept(
 		h.conn, h.getSKey, encryptionForceIncoming, h.checkInfoHash, ourExtensions, h.peerID)
 	if err != nil {
