@@ -14,14 +14,16 @@ import (
 
 	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/bitfield"
+	"github.com/cenkalti/rain/internal/downloader/acceptor"
 	"github.com/cenkalti/rain/internal/downloader/infodownloader"
 	"github.com/cenkalti/rain/internal/downloader/piecedownloader"
 	"github.com/cenkalti/rain/internal/downloader/piecewriter"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/metainfo"
+	"github.com/cenkalti/rain/internal/mse"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peer/peerprotocol"
-	"github.com/cenkalti/rain/internal/peermanager/acceptor"
+	accepthandler "github.com/cenkalti/rain/internal/peermanager/acceptor/handler"
 	dialhandler "github.com/cenkalti/rain/internal/peermanager/dialer/handler"
 	"github.com/cenkalti/rain/internal/semaphore"
 	"github.com/cenkalti/rain/internal/torrentdata"
@@ -145,10 +147,16 @@ type Downloader struct {
 	peerAddrToConnect chan *net.TCPAddr
 
 	conns       map[string]net.Conn
-	connectC    chan net.Conn
+	newOutConnC chan net.Conn
 	disconnectC chan net.Conn
 
+	newInConnC    chan net.Conn
+	incomingConns map[string]net.Conn
+
 	peerIDs map[[20]byte]struct{}
+
+	listener net.Listener
+	sKeyHash [20]byte
 }
 
 type peerAddr struct {
@@ -186,8 +194,11 @@ func New(spec *Spec, l logger.Logger) (*Downloader, error) {
 		peerAddrToConnect: make(chan *net.TCPAddr),
 		peerIDs:           make(map[[20]byte]struct{}),
 		conns:             make(map[string]net.Conn),
-		connectC:          make(chan net.Conn),
+		newOutConnC:       make(chan net.Conn),
+		newInConnC:        make(chan net.Conn),
 		disconnectC:       make(chan net.Conn),
+		incomingConns:     make(map[string]net.Conn),
+		sKeyHash:          mse.HashSKey(spec.InfoHash[:]),
 	}
 	copy(d.peerID[:], peerIDPrefix)
 	_, err := rand.Read(d.peerID[len(peerIDPrefix):]) // nolint: gosec
@@ -271,15 +282,25 @@ func (d *Downloader) run() {
 		return
 	}
 	if d.info != nil {
-		err := d.processInfo()
-		if err != nil {
-			d.log.Errorln("cannot process info:", err)
-			d.errC <- err
+		err2 := d.processInfo()
+		if err2 != nil {
+			d.log.Errorln("cannot process info:", err2)
+			d.errC <- err2
 			return
 		}
 	}
 
 	defer d.workers.Stop()
+
+	d.listener, err = net.ListenTCP("tcp4", &net.TCPAddr{Port: d.port})
+	if err != nil {
+		d.log.Warningf("cannot listen port %d: %s", d.port, err)
+	} else {
+		d.log.Notice("Listening peers on tcp://" + d.listener.Addr().String())
+		d.port = d.listener.Addr().(*net.TCPAddr).Port
+		ac := acceptor.New(d.listener, d.newInConnC, d.log)
+		d.workers.Start(ac)
+	}
 
 	announcerRequests := make(chan *announcer.Request)
 
@@ -287,9 +308,6 @@ func (d *Downloader) run() {
 		an := announcer.New(tr, announcerRequests, d.completeC, d.peersFromTrackers, d.log)
 		d.workers.Start(an)
 	}
-
-	a := acceptor.New(d.port, d.peerID, d.infoHash, d.newPeers, d.connectC, d.disconnectC, d.log)
-	d.workers.Start(a)
 
 	for i := 0; i < parallelPieceWrites; i++ {
 		w := piecewriter.New(d.writeRequestC, d.writeResponseC, d.log)
@@ -317,10 +335,11 @@ func (d *Downloader) run() {
 		case addrs := <-d.peersFromTrackers:
 			d.savePeerAddresses(addrs)
 			dialLimit.Signal(uint32(len(addrs)))
-		case conn := <-d.connectC:
+		case conn := <-d.newOutConnC:
 			d.conns[conn.RemoteAddr().String()] = conn
 		case conn := <-d.disconnectC:
 			delete(d.conns, conn.RemoteAddr().String())
+			delete(d.incomingConns, conn.RemoteAddr().String())
 		case req := <-d.statsC:
 			var stats Stats
 			if d.info != nil {
@@ -343,8 +362,18 @@ func (d *Downloader) run() {
 			addr := d.peerAddrs[len(d.peerAddrs)-1].TCPAddr
 			d.peerAddrs = d.peerAddrs[:len(d.peerAddrs)-1]
 			delete(d.peerAddrsMap, addr.String())
-			h := dialhandler.New(addr, d.peerID, d.infoHash, d.newPeers, d.connectC, d.disconnectC, d.log)
+			h := dialhandler.New(addr, d.peerID, d.infoHash, d.newPeers, d.newOutConnC, d.disconnectC, d.log)
 			d.workers.Start(h)
+		case conn := <-d.newInConnC:
+			if len(d.incomingConns) >= 40 {
+				d.log.Debugln("peer limit reached, rejecting peer", conn.RemoteAddr().String())
+				conn.Close()
+				break
+			}
+			d.conns[conn.RemoteAddr().String()] = conn
+			d.incomingConns[conn.RemoteAddr().String()] = conn
+			ah := accepthandler.New(conn, d.peerID, d.sKeyHash, d.infoHash, d.newPeers, d.disconnectC, d.log)
+			d.workers.Start(ah)
 		case req := <-announcerRequests:
 			tr := tracker.Transfer{
 				InfoHash: d.infoHash,
