@@ -61,7 +61,6 @@ func (p *Peer) SendPiece(msg peerprotocol.RequestMessage, pi *piece.Piece, stopC
 }
 
 // Run reads and processes incoming messages after handshake.
-// TODO send keep-alive messages to peers every 2 minutes.
 func (p *Peer) Run(stopC chan struct{}) {
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 

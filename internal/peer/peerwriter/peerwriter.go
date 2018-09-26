@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"encoding/binary"
 	"net"
+	"time"
 
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/peer/peerprotocol"
 	"github.com/cenkalti/rain/internal/piece"
 )
+
+const keepAlivePeriod = 2 * time.Minute
 
 type PeerWriter struct {
 	conn       net.Conn
@@ -79,6 +82,8 @@ func (p *PeerWriter) Run(stopC chan struct{}) {
 }
 
 func (p *PeerWriter) messageWriter(stopC chan struct{}) {
+	keepAliveTicker := time.NewTicker(keepAlivePeriod)
+	defer keepAliveTicker.Stop()
 	for {
 		select {
 		case msg := <-p.writeC:
@@ -105,7 +110,8 @@ func (p *PeerWriter) messageWriter(stopC chan struct{}) {
 				p.conn.Close()
 				return
 			}
-		// case msg := <-p.reqeustC:
+		case <-keepAliveTicker.C:
+			p.conn.Write([]byte{0, 0, 0, 0})
 		case <-stopC:
 			return
 		}
