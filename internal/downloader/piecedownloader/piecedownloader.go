@@ -97,6 +97,7 @@ func (d *PieceDownloader) Run(stopC chan struct{}) {
 		case <-stopC:
 			return
 		case <-d.closeC:
+			d.ErrC <- errors.New("piece downloader closed")
 			return
 		}
 	}

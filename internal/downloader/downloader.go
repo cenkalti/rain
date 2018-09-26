@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	parallelInfoDownloads  = 400
+	parallelInfoDownloads  = 4
 	parallelPieceDownloads = 4
 	parallelPieceWrites    = 4
 	parallelPieceReads     = 4
@@ -381,7 +381,10 @@ func (d *Downloader) run() {
 			})
 		case pd := <-d.downloadDoneC:
 			d.log.Debugln("piece download completed. index:", pd.Piece.Index)
-			d.connectedPeers[pd.Peer].downloader = nil
+			// TODO fix nil pointer exception
+			if pe, ok := d.connectedPeers[pd.Peer]; ok {
+				pe.downloader = nil
+			}
 			delete(d.pieceDownloads, pd.Peer)
 			delete(d.pieces[pd.Piece.Index].requestedPeers, pd.Peer)
 			pieceDownloaders.Signal(1)
@@ -740,16 +743,15 @@ func (d *Downloader) processInfo() error {
 				d.bitfield.SetTo(p.Index, ok)
 				hash.Reset()
 			}
-			d.checkCompletion()
-		}
-		if d.resume != nil {
-			err = d.resume.WriteBitfield(d.bitfield.Bytes())
-			if err != nil {
-				return err
+			if d.resume != nil {
+				err = d.resume.WriteBitfield(d.bitfield.Bytes())
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
-
+	d.checkCompletion()
 	d.preparePieces()
 	return nil
 }
