@@ -15,6 +15,7 @@ import (
 	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/downloader/acceptor"
+	"github.com/cenkalti/rain/internal/downloader/handshaker"
 	"github.com/cenkalti/rain/internal/downloader/infodownloader"
 	"github.com/cenkalti/rain/internal/downloader/piecedownloader"
 	"github.com/cenkalti/rain/internal/downloader/piecewriter"
@@ -23,8 +24,6 @@ import (
 	"github.com/cenkalti/rain/internal/mse"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peer/peerprotocol"
-	accepthandler "github.com/cenkalti/rain/internal/peermanager/acceptor/handler"
-	dialhandler "github.com/cenkalti/rain/internal/peermanager/dialer/handler"
 	"github.com/cenkalti/rain/internal/semaphore"
 	"github.com/cenkalti/rain/internal/torrentdata"
 	"github.com/cenkalti/rain/internal/tracker"
@@ -362,7 +361,7 @@ func (d *Downloader) run() {
 			addr := d.peerAddrs[len(d.peerAddrs)-1].TCPAddr
 			d.peerAddrs = d.peerAddrs[:len(d.peerAddrs)-1]
 			delete(d.peerAddrsMap, addr.String())
-			h := dialhandler.New(addr, d.peerID, d.infoHash, d.newPeers, d.newOutConnC, d.disconnectC, d.log)
+			h := handshaker.NewOutgoing(addr, d.peerID, d.infoHash, d.newPeers, d.newOutConnC, d.disconnectC, d.log)
 			d.workers.Start(h)
 		case conn := <-d.newInConnC:
 			if len(d.incomingConns) >= 40 {
@@ -372,7 +371,7 @@ func (d *Downloader) run() {
 			}
 			d.conns[conn.RemoteAddr().String()] = conn
 			d.incomingConns[conn.RemoteAddr().String()] = conn
-			ah := accepthandler.New(conn, d.peerID, d.sKeyHash, d.infoHash, d.newPeers, d.disconnectC, d.log)
+			ah := handshaker.NewIncoming(conn, d.peerID, d.sKeyHash, d.infoHash, d.newPeers, d.disconnectC, d.log)
 			d.workers.Start(ah)
 		case req := <-announcerRequests:
 			tr := tracker.Transfer{

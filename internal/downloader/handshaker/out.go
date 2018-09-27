@@ -1,4 +1,4 @@
-package handler
+package handshaker
 
 import (
 	"net"
@@ -9,7 +9,7 @@ import (
 	"github.com/cenkalti/rain/internal/peer"
 )
 
-type Handler struct {
+type OutgoingHandshaker struct {
 	addr        net.Addr
 	bitfield    *bitfield.Bitfield
 	peerID      [20]byte
@@ -20,8 +20,8 @@ type Handler struct {
 	log         logger.Logger
 }
 
-func New(addr net.Addr, peerID, infoHash [20]byte, newPeers chan *peer.Peer, connectC, disconnectC chan net.Conn, l logger.Logger) *Handler {
-	return &Handler{
+func NewOutgoing(addr net.Addr, peerID, infoHash [20]byte, newPeers chan *peer.Peer, connectC, disconnectC chan net.Conn, l logger.Logger) *OutgoingHandshaker {
+	return &OutgoingHandshaker{
 		addr:        addr,
 		peerID:      peerID,
 		infoHash:    infoHash,
@@ -32,7 +32,7 @@ func New(addr net.Addr, peerID, infoHash [20]byte, newPeers chan *peer.Peer, con
 	}
 }
 
-func (h *Handler) Run(stopC chan struct{}) {
+func (h *OutgoingHandshaker) Run(stopC chan struct{}) {
 	log := logger.New("peer -> " + h.addr.String())
 
 	// TODO get this from config

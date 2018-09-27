@@ -1,4 +1,4 @@
-package handler
+package handshaker
 
 import (
 	"net"
@@ -9,7 +9,7 @@ import (
 	"github.com/cenkalti/rain/internal/peer"
 )
 
-type Handler struct {
+type IncomingHandshaker struct {
 	conn        net.Conn
 	bitfield    *bitfield.Bitfield
 	peerID      [20]byte
@@ -20,8 +20,8 @@ type Handler struct {
 	log         logger.Logger
 }
 
-func New(conn net.Conn, peerID, sKeyHash, infoHash [20]byte, newPeers chan *peer.Peer, disconnectC chan net.Conn, l logger.Logger) *Handler {
-	return &Handler{
+func NewIncoming(conn net.Conn, peerID, sKeyHash, infoHash [20]byte, newPeers chan *peer.Peer, disconnectC chan net.Conn, l logger.Logger) *IncomingHandshaker {
+	return &IncomingHandshaker{
 		conn:        conn,
 		peerID:      peerID,
 		sKeyHash:    sKeyHash,
@@ -32,7 +32,7 @@ func New(conn net.Conn, peerID, sKeyHash, infoHash [20]byte, newPeers chan *peer
 	}
 }
 
-func (h *Handler) Run(stopC chan struct{}) {
+func (h *IncomingHandshaker) Run(stopC chan struct{}) {
 	log := logger.New("peer <- " + h.conn.RemoteAddr().String())
 
 	defer func() {
@@ -72,13 +72,13 @@ func (h *Handler) Run(stopC chan struct{}) {
 	}
 }
 
-func (h *Handler) getSKey(sKeyHash [20]byte) []byte {
+func (h *IncomingHandshaker) getSKey(sKeyHash [20]byte) []byte {
 	if sKeyHash == h.sKeyHash {
 		return h.infoHash[:]
 	}
 	return nil
 }
 
-func (h *Handler) checkInfoHash(infoHash [20]byte) bool {
+func (h *IncomingHandshaker) checkInfoHash(infoHash [20]byte) bool {
 	return infoHash == h.infoHash
 }
