@@ -9,6 +9,8 @@ import (
 type Acceptor struct {
 	listener net.Listener
 	newConns chan net.Conn
+	closeC   chan struct{}
+	closedC  chan struct{}
 	log      logger.Logger
 }
 
@@ -16,16 +18,26 @@ func New(lis net.Listener, newConns chan net.Conn, l logger.Logger) *Acceptor {
 	return &Acceptor{
 		listener: lis,
 		newConns: newConns,
+		closeC:   make(chan struct{}),
+		closedC:  make(chan struct{}),
 		log:      l,
 	}
 }
 
-func (a *Acceptor) Run(stopC chan struct{}) {
+func (a *Acceptor) Close() {
+	close(a.closeC)
+	<-a.closedC
+}
+
+func (a *Acceptor) Run() {
+	defer close(a.closedC)
+
 	done := make(chan struct{})
 	defer close(done)
+
 	go func() {
 		select {
-		case <-stopC:
+		case <-a.closeC:
 			a.listener.Close()
 		case <-done:
 		}
@@ -35,7 +47,7 @@ func (a *Acceptor) Run(stopC chan struct{}) {
 		conn, err := a.listener.Accept()
 		if err != nil {
 			select {
-			case <-stopC:
+			case <-a.closeC:
 			default:
 				a.log.Error(err)
 			}
@@ -43,7 +55,7 @@ func (a *Acceptor) Run(stopC chan struct{}) {
 		}
 		select {
 		case a.newConns <- conn:
-		case <-stopC:
+		case <-a.closeC:
 			conn.Close()
 			return
 		}

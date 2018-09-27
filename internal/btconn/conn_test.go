@@ -31,9 +31,7 @@ func TestUnencrypted(t *testing.T) {
 	var gerr error
 	go func() {
 		defer close(done)
-		connectC := make(chan net.Conn, 1)
-		disconnectC := make(chan net.Conn, 1)
-		conn, cipher, ext, id, err2 := Dial(addr, false, false, ext1, infoHash, id1, nil, connectC, disconnectC)
+		conn, cipher, ext, id, err2 := Dial(addr, false, false, ext1, infoHash, id1, nil)
 		if err2 != nil {
 			gerr = err2
 			return
@@ -87,9 +85,7 @@ func TestEncrypted(t *testing.T) {
 	var gerr error
 	go func() {
 		defer close(done)
-		connectC := make(chan net.Conn, 1)
-		disconnectC := make(chan net.Conn, 1)
-		conn, cipher, ext, id, err2 := Dial(addr, true, false, ext1, infoHash, id1, nil, connectC, disconnectC)
+		conn, cipher, ext, id, err2 := Dial(addr, true, false, ext1, infoHash, id1, nil)
 		if err2 != nil {
 			gerr = err2
 			return

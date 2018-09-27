@@ -3,15 +3,12 @@ package btconn
 import (
 	"bytes"
 	"context"
-	"errors"
 	"net"
 	"time"
 
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/mse"
 )
-
-var ErrCancel = errors.New("dial canceled")
 
 func Dial(
 	addr net.Addr,
@@ -20,14 +17,14 @@ func Dial(
 	ourExtensions [8]byte,
 	ih [20]byte,
 	ourID [20]byte,
-	stopC chan struct{},
-	connectC, disconnectC chan net.Conn) (
+	stopC chan struct{}) (
 	conn net.Conn, cipher mse.CryptoMethod, peerExtensions [8]byte, peerID [20]byte, err error) {
 
 	log := logger.New("conn -> " + addr.String())
+	done := make(chan struct{})
+	defer close(done)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan struct{})
 	go func() {
 		select {
 		case <-stopC:
@@ -44,20 +41,16 @@ func Dial(
 		return
 	}
 	log.Debug("Connected")
-	select {
-	case connectC <- conn:
-	case <-stopC:
-		conn.Close()
-		err = ErrCancel
-		return
-	}
 	defer func(conn net.Conn) {
 		if err != nil {
 			conn.Close()
-			select {
-			case disconnectC <- conn:
-			case <-stopC:
-			}
+		}
+	}(conn)
+	go func(conn net.Conn) {
+		select {
+		case <-stopC:
+			conn.Close()
+		case <-done:
 		}
 	}(conn)
 
@@ -93,12 +86,6 @@ func Dial(
 			}
 			// Close current connection
 			conn.Close()
-			select {
-			case disconnectC <- conn:
-			case <-stopC:
-				err = ErrCancel
-				return
-			}
 			// Connect again and try w/o encryption
 			log.Debug("Connecting again without encryption...")
 			conn, err = dialer.DialContext(ctx, addr.Network(), addr.String())
@@ -106,20 +93,16 @@ func Dial(
 				return
 			}
 			log.Debug("Connected")
-			select {
-			case connectC <- conn:
-			case <-stopC:
-				conn.Close()
-				err = ErrCancel
-				return
-			}
 			defer func(conn net.Conn) {
 				if err != nil {
 					conn.Close()
-					select {
-					case disconnectC <- conn:
-					case <-stopC:
-					}
+				}
+			}(conn)
+			go func(conn net.Conn) {
+				select {
+				case <-stopC:
+					conn.Close()
+				case <-done:
 				}
 			}(conn)
 			// Send BT handshake

@@ -1,4 +1,4 @@
-package handshaker
+package outgoinghandshaker
 
 import (
 	"net"
@@ -10,29 +10,41 @@ import (
 )
 
 type OutgoingHandshaker struct {
-	addr        net.Addr
-	bitfield    *bitfield.Bitfield
-	peerID      [20]byte
-	infoHash    [20]byte
-	newPeers    chan *peer.Peer
-	connectC    chan net.Conn
-	disconnectC chan net.Conn
-	log         logger.Logger
+	addr     net.Addr
+	bitfield *bitfield.Bitfield
+	peerID   [20]byte
+	infoHash [20]byte
+	resultC  chan Result
+	closeC   chan struct{}
+	closedC  chan struct{}
+	log      logger.Logger
 }
 
-func NewOutgoing(addr net.Addr, peerID, infoHash [20]byte, newPeers chan *peer.Peer, connectC, disconnectC chan net.Conn, l logger.Logger) *OutgoingHandshaker {
+type Result struct {
+	Peer  *peer.Peer
+	Addr  net.Addr
+	Error error
+}
+
+func NewOutgoing(addr net.Addr, peerID, infoHash [20]byte, resultC chan Result, l logger.Logger) *OutgoingHandshaker {
 	return &OutgoingHandshaker{
-		addr:        addr,
-		peerID:      peerID,
-		infoHash:    infoHash,
-		newPeers:    newPeers,
-		connectC:    connectC,
-		disconnectC: disconnectC,
-		log:         l,
+		addr:     addr,
+		peerID:   peerID,
+		infoHash: infoHash,
+		resultC:  resultC,
+		closeC:   make(chan struct{}),
+		closedC:  make(chan struct{}),
+		log:      l,
 	}
 }
 
-func (h *OutgoingHandshaker) Run(stopC chan struct{}) {
+func (h *OutgoingHandshaker) Close() {
+	close(h.closeC)
+	<-h.closedC
+}
+
+func (h *OutgoingHandshaker) Run() {
+	defer close(h.closedC)
 	log := logger.New("peer -> " + h.addr.String())
 
 	// TODO get this from config
@@ -46,10 +58,11 @@ func (h *OutgoingHandshaker) Run(stopC chan struct{}) {
 	ourbf.Set(43) // Extension Protocol (BEP 10)
 
 	// TODO separate dial and handshake
-	conn, cipher, peerExtensions, peerID, err := btconn.Dial(h.addr, !encryptionDisableOutgoing, encryptionForceOutgoing, ourExtensions, h.infoHash, h.peerID, stopC, h.connectC, h.disconnectC)
+	conn, cipher, peerExtensions, peerID, err := btconn.Dial(h.addr, !encryptionDisableOutgoing, encryptionForceOutgoing, ourExtensions, h.infoHash, h.peerID, h.closeC)
 	if err != nil {
 		select {
-		case <-stopC:
+		case h.resultC <- Result{Addr: h.addr, Error: err}:
+		case <-h.closeC:
 		default:
 			log.Errorln("cannot complete handshake:", err)
 		}
@@ -57,21 +70,13 @@ func (h *OutgoingHandshaker) Run(stopC chan struct{}) {
 	}
 	log.Infof("Connected to peer. (cipher=%s extensions=%x client=%q)", cipher, peerExtensions, peerID[:8])
 
-	defer func() {
-		conn.Close()
-		select {
-		case h.disconnectC <- conn:
-		case <-stopC:
-		}
-	}()
-
 	peerbf := bitfield.NewBytes(peerExtensions[:], 64)
 	extensions := ourbf.And(peerbf)
 
 	p := peer.New(conn, peerID, extensions, log)
 	select {
-	case h.newPeers <- p:
-		p.Run(stopC)
-	case <-stopC:
+	case h.resultC <- Result{Addr: h.addr, Peer: p}:
+	case <-h.closeC:
+		conn.Close()
 	}
 }

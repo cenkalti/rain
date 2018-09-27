@@ -18,6 +18,8 @@ type Peer struct {
 	reader        *peerreader.PeerReader
 	writer        *peerwriter.PeerWriter
 	log           logger.Logger
+	closeC        chan struct{}
+	closedC       chan struct{}
 }
 
 func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, l logger.Logger) *Peer {
@@ -30,6 +32,8 @@ func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, l logger.Log
 		reader:        peerreader.New(conn, l, fastExtension, extensionProtocol),
 		writer:        peerwriter.New(conn, l),
 		log:           l,
+		closeC:        make(chan struct{}),
+		closedC:       make(chan struct{}),
 	}
 }
 
@@ -42,7 +46,9 @@ func (p *Peer) String() string {
 }
 
 func (p *Peer) Close() {
-	_ = p.conn.Close()
+	close(p.closeC)
+	p.conn.Close()
+	<-p.closedC
 }
 
 func (p *Peer) Logger() logger.Logger {
@@ -62,23 +68,24 @@ func (p *Peer) SendPiece(msg peerprotocol.RequestMessage, pi *piece.Piece, stopC
 }
 
 // Run reads and processes incoming messages after handshake.
-func (p *Peer) Run(stopC chan struct{}) {
+func (p *Peer) Run() {
+	defer close(p.closedC)
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 
 	readerDone := make(chan struct{})
 	go func() {
-		p.reader.Run(stopC)
+		p.reader.Run(p.closeC)
 		close(readerDone)
 	}()
 
 	writerDone := make(chan struct{})
 	go func() {
-		p.writer.Run(stopC)
+		p.writer.Run(p.closeC)
 		close(writerDone)
 	}()
 
 	select {
-	case <-stopC:
+	case <-p.closeC:
 		p.conn.Close()
 		<-readerDone
 		<-writerDone

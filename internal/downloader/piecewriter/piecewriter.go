@@ -8,6 +8,8 @@ import (
 type PieceWriter struct {
 	requests  chan Request
 	responses chan Response
+	closeC    chan struct{}
+	closedC   chan struct{}
 	log       logger.Logger
 }
 
@@ -25,11 +27,19 @@ func New(requests chan Request, responses chan Response, l logger.Logger) *Piece
 	return &PieceWriter{
 		requests:  requests,
 		responses: responses,
+		closeC:    make(chan struct{}),
+		closedC:   make(chan struct{}),
 		log:       l,
 	}
 }
 
-func (w *PieceWriter) Run(stopC chan struct{}) {
+func (w *PieceWriter) Close() {
+	close(w.closeC)
+	<-w.closedC
+}
+
+func (w *PieceWriter) Run() {
+	defer close(w.closedC)
 	for {
 		select {
 		case req := <-w.requests:
@@ -38,10 +48,10 @@ func (w *PieceWriter) Run(stopC chan struct{}) {
 			_, resp.Error = req.Piece.Data.Write(req.Data)
 			select {
 			case w.responses <- resp:
-			case <-stopC:
+			case <-w.closeC:
 				return
 			}
-		case <-stopC:
+		case <-w.closeC:
 			return
 		}
 	}

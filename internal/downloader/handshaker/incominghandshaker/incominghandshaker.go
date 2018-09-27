@@ -1,4 +1,4 @@
-package handshaker
+package incominghandshaker
 
 import (
 	"net"
@@ -10,38 +10,44 @@ import (
 )
 
 type IncomingHandshaker struct {
-	conn        net.Conn
-	bitfield    *bitfield.Bitfield
-	peerID      [20]byte
-	sKeyHash    [20]byte
-	infoHash    [20]byte
-	newPeers    chan *peer.Peer
-	disconnectC chan net.Conn
-	log         logger.Logger
+	conn     net.Conn
+	bitfield *bitfield.Bitfield
+	peerID   [20]byte
+	sKeyHash [20]byte
+	infoHash [20]byte
+	resultC  chan Result
+	closeC   chan struct{}
+	closedC  chan struct{}
+	log      logger.Logger
 }
 
-func NewIncoming(conn net.Conn, peerID, sKeyHash, infoHash [20]byte, newPeers chan *peer.Peer, disconnectC chan net.Conn, l logger.Logger) *IncomingHandshaker {
+type Result struct {
+	Peer  *peer.Peer
+	Conn  net.Conn
+	Error error
+}
+
+func NewIncoming(conn net.Conn, peerID, sKeyHash, infoHash [20]byte, resultC chan Result, l logger.Logger) *IncomingHandshaker {
 	return &IncomingHandshaker{
-		conn:        conn,
-		peerID:      peerID,
-		sKeyHash:    sKeyHash,
-		infoHash:    infoHash,
-		newPeers:    newPeers,
-		disconnectC: disconnectC,
-		log:         l,
+		conn:     conn,
+		peerID:   peerID,
+		sKeyHash: sKeyHash,
+		infoHash: infoHash,
+		resultC:  resultC,
+		closeC:   make(chan struct{}),
+		closedC:  make(chan struct{}),
+		log:      l,
 	}
 }
 
-func (h *IncomingHandshaker) Run(stopC chan struct{}) {
-	log := logger.New("peer <- " + h.conn.RemoteAddr().String())
+func (h *IncomingHandshaker) Close() {
+	close(h.closeC)
+	<-h.closedC
+}
 
-	defer func() {
-		_ = h.conn.Close()
-		select {
-		case h.disconnectC <- h.conn:
-		case <-stopC:
-		}
-	}()
+func (h *IncomingHandshaker) Run() {
+	defer close(h.closedC)
+	log := logger.New("peer <- " + h.conn.RemoteAddr().String())
 
 	// TODO get this from config
 	encryptionForceIncoming := false
@@ -56,7 +62,10 @@ func (h *IncomingHandshaker) Run(stopC chan struct{}) {
 		h.conn, h.getSKey, encryptionForceIncoming, h.checkInfoHash, ourExtensions, h.peerID)
 	if err != nil {
 		log.Error(err)
-		_ = h.conn.Close()
+		select {
+		case h.resultC <- Result{Conn: h.conn, Error: err}:
+		case <-h.closeC:
+		}
 		return
 	}
 	log.Infof("Connection accepted. (cipher=%s extensions=%x client=%q)", cipher, peerExtensions, peerID[:8])
@@ -66,9 +75,8 @@ func (h *IncomingHandshaker) Run(stopC chan struct{}) {
 
 	p := peer.New(encConn, peerID, extensions, log)
 	select {
-	case h.newPeers <- p:
-		p.Run(stopC)
-	case <-stopC:
+	case h.resultC <- Result{Conn: h.conn, Peer: p}:
+	case <-h.closeC:
 	}
 }
 

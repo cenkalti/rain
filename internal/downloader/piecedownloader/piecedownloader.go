@@ -2,7 +2,6 @@ package piecedownloader
 
 import (
 	"bytes"
-	"errors"
 
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peer/peerprotocol"
@@ -21,8 +20,7 @@ type PieceDownloader struct {
 	RejectC  chan *piece.Block
 	ChokeC   chan struct{}
 	UnchokeC chan struct{}
-	DoneC    chan []byte
-	ErrC     chan error
+	resultC  chan Result
 	closeC   chan struct{}
 }
 
@@ -32,7 +30,13 @@ type block struct {
 	data      []byte
 }
 
-func New(pi *piece.Piece, pe *peer.Peer) *PieceDownloader {
+type Result struct {
+	Peer  *peer.Peer
+	Piece *piece.Piece
+	Bytes []byte
+}
+
+func New(pi *piece.Piece, pe *peer.Peer, resultC chan Result) *PieceDownloader {
 	blocks := make([]block, len(pi.Blocks))
 	for i := range blocks {
 		blocks[i] = block{Block: &pi.Blocks[i]}
@@ -46,8 +50,7 @@ func New(pi *piece.Piece, pe *peer.Peer) *PieceDownloader {
 		RejectC:  make(chan *piece.Block),
 		ChokeC:   make(chan struct{}),
 		UnchokeC: make(chan struct{}),
-		DoneC:    make(chan []byte, 1),
-		ErrC:     make(chan error, 1),
+		resultC:  resultC,
 		closeC:   make(chan struct{}),
 	}
 }
@@ -56,7 +59,17 @@ func (d *PieceDownloader) Close() {
 	close(d.closeC)
 }
 
-func (d *PieceDownloader) Run(stopC chan struct{}) {
+func (d *PieceDownloader) Run() {
+	result := Result{
+		Peer:  d.Peer,
+		Piece: d.Piece,
+	}
+	defer func() {
+		select {
+		case d.resultC <- result:
+		case <-d.closeC:
+		}
+	}()
 	for {
 		select {
 		case d.limiter <- struct{}{}:
@@ -66,7 +79,7 @@ func (d *PieceDownloader) Run(stopC chan struct{}) {
 				break
 			}
 			msg := peerprotocol.RequestMessage{Index: d.Piece.Index, Begin: b.Begin, Length: b.Length}
-			d.Peer.SendMessage(msg, stopC)
+			d.Peer.SendMessage(msg, d.closeC)
 		case p := <-d.PieceC:
 			b := &d.blocks[p.Block.Index]
 			if b.requested && b.data == nil && d.limiter != nil {
@@ -74,15 +87,14 @@ func (d *PieceDownloader) Run(stopC chan struct{}) {
 			}
 			b.data = p.Data
 			if d.allDone() {
-				d.DoneC <- d.assembleBlocks().Bytes()
+				result.Bytes = d.assembleBlocks().Bytes()
 				return
 			}
 		case blk := <-d.RejectC:
 			b := d.blocks[blk.Index]
 			if !b.requested {
-				d.Peer.Close()
-				d.ErrC <- errors.New("received invalid reject message")
-				return
+				d.Peer.Logger().Warningln("received invalid reject message")
+				break
 			}
 			d.blocks[blk.Index].requested = false
 		case <-d.ChokeC:
@@ -94,10 +106,7 @@ func (d *PieceDownloader) Run(stopC chan struct{}) {
 			d.limiter = nil
 		case <-d.UnchokeC:
 			d.limiter = make(chan struct{}, maxQueuedBlocks)
-		case <-stopC:
-			return
 		case <-d.closeC:
-			d.ErrC <- errors.New("piece downloader closed")
 			return
 		}
 	}

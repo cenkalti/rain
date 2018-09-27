@@ -20,6 +20,8 @@ type Announcer struct {
 	backoff      backoff.BackOff
 	nextAnnounce time.Duration
 	requests     chan *Request
+	closeC       chan struct{}
+	closedC      chan struct{}
 }
 
 type Request struct {
@@ -37,6 +39,8 @@ func New(trk tracker.Tracker, requests chan *Request, completedC chan struct{}, 
 		completedC: completedC,
 		newPeers:   newPeers,
 		requests:   requests,
+		closeC:     make(chan struct{}),
+		closedC:    make(chan struct{}),
 		backoff: &backoff.ExponentialBackOff{
 			InitialInterval:     5 * time.Second,
 			RandomizationFactor: 0.5,
@@ -48,17 +52,23 @@ func New(trk tracker.Tracker, requests chan *Request, completedC chan struct{}, 
 	}
 }
 
-func (a *Announcer) Run(stopC chan struct{}) {
+func (a *Announcer) Close() {
+	close(a.closeC)
+	<-a.closedC
+}
+
+func (a *Announcer) Run() {
+	defer close(a.closedC)
 	a.backoff.Reset()
-	a.announce(tracker.EventStarted, stopC)
+	a.announce(tracker.EventStarted, a.closeC)
 	for {
 		select {
 		case <-time.After(a.nextAnnounce):
-			a.announce(tracker.EventNone, stopC)
+			a.announce(tracker.EventNone, a.closeC)
 		case <-a.completedC:
-			a.announce(tracker.EventCompleted, stopC)
+			a.announce(tracker.EventCompleted, a.closeC)
 			a.completedC = nil
-		case <-stopC:
+		case <-a.closeC:
 			go a.announceStopAndClose()
 			return
 		}

@@ -2,6 +2,7 @@ package infodownloader
 
 import (
 	"bytes"
+	"fmt"
 
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peer/peerprotocol"
@@ -21,9 +22,8 @@ type InfoDownloader struct {
 	semaphore *semaphore.Semaphore
 	DataC     chan Data
 	// RejectC chan *piece.Block
-	DoneC  chan []byte
-	ErrC   chan error
-	closeC chan struct{}
+	resultC chan Result
+	closeC  chan struct{}
 }
 
 type Data struct {
@@ -38,7 +38,13 @@ type block struct {
 	data      []byte
 }
 
-func New(pe *peer.Peer, extID uint8, totalSize uint32) *InfoDownloader {
+type Result struct {
+	Peer  *peer.Peer
+	Bytes []byte
+	Error error
+}
+
+func New(pe *peer.Peer, extID uint8, totalSize uint32, resultC chan Result) *InfoDownloader {
 	numBlocks := totalSize / blockSize
 	mod := totalSize % blockSize
 	if mod != 0 {
@@ -62,9 +68,8 @@ func New(pe *peer.Peer, extID uint8, totalSize uint32) *InfoDownloader {
 		semaphore: semaphore.New(maxQueuedBlocks),
 		DataC:     make(chan Data),
 		// RejectC: make(chan *piece.Block),
-		DoneC:  make(chan []byte, 1),
-		ErrC:   make(chan error, 1),
-		closeC: make(chan struct{}),
+		resultC: resultC,
+		closeC:  make(chan struct{}),
 	}
 }
 
@@ -72,7 +77,16 @@ func (d *InfoDownloader) Close() {
 	close(d.closeC)
 }
 
-func (d *InfoDownloader) Run(stopC chan struct{}) {
+func (d *InfoDownloader) Run() {
+	result := Result{
+		Peer: d.Peer,
+	}
+	defer func() {
+		select {
+		case d.resultC <- result:
+		case <-d.closeC:
+		}
+	}()
 	for {
 		select {
 		case <-d.semaphore.Wait:
@@ -88,27 +102,26 @@ func (d *InfoDownloader) Run(stopC chan struct{}) {
 					Piece: b.index,
 				},
 			}
-			d.Peer.SendMessage(msg, stopC)
+			d.Peer.SendMessage(msg, d.closeC)
 		case msg := <-d.DataC:
 			if msg.Index >= uint32(len(d.blocks)) {
-				d.Peer.Logger().Errorln("peer sent invalid index for metadata message:", msg.Index)
-				d.Peer.Close()
-				break
+				result.Error = fmt.Errorf("peer sent invalid index for metadata message: %q", msg.Index)
+				return
 			}
 			b := &d.blocks[msg.Index]
 			if uint32(len(msg.Data)) != b.size {
-				d.Peer.Logger().Errorln("peer sent invalid size for metadata message", len(msg.Data))
-				d.Peer.Close()
-				break
+				result.Error = fmt.Errorf("peer sent invalid size for metadata message: %q", len(msg.Data))
+				return
 			}
 			if b.requested && b.data == nil {
 				d.semaphore.Signal(1)
 			}
 			b.data = msg.Data
 			if d.allDone() {
-				d.DoneC <- d.assembleBlocks().Bytes()
+				result.Bytes = d.assembleBlocks().Bytes()
 				return
 			}
+		// TODO handle rejects in info downloader
 		// case blk := <-d.RejectC:
 		// 	b := d.blocks[blk.Index]
 		// 	if !b.requested {
@@ -117,8 +130,6 @@ func (d *InfoDownloader) Run(stopC chan struct{}) {
 		// 		return
 		// 	}
 		// 	d.blocks[blk.Index].requested = false
-		case <-stopC:
-			return
 		case <-d.closeC:
 			return
 		}
