@@ -137,25 +137,42 @@ type Downloader struct {
 	// A message is sent to this channel to get download stats.
 	statsC chan StatsRequest
 
-	log     logger.Logger
-	workers worker.Workers
-
+	// Trackers send announce responses to this channel.
 	peersFromTrackers chan []*net.TCPAddr
-	peerAddrs         []*peerAddr          // contains peers not connected yet, sorted by oldest first
-	peerAddrsMap      map[string]*peerAddr // contains peers not connected yet, keyed by addr string
-	peerAddrToConnect chan *net.TCPAddr
 
-	conns       map[string]net.Conn
+	// Contains peers not connected yet, sorted by oldest first.
+	peerAddrs []*peerAddr
+
+	// Contains peers not connected yet, keyed by addr string
+	peerAddrsMap map[string]*peerAddr
+
+	// This map contains connections that does not complete handshake yet.
+	// They will be closed when downloader is closed.
+	halfOpenConnections map[string]net.Conn
+
+	// New raw connections are sent to this channel.
 	newOutConnC chan net.Conn
+
+	// If a raw connection cannot complete handshake successfully, it will be sent to this channel by handshaker.
 	disconnectC chan net.Conn
 
-	newInConnC    chan net.Conn
+	// New raw connections created by OutgoingHandshaker are sent to here.
+	newInConnC chan net.Conn
+
+	// All incoming connections are saved in this map.
 	incomingConns map[string]net.Conn
 
+	// Keep a set of peer IDs to block duplicate connections.
 	peerIDs map[[20]byte]struct{}
 
+	// Listens for incoming peer connections.
 	listener net.Listener
+
+	// Special hash of info hash for encypted connection handshake.
 	sKeyHash [20]byte
+
+	log     logger.Logger
+	workers worker.Workers
 }
 
 type peerAddr struct {
@@ -165,39 +182,38 @@ type peerAddr struct {
 
 func New(spec *Spec, l logger.Logger) (*Downloader, error) {
 	d := &Downloader{
-		infoHash:          spec.InfoHash,
-		trackers:          spec.Trackers,
-		port:              spec.Port,
-		storage:           spec.Storage,
-		resume:            spec.Resume,
-		info:              spec.Info,
-		bitfield:          spec.Bitfield,
-		newPeers:          make(chan *peer.Peer),
-		disconnectedPeers: make(chan *peer.Peer),
-		messages:          make(chan PeerMessage),
-		connectedPeers:    make(map[*peer.Peer]*Peer),
-		pieceDownloads:    make(map[*peer.Peer]*piecedownloader.PieceDownloader),
-		infoDownloads:     make(map[*peer.Peer]*infodownloader.InfoDownloader),
-		downloadDoneC:     make(chan *piecedownloader.PieceDownloader),
-		infoDownloadDoneC: make(chan *infodownloader.InfoDownloader),
-		writeRequestC:     make(chan piecewriter.Request),
-		writeResponseC:    make(chan piecewriter.Response),
-		completeC:         make(chan struct{}),
-		errC:              make(chan error),
-		log:               l,
-		closeC:            make(chan struct{}),
-		closedC:           make(chan struct{}),
-		statsC:            make(chan StatsRequest),
-		peerAddrsMap:      make(map[string]*peerAddr),
-		peersFromTrackers: make(chan []*net.TCPAddr),
-		peerAddrToConnect: make(chan *net.TCPAddr),
-		peerIDs:           make(map[[20]byte]struct{}),
-		conns:             make(map[string]net.Conn),
-		newOutConnC:       make(chan net.Conn),
-		newInConnC:        make(chan net.Conn),
-		disconnectC:       make(chan net.Conn),
-		incomingConns:     make(map[string]net.Conn),
-		sKeyHash:          mse.HashSKey(spec.InfoHash[:]),
+		infoHash:            spec.InfoHash,
+		trackers:            spec.Trackers,
+		port:                spec.Port,
+		storage:             spec.Storage,
+		resume:              spec.Resume,
+		info:                spec.Info,
+		bitfield:            spec.Bitfield,
+		newPeers:            make(chan *peer.Peer),
+		disconnectedPeers:   make(chan *peer.Peer),
+		messages:            make(chan PeerMessage),
+		connectedPeers:      make(map[*peer.Peer]*Peer),
+		pieceDownloads:      make(map[*peer.Peer]*piecedownloader.PieceDownloader),
+		infoDownloads:       make(map[*peer.Peer]*infodownloader.InfoDownloader),
+		downloadDoneC:       make(chan *piecedownloader.PieceDownloader),
+		infoDownloadDoneC:   make(chan *infodownloader.InfoDownloader),
+		writeRequestC:       make(chan piecewriter.Request),
+		writeResponseC:      make(chan piecewriter.Response),
+		completeC:           make(chan struct{}),
+		errC:                make(chan error),
+		log:                 l,
+		closeC:              make(chan struct{}),
+		closedC:             make(chan struct{}),
+		statsC:              make(chan StatsRequest),
+		peerAddrsMap:        make(map[string]*peerAddr),
+		peersFromTrackers:   make(chan []*net.TCPAddr),
+		peerIDs:             make(map[[20]byte]struct{}),
+		halfOpenConnections: make(map[string]net.Conn),
+		newOutConnC:         make(chan net.Conn),
+		newInConnC:          make(chan net.Conn),
+		disconnectC:         make(chan net.Conn),
+		incomingConns:       make(map[string]net.Conn),
+		sKeyHash:            mse.HashSKey(spec.InfoHash[:]),
 	}
 	copy(d.peerID[:], peerIDPrefix)
 	_, err := rand.Read(d.peerID[len(peerIDPrefix):]) // nolint: gosec
@@ -289,7 +305,12 @@ func (d *Downloader) run() {
 		}
 	}
 
-	defer d.workers.Stop()
+	defer func() {
+		for _, conn := range d.halfOpenConnections {
+			conn.Close()
+		}
+		d.workers.Stop()
+	}()
 
 	d.listener, err = net.ListenTCP("tcp4", &net.TCPAddr{Port: d.port})
 	if err != nil {
@@ -327,17 +348,14 @@ func (d *Downloader) run() {
 	for {
 		select {
 		case <-d.closeC:
-			for _, conn := range d.conns {
-				conn.Close()
-			}
 			return
 		case addrs := <-d.peersFromTrackers:
 			d.savePeerAddresses(addrs)
 			dialLimit.Signal(uint32(len(addrs)))
 		case conn := <-d.newOutConnC:
-			d.conns[conn.RemoteAddr().String()] = conn
+			d.halfOpenConnections[conn.RemoteAddr().String()] = conn
 		case conn := <-d.disconnectC:
-			delete(d.conns, conn.RemoteAddr().String())
+			delete(d.halfOpenConnections, conn.RemoteAddr().String())
 			delete(d.incomingConns, conn.RemoteAddr().String())
 		case req := <-d.statsC:
 			var stats Stats
@@ -369,7 +387,7 @@ func (d *Downloader) run() {
 				conn.Close()
 				break
 			}
-			d.conns[conn.RemoteAddr().String()] = conn
+			d.halfOpenConnections[conn.RemoteAddr().String()] = conn
 			d.incomingConns[conn.RemoteAddr().String()] = conn
 			ah := handshaker.NewIncoming(conn, d.peerID, d.sKeyHash, d.infoHash, d.newPeers, d.disconnectC, d.log)
 			d.workers.Start(ah)
