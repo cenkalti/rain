@@ -416,7 +416,7 @@ func (d *Downloader) run() {
 			delete(d.infoDownloads, res.Peer)
 			infoDownloaders.Signal(1)
 			if res.Error != nil {
-				res.Peer.Logger().Error(err)
+				res.Peer.Logger().Error(res.Error)
 				res.Peer.Close()
 				break
 			}
