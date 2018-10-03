@@ -42,6 +42,8 @@ const (
 	parallelInfoDownloads  = 4
 	parallelPieceDownloads = 4
 	parallelPieceWrites    = 4 // TODO remove this
+	maxPeerDial            = 40
+	maxPeerAccept          = 40
 )
 
 var (
@@ -335,7 +337,7 @@ func (d *Downloader) run() {
 	pieceDownloaders := semaphore.New(parallelPieceDownloads)
 	infoDownloaders := semaphore.New(parallelInfoDownloads)
 
-	dialLimit := semaphore.New(40)
+	dialLimit := semaphore.New(maxPeerDial)
 
 	for {
 		select {
@@ -368,7 +370,7 @@ func (d *Downloader) run() {
 			d.outgoingHandshakers[addr.String()] = h
 			go h.Run()
 		case conn := <-d.newInConnC:
-			if len(d.incomingHandshakers)+len(d.incomingPeers) >= 40 {
+			if len(d.incomingHandshakers)+len(d.incomingPeers) >= maxPeerAccept {
 				d.log.Debugln("peer limit reached, rejecting peer", conn.RemoteAddr().String())
 				conn.Close()
 				break
