@@ -15,6 +15,7 @@ import (
 	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/downloader/acceptor"
+	"github.com/cenkalti/rain/internal/downloader/addrlist"
 	"github.com/cenkalti/rain/internal/downloader/handshaker/incominghandshaker"
 	"github.com/cenkalti/rain/internal/downloader/handshaker/outgoinghandshaker"
 	"github.com/cenkalti/rain/internal/downloader/infodownloader"
@@ -130,11 +131,8 @@ type Downloader struct {
 	// Trackers send announce responses to this channel.
 	addrsFromTrackers chan []*net.TCPAddr
 
-	// Contains peers not connected yet, sorted by oldest first.
-	peerAddrs []*peerAddr
-
-	// Contains peers not connected yet, keyed by addr string
-	peerAddrsMap map[string]*peerAddr
+	// Keeps a list of peer addresses to connect.
+	addrList *addrlist.AddrList
 
 	// New raw connections created by OutgoingHandshaker are sent to here.
 	newInConnC chan net.Conn
@@ -173,11 +171,6 @@ type Downloader struct {
 	log logger.Logger
 }
 
-type peerAddr struct {
-	*net.TCPAddr
-	timestamp time.Time
-}
-
 func New(spec *Spec, l logger.Logger) (*Downloader, error) {
 	d := &Downloader{
 		infoHash:                  spec.InfoHash,
@@ -200,8 +193,8 @@ func New(spec *Spec, l logger.Logger) (*Downloader, error) {
 		closeC:                    make(chan struct{}),
 		closedC:                   make(chan struct{}),
 		statsC:                    make(chan StatsRequest),
-		peerAddrsMap:              make(map[string]*peerAddr),
 		addrsFromTrackers:         make(chan []*net.TCPAddr),
+		addrList:                  addrlist.New(),
 		peerIDs:                   make(map[[20]byte]struct{}),
 		newInConnC:                make(chan net.Conn),
 		sKeyHash:                  mse.HashSKey(spec.InfoHash[:]),
@@ -255,33 +248,6 @@ func parseTrackers(trackers []string, log logger.Logger) ([]tracker.Tracker, err
 		return nil, errors.New("no tracker found")
 	}
 	return ret, nil
-}
-
-func (d *Downloader) savePeerAddresses(addrs []*net.TCPAddr) {
-	now := time.Now()
-	for _, ad := range addrs {
-		// 0 port is invalid
-		if ad.Port == 0 {
-			continue
-		}
-		// Discard own client
-		if ad.IP.IsLoopback() && ad.Port == d.port {
-			continue
-		}
-		key := ad.String()
-		if p, ok := d.peerAddrsMap[key]; ok {
-			p.timestamp = now
-		} else {
-			p = &peerAddr{
-				TCPAddr:   ad,
-				timestamp: now,
-			}
-			d.peerAddrsMap[key] = p
-			d.peerAddrs = append(d.peerAddrs, p)
-		}
-	}
-	// TODO limit max peer addresses to keep
-	sort.Slice(d.peerAddrs, func(i, j int) bool { return d.peerAddrs[i].timestamp.Before(d.peerAddrs[j].timestamp) })
 }
 
 func (d *Downloader) run() {
@@ -374,7 +340,7 @@ func (d *Downloader) run() {
 		case <-d.closeC:
 			return
 		case addrs := <-d.addrsFromTrackers:
-			d.savePeerAddresses(addrs)
+			d.addrList.Push(addrs, d.port)
 			dialLimit.Signal(uint32(len(addrs)))
 		case req := <-d.statsC:
 			var stats Stats
@@ -391,13 +357,11 @@ func (d *Downloader) run() {
 			}
 			req.Response <- stats
 		case <-dialLimit.Wait:
-			if len(d.peerAddrs) == 0 {
+			addr := d.addrList.Pop()
+			if addr == nil {
 				dialLimit.Block()
 				break
 			}
-			addr := d.peerAddrs[len(d.peerAddrs)-1].TCPAddr
-			d.peerAddrs = d.peerAddrs[:len(d.peerAddrs)-1]
-			delete(d.peerAddrsMap, addr.String())
 			h := outgoinghandshaker.NewOutgoing(addr, d.peerID, d.infoHash, d.outgoingHandshakerResultC, d.log)
 			d.outgoingHandshakers[addr.String()] = h
 			go h.Run()
@@ -898,6 +862,7 @@ func (d *Downloader) processInfo() error {
 	d.preparePieces()
 	return nil
 }
+
 func (d *Downloader) preparePieces() {
 	pieces := make([]Piece, len(d.data.Pieces))
 	sortedPieces := make([]*Piece, len(d.data.Pieces))
