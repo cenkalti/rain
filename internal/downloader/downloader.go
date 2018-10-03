@@ -459,7 +459,7 @@ func (d *Downloader) run() {
 				break
 			}
 			// TODO check status of existing downloads
-			pd := d.nextDownload()
+			pd := d.nextPieceDownload()
 			if pd == nil {
 				pieceDownloaders.Block()
 				break
@@ -889,7 +889,7 @@ func (d *Downloader) nextInfoDownload() *infodownloader.InfoDownloader {
 	return nil
 }
 
-func (d *Downloader) nextDownload() *piecedownloader.PieceDownloader {
+func (d *Downloader) nextPieceDownload() *piecedownloader.PieceDownloader {
 	// TODO request first 4 pieces randomly
 	sort.Sort(piece.ByAvailability(d.sortedPieces))
 	for _, p := range d.sortedPieces {
