@@ -38,8 +38,7 @@ import (
 const (
 	parallelInfoDownloads  = 4
 	parallelPieceDownloads = 4
-	parallelPieceWrites    = 4
-	parallelPieceReads     = 4
+	parallelPieceWrites    = 4 // TODO remove this
 )
 
 var (
