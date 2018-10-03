@@ -19,6 +19,7 @@ import (
 	"github.com/cenkalti/rain/internal/downloader/handshaker/incominghandshaker"
 	"github.com/cenkalti/rain/internal/downloader/handshaker/outgoinghandshaker"
 	"github.com/cenkalti/rain/internal/downloader/infodownloader"
+	"github.com/cenkalti/rain/internal/downloader/piece"
 	"github.com/cenkalti/rain/internal/downloader/piecedownloader"
 	"github.com/cenkalti/rain/internal/downloader/piecewriter"
 	"github.com/cenkalti/rain/internal/logger"
@@ -84,10 +85,10 @@ type Downloader struct {
 	completed bool
 
 	// Contains state about the pieces in torrent.
-	pieces []Piece
+	pieces []piece.Piece
 
 	// Contains pieces in sorted order for piece selection function.
-	sortedPieces []*Piece
+	sortedPieces []*piece.Piece
 
 	// Peers are sent to this channel when they are disconnected.
 	disconnectedPeers chan *peer.Peer
@@ -464,7 +465,7 @@ func (d *Downloader) run() {
 			}
 			d.log.Debugln("downloading piece", pd.Piece.Index, "from", pd.Peer.String())
 			d.pieceDownloads[pd.Peer] = pd
-			d.pieces[pd.Piece.Index].requestedPeers[pd.Peer] = pd
+			d.pieces[pd.Piece.Index].RequestedPeers[pd.Peer] = pd
 			d.connectedPeers[pd.Peer].downloader = pd
 			go pd.Run()
 		case res := <-d.pieceDownloaderResultC:
@@ -474,7 +475,7 @@ func (d *Downloader) run() {
 				pe.downloader = nil
 			}
 			delete(d.pieceDownloads, res.Peer)
-			delete(d.pieces[res.Piece.Index].requestedPeers, res.Peer)
+			delete(d.pieces[res.Piece.Index].RequestedPeers, res.Peer)
 			pieceDownloaders.Signal(1)
 			ok := d.pieces[res.Piece.Index].Piece.Verify(res.Bytes)
 			if !ok {
@@ -483,12 +484,12 @@ func (d *Downloader) run() {
 			}
 			select {
 			case d.writeRequestC <- piecewriter.Request{Piece: res.Piece, Data: res.Bytes}:
-				d.pieces[res.Piece.Index].writing = true
+				d.pieces[res.Piece.Index].Writing = true
 			case <-d.closeC:
 				return
 			}
 		case resp := <-d.writeResponseC:
-			d.pieces[resp.Request.Piece.Index].writing = false
+			d.pieces[resp.Request.Piece.Index].Writing = false
 			if resp.Error != nil {
 				d.log.Errorln("cannot write piece data:", resp.Error)
 				d.errC <- resp.Error
@@ -575,9 +576,9 @@ func (d *Downloader) run() {
 			}
 			delete(d.connectedPeers, p)
 			for i := range d.pieces {
-				delete(d.pieces[i].havingPeers, p)
-				delete(d.pieces[i].allowedFastPeers, p)
-				delete(d.pieces[i].requestedPeers, p)
+				delete(d.pieces[i].HavingPeers, p)
+				delete(d.pieces[i].AllowedFastPeers, p)
+				delete(d.pieces[i].RequestedPeers, p)
 			}
 		case pm := <-d.messages:
 			pe := d.connectedPeers[pm.Peer]
@@ -596,7 +597,7 @@ func (d *Downloader) run() {
 				pi := &d.data.Pieces[msg.Index]
 				pe.Peer.Logger().Debug("Peer ", pe.Peer.String(), " has piece #", pi.Index)
 				pieceDownloaders.Signal(1)
-				d.pieces[pi.Index].havingPeers[pe.Peer] = d.connectedPeers[pe.Peer]
+				d.pieces[pi.Index].HavingPeers[pe.Peer] = struct{}{}
 				d.updateInterestedState(pe, d.closeC)
 			case peerprotocol.BitfieldMessage:
 				// Save bitfield messages while we don't have info yet.
@@ -614,7 +615,7 @@ func (d *Downloader) run() {
 				pe.Peer.Logger().Debugln("Received bitfield:", bf.Hex())
 				for i := uint32(0); i < bf.Len(); i++ {
 					if bf.Test(i) {
-						d.pieces[i].havingPeers[pe.Peer] = d.connectedPeers[pe.Peer]
+						d.pieces[i].HavingPeers[pe.Peer] = struct{}{}
 					}
 				}
 				pieceDownloaders.Signal(bf.Count())
@@ -625,7 +626,7 @@ func (d *Downloader) run() {
 					break
 				}
 				for i := range d.pieces {
-					d.pieces[i].havingPeers[pe.Peer] = pe
+					d.pieces[i].HavingPeers[pe.Peer] = struct{}{}
 				}
 				pieceDownloaders.Signal(uint32(len(d.pieces)))
 				d.updateInterestedState(pe, d.closeC)
@@ -643,7 +644,7 @@ func (d *Downloader) run() {
 				}
 				pi := &d.data.Pieces[msg.Index]
 				pe.Peer.Logger().Debug("Peer ", pe.Peer.String(), " has allowed fast for piece #", pi.Index)
-				d.pieces[msg.Index].allowedFastPeers[pe.Peer] = d.connectedPeers[pe.Peer]
+				d.pieces[msg.Index].AllowedFastPeers[pe.Peer] = struct{}{}
 			case peerprotocol.UnchokeMessage:
 				pieceDownloaders.Signal(1)
 				pe.peerChoking = false
@@ -864,15 +865,10 @@ func (d *Downloader) processInfo() error {
 }
 
 func (d *Downloader) preparePieces() {
-	pieces := make([]Piece, len(d.data.Pieces))
-	sortedPieces := make([]*Piece, len(d.data.Pieces))
+	pieces := make([]piece.Piece, len(d.data.Pieces))
+	sortedPieces := make([]*piece.Piece, len(d.data.Pieces))
 	for i := range d.data.Pieces {
-		pieces[i] = Piece{
-			Piece:            &d.data.Pieces[i],
-			havingPeers:      make(map[*peer.Peer]*Peer),
-			allowedFastPeers: make(map[*peer.Peer]*Peer),
-			requestedPeers:   make(map[*peer.Peer]*piecedownloader.PieceDownloader),
-		}
+		pieces[i] = piece.New(&d.data.Pieces[i])
 		sortedPieces[i] = &pieces[i]
 	}
 	d.pieces = pieces
@@ -895,40 +891,40 @@ func (d *Downloader) nextInfoDownload() *infodownloader.InfoDownloader {
 
 func (d *Downloader) nextDownload() *piecedownloader.PieceDownloader {
 	// TODO request first 4 pieces randomly
-	sort.Sort(ByAvailability(d.sortedPieces))
+	sort.Sort(piece.ByAvailability(d.sortedPieces))
 	for _, p := range d.sortedPieces {
 		if d.bitfield.Test(p.Index) {
 			continue
 		}
-		if len(p.requestedPeers) > 0 {
+		if len(p.RequestedPeers) > 0 {
 			continue
 		}
-		if p.writing {
+		if p.Writing {
 			continue
 		}
-		if len(p.havingPeers) == 0 {
+		if len(p.HavingPeers) == 0 {
 			continue
 		}
 		// prefer allowed fast peers first
-		for _, pe := range p.havingPeers {
-			if _, ok := p.allowedFastPeers[pe.Peer]; !ok {
+		for pe := range p.HavingPeers {
+			if _, ok := p.AllowedFastPeers[pe]; !ok {
 				continue
 			}
-			if _, ok := d.pieceDownloads[pe.Peer]; ok {
+			if _, ok := d.pieceDownloads[pe]; ok {
 				continue
 			}
 			// TODO selecting first peer having the piece, change to more smart decision
-			return piecedownloader.New(p.Piece, pe.Peer, d.pieceDownloaderResultC)
+			return piecedownloader.New(p.Piece, pe, d.pieceDownloaderResultC)
 		}
-		for _, pe := range p.havingPeers {
-			if pe.peerChoking {
+		for pe := range p.HavingPeers {
+			if pp, ok := d.connectedPeers[pe]; ok && pp.peerChoking {
 				continue
 			}
-			if _, ok := d.pieceDownloads[pe.Peer]; ok {
+			if _, ok := d.pieceDownloads[pe]; ok {
 				continue
 			}
 			// TODO selecting first peer having the piece, change to more smart decision
-			return piecedownloader.New(p.Piece, pe.Peer, d.pieceDownloaderResultC)
+			return piecedownloader.New(p.Piece, pe, d.pieceDownloaderResultC)
 		}
 	}
 	return nil
@@ -941,7 +937,7 @@ func (d *Downloader) updateInterestedState(pe *Peer, stopC chan struct{}) {
 	interested := false
 	for i := uint32(0); i < d.bitfield.Len(); i++ {
 		weHave := d.bitfield.Test(i)
-		_, peerHave := d.pieces[i].havingPeers[pe.Peer]
+		_, peerHave := d.pieces[i].HavingPeers[pe.Peer]
 		if !weHave && peerHave {
 			interested = true
 			break
