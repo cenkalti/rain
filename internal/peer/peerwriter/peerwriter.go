@@ -62,6 +62,7 @@ func (p *PeerWriter) Run(stopC chan struct{}) {
 		case msg = <-p.queueC:
 			p.queueMessage(msg)
 		case p.writeC <- msg:
+			// TODO peer write queue array grows indefinitely. Try using linked list.
 			p.writeQueue = p.writeQueue[1:]
 		case <-stopC:
 			return
