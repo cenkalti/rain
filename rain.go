@@ -134,23 +134,23 @@ func handleDownload(c *cli.Context) error {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer t.Close()
 
 	sigC := make(chan os.Signal, 1)
 	signal.Notify(sigC, syscall.SIGINT, syscall.SIGTERM)
-LOOP:
-	for {
+	select {
+	case <-t.NotifyComplete():
+		if !c.Bool("seed") {
+			return nil
+		}
 		select {
 		case <-sigC:
-			break LOOP
-		case <-t.NotifyComplete():
-			if !c.Bool("seed") {
-				break LOOP
-			}
 		case err = <-t.NotifyError():
-			log.Error(err)
-			os.Exit(1)
+			return err
 		}
+	case <-sigC:
+	case err = <-t.NotifyError():
+		return err
 	}
-	t.Close()
 	return nil
 }
