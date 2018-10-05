@@ -105,7 +105,12 @@ func (p *PeerWriter) messageWriter(stopC chan struct{}) {
 				return
 			}
 		case <-keepAliveTicker.C:
-			p.conn.Write([]byte{0, 0, 0, 0})
+			_, err := p.conn.Write([]byte{0, 0, 0, 0})
+			if err != nil {
+				p.log.Errorf("cannot write keepalive message: %s", err.Error())
+				p.conn.Close()
+				return
+			}
 		case <-stopC:
 			return
 		}
