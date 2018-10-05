@@ -895,6 +895,15 @@ func (d *Downloader) startPeer(p *ip.Peer, peers *[]*peer.Peer) {
 	*peers = append(*peers, pe)
 	go pe.Run()
 
+	d.sendFirstMessage(p)
+	go d.readMessages(pe, d.closeC)
+
+	if len(d.connectedPeers) <= 4 {
+		d.unchokePeer(pe, d.closeC)
+	}
+}
+
+func (d *Downloader) sendFirstMessage(p *ip.Peer) {
 	bf := d.bitfield
 	if p.FastExtension && bf != nil && bf.All() {
 		msg := peerprotocol.HaveAllMessage{}
@@ -917,10 +926,6 @@ func (d *Downloader) startPeer(p *ip.Peer, peers *[]*peer.Peer) {
 		Payload:           extHandshakeMsg,
 	}
 	p.SendMessage(msg, d.closeC)
-	if len(d.connectedPeers) <= 4 {
-		d.unchokePeer(pe, d.closeC)
-	}
-	go d.readMessages(pe, d.closeC)
 }
 
 func (d *Downloader) processInfo() error {
