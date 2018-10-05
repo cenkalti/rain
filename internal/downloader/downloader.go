@@ -1088,6 +1088,7 @@ func (d *Downloader) checkCompletion() {
 	}
 	if d.bitfield.All() {
 		close(d.completeC)
+		d.completed = true
 	}
 }
 
