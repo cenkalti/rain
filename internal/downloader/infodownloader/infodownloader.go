@@ -87,12 +87,13 @@ func (d *InfoDownloader) Run() {
 		case <-d.closeC:
 		}
 	}()
+	d.semaphore.Start()
 	for {
 		select {
-		case <-d.semaphore.Wait:
+		case <-d.semaphore.Ready:
 			b := d.nextBlock()
 			if b == nil {
-				d.semaphore.Block()
+				d.semaphore.Stop()
 				break
 			}
 			msg := peerprotocol.ExtensionMessage{

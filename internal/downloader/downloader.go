@@ -123,14 +123,16 @@ type Downloader struct {
 	// If any unrecoverable error occurs, it will be sent to this channel and download will be stopped.
 	errC chan error
 
-	// When Stop() is called, it will close this channel to signal all running goroutines to stop.
+	// When Stop() is called, it will close this channel to signal run() function to stop.
 	closeC chan struct{}
 
 	// This channel will be closed after run loop exists.
 	closedC chan struct{}
 
-	// A message is sent to this channel to get download stats.
-	statsC chan StatsRequest
+	// These are the channels for sending a message to run() loop.
+	statsCommandC chan StatsRequest // Stats()
+	startCommandC chan struct{}     // Start()
+	stopCommandC  chan struct{}     // Stop()
 
 	// Trackers send announce responses to this channel.
 	addrsFromTrackers chan []*net.TCPAddr
@@ -153,12 +155,17 @@ type Downloader struct {
 	// Responsible for writing downloaded pieces to disk.
 	pieceWriters []*piecewriter.PieceWriter
 
+	// Tracker implementations for giving to announcers.
+	trackersInstances []tracker.Tracker
+
 	// Announces the status of torrent to trackers to get peer addresses.
 	announcers []*announcer.Announcer
 
+	// List of peers in handshake state.
 	incomingHandshakers map[string]*incominghandshaker.IncomingHandshaker
 	outgoingHandshakers map[string]*outgoinghandshaker.OutgoingHandshaker
 
+	// Handshake results are sent to these channels by handshakers.
 	incomingHandshakerResultC chan incominghandshaker.Result
 	outgoingHandshakerResultC chan outgoinghandshaker.Result
 
@@ -171,6 +178,29 @@ type Downloader struct {
 
 	// When a piece is downloaded completely a message is sent to this channel.
 	pieceDownloaderResultC chan piecedownloader.Result
+
+	// True after downloader is started with Start() method, false after Stop() is called.
+	running bool
+
+	// Announcers send a request to this channel to get information about the torrent.
+	announcerRequests chan *announcer.Request
+
+	// A timer that ticks periodically to keep a certain number of peers unchoked.
+	unchokeTimer  *time.Ticker
+	unchokeTimerC <-chan time.Time
+
+	// A timer that ticks periodically to keep a random peer unchoked regardless of its upload rate.
+	optimisticUnchokeTimer  *time.Ticker
+	optimisticUnchokeTimerC <-chan time.Time
+
+	// To limit the max number of peers to connect to.
+	dialLimit *semaphore.Semaphore
+
+	// To limit the max number of parallel piece downloads.
+	pieceDownloaders *semaphore.Semaphore
+
+	// To limit the max number of parallel metadata downloads.
+	infoDownloaders *semaphore.Semaphore
 
 	log logger.Logger
 }
@@ -192,11 +222,10 @@ func New(spec *Spec, l logger.Logger) (*Downloader, error) {
 		writeRequestC:             make(chan piecewriter.Request),
 		writeResponseC:            make(chan piecewriter.Response),
 		completeC:                 make(chan struct{}),
-		errC:                      make(chan error),
 		log:                       l,
 		closeC:                    make(chan struct{}),
 		closedC:                   make(chan struct{}),
-		statsC:                    make(chan StatsRequest),
+		statsCommandC:             make(chan StatsRequest),
 		addrsFromTrackers:         make(chan []*net.TCPAddr),
 		addrList:                  addrlist.New(),
 		peerIDs:                   make(map[[20]byte]struct{}),
@@ -208,9 +237,19 @@ func New(spec *Spec, l logger.Logger) (*Downloader, error) {
 		outgoingHandshakers:       make(map[string]*outgoinghandshaker.OutgoingHandshaker),
 		incomingHandshakerResultC: make(chan incominghandshaker.Result),
 		outgoingHandshakerResultC: make(chan outgoinghandshaker.Result),
+		startCommandC:             make(chan struct{}),
+		stopCommandC:              make(chan struct{}),
+		announcerRequests:         make(chan *announcer.Request),
+		dialLimit:                 semaphore.New(maxPeerDial),
+		pieceDownloaders:          semaphore.New(parallelPieceDownloads),
+		infoDownloaders:           semaphore.New(parallelPieceDownloads),
 	}
 	copy(d.peerID[:], peerIDPrefix)
 	_, err := rand.Read(d.peerID[len(peerIDPrefix):]) // nolint: gosec
+	if err != nil {
+		return nil, err
+	}
+	d.trackersInstances, err = parseTrackers(d.trackers, d.log)
 	if err != nil {
 		return nil, err
 	}
@@ -226,9 +265,25 @@ func (d *Downloader) ErrC() chan error {
 	return d.errC
 }
 
+func (d *Downloader) Start() {
+	select {
+	case d.startCommandC <- struct{}{}:
+	case <-d.closedC:
+	}
+}
+
+func (d *Downloader) Stop() {
+	select {
+	case d.stopCommandC <- struct{}{}:
+	case <-d.closedC:
+	}
+}
+
 func (d *Downloader) Close() {
-	close(d.closeC)
-	<-d.closedC
+	select {
+	case d.closeC <- struct{}{}:
+	case <-d.closedC:
+	}
 }
 
 func parseTrackers(trackers []string, log logger.Logger) ([]tracker.Tracker, error) {
@@ -254,55 +309,11 @@ func parseTrackers(trackers []string, log logger.Logger) ([]tracker.Tracker, err
 	return ret, nil
 }
 
-func (d *Downloader) run() {
-	defer close(d.closedC)
-
-	defer func() {
-		if d.acceptor != nil {
-			d.acceptor.Close()
-		}
-		for _, an := range d.announcers {
-			an.Close()
-		}
-		for _, pw := range d.pieceWriters {
-			pw.Close()
-		}
-		for _, oh := range d.outgoingHandshakers {
-			oh.Close()
-		}
-		for _, ih := range d.incomingHandshakers {
-			ih.Close()
-		}
-		for _, id := range d.infoDownloads {
-			id.Close()
-		}
-		for _, pd := range d.pieceDownloads {
-			pd.Close()
-		}
-		for _, ip := range d.incomingPeers {
-			ip.Close()
-		}
-		for _, op := range d.outgoingPeers {
-			op.Close()
-		}
-		// TODO close data
-		// TODO order closes here
-	}()
-
-	trackers, err := parseTrackers(d.trackers, d.log)
-	if err != nil {
-		d.log.Errorln("cannot parse trackers:", err)
-		d.errC <- err
+func (d *Downloader) start() {
+	if d.running {
 		return
 	}
-	if d.info != nil {
-		err2 := d.processInfo()
-		if err2 != nil {
-			d.log.Errorln("cannot process info:", err2)
-			d.errC <- err2
-			return
-		}
-	}
+	d.running = true
 
 	listener, err := net.ListenTCP("tcp4", &net.TCPAddr{Port: d.port})
 	if err != nil {
@@ -314,10 +325,8 @@ func (d *Downloader) run() {
 		go d.acceptor.Run()
 	}
 
-	announcerRequests := make(chan *announcer.Request)
-
-	for _, tr := range trackers {
-		an := announcer.New(tr, announcerRequests, d.completeC, d.addrsFromTrackers, d.log)
+	for _, tr := range d.trackersInstances {
+		an := announcer.New(tr, d.announcerRequests, d.completeC, d.addrsFromTrackers, d.log)
 		d.announcers = append(d.announcers, an)
 		go an.Run()
 	}
@@ -328,25 +337,107 @@ func (d *Downloader) run() {
 		go w.Run()
 	}
 
-	unchokeTimer := time.NewTicker(10 * time.Second)
-	defer unchokeTimer.Stop()
+	d.unchokeTimer = time.NewTicker(10 * time.Second)
+	d.unchokeTimerC = d.unchokeTimer.C
 
-	optimisticUnchokeTimer := time.NewTicker(30 * time.Second)
-	defer optimisticUnchokeTimer.Stop()
+	d.optimisticUnchokeTimer = time.NewTicker(30 * time.Second)
+	d.optimisticUnchokeTimerC = d.optimisticUnchokeTimer.C
 
-	pieceDownloaders := semaphore.New(parallelPieceDownloads)
-	infoDownloaders := semaphore.New(parallelInfoDownloads)
+	d.dialLimit.Start()
 
-	dialLimit := semaphore.New(maxPeerDial)
+	d.pieceDownloaders.Start()
+	d.infoDownloaders.Start()
 
+	d.errC = make(chan error, 1)
+}
+
+func (d *Downloader) stop(err error) {
+	if !d.running {
+		return
+	}
+	d.running = false
+
+	if d.acceptor != nil {
+		d.acceptor.Close()
+	}
+	d.acceptor = nil
+
+	for _, an := range d.announcers {
+		an.Close()
+	}
+	d.announcers = nil
+
+	for _, pw := range d.pieceWriters {
+		pw.Close()
+	}
+	d.pieceWriters = nil
+
+	d.unchokeTimer.Stop()
+	d.unchokeTimerC = nil
+	d.optimisticUnchokeTimer.Stop()
+	d.optimisticUnchokeTimerC = nil
+
+	d.dialLimit.Stop()
+
+	d.pieceDownloaders.Stop()
+	d.infoDownloaders.Stop()
+
+	if err != nil {
+		d.errC <- err
+	}
+}
+
+func (d *Downloader) close() {
+	d.stop(errors.New("torrent is closed"))
+
+	for _, oh := range d.outgoingHandshakers {
+		oh.Close()
+	}
+	for _, ih := range d.incomingHandshakers {
+		ih.Close()
+	}
+	for _, id := range d.infoDownloads {
+		id.Close()
+	}
+	for _, pd := range d.pieceDownloads {
+		pd.Close()
+	}
+	for _, ip := range d.incomingPeers {
+		ip.Close()
+	}
+	for _, op := range d.outgoingPeers {
+		op.Close()
+	}
+	// TODO close data
+	// TODO order closes here
+	close(d.closedC)
+}
+
+func (d *Downloader) run() {
+
+	// TODO where to put this? this may take long
+	if d.info != nil {
+		err2 := d.processInfo()
+		if err2 != nil {
+			d.log.Errorln("cannot process info:", err2)
+			d.errC <- err2
+			return
+		}
+	}
+
+	defer d.close()
 	for {
 		select {
 		case <-d.closeC:
 			return
+		case <-d.startCommandC:
+			d.start()
+		case <-d.stopCommandC:
+			d.stop(errors.New("torrent is stopped"))
 		case addrs := <-d.addrsFromTrackers:
 			d.addrList.Push(addrs, d.port)
-			dialLimit.Signal(uint32(len(addrs)))
-		case req := <-d.statsC:
+			d.dialLimit.Signal(len(addrs))
+		case req := <-d.statsCommandC:
 			var stats Stats
 			if d.info != nil {
 				stats.BytesTotal = d.info.TotalLength
@@ -360,10 +451,10 @@ func (d *Downloader) run() {
 				// TODO this is wrong, pre-calculate complete and incomplete bytes
 			}
 			req.Response <- stats
-		case <-dialLimit.Wait:
+		case <-d.dialLimit.Ready:
 			addr := d.addrList.Pop()
 			if addr == nil {
-				dialLimit.Block()
+				d.dialLimit.Stop()
 				break
 			}
 			h := outgoinghandshaker.NewOutgoing(addr, d.peerID, d.infoHash, d.outgoingHandshakerResultC, d.log)
@@ -378,7 +469,7 @@ func (d *Downloader) run() {
 			h := incominghandshaker.NewIncoming(conn, d.peerID, d.sKeyHash, d.infoHash, d.incomingHandshakerResultC, d.log)
 			d.incomingHandshakers[conn.RemoteAddr().String()] = h
 			go h.Run()
-		case req := <-announcerRequests:
+		case req := <-d.announcerRequests:
 			tr := tracker.Transfer{
 				InfoHash: d.infoHash,
 				PeerID:   d.peerID,
@@ -391,19 +482,15 @@ func (d *Downloader) run() {
 				tr.BytesLeft = d.info.TotalLength - int64(d.info.PieceLength)*int64(d.bitfield.Count())
 			}
 			// TODO set bytes uploaded/downloaded
-			select {
-			case req.Response <- announcer.Response{Transfer: tr}:
-			case <-d.closeC:
-				return
-			}
-		case <-infoDownloaders.Wait:
+			req.Response <- announcer.Response{Transfer: tr}
+		case <-d.infoDownloaders.Ready:
 			if d.info != nil {
-				infoDownloaders.Block()
+				d.infoDownloaders.Stop()
 				break
 			}
 			id := d.nextInfoDownload()
 			if id == nil {
-				infoDownloaders.Block()
+				d.infoDownloaders.Stop()
 				break
 			}
 			d.log.Debugln("downloading info from", id.Peer.String())
@@ -414,7 +501,7 @@ func (d *Downloader) run() {
 			// TODO handle info downloader result
 			d.connectedPeers[res.Peer].InfoDownloader = nil
 			delete(d.infoDownloads, res.Peer)
-			infoDownloaders.Signal(1)
+			d.infoDownloaders.Signal(1)
 			if res.Error != nil {
 				res.Peer.Logger().Error(res.Error)
 				res.Peer.Close()
@@ -424,7 +511,7 @@ func (d *Downloader) run() {
 			hash.Write(res.Bytes) // nolint: gosec
 			if !bytes.Equal(hash.Sum(nil), d.infoHash[:]) {
 				res.Peer.Logger().Errorln("received info does not match with hash")
-				infoDownloaders.Signal(1)
+				d.infoDownloaders.Signal(1)
 				res.Peer.Close()
 				break
 			}
@@ -453,17 +540,17 @@ func (d *Downloader) run() {
 			for _, pe := range d.connectedPeers {
 				go d.resendMessages(pe, d.closeC)
 			}
-			infoDownloaders.Block()
-			pieceDownloaders.Signal(parallelPieceDownloads)
-		case <-pieceDownloaders.Wait:
+			d.infoDownloaders.Stop()
+			d.pieceDownloaders.Signal(parallelPieceDownloads)
+		case <-d.pieceDownloaders.Ready:
 			if d.info == nil {
-				pieceDownloaders.Block()
+				d.pieceDownloaders.Stop()
 				break
 			}
 			// TODO check status of existing downloads
 			pd := d.nextPieceDownload()
 			if pd == nil {
-				pieceDownloaders.Block()
+				d.pieceDownloaders.Stop()
 				break
 			}
 			d.log.Debugln("downloading piece", pd.Piece.Index, "from", pd.Peer.String())
@@ -479,32 +566,30 @@ func (d *Downloader) run() {
 			}
 			delete(d.pieceDownloads, res.Peer)
 			delete(d.pieces[res.Piece.Index].RequestedPeers, res.Peer)
-			pieceDownloaders.Signal(1)
+			d.pieceDownloaders.Signal(1)
 			ok := d.pieces[res.Piece.Index].Piece.Verify(res.Bytes)
 			if !ok {
 				// TODO handle corrupt piece
 				break
 			}
-			select {
-			case d.writeRequestC <- piecewriter.Request{Piece: res.Piece, Data: res.Bytes}:
-				d.pieces[res.Piece.Index].Writing = true
-			case <-d.closeC:
-				return
-			}
+			d.writeRequestC <- piecewriter.Request{Piece: res.Piece, Data: res.Bytes}
+			d.pieces[res.Piece.Index].Writing = true
 		case resp := <-d.writeResponseC:
 			d.pieces[resp.Request.Piece.Index].Writing = false
 			if resp.Error != nil {
-				d.log.Errorln("cannot write piece data:", resp.Error)
-				d.errC <- resp.Error
-				return
+				err := fmt.Errorf("cannot write piece data: %s", resp.Error)
+				d.log.Errorln(err)
+				d.stop(err)
+				break
 			}
 			d.bitfield.Set(resp.Request.Piece.Index)
 			if d.resume != nil {
 				err := d.resume.WriteBitfield(d.bitfield.Bytes())
 				if err != nil {
-					d.log.Errorln("cannot write bitfield to resume db:", err)
-					d.errC <- err
-					return
+					err = fmt.Errorf("cannot write bitfield to resume db: %s", err)
+					d.log.Errorln(err)
+					d.stop(err)
+					break
 				}
 			}
 			d.checkCompletion()
@@ -515,7 +600,7 @@ func (d *Downloader) run() {
 				pe.SendMessage(msg, d.closeC)
 				d.updateInterestedState(pe, d.closeC)
 			}
-		case <-unchokeTimer.C:
+		case <-d.unchokeTimerC:
 			peers := make([]*peer.Peer, 0, len(d.connectedPeers))
 			for _, pe := range d.connectedPeers {
 				if !pe.OptimisticUnhoked {
@@ -539,7 +624,7 @@ func (d *Downloader) run() {
 					d.chokePeer(pe, d.closeC)
 				}
 			}
-		case <-optimisticUnchokeTimer.C:
+		case <-d.optimisticUnchokeTimerC:
 			peers := make([]*peer.Peer, 0, len(d.connectedPeers))
 			for _, pe := range d.connectedPeers {
 				if !pe.OptimisticUnhoked && pe.AmChoking {
@@ -598,7 +683,7 @@ func (d *Downloader) run() {
 				}
 				pi := &d.data.Pieces[msg.Index]
 				pe.Peer.Logger().Debug("Peer ", pe.Peer.String(), " has piece #", pi.Index)
-				pieceDownloaders.Signal(1)
+				d.pieceDownloaders.Signal(1)
 				d.pieces[pi.Index].HavingPeers[pe.Peer] = struct{}{}
 				d.updateInterestedState(pe, d.closeC)
 			case peerprotocol.BitfieldMessage:
@@ -620,7 +705,7 @@ func (d *Downloader) run() {
 						d.pieces[i].HavingPeers[pe.Peer] = struct{}{}
 					}
 				}
-				pieceDownloaders.Signal(bf.Count())
+				d.pieceDownloaders.Signal(int(bf.Count()))
 				d.updateInterestedState(pe, d.closeC)
 			case peerprotocol.HaveAllMessage:
 				if d.info == nil {
@@ -630,7 +715,7 @@ func (d *Downloader) run() {
 				for i := range d.pieces {
 					d.pieces[i].HavingPeers[pe.Peer] = struct{}{}
 				}
-				pieceDownloaders.Signal(uint32(len(d.pieces)))
+				d.pieceDownloaders.Signal(len(d.pieces))
 				d.updateInterestedState(pe, d.closeC)
 			case peerprotocol.HaveNoneMessage:
 				// TODO handle?
@@ -648,7 +733,7 @@ func (d *Downloader) run() {
 				pe.Peer.Logger().Debug("Peer ", pe.Peer.String(), " has allowed fast for piece #", pi.Index)
 				d.pieces[msg.Index].AllowedFastPeers[pe.Peer] = struct{}{}
 			case peerprotocol.UnchokeMessage:
-				pieceDownloaders.Signal(1)
+				d.pieceDownloaders.Signal(1)
 				pe.PeerChoking = false
 				if pd, ok := d.pieceDownloads[pe.Peer]; ok {
 					pd.UnchokeC <- struct{}{}
@@ -736,7 +821,7 @@ func (d *Downloader) run() {
 			case *peerprotocol.ExtensionHandshakeMessage:
 				d.log.Debugln("extension handshake received", msg)
 				pe.ExtensionHandshake = msg
-				infoDownloaders.Signal(1)
+				d.infoDownloaders.Signal(1)
 			// TODO make it value type
 			case *peerprotocol.ExtensionMetadataMessage:
 				switch msg.Type {
@@ -1025,7 +1110,7 @@ func (d *Downloader) Stats() Stats {
 	var stats Stats
 	req := StatsRequest{Response: make(chan Stats, 1)}
 	select {
-	case d.statsC <- req:
+	case d.statsCommandC <- req:
 	case <-d.closeC:
 	}
 	select {

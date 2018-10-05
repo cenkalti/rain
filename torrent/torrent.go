@@ -175,6 +175,8 @@ func newTorrent(spec *downloader.Spec, name string) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
+	// TODO add start/stop to torrent
+	d.Start()
 	return &Torrent{
 		log:        l,
 		downloader: d,
