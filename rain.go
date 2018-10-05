@@ -10,8 +10,8 @@ import (
 
 	"github.com/cenkalti/log"
 	"github.com/cenkalti/rain/client"
+	"github.com/cenkalti/rain/internal/clientversion"
 	"github.com/cenkalti/rain/internal/logger"
-	rainversion "github.com/cenkalti/rain/internal/version"
 	"github.com/cenkalti/rain/resume/torrentresume"
 	"github.com/cenkalti/rain/storage/filestorage"
 	"github.com/cenkalti/rain/torrent"
@@ -25,7 +25,7 @@ var (
 )
 
 func main() {
-	app.Version = rainversion.Version
+	app.Version = clientversion.Version
 	app.Usage = "BitTorrent client"
 	app.Flags = []cli.Flag{
 		cli.StringFlag{

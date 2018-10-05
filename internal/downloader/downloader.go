@@ -14,6 +14,7 @@ import (
 
 	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/bitfield"
+	"github.com/cenkalti/rain/internal/clientversion"
 	"github.com/cenkalti/rain/internal/downloader/acceptor"
 	"github.com/cenkalti/rain/internal/downloader/addrlist"
 	"github.com/cenkalti/rain/internal/downloader/handshaker/incominghandshaker"
@@ -33,7 +34,6 @@ import (
 	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/internal/tracker/httptracker"
 	"github.com/cenkalti/rain/internal/tracker/udptracker"
-	"github.com/cenkalti/rain/internal/version"
 	"github.com/cenkalti/rain/resume"
 	"github.com/cenkalti/rain/storage"
 )
@@ -48,7 +48,7 @@ const (
 
 var (
 	// http://www.bittorrent.org/beps/bep_0020.html
-	peerIDPrefix = []byte("-RN" + version.Version + "-")
+	peerIDPrefix = []byte("-RN" + clientversion.Version + "-")
 )
 
 type Downloader struct {
