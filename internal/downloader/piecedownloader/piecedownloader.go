@@ -79,7 +79,7 @@ func (d *PieceDownloader) Run() {
 				break
 			}
 			msg := peerprotocol.RequestMessage{Index: d.Piece.Index, Begin: b.Begin, Length: b.Length}
-			d.Peer.SendMessage(msg, d.closeC)
+			d.Peer.SendMessage(msg)
 		case p := <-d.PieceC:
 			b := &d.blocks[p.Block.Index]
 			if b.requested && b.data == nil && d.limiter != nil {

@@ -47,7 +47,6 @@ func (p *Peer) String() string {
 
 func (p *Peer) Close() {
 	close(p.closeC)
-	p.conn.Close()
 	<-p.closedC
 }
 
@@ -59,12 +58,12 @@ func (p *Peer) Messages() <-chan interface{} {
 	return p.reader.Messages()
 }
 
-func (p *Peer) SendMessage(msg peerprotocol.Message, stopC chan struct{}) {
-	p.writer.SendMessage(msg, stopC)
+func (p *Peer) SendMessage(msg peerprotocol.Message) {
+	p.writer.SendMessage(msg)
 }
 
-func (p *Peer) SendPiece(msg peerprotocol.RequestMessage, pi *piece.Piece, stopC chan struct{}) {
-	p.writer.SendPiece(msg, pi, stopC)
+func (p *Peer) SendPiece(msg peerprotocol.RequestMessage, pi *piece.Piece) {
+	p.writer.SendPiece(msg, pi)
 }
 
 // Run reads and processes incoming messages after handshake.

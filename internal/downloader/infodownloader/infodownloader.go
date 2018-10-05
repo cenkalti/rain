@@ -103,7 +103,7 @@ func (d *InfoDownloader) Run() {
 					Piece: b.index,
 				},
 			}
-			d.Peer.SendMessage(msg, d.closeC)
+			d.Peer.SendMessage(msg)
 		case msg := <-d.DataC:
 			if msg.Index >= uint32(len(d.blocks)) {
 				result.Error = fmt.Errorf("peer sent invalid index for metadata message: %q", msg.Index)

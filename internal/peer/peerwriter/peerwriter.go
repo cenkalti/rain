@@ -18,6 +18,7 @@ type PeerWriter struct {
 	queueC     chan peerprotocol.Message
 	writeQueue []peerprotocol.Message
 	writeC     chan peerprotocol.Message
+	queueDone  chan struct{}
 	log        logger.Logger
 }
 
@@ -27,26 +28,28 @@ func New(conn net.Conn, l logger.Logger) *PeerWriter {
 		queueC:     make(chan peerprotocol.Message),
 		writeQueue: make([]peerprotocol.Message, 0),
 		writeC:     make(chan peerprotocol.Message),
+		queueDone:  make(chan struct{}),
 		log:        l,
 	}
 }
 
-func (p *PeerWriter) SendMessage(msg peerprotocol.Message, stopC chan struct{}) {
+func (p *PeerWriter) SendMessage(msg peerprotocol.Message) {
 	select {
 	case p.queueC <- msg:
-	case <-stopC:
+	case <-p.queueDone:
 	}
 }
 
-func (p *PeerWriter) SendPiece(msg peerprotocol.RequestMessage, pi *piece.Piece, stopC chan struct{}) {
+func (p *PeerWriter) SendPiece(msg peerprotocol.RequestMessage, pi *piece.Piece) {
 	m := Piece{Piece: pi, Begin: msg.Begin, Length: msg.Length}
 	select {
 	case p.queueC <- m:
-	case <-stopC:
+	case <-p.queueDone:
 	}
 }
 
 func (p *PeerWriter) Run(stopC chan struct{}) {
+	defer close(p.queueDone)
 	go p.messageWriter(stopC)
 	for {
 		if len(p.writeQueue) == 0 {
