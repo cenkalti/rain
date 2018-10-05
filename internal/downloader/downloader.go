@@ -126,7 +126,7 @@ type Downloader struct {
 
 	// These are the channels for sending a message to run() loop.
 	statsCommandC chan StatsRequest // Stats()
-	startCommandC chan struct{}     // Start()
+	startCommandC chan startCommand // Start()
 	stopCommandC  chan struct{}     // Stop()
 
 	// Trackers send announce responses to this channel.
@@ -232,7 +232,7 @@ func New(spec *Spec, l logger.Logger) (*Downloader, error) {
 		outgoingHandshakers:       make(map[string]*outgoinghandshaker.OutgoingHandshaker),
 		incomingHandshakerResultC: make(chan incominghandshaker.Result),
 		outgoingHandshakerResultC: make(chan outgoinghandshaker.Result),
-		startCommandC:             make(chan struct{}),
+		startCommandC:             make(chan startCommand),
 		stopCommandC:              make(chan struct{}),
 		announcerRequests:         make(chan *announcer.Request),
 		dialLimit:                 semaphore.New(maxPeerDial),
@@ -260,10 +260,17 @@ func (d *Downloader) ErrC() chan error {
 	return d.errC
 }
 
-func (d *Downloader) Start() {
+type startCommand struct {
+	errCC chan chan error
+}
+
+func (d *Downloader) Start() <-chan error {
+	cmd := startCommand{errCC: make(chan chan error)}
 	select {
-	case d.startCommandC <- struct{}{}:
+	case d.startCommandC <- cmd:
+		return <-cmd.errCC
 	case <-d.closedC:
+		return nil
 	}
 }
 
@@ -304,7 +311,9 @@ func parseTrackers(trackers []string, log logger.Logger) ([]tracker.Tracker, err
 	return ret, nil
 }
 
-func (d *Downloader) start() {
+func (d *Downloader) start(cmd startCommand) {
+	defer func() { cmd.errCC <- d.errC }()
+
 	if d.running {
 		return
 	}
@@ -425,8 +434,8 @@ func (d *Downloader) run() {
 		select {
 		case <-d.closeC:
 			return
-		case <-d.startCommandC:
-			d.start()
+		case cmd := <-d.startCommandC:
+			d.start(cmd)
 		case <-d.stopCommandC:
 			d.stop(errors.New("torrent is stopped"))
 		case addrs := <-d.addrsFromTrackers:

@@ -25,6 +25,7 @@ type Torrent struct {
 	closed     bool       // true after Close() is called
 	log        logger.Logger
 	downloader *downloader.Downloader
+	errC       <-chan error
 }
 
 // DownloadTorrent returns a new torrent by reading a metainfo file.
@@ -176,10 +177,11 @@ func newTorrent(spec *downloader.Spec, name string) (*Torrent, error) {
 		return nil, err
 	}
 	// TODO add start/stop to torrent
-	d.Start()
+	errC := d.Start()
 	return &Torrent{
 		log:        l,
 		downloader: d,
+		errC:       errC,
 	}, nil
 }
 
@@ -202,7 +204,7 @@ func (t *Torrent) NotifyComplete() <-chan struct{} { return t.downloader.NotifyC
 // NotifyError returns a new channel for waiting download errors.
 //
 // When error is sent to the channel, torrent is stopped automatically.
-func (t *Torrent) NotifyError() <-chan error { return t.downloader.ErrC() }
+func (t *Torrent) NotifyError() <-chan error { return t.errC }
 
 type Stats struct {
 	// Bytes that are downloaded and passed hash check.
