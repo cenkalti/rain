@@ -1,8 +1,7 @@
 package main
 
 import (
-	"flag"
-	"fmt"
+	"errors"
 	"os"
 	"os/signal"
 	"runtime/pprof"
@@ -17,45 +16,79 @@ import (
 	"github.com/cenkalti/rain/storage/filestorage"
 	"github.com/cenkalti/rain/torrent"
 	"github.com/mitchellh/go-homedir"
+	"github.com/urfave/cli"
 )
 
 var (
-	configPath = flag.String("config", "", "config path")
-	dest       = flag.String("dest", ".", "where to download")
-	port       = flag.Int("port", 0, "listen port")
-	debug      = flag.Bool("debug", false, "enable debug log")
-	version    = flag.Bool("version", false, "version")
-	seed       = flag.Bool("seed", false, "continue seeding after dowload finishes")
-	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
+	cfg = client.NewConfig()
+	app = cli.NewApp()
 )
 
 func main() {
-	flag.Parse()
-	if *cpuprofile != "" {
-		f, err := os.Create(*cpuprofile)
+	app.Version = rainversion.Version
+	app.Usage = "BitTorrent client"
+	app.Flags = []cli.Flag{
+		cli.StringFlag{
+			Name:  "config, c",
+			Usage: "read config from `FILE`",
+		},
+		cli.StringFlag{
+			Name:  "cpuprofile",
+			Usage: "write cpu profile to `FILE`",
+		},
+		cli.BoolFlag{
+			Name:  "debug, d",
+			Usage: "enable debug log",
+		},
+	}
+	app.Before = handleBeforeCommand
+	app.After = handleAfterCommand
+	app.Commands = []cli.Command{
+		{
+			Name:      "download",
+			Usage:     "download torrent or magnet",
+			ArgsUsage: "[torrent path or magnet link]",
+			Action:    handleDownload,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "dest",
+					Usage: "save files under `DIR`",
+					Value: ".",
+				},
+				cli.IntFlag{
+					Name:  "port",
+					Usage: "peer listen port",
+				},
+				cli.BoolFlag{
+					Name:  "seed",
+					Usage: "continue seeding after download finishes",
+				},
+			},
+		},
+	}
+	err := app.Run(os.Args)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func handleBeforeCommand(c *cli.Context) error {
+	cpuprofile := c.GlobalString("cpuprofile")
+	if cpuprofile != "" {
+		f, err := os.Create(cpuprofile)
 		if err != nil {
 			log.Fatal("could not create CPU profile: ", err)
 		}
 		if err := pprof.StartCPUProfile(f); err != nil {
 			log.Fatal("could not start CPU profile: ", err)
 		}
-		defer pprof.StopCPUProfile()
 	}
-	if *version {
-		fmt.Println(rainversion.Version)
-		return
-	}
-	args := flag.Args()
-	if len(args) == 0 {
-		_, _ = fmt.Fprintln(os.Stderr, "Give a torrent file as first argument!")
-		os.Exit(1)
-	}
-	if *debug {
+	if c.GlobalBool("debug") {
 		logger.SetLogLevel(log.DEBUG)
 	}
-	cfg := client.NewConfig()
-	if *configPath != "" {
-		cp, err := homedir.Expand(*configPath)
+	configPath := c.GlobalString("config")
+	if configPath != "" {
+		cp, err := homedir.Expand(configPath)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -64,7 +97,22 @@ func main() {
 			log.Fatal(err)
 		}
 	}
-	sto, err := filestorage.New(*dest)
+	return nil
+}
+
+func handleAfterCommand(c *cli.Context) error {
+	if c.GlobalString("cpuprofile") != "" {
+		defer pprof.StopCPUProfile()
+	}
+	return nil
+}
+
+func handleDownload(c *cli.Context) error {
+	path := c.Args().Get(0)
+	if path == "" {
+		return errors.New("first argument must be a torrent file or magnet link")
+	}
+	sto, err := filestorage.New(c.String("dest"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -73,14 +121,14 @@ func main() {
 		log.Fatal(err)
 	}
 	var t *torrent.Torrent
-	if strings.HasPrefix(args[0], "magnet:") {
-		t, err = torrent.DownloadMagnet(args[0], *port, sto, res)
+	if strings.HasPrefix(path, "magnet:") {
+		t, err = torrent.DownloadMagnet(path, c.Int("port"), sto, res)
 	} else {
-		f, err2 := os.Open(args[0])
+		f, err2 := os.Open(path) // nolint: gosec
 		if err2 != nil {
 			log.Fatal(err2)
 		}
-		t, err = torrent.DownloadTorrent(f, *port, sto, res)
+		t, err = torrent.DownloadTorrent(f, c.Int("port"), sto, res)
 		_ = f.Close()
 	}
 	if err != nil {
@@ -95,7 +143,7 @@ LOOP:
 		case <-sigC:
 			break LOOP
 		case <-t.NotifyComplete():
-			if !*seed {
+			if !c.Bool("seed") {
 				break LOOP
 			}
 		case err = <-t.NotifyError():
@@ -104,4 +152,5 @@ LOOP:
 		}
 	}
 	t.Close()
+	return nil
 }
