@@ -3,12 +3,14 @@ package peer
 import (
 	"github.com/cenkalti/rain/internal/downloader/infodownloader"
 	"github.com/cenkalti/rain/internal/downloader/piecedownloader"
-	pp "github.com/cenkalti/rain/internal/peer"
+	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peer/peerprotocol"
 )
 
 type Peer struct {
-	*pp.Peer
+	*peer.Peer
+	messages   chan Message
+	disconnect chan *Peer
 
 	Downloader     *piecedownloader.PieceDownloader
 	InfoDownloader *infodownloader.InfoDownloader
@@ -24,13 +26,48 @@ type Peer struct {
 	Messages []interface{}
 
 	ExtensionHandshake *peerprotocol.ExtensionHandshakeMessage
+
+	closeC  chan struct{}
+	closedC chan struct{}
 }
 
-func New(p *pp.Peer) *Peer {
+type Message struct {
+	*Peer
+	Message interface{}
+}
+
+func New(p *peer.Peer, messages chan Message, disconnect chan *Peer) *Peer {
 	return &Peer{
 		Peer:        p,
+		messages:    messages,
+		disconnect:  disconnect,
 		AmChoking:   true,
 		PeerChoking: true,
+		closeC:      make(chan struct{}),
+		closedC:     make(chan struct{}),
+	}
+}
+
+func (p *Peer) Close() {
+	close(p.closeC)
+	p.Peer.Close()
+	<-p.closedC
+}
+
+func (p *Peer) Run() {
+	defer close(p.closedC)
+	go p.Peer.Run()
+	for msg := range p.Peer.Messages() {
+		select {
+		case p.messages <- Message{Peer: p, Message: msg}:
+		case <-p.closeC:
+			return
+		}
+	}
+	select {
+	case p.disconnect <- p:
+	case <-p.closeC:
+		return
 	}
 }
 

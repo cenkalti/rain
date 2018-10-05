@@ -51,11 +51,6 @@ var (
 	peerIDPrefix = []byte("-RN" + version.Version + "-")
 )
 
-type PeerMessage struct {
-	*peer.Peer
-	Message interface{}
-}
-
 type Downloader struct {
 	// Identifies the torrent being downloaded.
 	infoHash [20]byte
@@ -97,7 +92,7 @@ type Downloader struct {
 	peerDisconnectedC chan *peer.Peer
 
 	// All messages coming from peers are sent to this channel.
-	messages chan PeerMessage
+	messages chan peer.Message
 
 	// We keep connected peers in this map after they complete handshake phase.
 	connectedPeers map[*ip.Peer]*peer.Peer
@@ -215,7 +210,7 @@ func New(spec *Spec, l logger.Logger) (*Downloader, error) {
 		info:                      spec.Info,
 		bitfield:                  spec.Bitfield,
 		peerDisconnectedC:         make(chan *peer.Peer),
-		messages:                  make(chan PeerMessage),
+		messages:                  make(chan peer.Message),
 		connectedPeers:            make(map[*ip.Peer]*peer.Peer),
 		pieceDownloads:            make(map[*ip.Peer]*piecedownloader.PieceDownloader),
 		infoDownloads:             make(map[*ip.Peer]*infodownloader.InfoDownloader),
@@ -539,7 +534,7 @@ func (d *Downloader) run() {
 			// process previously received messages
 			for _, pe := range d.connectedPeers {
 				for _, msg := range pe.Messages {
-					pm := PeerMessage{Peer: pe, Message: msg}
+					pm := peer.Message{Peer: pe, Message: msg}
 					d.handlePeerMessage(pm)
 				}
 			}
@@ -676,7 +671,7 @@ func (d *Downloader) run() {
 	}
 }
 
-func (d *Downloader) handlePeerMessage(pm PeerMessage) {
+func (d *Downloader) handlePeerMessage(pm peer.Message) {
 	pe := pm.Peer
 	switch msg := pm.Message.(type) {
 	case peerprotocol.HaveMessage:
@@ -890,14 +885,12 @@ func (d *Downloader) startPeer(p *ip.Peer, peers *[]*peer.Peer) {
 	}
 	d.peerIDs[p.ID()] = struct{}{}
 
-	pe := peer.New(p)
+	pe := peer.New(p, d.messages, d.peerDisconnectedC)
 	d.connectedPeers[p] = pe
 	*peers = append(*peers, pe)
 	go pe.Run()
 
 	d.sendFirstMessage(p)
-	go d.readMessages(pe, d.closeC)
-
 	if len(d.connectedPeers) <= 4 {
 		d.unchokePeer(pe, d.closeC)
 	}
@@ -1069,21 +1062,6 @@ func (d *Downloader) unchokePeer(pe *peer.Peer, stopC chan struct{}) {
 		pe.AmChoking = false
 		msg := peerprotocol.UnchokeMessage{}
 		pe.SendMessage(msg, stopC)
-	}
-}
-
-func (d *Downloader) readMessages(pe *peer.Peer, stopC chan struct{}) {
-	for msg := range pe.Peer.Messages() {
-		select {
-		case d.messages <- PeerMessage{Peer: pe, Message: msg}:
-		case <-stopC:
-			return
-		}
-	}
-	select {
-	case d.peerDisconnectedC <- pe:
-	case <-stopC:
-		return
 	}
 }
 
