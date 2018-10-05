@@ -48,6 +48,7 @@ func (p *PeerReader) Run(stopC chan struct{}) {
 			return
 		}
 
+		// TODO use bufio.Reader for reading peer messages to reduce syscalls
 		var length uint32
 		// p.log.Debug("Reading message...")
 		err = binary.Read(p.conn, binary.BigEndian, &length)
