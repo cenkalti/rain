@@ -102,7 +102,7 @@ func handleBeforeCommand(c *cli.Context) error {
 
 func handleAfterCommand(c *cli.Context) error {
 	if c.GlobalString("cpuprofile") != "" {
-		defer pprof.StopCPUProfile()
+		pprof.StopCPUProfile()
 	}
 	return nil
 }
