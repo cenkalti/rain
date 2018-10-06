@@ -136,7 +136,10 @@ func handleDownload(c *cli.Context) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	t.SetResume(res)
+	err = t.SetResume(res)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	sigC := make(chan os.Signal, 1)
 	signal.Notify(sigC, syscall.SIGINT, syscall.SIGTERM)
