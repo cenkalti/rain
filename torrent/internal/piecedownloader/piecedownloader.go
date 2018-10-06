@@ -13,7 +13,7 @@ const maxQueuedBlocks = 10
 // PieceDownloader downloads all blocks of a piece from a peer.
 type PieceDownloader struct {
 	Piece    *pieceio.Piece
-	Peer     *peerconn.Peer
+	Peer     *peerconn.Conn
 	blocks   []block
 	limiter  chan struct{}
 	PieceC   chan Piece
@@ -31,12 +31,12 @@ type block struct {
 }
 
 type Result struct {
-	Peer  *peerconn.Peer
+	Peer  *peerconn.Conn
 	Piece *pieceio.Piece
 	Bytes []byte
 }
 
-func New(pi *pieceio.Piece, pe *peerconn.Peer, resultC chan Result) *PieceDownloader {
+func New(pi *pieceio.Piece, pe *peerconn.Conn, resultC chan Result) *PieceDownloader {
 	blocks := make([]block, len(pi.Blocks))
 	for i := range blocks {
 		blocks[i] = block{Block: &pi.Blocks[i]}

@@ -17,7 +17,7 @@ const maxQueuedBlocks = 10
 type InfoDownloader struct {
 	extID     uint8
 	totalSize uint32
-	Peer      *peerconn.Peer
+	Peer      *peerconn.Conn
 	blocks    []block
 	semaphore *semaphore.Semaphore
 	DataC     chan Data
@@ -39,12 +39,12 @@ type block struct {
 }
 
 type Result struct {
-	Peer  *peerconn.Peer
+	Peer  *peerconn.Conn
 	Bytes []byte
 	Error error
 }
 
-func New(pe *peerconn.Peer, extID uint8, totalSize uint32, resultC chan Result) *InfoDownloader {
+func New(pe *peerconn.Conn, extID uint8, totalSize uint32, resultC chan Result) *InfoDownloader {
 	numBlocks := totalSize / blockSize
 	mod := totalSize % blockSize
 	if mod != 0 {

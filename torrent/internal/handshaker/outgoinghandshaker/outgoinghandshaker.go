@@ -21,7 +21,7 @@ type OutgoingHandshaker struct {
 }
 
 type Result struct {
-	Peer  *peerconn.Peer
+	Peer  *peerconn.Conn
 	Addr  net.Addr
 	Error error
 }

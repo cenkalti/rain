@@ -22,7 +22,7 @@ type IncomingHandshaker struct {
 }
 
 type Result struct {
-	Peer  *peerconn.Peer
+	Peer  *peerconn.Conn
 	Conn  net.Conn
 	Error error
 }
@@ -58,7 +58,7 @@ func (h *IncomingHandshaker) Run() {
 	ourbf.Set(61) // Fast Extension (BEP 6)
 	ourbf.Set(43) // Extension Protocol (BEP 10)
 
-	encConn, cipher, peerExtensions, peerID, _, err := btconn.Accept(
+	conn, cipher, peerExtensions, peerID, _, err := btconn.Accept(
 		h.conn, h.getSKey, encryptionForceIncoming, h.checkInfoHash, ourExtensions, h.peerID)
 	if err != nil {
 		log.Error(err)
@@ -73,7 +73,7 @@ func (h *IncomingHandshaker) Run() {
 	peerbf := bitfield.NewBytes(peerExtensions[:], 64)
 	extensions := ourbf.And(peerbf)
 
-	p := peerconn.New(encConn, peerID, extensions, log)
+	p := peerconn.New(conn, peerID, extensions, log)
 	select {
 	case h.resultC <- Result{Conn: h.conn, Peer: p}:
 	case <-h.closeC:

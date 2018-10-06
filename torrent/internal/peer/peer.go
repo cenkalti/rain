@@ -8,7 +8,7 @@ import (
 )
 
 type Peer struct {
-	*peerconn.Peer
+	*peerconn.Conn
 	messages   chan Message
 	disconnect chan *Peer
 
@@ -36,9 +36,9 @@ type Message struct {
 	Message interface{}
 }
 
-func New(p *peerconn.Peer, messages chan Message, disconnect chan *Peer) *Peer {
+func New(p *peerconn.Conn, messages chan Message, disconnect chan *Peer) *Peer {
 	return &Peer{
-		Peer:        p,
+		Conn:        p,
 		messages:    messages,
 		disconnect:  disconnect,
 		AmChoking:   true,
@@ -50,14 +50,14 @@ func New(p *peerconn.Peer, messages chan Message, disconnect chan *Peer) *Peer {
 
 func (p *Peer) Close() {
 	close(p.closeC)
-	p.Peer.Close()
+	p.Conn.Close()
 	<-p.closedC
 }
 
 func (p *Peer) Run() {
 	defer close(p.closedC)
-	go p.Peer.Run()
-	for msg := range p.Peer.Messages() {
+	go p.Conn.Run()
+	for msg := range p.Conn.Messages() {
 		select {
 		case p.messages <- Message{Peer: p, Message: msg}:
 		case <-p.closeC:

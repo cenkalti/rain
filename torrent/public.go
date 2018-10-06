@@ -23,6 +23,7 @@ func (t *Torrent) Stop() {
 func (t *Torrent) Close() {
 	select {
 	case t.closeC <- struct{}{}:
+		<-t.closedC
 	case <-t.closedC:
 	}
 }

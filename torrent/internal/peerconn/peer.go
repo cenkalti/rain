@@ -11,7 +11,7 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/pieceio"
 )
 
-type Peer struct {
+type Conn struct {
 	conn          net.Conn
 	id            [20]byte
 	FastExtension bool
@@ -22,10 +22,10 @@ type Peer struct {
 	closedC       chan struct{}
 }
 
-func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, l logger.Logger) *Peer {
+func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, l logger.Logger) *Conn {
 	fastExtension := extensions.Test(61)
 	extensionProtocol := extensions.Test(43)
-	return &Peer{
+	return &Conn{
 		conn:          conn,
 		id:            id,
 		FastExtension: fastExtension,
@@ -37,37 +37,41 @@ func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, l logger.Log
 	}
 }
 
-func (p *Peer) ID() [20]byte {
+func (p *Conn) ID() [20]byte {
 	return p.id
 }
 
-func (p *Peer) String() string {
+func (p *Conn) String() string {
 	return p.conn.RemoteAddr().String()
 }
 
-func (p *Peer) Close() {
+func (p *Conn) Close() {
 	close(p.closeC)
 	<-p.closedC
 }
 
-func (p *Peer) Logger() logger.Logger {
+func (p *Conn) CloseConn() {
+	p.conn.Close()
+}
+
+func (p *Conn) Logger() logger.Logger {
 	return p.log
 }
 
-func (p *Peer) Messages() <-chan interface{} {
+func (p *Conn) Messages() <-chan interface{} {
 	return p.reader.Messages()
 }
 
-func (p *Peer) SendMessage(msg peerprotocol.Message) {
+func (p *Conn) SendMessage(msg peerprotocol.Message) {
 	p.writer.SendMessage(msg)
 }
 
-func (p *Peer) SendPiece(msg peerprotocol.RequestMessage, pi *pieceio.Piece) {
+func (p *Conn) SendPiece(msg peerprotocol.RequestMessage, pi *pieceio.Piece) {
 	p.writer.SendPiece(msg, pi)
 }
 
 // Run reads and processes incoming messages after handshake.
-func (p *Peer) Run() {
+func (p *Conn) Run() {
 	defer close(p.closedC)
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 

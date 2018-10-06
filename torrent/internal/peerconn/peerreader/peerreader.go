@@ -155,7 +155,11 @@ func (p *PeerReader) Run(stopC chan struct{}) {
 			buf := make([]byte, length)
 			_, err = io.ReadFull(p.conn, buf)
 			if err != nil {
-				p.log.Error(err)
+				select {
+				case <-stopC:
+				default:
+					p.log.Error(err)
+				}
 				return
 			}
 			pm := peerprotocol.PieceMessage{Length: length - 8}

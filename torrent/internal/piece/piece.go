@@ -8,18 +8,18 @@ import (
 
 type Piece struct {
 	*pp.Piece
-	HavingPeers      map[*peerconn.Peer]struct{}
-	AllowedFastPeers map[*peerconn.Peer]struct{}
-	RequestedPeers   map[*peerconn.Peer]*piecedownloader.PieceDownloader
+	HavingPeers      map[*peerconn.Conn]struct{}
+	AllowedFastPeers map[*peerconn.Conn]struct{}
+	RequestedPeers   map[*peerconn.Conn]*piecedownloader.PieceDownloader
 	Writing          bool
 }
 
 func New(p *pp.Piece) Piece {
 	return Piece{
 		Piece:            p,
-		HavingPeers:      make(map[*peerconn.Peer]struct{}),
-		AllowedFastPeers: make(map[*peerconn.Peer]struct{}),
-		RequestedPeers:   make(map[*peerconn.Peer]*piecedownloader.PieceDownloader),
+		HavingPeers:      make(map[*peerconn.Conn]struct{}),
+		AllowedFastPeers: make(map[*peerconn.Conn]struct{}),
+		RequestedPeers:   make(map[*peerconn.Conn]*piecedownloader.PieceDownloader),
 	}
 }
 

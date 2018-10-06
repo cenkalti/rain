@@ -19,7 +19,7 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/infodownloader"
 	"github.com/cenkalti/rain/torrent/internal/metainfo"
 	"github.com/cenkalti/rain/torrent/internal/peer"
-	ip "github.com/cenkalti/rain/torrent/internal/peerconn"
+	"github.com/cenkalti/rain/torrent/internal/peerconn"
 	"github.com/cenkalti/rain/torrent/internal/peerconn/peerprotocol"
 	"github.com/cenkalti/rain/torrent/internal/piece"
 	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
@@ -260,23 +260,26 @@ func (t *Torrent) run() {
 			var err error
 			t.info, err = metainfo.NewInfo(res.Bytes)
 			if err != nil {
-				t.log.Errorln("cannot parse info bytes:", err)
-				t.errC <- err
-				return
+				err = fmt.Errorf("cannot parse info bytes: %s", err)
+				t.log.Error(err)
+				t.stop(err)
+				break
 			}
 			if t.resume != nil {
 				err = t.resume.WriteInfo(t.info.Bytes)
 				if err != nil {
-					t.log.Errorln("cannot write resume info:", err)
-					t.errC <- err
-					return
+					err = fmt.Errorf("cannot write resume info: %s", err)
+					t.log.Error(err)
+					t.stop(err)
+					break
 				}
 			}
 			err = t.processInfo()
 			if err != nil {
-				t.log.Errorln("cannot process info:", err)
-				t.errC <- err
-				return
+				err = fmt.Errorf("cannot process info: %s", err)
+				t.log.Error(err)
+				t.stop(err)
+				break
 			}
 			// process previously received messages
 			for _, pe := range t.connectedPeers {
@@ -405,12 +408,17 @@ func (t *Torrent) run() {
 			delete(t.peerIDs, pe.ID())
 			if pe.Downloader != nil {
 				pe.Downloader.Close()
+				delete(t.pieceDownloads, pe.Conn)
 			}
-			delete(t.connectedPeers, pe.Peer)
+			if pe.InfoDownloader != nil {
+				pe.InfoDownloader.Close()
+				delete(t.infoDownloads, pe.Conn)
+			}
+			delete(t.connectedPeers, pe.Conn)
 			for i := range t.pieces {
-				delete(t.pieces[i].HavingPeers, pe.Peer)
-				delete(t.pieces[i].AllowedFastPeers, pe.Peer)
-				delete(t.pieces[i].RequestedPeers, pe.Peer)
+				delete(t.pieces[i].HavingPeers, pe.Conn)
+				delete(t.pieces[i].AllowedFastPeers, pe.Conn)
+				delete(t.pieces[i].RequestedPeers, pe.Conn)
 			}
 		case pm := <-t.messages:
 			t.handlePeerMessage(pm)
@@ -428,14 +436,14 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			break
 		}
 		if msg.Index >= uint32(len(t.data.Pieces)) {
-			pe.Peer.Logger().Errorln("unexpected piece index:", msg.Index)
-			pe.Peer.Close()
+			pe.Conn.Logger().Errorln("unexpected piece index:", msg.Index)
+			pe.Conn.Close()
 			break
 		}
 		pi := &t.data.Pieces[msg.Index]
-		pe.Peer.Logger().Debug("Peer ", pe.Peer.String(), " has piece #", pi.Index)
+		pe.Conn.Logger().Debug("Peer ", pe.Conn.String(), " has piece #", pi.Index)
 		t.pieceDownloaders.Signal(1)
-		t.pieces[pi.Index].HavingPeers[pe.Peer] = struct{}{}
+		t.pieces[pi.Index].HavingPeers[pe.Conn] = struct{}{}
 		t.updateInterestedState(pe)
 	case peerprotocol.BitfieldMessage:
 		// Save bitfield messages while we don't have info yet.
@@ -445,15 +453,15 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		}
 		numBytes := uint32(bitfield.NumBytes(uint32(len(t.data.Pieces))))
 		if uint32(len(msg.Data)) != numBytes {
-			pe.Peer.Logger().Errorln("invalid bitfield length:", len(msg.Data))
-			pe.Peer.Close()
+			pe.Conn.Logger().Errorln("invalid bitfield length:", len(msg.Data))
+			pe.Conn.Close()
 			break
 		}
 		bf := bitfield.NewBytes(msg.Data, uint32(len(t.data.Pieces)))
-		pe.Peer.Logger().Debugln("Received bitfield:", bf.Hex())
+		pe.Conn.Logger().Debugln("Received bitfield:", bf.Hex())
 		for i := uint32(0); i < bf.Len(); i++ {
 			if bf.Test(i) {
-				t.pieces[i].HavingPeers[pe.Peer] = struct{}{}
+				t.pieces[i].HavingPeers[pe.Conn] = struct{}{}
 			}
 		}
 		t.pieceDownloaders.Signal(int(bf.Count()))
@@ -464,7 +472,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			break
 		}
 		for i := range t.pieces {
-			t.pieces[i].HavingPeers[pe.Peer] = struct{}{}
+			t.pieces[i].HavingPeers[pe.Conn] = struct{}{}
 		}
 		t.pieceDownloaders.Signal(len(t.pieces))
 		t.updateInterestedState(pe)
@@ -476,22 +484,22 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			break
 		}
 		if msg.Index >= uint32(len(t.data.Pieces)) {
-			pe.Peer.Logger().Errorln("invalid allowed fast piece index:", msg.Index)
-			pe.Peer.Close()
+			pe.Conn.Logger().Errorln("invalid allowed fast piece index:", msg.Index)
+			pe.Conn.Close()
 			break
 		}
 		pi := &t.data.Pieces[msg.Index]
-		pe.Peer.Logger().Debug("Peer ", pe.Peer.String(), " has allowed fast for piece #", pi.Index)
-		t.pieces[msg.Index].AllowedFastPeers[pe.Peer] = struct{}{}
+		pe.Conn.Logger().Debug("Peer ", pe.Conn.String(), " has allowed fast for piece #", pi.Index)
+		t.pieces[msg.Index].AllowedFastPeers[pe.Conn] = struct{}{}
 	case peerprotocol.UnchokeMessage:
 		t.pieceDownloaders.Signal(1)
 		pe.PeerChoking = false
-		if pd, ok := t.pieceDownloads[pe.Peer]; ok {
+		if pd, ok := t.pieceDownloads[pe.Conn]; ok {
 			pd.UnchokeC <- struct{}{}
 		}
 	case peerprotocol.ChokeMessage:
 		pe.PeerChoking = true
-		if pd, ok := t.pieceDownloads[pe.Peer]; ok {
+		if pd, ok := t.pieceDownloads[pe.Conn]; ok {
 			pd.ChokeC <- struct{}{}
 		}
 	case peerprotocol.InterestedMessage:
@@ -502,69 +510,69 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		_ = pe
 	case peerprotocol.PieceMessage:
 		if msg.Index >= uint32(len(t.data.Pieces)) {
-			pe.Peer.Logger().Errorln("invalid piece index:", msg.Index)
-			pe.Peer.Close()
+			pe.Conn.Logger().Errorln("invalid piece index:", msg.Index)
+			pe.Conn.Close()
 			break
 		}
 		piece := &t.data.Pieces[msg.Index]
 		block := piece.Blocks.Find(msg.Begin, msg.Length)
 		if block == nil {
-			pe.Peer.Logger().Errorln("invalid piece begin:", msg.Begin, "length:", msg.Length)
-			pe.Peer.Close()
+			pe.Conn.Logger().Errorln("invalid piece begin:", msg.Begin, "length:", msg.Length)
+			pe.Conn.Close()
 			break
 		}
 		pe.BytesDownlaodedInChokePeriod += int64(len(msg.Data))
-		if pd, ok := t.pieceDownloads[pe.Peer]; ok {
+		if pd, ok := t.pieceDownloads[pe.Conn]; ok {
 			pd.PieceC <- piecedownloader.Piece{Block: block, Data: msg.Data}
 		}
 	case peerprotocol.RequestMessage:
 		if t.info == nil {
-			pe.Peer.Logger().Error("request received but we don't have info")
-			pe.Peer.Close()
+			pe.Conn.Logger().Error("request received but we don't have info")
+			pe.Conn.Close()
 			break
 		}
 		if msg.Index >= uint32(len(t.data.Pieces)) {
-			pe.Peer.Logger().Errorln("invalid request index:", msg.Index)
-			pe.Peer.Close()
+			pe.Conn.Logger().Errorln("invalid request index:", msg.Index)
+			pe.Conn.Close()
 			break
 		}
 		if msg.Begin+msg.Length > t.data.Pieces[msg.Index].Length {
-			pe.Peer.Logger().Errorln("invalid request length:", msg.Length)
-			pe.Peer.Close()
+			pe.Conn.Logger().Errorln("invalid request length:", msg.Length)
+			pe.Conn.Close()
 			break
 		}
 		pi := &t.data.Pieces[msg.Index]
 		if pe.AmChoking {
-			if pe.Peer.FastExtension {
+			if pe.Conn.FastExtension {
 				m := peerprotocol.RejectMessage{RequestMessage: msg}
 				pe.SendMessage(m)
 			}
 		} else {
-			pe.Peer.SendPiece(msg, pi)
+			pe.Conn.SendPiece(msg, pi)
 		}
 	case peerprotocol.RejectMessage:
 		if t.info == nil {
-			pe.Peer.Logger().Error("reject received but we don't have info")
-			pe.Peer.Close()
+			pe.Conn.Logger().Error("reject received but we don't have info")
+			pe.Conn.Close()
 			break
 		}
 
 		if msg.Index >= uint32(len(t.data.Pieces)) {
-			pe.Peer.Logger().Errorln("invalid reject index:", msg.Index)
-			pe.Peer.Close()
+			pe.Conn.Logger().Errorln("invalid reject index:", msg.Index)
+			pe.Conn.Close()
 			break
 		}
 		piece := &t.data.Pieces[msg.Index]
 		block := piece.Blocks.Find(msg.Begin, msg.Length)
 		if block == nil {
-			pe.Peer.Logger().Errorln("invalid reject begin:", msg.Begin, "length:", msg.Length)
-			pe.Peer.Close()
+			pe.Conn.Logger().Errorln("invalid reject begin:", msg.Begin, "length:", msg.Length)
+			pe.Conn.Close()
 			break
 		}
-		pd, ok := t.pieceDownloads[pe.Peer]
+		pd, ok := t.pieceDownloads[pe.Conn]
 		if !ok {
-			pe.Peer.Logger().Error("reject received but we don't have active download")
-			pe.Peer.Close()
+			pe.Conn.Logger().Error("reject received but we don't have active download")
+			pe.Conn.Close()
 			break
 		}
 		pd.RejectC <- block
@@ -603,18 +611,14 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 				ExtendedMessageID: extMsgID,
 				Payload:           &dataMsg,
 			}
-			pe.Peer.SendMessage(extDataMsg)
+			pe.Conn.SendMessage(extDataMsg)
 		case peerprotocol.ExtensionMetadataMessageTypeData:
-			id, ok := t.infoDownloads[pe.Peer]
+			id, ok := t.infoDownloads[pe.Conn]
 			if !ok {
-				pe.Peer.Logger().Warningln("received unexpected metadata piece:", msg.Piece)
+				pe.Conn.Logger().Warningln("received unexpected metadata piece:", msg.Piece)
 				break
 			}
-			select {
-			case id.DataC <- infodownloader.Data{Index: msg.Piece, Data: msg.Data}:
-			case <-t.closeC:
-				return
-			}
+			id.DataC <- infodownloader.Data{Index: msg.Piece, Data: msg.Data}
 		case peerprotocol.ExtensionMetadataMessageTypeReject:
 			// TODO handle metadata piece reject
 		}
@@ -623,11 +627,11 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 	}
 }
 
-func (t *Torrent) startPeer(p *ip.Peer, peers *[]*peer.Peer) {
+func (t *Torrent) startPeer(p *peerconn.Conn, peers *[]*peer.Peer) {
 	_, ok := t.peerIDs[p.ID()]
 	if ok {
 		p.Logger().Errorln("peer with same id already connected:", p.ID())
-		p.Close()
+		p.CloseConn()
 		return
 	}
 	t.peerIDs[p.ID()] = struct{}{}
@@ -643,7 +647,7 @@ func (t *Torrent) startPeer(p *ip.Peer, peers *[]*peer.Peer) {
 	}
 }
 
-func (t *Torrent) sendFirstMessage(p *ip.Peer) {
+func (t *Torrent) sendFirstMessage(p *peerconn.Conn) {
 	bf := t.bitfield
 	if p.FastExtension && bf != nil && bf.All() {
 		msg := peerprotocol.HaveAllMessage{}
@@ -724,7 +728,7 @@ func (t *Torrent) nextInfoDownload() *infodownloader.InfoDownloader {
 		if !ok {
 			continue
 		}
-		return infodownloader.New(pe.Peer, extID, pe.ExtensionHandshake.MetadataSize, t.infoDownloaderResultC)
+		return infodownloader.New(pe.Conn, extID, pe.ExtensionHandshake.MetadataSize, t.infoDownloaderResultC)
 	}
 	return nil
 }
@@ -777,7 +781,7 @@ func (t *Torrent) updateInterestedState(pe *peer.Peer) {
 	interested := false
 	for i := uint32(0); i < t.bitfield.Len(); i++ {
 		weHave := t.bitfield.Test(i)
-		_, peerHave := t.pieces[i].HavingPeers[pe.Peer]
+		_, peerHave := t.pieces[i].HavingPeers[pe.Conn]
 		if !weHave && peerHave {
 			interested = true
 			break
@@ -786,13 +790,13 @@ func (t *Torrent) updateInterestedState(pe *peer.Peer) {
 	if !pe.AmInterested && interested {
 		pe.AmInterested = true
 		msg := peerprotocol.InterestedMessage{}
-		pe.Peer.SendMessage(msg)
+		pe.Conn.SendMessage(msg)
 		return
 	}
 	if pe.AmInterested && !interested {
 		pe.AmInterested = false
 		msg := peerprotocol.NotInterestedMessage{}
-		pe.Peer.SendMessage(msg)
+		pe.Conn.SendMessage(msg)
 		return
 	}
 }
