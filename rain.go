@@ -116,25 +116,27 @@ func handleDownload(c *cli.Context) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	res, err := torrentresume.New("rain.resume")
-	if err != nil {
-		log.Fatal(err)
-	}
 	var t *torrent.Torrent
 	if strings.HasPrefix(path, "magnet:") {
-		t, err = torrent.DownloadMagnet(path, c.Int("port"), sto, res)
+		t, err = torrent.NewMagnet(path, c.Int("port"), sto)
 	} else {
 		f, err2 := os.Open(path) // nolint: gosec
 		if err2 != nil {
 			log.Fatal(err2)
 		}
-		t, err = torrent.DownloadTorrent(f, c.Int("port"), sto, res)
+		t, err = torrent.New(f, c.Int("port"), sto)
 		_ = f.Close()
 	}
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer t.Close()
+
+	res, err := torrentresume.New(t.Name() + "." + t.InfoHash() + ".resume")
+	if err != nil {
+		log.Fatal(err)
+	}
+	t.SetResume(res)
 
 	sigC := make(chan os.Signal, 1)
 	signal.Notify(sigC, syscall.SIGINT, syscall.SIGTERM)

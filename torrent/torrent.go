@@ -1,10 +1,8 @@
 package torrent
 
 import (
-	"bytes"
 	"errors"
 	"io"
-	"sync"
 
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/downloader"
@@ -20,15 +18,12 @@ var errInvalidResumeFile = errors.New("invalid resume file (info hashes does not
 
 // Torrent connect to peers and downloads files from swarm.
 type Torrent struct {
-	// TODO remove mutex, use channels
-	m          sync.Mutex // protects running and closed state
-	closed     bool       // true after Close() is called
-	log        logger.Logger
+	spec       *downloader.Spec
 	downloader *downloader.Downloader
 	errC       <-chan error
 }
 
-// DownloadTorrent returns a new torrent by reading a metainfo file.
+// New returns a new torrent by reading a metainfo file.
 //
 // Files are read from disk. If there are existing files, hash check will be done.
 //
@@ -37,69 +32,31 @@ type Torrent struct {
 // Seeding continues after all files are downloaded.
 //
 // You should listen NotifyComplete and NotifyError channels after starting the torrent.
-func DownloadTorrent(r io.Reader, port int, sto storage.Storage, res resume.DB) (*Torrent, error) {
+func New(r io.Reader, port int, sto storage.Storage) (*Torrent, error) {
 	m, err := metainfo.New(r)
 	if err != nil {
 		return nil, err
-	}
-	if res != nil {
-		rspec, err2 := res.Read()
-		if err2 != nil {
-			return nil, err2
-		}
-		if rspec != nil {
-			if !bytes.Equal(rspec.InfoHash, m.Info.Hash[:]) {
-				return nil, errInvalidResumeFile
-			}
-			return loadResumeSpec(rspec, res)
-		}
 	}
 	spec := &downloader.Spec{
 		InfoHash: m.Info.Hash,
 		Trackers: m.GetTrackers(),
 		Port:     port,
 		Storage:  sto,
-		Resume:   res,
 		Info:     m.Info,
-	}
-	if res != nil {
-		err = writeResume(res, spec, m.Info.Name)
-		if err != nil {
-			return nil, err
-		}
 	}
 	return newTorrent(spec, m.Info.Name)
 }
 
-func DownloadMagnet(magnetLink string, port int, sto storage.Storage, res resume.DB) (*Torrent, error) {
+func NewMagnet(magnetLink string, port int, sto storage.Storage) (*Torrent, error) {
 	m, err := magnet.New(magnetLink)
 	if err != nil {
 		return nil, err
-	}
-	if res != nil {
-		rspec, err2 := res.Read()
-		if err2 != nil {
-			return nil, err2
-		}
-		if rspec != nil {
-			if !bytes.Equal(rspec.InfoHash, m.InfoHash[:]) {
-				return nil, errInvalidResumeFile
-			}
-			return loadResumeSpec(rspec, res)
-		}
 	}
 	spec := &downloader.Spec{
 		InfoHash: m.InfoHash,
 		Trackers: m.Trackers,
 		Port:     port,
 		Storage:  sto,
-		Resume:   res,
-	}
-	if res != nil {
-		err = writeResume(res, spec, m.Name)
-		if err != nil {
-			return nil, err
-		}
 	}
 	return newTorrent(spec, m.Name)
 }
@@ -113,6 +70,37 @@ func Resume(res resume.DB) (*Torrent, error) {
 		return nil, errors.New("no resume info")
 	}
 	return loadResumeSpec(spec, res)
+}
+
+func (t *Torrent) Name() string {
+	// TODO return correct name
+	return "foo"
+}
+
+func (t *Torrent) InfoHash() string {
+	// TODO return correct info hash
+	return "bar"
+}
+
+func (t *Torrent) SetResume(res resume.DB) error {
+	spec, err := res.Read()
+	if err != nil {
+		return err
+	}
+	if spec == nil {
+		return t.writeResume(res, t.Name())
+	}
+	t2, err := loadResumeSpec(spec, res)
+	if err != nil {
+		return err
+	}
+	if t.InfoHash() != t2.InfoHash() {
+		t2.Close()
+		return errInvalidResumeFile
+	}
+	t.Close()
+	*t = *t2
+	return nil
 }
 
 func loadResumeSpec(spec *resume.Spec, res resume.DB) (*Torrent, error) {
@@ -146,20 +134,20 @@ func loadResumeSpec(spec *resume.Spec, res resume.DB) (*Torrent, error) {
 	return newTorrent(dspec, spec.Name)
 }
 
-func writeResume(res resume.DB, dspec *downloader.Spec, name string) error {
+func (t *Torrent) writeResume(res resume.DB, name string) error {
 	rspec := &resume.Spec{
-		InfoHash:    dspec.InfoHash[:],
-		Port:        dspec.Port,
+		InfoHash:    t.spec.InfoHash[:],
+		Port:        t.spec.Port,
 		Name:        name,
-		Trackers:    dspec.Trackers,
-		StorageType: dspec.Storage.Type(),
-		StorageArgs: dspec.Storage.Args(),
+		Trackers:    t.spec.Trackers,
+		StorageType: t.spec.Storage.Type(),
+		StorageArgs: t.spec.Storage.Args(),
 	}
-	if dspec.Info != nil {
-		rspec.Info = dspec.Info.Bytes
+	if t.spec.Info != nil {
+		rspec.Info = t.spec.Info.Bytes
 	}
-	if dspec.Bitfield != nil {
-		rspec.Bitfield = dspec.Bitfield.Bytes()
+	if t.spec.Bitfield != nil {
+		rspec.Bitfield = t.spec.Bitfield.Bytes()
 	}
 	return res.Write(rspec)
 }
@@ -179,7 +167,7 @@ func newTorrent(spec *downloader.Spec, name string) (*Torrent, error) {
 	// TODO add start/stop to torrent
 	errC := d.Start()
 	return &Torrent{
-		log:        l,
+		spec:       spec,
 		downloader: d,
 		errC:       errC,
 	}, nil
@@ -187,14 +175,6 @@ func newTorrent(spec *downloader.Spec, name string) (*Torrent, error) {
 
 // Close this torrent and release all resources.
 func (t *Torrent) Close() {
-	t.m.Lock()
-	if t.closed {
-		t.m.Unlock()
-		return
-	}
-	t.closed = true
-	t.m.Unlock()
-
 	t.downloader.Close()
 }
 
@@ -227,13 +207,6 @@ type Stats struct {
 }
 
 func (t *Torrent) Stats() *Stats {
-	t.m.Lock()
-	defer t.m.Unlock()
-
-	if t.closed {
-		return nil
-	}
-
 	ds := t.downloader.Stats()
 	return &Stats{
 		BytesComplete:   ds.BytesComplete,
