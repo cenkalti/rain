@@ -2,24 +2,24 @@ package piece
 
 import (
 	"github.com/cenkalti/rain/internal/downloader/piecedownloader"
-	"github.com/cenkalti/rain/internal/peer"
-	pp "github.com/cenkalti/rain/internal/piece"
+	"github.com/cenkalti/rain/internal/peerconn"
+	pp "github.com/cenkalti/rain/internal/pieceio"
 )
 
 type Piece struct {
 	*pp.Piece
-	HavingPeers      map[*peer.Peer]struct{}
-	AllowedFastPeers map[*peer.Peer]struct{}
-	RequestedPeers   map[*peer.Peer]*piecedownloader.PieceDownloader
+	HavingPeers      map[*peerconn.Peer]struct{}
+	AllowedFastPeers map[*peerconn.Peer]struct{}
+	RequestedPeers   map[*peerconn.Peer]*piecedownloader.PieceDownloader
 	Writing          bool
 }
 
 func New(p *pp.Piece) Piece {
 	return Piece{
 		Piece:            p,
-		HavingPeers:      make(map[*peer.Peer]struct{}),
-		AllowedFastPeers: make(map[*peer.Peer]struct{}),
-		RequestedPeers:   make(map[*peer.Peer]*piecedownloader.PieceDownloader),
+		HavingPeers:      make(map[*peerconn.Peer]struct{}),
+		AllowedFastPeers: make(map[*peerconn.Peer]struct{}),
+		RequestedPeers:   make(map[*peerconn.Peer]*piecedownloader.PieceDownloader),
 	}
 }
 

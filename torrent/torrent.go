@@ -25,7 +25,7 @@ import (
 	"github.com/cenkalti/rain/internal/magnet"
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/mse"
-	ip "github.com/cenkalti/rain/internal/peer"
+	ip "github.com/cenkalti/rain/internal/peerconn"
 	"github.com/cenkalti/rain/internal/semaphore"
 	"github.com/cenkalti/rain/internal/torrentdata"
 	"github.com/cenkalti/rain/internal/tracker"

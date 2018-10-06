@@ -1,4 +1,4 @@
-package piece
+package pieceio
 
 const BlockSize = 16 * 1024
 

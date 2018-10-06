@@ -1,10 +1,10 @@
 package piecedownloader
 
 import (
-	"github.com/cenkalti/rain/internal/piece"
+	"github.com/cenkalti/rain/internal/pieceio"
 )
 
 type Piece struct {
-	Block *piece.Block
+	Block *pieceio.Block
 	Data  []byte
 }

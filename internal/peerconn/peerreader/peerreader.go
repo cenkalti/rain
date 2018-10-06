@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/peer/peerprotocol"
+	"github.com/cenkalti/rain/internal/peerconn/peerprotocol"
 )
 
 // MaxAllowedBlockSize is the max size of block data that we accept from peers.

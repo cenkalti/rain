@@ -22,8 +22,8 @@ import (
 	"github.com/cenkalti/rain/internal/downloader/piecedownloader"
 	"github.com/cenkalti/rain/internal/downloader/piecewriter"
 	"github.com/cenkalti/rain/internal/metainfo"
-	ip "github.com/cenkalti/rain/internal/peer"
-	"github.com/cenkalti/rain/internal/peer/peerprotocol"
+	ip "github.com/cenkalti/rain/internal/peerconn"
+	"github.com/cenkalti/rain/internal/peerconn/peerprotocol"
 	"github.com/cenkalti/rain/internal/torrentdata"
 	"github.com/cenkalti/rain/internal/tracker"
 )

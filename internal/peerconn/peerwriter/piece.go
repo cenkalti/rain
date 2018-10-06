@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"encoding/binary"
 
-	"github.com/cenkalti/rain/internal/peer/peerprotocol"
-	"github.com/cenkalti/rain/internal/piece"
+	"github.com/cenkalti/rain/internal/peerconn/peerprotocol"
+	"github.com/cenkalti/rain/internal/pieceio"
 )
 
 type Piece struct {
-	Piece  *piece.Piece
+	Piece  *pieceio.Piece
 	Begin  uint32
 	Length uint32
 }

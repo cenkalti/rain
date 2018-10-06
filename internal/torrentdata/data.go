@@ -2,13 +2,13 @@ package torrentdata
 
 import (
 	"github.com/cenkalti/rain/internal/metainfo"
-	"github.com/cenkalti/rain/internal/piece"
+	"github.com/cenkalti/rain/internal/pieceio"
 	"github.com/cenkalti/rain/storage"
 	"github.com/hashicorp/go-multierror"
 )
 
 type Data struct {
-	Pieces []piece.Piece
+	Pieces []pieceio.Piece
 	Exists bool
 	files  []storage.File
 }
@@ -18,7 +18,7 @@ func New(info *metainfo.Info, sto storage.Storage) (*Data, error) {
 	if err != nil {
 		return nil, err
 	}
-	pieces := piece.NewPieces(info, files)
+	pieces := pieceio.NewPieces(info, files)
 	return &Data{
 		Pieces: pieces,
 		files:  files,

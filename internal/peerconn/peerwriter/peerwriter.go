@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/peer/peerprotocol"
-	"github.com/cenkalti/rain/internal/piece"
+	"github.com/cenkalti/rain/internal/peerconn/peerprotocol"
+	"github.com/cenkalti/rain/internal/pieceio"
 )
 
 const keepAlivePeriod = 2 * time.Minute
@@ -40,7 +40,7 @@ func (p *PeerWriter) SendMessage(msg peerprotocol.Message) {
 	}
 }
 
-func (p *PeerWriter) SendPiece(msg peerprotocol.RequestMessage, pi *piece.Piece) {
+func (p *PeerWriter) SendPiece(msg peerprotocol.RequestMessage, pi *pieceio.Piece) {
 	m := Piece{Piece: pi, Begin: msg.Begin, Length: msg.Length}
 	select {
 	case p.queueC <- m:

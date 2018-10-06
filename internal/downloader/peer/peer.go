@@ -3,12 +3,12 @@ package peer
 import (
 	"github.com/cenkalti/rain/internal/downloader/infodownloader"
 	"github.com/cenkalti/rain/internal/downloader/piecedownloader"
-	"github.com/cenkalti/rain/internal/peer"
-	"github.com/cenkalti/rain/internal/peer/peerprotocol"
+	"github.com/cenkalti/rain/internal/peerconn"
+	"github.com/cenkalti/rain/internal/peerconn/peerprotocol"
 )
 
 type Peer struct {
-	*peer.Peer
+	*peerconn.Peer
 	messages   chan Message
 	disconnect chan *Peer
 
@@ -36,7 +36,7 @@ type Message struct {
 	Message interface{}
 }
 
-func New(p *peer.Peer, messages chan Message, disconnect chan *Peer) *Peer {
+func New(p *peerconn.Peer, messages chan Message, disconnect chan *Peer) *Peer {
 	return &Peer{
 		Peer:        p,
 		messages:    messages,

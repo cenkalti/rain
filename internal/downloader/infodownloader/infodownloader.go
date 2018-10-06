@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/cenkalti/rain/internal/peer"
-	"github.com/cenkalti/rain/internal/peer/peerprotocol"
+	"github.com/cenkalti/rain/internal/peerconn"
+	"github.com/cenkalti/rain/internal/peerconn/peerprotocol"
 	"github.com/cenkalti/rain/internal/semaphore"
 )
 
@@ -17,7 +17,7 @@ const maxQueuedBlocks = 10
 type InfoDownloader struct {
 	extID     uint8
 	totalSize uint32
-	Peer      *peer.Peer
+	Peer      *peerconn.Peer
 	blocks    []block
 	semaphore *semaphore.Semaphore
 	DataC     chan Data
@@ -39,12 +39,12 @@ type block struct {
 }
 
 type Result struct {
-	Peer  *peer.Peer
+	Peer  *peerconn.Peer
 	Bytes []byte
 	Error error
 }
 
-func New(pe *peer.Peer, extID uint8, totalSize uint32, resultC chan Result) *InfoDownloader {
+func New(pe *peerconn.Peer, extID uint8, totalSize uint32, resultC chan Result) *InfoDownloader {
 	numBlocks := totalSize / blockSize
 	mod := totalSize % blockSize
 	if mod != 0 {

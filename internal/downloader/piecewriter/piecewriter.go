@@ -2,7 +2,7 @@ package piecewriter
 
 import (
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/piece"
+	"github.com/cenkalti/rain/internal/pieceio"
 )
 
 type PieceWriter struct {
@@ -14,7 +14,7 @@ type PieceWriter struct {
 }
 
 type Request struct {
-	Piece *piece.Piece
+	Piece *pieceio.Piece
 	Data  []byte
 }
 

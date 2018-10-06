@@ -1,14 +1,14 @@
-package peer
+package peerconn
 
 import (
 	"net"
 
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/peer/peerprotocol"
-	"github.com/cenkalti/rain/internal/peer/peerreader"
-	"github.com/cenkalti/rain/internal/peer/peerwriter"
-	"github.com/cenkalti/rain/internal/piece"
+	"github.com/cenkalti/rain/internal/peerconn/peerprotocol"
+	"github.com/cenkalti/rain/internal/peerconn/peerreader"
+	"github.com/cenkalti/rain/internal/peerconn/peerwriter"
+	"github.com/cenkalti/rain/internal/pieceio"
 )
 
 type Peer struct {
@@ -62,7 +62,7 @@ func (p *Peer) SendMessage(msg peerprotocol.Message) {
 	p.writer.SendMessage(msg)
 }
 
-func (p *Peer) SendPiece(msg peerprotocol.RequestMessage, pi *piece.Piece) {
+func (p *Peer) SendPiece(msg peerprotocol.RequestMessage, pi *pieceio.Piece) {
 	p.writer.SendPiece(msg, pi)
 }
 

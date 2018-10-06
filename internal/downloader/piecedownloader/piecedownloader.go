@@ -3,21 +3,21 @@ package piecedownloader
 import (
 	"bytes"
 
-	"github.com/cenkalti/rain/internal/peer"
-	"github.com/cenkalti/rain/internal/peer/peerprotocol"
-	"github.com/cenkalti/rain/internal/piece"
+	"github.com/cenkalti/rain/internal/peerconn"
+	"github.com/cenkalti/rain/internal/peerconn/peerprotocol"
+	"github.com/cenkalti/rain/internal/pieceio"
 )
 
 const maxQueuedBlocks = 10
 
 // PieceDownloader downloads all blocks of a piece from a peer.
 type PieceDownloader struct {
-	Piece    *piece.Piece
-	Peer     *peer.Peer
+	Piece    *pieceio.Piece
+	Peer     *peerconn.Peer
 	blocks   []block
 	limiter  chan struct{}
 	PieceC   chan Piece
-	RejectC  chan *piece.Block
+	RejectC  chan *pieceio.Block
 	ChokeC   chan struct{}
 	UnchokeC chan struct{}
 	resultC  chan Result
@@ -25,18 +25,18 @@ type PieceDownloader struct {
 }
 
 type block struct {
-	*piece.Block
+	*pieceio.Block
 	requested bool
 	data      []byte
 }
 
 type Result struct {
-	Peer  *peer.Peer
-	Piece *piece.Piece
+	Peer  *peerconn.Peer
+	Piece *pieceio.Piece
 	Bytes []byte
 }
 
-func New(pi *piece.Piece, pe *peer.Peer, resultC chan Result) *PieceDownloader {
+func New(pi *pieceio.Piece, pe *peerconn.Peer, resultC chan Result) *PieceDownloader {
 	blocks := make([]block, len(pi.Blocks))
 	for i := range blocks {
 		blocks[i] = block{Block: &pi.Blocks[i]}
@@ -47,7 +47,7 @@ func New(pi *piece.Piece, pe *peer.Peer, resultC chan Result) *PieceDownloader {
 		blocks:   blocks,
 		limiter:  make(chan struct{}, maxQueuedBlocks),
 		PieceC:   make(chan Piece),
-		RejectC:  make(chan *piece.Block),
+		RejectC:  make(chan *pieceio.Block),
 		ChokeC:   make(chan struct{}),
 		UnchokeC: make(chan struct{}),
 		resultC:  resultC,

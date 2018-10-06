@@ -6,7 +6,7 @@ import (
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/btconn"
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/peer"
+	"github.com/cenkalti/rain/internal/peerconn"
 )
 
 type OutgoingHandshaker struct {
@@ -21,7 +21,7 @@ type OutgoingHandshaker struct {
 }
 
 type Result struct {
-	Peer  *peer.Peer
+	Peer  *peerconn.Peer
 	Addr  net.Addr
 	Error error
 }
@@ -73,7 +73,7 @@ func (h *OutgoingHandshaker) Run() {
 	peerbf := bitfield.NewBytes(peerExtensions[:], 64)
 	extensions := ourbf.And(peerbf)
 
-	p := peer.New(conn, peerID, extensions, log)
+	p := peerconn.New(conn, peerID, extensions, log)
 	select {
 	case h.resultC <- Result{Addr: h.addr, Peer: p}:
 	case <-h.closeC:
