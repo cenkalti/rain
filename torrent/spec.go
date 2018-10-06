@@ -7,13 +7,6 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/metainfo"
 )
 
-// type Spec struct {
-// 	InfoHash []byte
-// 	Trackers []string
-// 	Name string
-// 	InfoBytes []byte
-// }
-
 // downloadSpec contains parameters for Download constructor.
 type downloadSpec struct {
 	InfoHash [20]byte
