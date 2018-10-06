@@ -1,3 +1,4 @@
+// Package torrent provides a torrent client implementation.
 package torrent
 
 import (
