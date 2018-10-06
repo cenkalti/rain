@@ -26,7 +26,7 @@ import (
 	"github.com/cenkalti/rain/internal/magnet"
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/mse"
-	ip "github.com/cenkalti/rain/internal/peerconn"
+	"github.com/cenkalti/rain/internal/peerconn"
 	"github.com/cenkalti/rain/internal/semaphore"
 	"github.com/cenkalti/rain/internal/torrentdata"
 	"github.com/cenkalti/rain/internal/tracker"
@@ -97,13 +97,13 @@ type Torrent struct {
 	messages chan peer.Message
 
 	// We keep connected peers in this map after they complete handshake phase.
-	connectedPeers map[*ip.Peer]*peer.Peer
+	connectedPeers map[*peerconn.Peer]*peer.Peer
 
 	// Active piece downloads are kept in this map.
-	pieceDownloads map[*ip.Peer]*piecedownloader.PieceDownloader
+	pieceDownloads map[*peerconn.Peer]*piecedownloader.PieceDownloader
 
 	// Active metadata downloads are kept in this map.
-	infoDownloads map[*ip.Peer]*infodownloader.InfoDownloader
+	infoDownloads map[*peerconn.Peer]*infodownloader.InfoDownloader
 
 	// Downloader run loop sends a message to this channel for writing a piece to disk.
 	writeRequestC chan piecewriter.Request
@@ -351,9 +351,9 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 
 		peerDisconnectedC:         make(chan *peer.Peer),
 		messages:                  make(chan peer.Message),
-		connectedPeers:            make(map[*ip.Peer]*peer.Peer),
-		pieceDownloads:            make(map[*ip.Peer]*piecedownloader.PieceDownloader),
-		infoDownloads:             make(map[*ip.Peer]*infodownloader.InfoDownloader),
+		connectedPeers:            make(map[*peerconn.Peer]*peer.Peer),
+		pieceDownloads:            make(map[*peerconn.Peer]*piecedownloader.PieceDownloader),
+		infoDownloads:             make(map[*peerconn.Peer]*infodownloader.InfoDownloader),
 		writeRequestC:             make(chan piecewriter.Request),
 		writeResponseC:            make(chan piecewriter.Response),
 		completeC:                 make(chan struct{}),
