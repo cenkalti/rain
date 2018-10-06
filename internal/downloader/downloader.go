@@ -896,7 +896,7 @@ func (d *Downloader) startPeer(p *ip.Peer, peers *[]*peer.Peer) {
 
 	pe := peer.New(p, d.messages, d.peerDisconnectedC)
 	d.connectedPeers[p] = pe
-	*peers = append(*peers, pe)
+	*peers = append(*peers, pe) // TODO remove from this list
 	go pe.Run()
 
 	d.sendFirstMessage(p)
