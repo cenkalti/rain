@@ -14,7 +14,7 @@ var DefaultLogHandler log.Handler
 func SetLogLevel(l log.Level) { DefaultLogHandler.SetLevel(l) }
 
 func init() {
-	h := log.NewWriterHandler(os.Stderr)
+	h := log.NewFileHandler(os.Stderr)
 	h.SetFormatter(logFormatter{})
 	DefaultLogHandler = h
 }
