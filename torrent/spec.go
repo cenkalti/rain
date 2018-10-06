@@ -1,4 +1,4 @@
-package downloader
+package torrent
 
 import (
 	"github.com/cenkalti/rain/internal/bitfield"
@@ -7,10 +7,18 @@ import (
 	"github.com/cenkalti/rain/storage"
 )
 
-// Spec contains parameters for Download constructor.
-type Spec struct {
+// type Spec struct {
+// 	InfoHash []byte
+// 	Trackers []string
+// 	Name string
+// 	InfoBytes []byte
+// }
+
+// downloadSpec contains parameters for Download constructor.
+type downloadSpec struct {
 	InfoHash [20]byte
 	Trackers []string
+	Name     string
 	Storage  storage.Storage
 	Port     int
 	Resume   resume.DB
