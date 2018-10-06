@@ -76,30 +76,38 @@ func (t *Torrent) stop(err error) {
 	}
 	t.running = false
 
+	t.log.Debugln("stopping acceptor")
 	if t.acceptor != nil {
 		t.acceptor.Close()
 	}
 	t.acceptor = nil
 
+	t.log.Debugln("stopping dialer")
+	t.dialLimit.Stop()
+
+	t.log.Debugln("stopping piece downloaders")
+	t.pieceDownloaders.Stop()
+
+	t.log.Debugln("stopping info downloaders")
+	t.infoDownloaders.Stop()
+
+	t.log.Debugln("stopping announcers")
 	for _, an := range t.announcers {
 		an.Close()
 	}
 	t.announcers = nil
 
+	t.log.Debugln("stopping piece writers")
 	for _, pw := range t.pieceWriters {
 		pw.Close()
 	}
 	t.pieceWriters = nil
 
+	t.log.Debugln("stopping unchoke timers")
 	t.unchokeTimer.Stop()
 	t.unchokeTimerC = nil
 	t.optimisticUnchokeTimer.Stop()
 	t.optimisticUnchokeTimerC = nil
-
-	t.dialLimit.Stop()
-
-	t.pieceDownloaders.Stop()
-	t.infoDownloaders.Stop()
 
 	if err != nil {
 		t.errC <- err
@@ -110,24 +118,36 @@ func (t *Torrent) stop(err error) {
 func (t *Torrent) close() {
 	t.stop(errors.New("torrent is closed"))
 
+	t.log.Debugln("closing outgoing handshakers")
 	for _, oh := range t.outgoingHandshakers {
 		oh.Close()
 	}
+
+	t.log.Debugln("closing incoming handshakers")
 	for _, ih := range t.incomingHandshakers {
 		ih.Close()
 	}
+
+	t.log.Debugln("closing info downloaders")
 	for _, id := range t.infoDownloads {
 		id.Close()
 	}
+
+	t.log.Debugln("closing piece downloaders")
 	for _, pd := range t.pieceDownloads {
 		pd.Close()
 	}
+
+	t.log.Debugln("closing incoming peer connections")
 	for _, ip := range t.incomingPeers {
 		ip.Close()
 	}
+
+	t.log.Debugln("closing outgoin peer connections")
 	for _, op := range t.outgoingPeers {
 		op.Close()
 	}
+
 	// TODO close data
 	// TODO order closes here
 	close(t.closedC)
