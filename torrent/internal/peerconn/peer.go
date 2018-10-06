@@ -3,8 +3,8 @@ package peerconn
 import (
 	"net"
 
+	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent/internal/bitfield"
-	"github.com/cenkalti/rain/torrent/internal/logger"
 	"github.com/cenkalti/rain/torrent/internal/peerconn/peerprotocol"
 	"github.com/cenkalti/rain/torrent/internal/peerconn/peerreader"
 	"github.com/cenkalti/rain/torrent/internal/peerconn/peerwriter"

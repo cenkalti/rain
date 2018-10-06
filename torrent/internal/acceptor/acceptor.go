@@ -3,7 +3,7 @@ package acceptor
 import (
 	"net"
 
-	"github.com/cenkalti/rain/torrent/internal/logger"
+	"github.com/cenkalti/rain/internal/logger"
 )
 
 type Acceptor struct {

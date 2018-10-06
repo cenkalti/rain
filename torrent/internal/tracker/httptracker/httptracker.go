@@ -13,7 +13,7 @@ import (
 
 	"github.com/zeebo/bencode"
 
-	"github.com/cenkalti/rain/torrent/internal/logger"
+	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent/internal/tracker"
 )
 

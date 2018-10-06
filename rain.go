@@ -10,11 +10,11 @@ import (
 
 	"github.com/cenkalti/log"
 	"github.com/cenkalti/rain/client"
+	"github.com/cenkalti/rain/internal/clientversion"
+	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/resume/torrentresume"
 	"github.com/cenkalti/rain/storage/filestorage"
 	"github.com/cenkalti/rain/torrent"
-	"github.com/cenkalti/rain/torrent/internal/clientversion"
-	"github.com/cenkalti/rain/torrent/internal/logger"
 	"github.com/mitchellh/go-homedir"
 	"github.com/urfave/cli"
 )

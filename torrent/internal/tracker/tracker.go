@@ -8,7 +8,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/cenkalti/rain/torrent/internal/logger"
+	"github.com/cenkalti/rain/internal/logger"
 )
 
 // NumWant is the number of peers we want from trackers.
