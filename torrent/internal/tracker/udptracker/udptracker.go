@@ -28,7 +28,7 @@ type UDPTracker struct {
 	dialMutex     sync.Mutex
 	connected     bool
 	transactions  map[int32]*transaction
-	transactionsM sync.Mutex
+	transactionsM sync.Mutex // TODO remove udp tracker mutex
 	writeC        chan *transaction
 }
 
@@ -208,7 +208,7 @@ func (t *UDPTracker) sendTransaction(trx *transaction, cancel <-chan struct{}) (
 func (t *UDPTracker) Announce(transfer tracker.Transfer, e tracker.Event, cancel <-chan struct{}) (*tracker.AnnounceResponse, error) {
 	t.dialMutex.Lock()
 	if !t.connected {
-		err := t.dial()
+		err := t.dial() // TODO dial with context
 		if err != nil {
 			t.dialMutex.Unlock()
 			return nil, err
