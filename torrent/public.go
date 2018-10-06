@@ -1,5 +1,19 @@
 package torrent
 
+func (t *Torrent) Start() {
+	select {
+	case t.startCommandC <- struct{}{}:
+	case <-t.closedC:
+	}
+}
+
+func (t *Torrent) Stop() {
+	select {
+	case t.stopCommandC <- struct{}{}:
+	case <-t.closedC:
+	}
+}
+
 // Close this torrent and release all resources.
 func (t *Torrent) Close() {
 	select {
@@ -13,29 +27,20 @@ func (t *Torrent) NotifyComplete() <-chan struct{} {
 	return t.completeC
 }
 
-// NotifyError returns a new channel for waiting download errors.
-//
-// When error is sent to the channel, torrent is stopped automatically.
-func (t *Torrent) NotifyError() <-chan error { return t.errC }
-
-type startCommand struct {
+type notifyErrorCommand struct {
 	errCC chan chan error
 }
 
-func (t *Torrent) Start() <-chan error {
-	cmd := startCommand{errCC: make(chan chan error)}
+// NotifyError returns a new channel for waiting download errors.
+//
+// When error is sent to the channel, torrent is stopped automatically.
+func (t *Torrent) NotifyError() <-chan error {
+	cmd := notifyErrorCommand{errCC: make(chan chan error)}
 	select {
-	case t.startCommandC <- cmd:
+	case t.notifyErrorCommandC <- cmd:
 		return <-cmd.errCC
 	case <-t.closedC:
 		return nil
-	}
-}
-
-func (t *Torrent) Stop() {
-	select {
-	case t.stopCommandC <- struct{}{}:
-	case <-t.closedC:
 	}
 }
 

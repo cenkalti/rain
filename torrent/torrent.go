@@ -126,9 +126,10 @@ type Torrent struct {
 	closedC chan struct{}
 
 	// These are the channels for sending a message to run() loop.
-	statsCommandC chan statsRequest // Stats()
-	startCommandC chan startCommand // Start()
-	stopCommandC  chan struct{}     // Stop()
+	statsCommandC       chan statsRequest       // Stats()
+	startCommandC       chan struct{}           // Start()
+	stopCommandC        chan struct{}           // Stop()
+	notifyErrorCommandC chan notifyErrorCommand // NotifyError()
 
 	// Trackers send announce responses to this channel.
 	addrsFromTrackers chan []*net.TCPAddr
@@ -359,6 +360,7 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		closeC:                    make(chan struct{}),
 		closedC:                   make(chan struct{}),
 		statsCommandC:             make(chan statsRequest),
+		notifyErrorCommandC:       make(chan notifyErrorCommand),
 		addrsFromTrackers:         make(chan []*net.TCPAddr),
 		addrList:                  addrlist.New(),
 		peerIDs:                   make(map[[20]byte]struct{}),
@@ -370,7 +372,7 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		outgoingHandshakers:       make(map[string]*outgoinghandshaker.OutgoingHandshaker),
 		incomingHandshakerResultC: make(chan incominghandshaker.Result),
 		outgoingHandshakerResultC: make(chan outgoinghandshaker.Result),
-		startCommandC:             make(chan startCommand),
+		startCommandC:             make(chan struct{}),
 		stopCommandC:              make(chan struct{}),
 		announcerRequests:         make(chan *announcer.Request),
 		dialLimit:                 semaphore.New(maxPeerDial),
@@ -387,7 +389,6 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		return nil, err
 	}
 	go d.run()
-	d.Start() // TODO add start/stop to torrent
 	return d, nil
 }
 

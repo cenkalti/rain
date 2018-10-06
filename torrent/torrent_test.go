@@ -60,15 +60,16 @@ func TestDownloadTorrent(t *testing.T) {
 	}
 	defer t1.Close()
 
-	// Wait for seeder to announce to tracker.
-	time.Sleep(100 * time.Millisecond)
-
 	f.Seek(0, io.SeekStart)
 	t2, err := torrent.New(f, 6882, newFileStorage(t, where))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer t2.Close()
+
+	t1.Start()
+	time.Sleep(100 * time.Millisecond)
+	t2.Start()
 
 	select {
 	case <-t2.NotifyComplete():
@@ -160,9 +161,6 @@ func TestDownloadMagnet(t *testing.T) {
 	}
 	defer t1.Close()
 
-	// Wait for seeder to announce to tracker.
-	time.Sleep(100 * time.Millisecond)
-
 	f.Seek(0, io.SeekStart)
 	magnetLink := "magnet:?xt=urn:btih:0a8e2e8c9371a91e9047ed189ceffbc460803262&dn=10mb&tr=http%3A%2F%2F127.0.0.1%3A5000%2Fannounce"
 	t2, err := torrent.NewMagnet(magnetLink, 6882, newFileStorage(t, where))
@@ -170,6 +168,10 @@ func TestDownloadMagnet(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer t2.Close()
+
+	t1.Start()
+	time.Sleep(100 * time.Millisecond)
+	t2.Start()
 
 	select {
 	case <-t2.NotifyComplete():
@@ -211,15 +213,16 @@ func TestDownloadTorrentUDP(t *testing.T) {
 	}
 	defer t1.Close()
 
-	// Wait for seeder to announce to tracker.
-	time.Sleep(100 * time.Millisecond)
-
 	f.Seek(0, io.SeekStart)
 	t2, err := torrent.New(f, 6882, newFileStorage(t, where))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer t2.Close()
+
+	t1.Start()
+	time.Sleep(100 * time.Millisecond)
+	t2.Start()
 
 	select {
 	case <-t2.NotifyComplete():

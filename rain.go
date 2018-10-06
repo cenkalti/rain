@@ -140,6 +140,8 @@ func handleDownload(c *cli.Context) error {
 
 	sigC := make(chan os.Signal, 1)
 	signal.Notify(sigC, syscall.SIGINT, syscall.SIGTERM)
+
+	t.Start()
 	select {
 	case <-t.NotifyComplete():
 		if !c.Bool("seed") {

@@ -28,9 +28,7 @@ import (
 	"github.com/cenkalti/rain/internal/tracker"
 )
 
-func (t *Torrent) start(cmd startCommand) {
-	defer func() { cmd.errCC <- t.errC }()
-
+func (t *Torrent) start() {
 	if t.running {
 		return
 	}
@@ -106,6 +104,7 @@ func (t *Torrent) stop(err error) {
 	if err != nil {
 		t.errC <- err
 	}
+	t.errC = nil
 }
 
 func (t *Torrent) close() {
@@ -151,10 +150,12 @@ func (t *Torrent) run() {
 		select {
 		case <-t.closeC:
 			return
-		case cmd := <-t.startCommandC:
-			t.start(cmd)
+		case <-t.startCommandC:
+			t.start()
 		case <-t.stopCommandC:
 			t.stop(errors.New("torrent is stopped"))
+		case cmd := <-t.notifyErrorCommandC:
+			cmd.errCC <- t.errC
 		case addrs := <-t.addrsFromTrackers:
 			t.addrList.Push(addrs, t.port)
 			t.dialLimit.Signal(len(addrs))
