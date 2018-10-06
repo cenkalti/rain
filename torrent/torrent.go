@@ -49,7 +49,7 @@ var (
 	peerIDPrefix = []byte("-RN" + clientversion.Version + "-")
 )
 
-// Torrent connect to peers and downloads files from swarm.
+// Torrent connects to peers and downloads files from swarm.
 type Torrent struct {
 	spec *downloadSpec
 
@@ -202,15 +202,7 @@ type Torrent struct {
 	log logger.Logger
 }
 
-// New returns a new torrent by reading a metainfo file.
-//
-// Files are read from disk. If there are existing files, hash check will be done.
-//
-// Close must be called before discarding the torrent.
-//
-// Seeding continues after all files are downloaded.
-//
-// You should listen NotifyComplete and NotifyError channels after starting the torrent.
+// New returns a new torrent by reading a torrent metainfo file.
 func New(r io.Reader, port int, sto storage.Storage) (*Torrent, error) {
 	m, err := metainfo.New(r)
 	if err != nil {
@@ -227,6 +219,7 @@ func New(r io.Reader, port int, sto storage.Storage) (*Torrent, error) {
 	return newTorrent(spec)
 }
 
+// NewMagnet returns a new torrent by parsing a magnet link.
 func NewMagnet(magnetLink string, port int, sto storage.Storage) (*Torrent, error) {
 	m, err := magnet.New(magnetLink)
 	if err != nil {
@@ -242,6 +235,7 @@ func NewMagnet(magnetLink string, port int, sto storage.Storage) (*Torrent, erro
 	return newTorrent(spec)
 }
 
+// NewResume returns a new torrent by loading all info from a resume.DB.
 func NewResume(res resume.DB) (*Torrent, error) {
 	spec, err := res.Read()
 	if err != nil {
@@ -253,15 +247,20 @@ func NewResume(res resume.DB) (*Torrent, error) {
 	return loadResumeSpec(spec, res)
 }
 
+// Name of the torrent.
+// For magnet downloads name can change after metadata is downloaded but this method still returns the initial name.
 func (t *Torrent) Name() string {
-	// TODO name can change after info is downloaded for magnets
 	return t.spec.Name
 }
 
+// InfoHash string encoded in hex.
+// InfoHash is a unique value that identifies the files in torrent.
 func (t *Torrent) InfoHash() string {
 	return hex.EncodeToString(t.spec.InfoHash[:])
 }
 
+// SetResume adds resume capability to the torrent.
+// It must be called before Start() is called.
 func (t *Torrent) SetResume(res resume.DB) error {
 	spec, err := res.Read()
 	if err != nil {

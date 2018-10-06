@@ -1,5 +1,7 @@
 package torrent
 
+// Start downloading.
+// After all files are downloaded, seeding continues until the torrent is stopped.
 func (t *Torrent) Start() {
 	select {
 	case t.startCommandC <- struct{}{}:
@@ -7,6 +9,8 @@ func (t *Torrent) Start() {
 	}
 }
 
+// Stop downloading and seeding.
+// Stop closes all peer connections.
 func (t *Torrent) Stop() {
 	select {
 	case t.stopCommandC <- struct{}{}:
@@ -15,6 +19,7 @@ func (t *Torrent) Stop() {
 }
 
 // Close this torrent and release all resources.
+// Close must be called before discarding the torrent.
 func (t *Torrent) Close() {
 	select {
 	case t.closeC <- struct{}{}:
@@ -22,7 +27,8 @@ func (t *Torrent) Close() {
 	}
 }
 
-// NotifyComplete returns a channel that is closed once all pieces are downloaded successfully.
+// NotifyComplete returns a channel for notifying completion.
+// The channel is closed once all pieces are downloaded successfully.
 func (t *Torrent) NotifyComplete() <-chan struct{} {
 	return t.completeC
 }
@@ -31,9 +37,9 @@ type notifyErrorCommand struct {
 	errCC chan chan error
 }
 
-// NotifyError returns a new channel for waiting download errors.
-//
-// When error is sent to the channel, torrent is stopped automatically.
+// NotifyError returns a new channel for notifying fatal errors.
+// When an error is sent to the channel, torrent is stopped automatically.
+// NotifyError must be called after calling Start().
 func (t *Torrent) NotifyError() <-chan error {
 	cmd := notifyErrorCommand{errCC: make(chan chan error)}
 	select {
@@ -48,6 +54,7 @@ type statsRequest struct {
 	Response chan Stats
 }
 
+// Stats returns statistics about the Torrent.
 func (t *Torrent) Stats() Stats {
 	var stats Stats
 	req := statsRequest{Response: make(chan Stats, 1)}

@@ -1,5 +1,6 @@
 package torrent
 
+// Stats contains statistics about Torrent.
 type Stats struct {
 	// Bytes that are downloaded and passed hash check.
 	BytesComplete int64
