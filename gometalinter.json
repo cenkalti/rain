@@ -1,4 +1,5 @@
 {
+  "Deadline": "60s",
   "Vendor": true,
   "Disable": [
     "gocyclo",
