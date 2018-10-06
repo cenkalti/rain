@@ -242,7 +242,7 @@ func NewMagnet(magnetLink string, port int, sto storage.Storage) (*Torrent, erro
 	return newTorrent(spec)
 }
 
-func Resume(res resume.DB) (*Torrent, error) {
+func NewResume(res resume.DB) (*Torrent, error) {
 	spec, err := res.Read()
 	if err != nil {
 		return nil, err
