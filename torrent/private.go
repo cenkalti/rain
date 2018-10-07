@@ -495,12 +495,18 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		t.pieceDownloaders.Signal(1)
 		pe.PeerChoking = false
 		if pd, ok := t.pieceDownloads[pe.Conn]; ok {
-			pd.UnchokeC <- struct{}{}
+			select {
+			case pd.UnchokeC <- struct{}{}:
+			case <-pd.Done():
+			}
 		}
 	case peerprotocol.ChokeMessage:
 		pe.PeerChoking = true
 		if pd, ok := t.pieceDownloads[pe.Conn]; ok {
-			pd.ChokeC <- struct{}{}
+			select {
+			case pd.ChokeC <- struct{}{}:
+			case <-pd.Done():
+			}
 		}
 	case peerprotocol.InterestedMessage:
 		// TODO handle intereseted messages

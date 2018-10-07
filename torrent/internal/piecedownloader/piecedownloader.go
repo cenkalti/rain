@@ -22,6 +22,7 @@ type PieceDownloader struct {
 	UnchokeC chan struct{}
 	resultC  chan Result
 	closeC   chan struct{}
+	doneC    chan struct{}
 }
 
 type block struct {
@@ -52,6 +53,7 @@ func New(pi *pieceio.Piece, pe *peerconn.Conn, resultC chan Result) *PieceDownlo
 		UnchokeC: make(chan struct{}),
 		resultC:  resultC,
 		closeC:   make(chan struct{}),
+		doneC:    make(chan struct{}),
 	}
 }
 
@@ -59,7 +61,13 @@ func (d *PieceDownloader) Close() {
 	close(d.closeC)
 }
 
+func (d *PieceDownloader) Done() <-chan struct{} {
+	return d.doneC
+}
+
 func (d *PieceDownloader) Run() {
+	defer close(d.doneC)
+
 	result := Result{
 		Peer:  d.Peer,
 		Piece: d.Piece,
@@ -70,6 +78,7 @@ func (d *PieceDownloader) Run() {
 		case <-d.closeC:
 		}
 	}()
+
 	for {
 		select {
 		case d.limiter <- struct{}{}:
