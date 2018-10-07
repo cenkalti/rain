@@ -150,10 +150,11 @@ func (t *Torrent) close() {
 
 	// TODO close data
 	// TODO order closes here
-	close(t.doneC)
 }
 
 func (t *Torrent) run() {
+	defer close(t.doneC)
+	defer t.close()
 
 	// TODO where to put this? this may take long
 	if t.info != nil {
@@ -165,7 +166,6 @@ func (t *Torrent) run() {
 		}
 	}
 
-	defer t.close()
 	for {
 		select {
 		case <-t.closeC:
