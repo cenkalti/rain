@@ -185,6 +185,10 @@ func (t *Torrent) run() {
 				stats.BytesTotal = t.info.TotalLength
 				// TODO this is wrong, pre-calculate complete and incomplete bytes
 				stats.BytesComplete = int64(t.info.PieceLength) * int64(t.bitfield.Count())
+				if t.bitfield.Test(t.bitfield.Len() - 1) {
+					stats.BytesComplete -= int64(t.info.PieceLength)
+					stats.BytesComplete += int64(t.pieces[t.bitfield.Len()-1].Length)
+				}
 				stats.BytesIncomplete = stats.BytesTotal - stats.BytesComplete
 				// TODO calculate bytes downloaded
 				// TODO calculate bytes uploaded
