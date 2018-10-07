@@ -2,6 +2,7 @@ package peerreader
 
 import (
 	"encoding/binary"
+	"errors"
 	"io"
 	"io/ioutil"
 	"net"
@@ -22,6 +23,8 @@ type PeerReader struct {
 	messages          chan interface{}
 	fastExtension     bool
 	extensionProtocol bool
+	stopC             chan struct{}
+	doneC             chan struct{}
 }
 
 func New(conn net.Conn, l logger.Logger, fastExtension, extensionProtocol bool) *PeerReader {
@@ -31,6 +34,8 @@ func New(conn net.Conn, l logger.Logger, fastExtension, extensionProtocol bool) 
 		messages:          make(chan interface{}),
 		fastExtension:     fastExtension,
 		extensionProtocol: extensionProtocol,
+		stopC:             make(chan struct{}),
+		doneC:             make(chan struct{}),
 	}
 }
 
@@ -38,13 +43,33 @@ func (p *PeerReader) Messages() <-chan interface{} {
 	return p.messages
 }
 
-func (p *PeerReader) Run(stopC chan struct{}) {
+func (p *PeerReader) Stop() {
+	close(p.stopC)
+}
+
+func (p *PeerReader) Done() chan struct{} {
+	return p.doneC
+}
+
+func (p *PeerReader) Run() {
+	defer close(p.doneC)
 	defer close(p.messages)
+
+	var err error
+	defer func() {
+		if err != nil {
+			select {
+			case <-p.stopC:
+			default:
+				p.log.Error(err)
+			}
+		}
+	}()
+
 	first := true
 	for {
-		err := p.conn.SetReadDeadline(time.Now().Add(connReadTimeout))
+		err = p.conn.SetReadDeadline(time.Now().Add(connReadTimeout))
 		if err != nil {
-			p.log.Error(err)
 			return
 		}
 
@@ -53,11 +78,6 @@ func (p *PeerReader) Run(stopC chan struct{}) {
 		// p.log.Debug("Reading message...")
 		err = binary.Read(p.conn, binary.BigEndian, &length)
 		if err != nil {
-			select {
-			case <-stopC:
-			default:
-				p.log.Error(err)
-			}
 			return
 		}
 		// p.log.Debugf("Received message of length: %d", length)
@@ -70,7 +90,6 @@ func (p *PeerReader) Run(stopC chan struct{}) {
 		var id peerprotocol.MessageID
 		err = binary.Read(p.conn, binary.BigEndian, &id)
 		if err != nil {
-			p.log.Error(err)
 			return
 		}
 		length--
@@ -98,13 +117,12 @@ func (p *PeerReader) Run(stopC chan struct{}) {
 			var hm peerprotocol.HaveMessage
 			err = binary.Read(p.conn, binary.BigEndian, &hm)
 			if err != nil {
-				p.log.Error(err)
 				return
 			}
 			msg = hm
 		case peerprotocol.Bitfield:
 			if !first {
-				p.log.Error("bitfield can only be sent after handshake")
+				err = errors.New("bitfield can only be sent after handshake")
 				return
 			}
 			first = false
@@ -112,7 +130,6 @@ func (p *PeerReader) Run(stopC chan struct{}) {
 			bm.Data = make([]byte, length)
 			_, err = io.ReadFull(p.conn, bm.Data)
 			if err != nil {
-				p.log.Error(err)
 				return
 			}
 			msg = bm
@@ -121,31 +138,29 @@ func (p *PeerReader) Run(stopC chan struct{}) {
 			var rm peerprotocol.RequestMessage
 			err = binary.Read(p.conn, binary.BigEndian, &rm)
 			if err != nil {
-				p.log.Error(err)
 				return
 			}
 			p.log.Debugf("Received Request: %+v", rm)
 
 			if rm.Length > MaxAllowedBlockSize {
-				p.log.Error("received a request with block size larger than allowed")
+				err = errors.New("received a request with block size larger than allowed")
 				return
 			}
 			msg = rm
 		case peerprotocol.Reject:
 			if !p.fastExtension {
-				p.log.Error("reject message received but fast extensions is not enabled")
+				err = errors.New("reject message received but fast extensions is not enabled")
 				return
 			}
 			var rm peerprotocol.RejectMessage
 			err = binary.Read(p.conn, binary.BigEndian, &rm)
 			if err != nil {
-				p.log.Error(err)
 				return
 			}
 			p.log.Debugf("Received Reject: %+v", rm)
 
 			if rm.Length > MaxAllowedBlockSize {
-				p.log.Error("received a reject with block size larger than allowed")
+				err = errors.New("received a reject with block size larger than allowed")
 				return
 			}
 			msg = rm
@@ -155,38 +170,32 @@ func (p *PeerReader) Run(stopC chan struct{}) {
 			buf := make([]byte, length)
 			_, err = io.ReadFull(p.conn, buf)
 			if err != nil {
-				select {
-				case <-stopC:
-				default:
-					p.log.Error(err)
-				}
 				return
 			}
 			pm := peerprotocol.PieceMessage{Length: length - 8}
 			err = pm.UnmarshalBinary(buf)
 			if err != nil {
-				p.log.Error(err)
 				return
 			}
 			msg = pm
 		case peerprotocol.HaveAll:
 			if !p.fastExtension {
-				p.log.Error("have_all message received but fast extensions is not enabled")
+				err = errors.New("have_all message received but fast extensions is not enabled")
 				return
 			}
 			if !first {
-				p.log.Error("have_all can only be sent after handshake")
+				err = errors.New("have_all can only be sent after handshake")
 				return
 			}
 			first = false
 			msg = peerprotocol.HaveAllMessage{}
 		case peerprotocol.HaveNone:
 			if !p.fastExtension {
-				p.log.Error("have_none message received but fast extensions is not enabled")
+				err = errors.New("have_none message received but fast extensions is not enabled")
 				return
 			}
 			if !first {
-				p.log.Error("have_none can only be sent after handshake")
+				err = errors.New("have_none can only be sent after handshake")
 				return
 			}
 			first = false
@@ -196,7 +205,6 @@ func (p *PeerReader) Run(stopC chan struct{}) {
 			var am peerprotocol.AllowedFastMessage
 			err = binary.Read(p.conn, binary.BigEndian, &am)
 			if err != nil {
-				p.log.Error(err)
 				return
 			}
 			msg = am
@@ -206,17 +214,15 @@ func (p *PeerReader) Run(stopC chan struct{}) {
 			buf := make([]byte, length)
 			_, err = io.ReadFull(p.conn, buf)
 			if err != nil {
-				p.log.Error(err)
 				return
 			}
 			if !p.extensionProtocol {
-				p.log.Error("extension message received but it is not enabled in bitfield")
+				err = errors.New("extension message received but it is not enabled in bitfield")
 				break
 			}
 			em := peerprotocol.NewExtensionMessage(length - 1)
 			err = em.UnmarshalBinary(buf)
 			if err != nil {
-				p.log.Error(err)
 				return
 			}
 			msg = em.Payload
@@ -225,7 +231,6 @@ func (p *PeerReader) Run(stopC chan struct{}) {
 			p.log.Debugln("Discarding", length, "bytes...")
 			_, err = io.CopyN(ioutil.Discard, p.conn, int64(length))
 			if err != nil {
-				p.log.Error(err)
 				return
 			}
 			continue
@@ -235,7 +240,7 @@ func (p *PeerReader) Run(stopC chan struct{}) {
 		}
 		select {
 		case p.messages <- msg:
-		case <-stopC:
+		case <-p.stopC:
 			return
 		}
 	}

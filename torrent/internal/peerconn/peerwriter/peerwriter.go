@@ -18,8 +18,9 @@ type PeerWriter struct {
 	queueC     chan peerprotocol.Message
 	writeQueue []peerprotocol.Message
 	writeC     chan peerprotocol.Message
-	queueDone  chan struct{}
 	log        logger.Logger
+	stopC      chan struct{}
+	doneC      chan struct{}
 }
 
 func New(conn net.Conn, l logger.Logger) *PeerWriter {
@@ -28,15 +29,16 @@ func New(conn net.Conn, l logger.Logger) *PeerWriter {
 		queueC:     make(chan peerprotocol.Message),
 		writeQueue: make([]peerprotocol.Message, 0),
 		writeC:     make(chan peerprotocol.Message),
-		queueDone:  make(chan struct{}),
 		log:        l,
+		stopC:      make(chan struct{}),
+		doneC:      make(chan struct{}),
 	}
 }
 
 func (p *PeerWriter) SendMessage(msg peerprotocol.Message) {
 	select {
 	case p.queueC <- msg:
-	case <-p.queueDone:
+	case <-p.doneC:
 	}
 }
 
@@ -44,19 +46,29 @@ func (p *PeerWriter) SendPiece(msg peerprotocol.RequestMessage, pi *pieceio.Piec
 	m := Piece{Piece: pi, Begin: msg.Begin, Length: msg.Length}
 	select {
 	case p.queueC <- m:
-	case <-p.queueDone:
+	case <-p.doneC:
 	}
 }
 
-func (p *PeerWriter) Run(stopC chan struct{}) {
-	defer close(p.queueDone)
-	go p.messageWriter(stopC)
+func (p *PeerWriter) Stop() {
+	close(p.stopC)
+}
+
+func (p *PeerWriter) Done() chan struct{} {
+	return p.doneC
+}
+
+func (p *PeerWriter) Run() {
+	defer close(p.doneC)
+
+	go p.messageWriter()
+
 	for {
 		if len(p.writeQueue) == 0 {
 			select {
 			case msg := <-p.queueC:
 				p.queueMessage(msg)
-			case <-stopC:
+			case <-p.stopC:
 				return
 			}
 		}
@@ -67,7 +79,7 @@ func (p *PeerWriter) Run(stopC chan struct{}) {
 		case p.writeC <- msg:
 			// TODO peer write queue array grows indefinitely. Try using linked list.
 			p.writeQueue = p.writeQueue[1:]
-		case <-stopC:
+		case <-p.stopC:
 			return
 		}
 	}
@@ -78,7 +90,7 @@ func (p *PeerWriter) queueMessage(msg peerprotocol.Message) {
 	p.writeQueue = append(p.writeQueue, msg)
 }
 
-func (p *PeerWriter) messageWriter(stopC chan struct{}) {
+func (p *PeerWriter) messageWriter() {
 	keepAliveTicker := time.NewTicker(keepAlivePeriod)
 	defer keepAliveTicker.Stop()
 	for {
@@ -114,7 +126,7 @@ func (p *PeerWriter) messageWriter(stopC chan struct{}) {
 				p.conn.Close()
 				return
 			}
-		case <-stopC:
+		case <-p.stopC:
 			return
 		}
 	}

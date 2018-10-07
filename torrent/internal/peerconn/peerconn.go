@@ -73,30 +73,23 @@ func (p *Conn) SendPiece(msg peerprotocol.RequestMessage, pi *pieceio.Piece) {
 // Run reads and processes incoming messages after handshake.
 func (p *Conn) Run() {
 	defer close(p.doneC)
+
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 
-	readerDone := make(chan struct{})
-	go func() {
-		p.reader.Run(p.closeC)
-		close(readerDone)
-	}()
-
-	writerDone := make(chan struct{})
-	go func() {
-		p.writer.Run(p.closeC)
-		close(writerDone)
-	}()
+	go p.reader.Run()
+	go p.writer.Run()
 
 	select {
 	case <-p.closeC:
-		p.conn.Close()
-		<-readerDone
-		<-writerDone
-	case <-readerDone:
-		p.conn.Close()
-		<-writerDone
-	case <-writerDone:
-		p.conn.Close()
-		<-readerDone
+		p.reader.Stop()
+		p.writer.Stop()
+	case <-p.reader.Done():
+		p.writer.Stop()
+	case <-p.writer.Done():
+		p.reader.Stop()
 	}
+
+	p.conn.Close()
+	<-p.reader.Done()
+	<-p.writer.Done()
 }
