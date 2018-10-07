@@ -2,11 +2,13 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"os/signal"
 	"runtime/pprof"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/cenkalti/log"
 	"github.com/cenkalti/rain/client"
@@ -145,6 +147,13 @@ func handleDownload(c *cli.Context) error {
 	signal.Notify(sigC, syscall.SIGINT, syscall.SIGTERM)
 
 	t.Start()
+
+	go func() {
+		for range time.Tick(time.Second) {
+			fmt.Printf("%#v\n", t.Stats())
+		}
+	}()
+
 	select {
 	case <-t.NotifyComplete():
 		if !c.Bool("seed") {
