@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/torrent/internal/peerconn/peerprotocol"
+	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
 	"github.com/cenkalti/rain/torrent/internal/pieceio"
 )
 

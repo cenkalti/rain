@@ -5,9 +5,9 @@ import (
 
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent/internal/bitfield"
-	"github.com/cenkalti/rain/torrent/internal/peerconn/peerprotocol"
 	"github.com/cenkalti/rain/torrent/internal/peerconn/peerreader"
 	"github.com/cenkalti/rain/torrent/internal/peerconn/peerwriter"
+	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
 	"github.com/cenkalti/rain/torrent/internal/pieceio"
 )
 

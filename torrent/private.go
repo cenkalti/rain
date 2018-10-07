@@ -20,7 +20,7 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/metainfo"
 	"github.com/cenkalti/rain/torrent/internal/peer"
 	"github.com/cenkalti/rain/torrent/internal/peerconn"
-	"github.com/cenkalti/rain/torrent/internal/peerconn/peerprotocol"
+	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
 	"github.com/cenkalti/rain/torrent/internal/piece"
 	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
 	"github.com/cenkalti/rain/torrent/internal/piecewriter"

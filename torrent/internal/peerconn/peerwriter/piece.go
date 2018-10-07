@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 
-	"github.com/cenkalti/rain/torrent/internal/peerconn/peerprotocol"
+	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
 	"github.com/cenkalti/rain/torrent/internal/pieceio"
 )
 
