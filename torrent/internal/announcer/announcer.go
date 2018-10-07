@@ -95,7 +95,11 @@ func (a *Announcer) announce(e tracker.Event, stopC chan struct{}) {
 		return
 	}
 	if err != nil {
-		a.log.Errorln("announce error:", err)
+		if _, ok := err.(*net.OpError); ok {
+			a.log.Debugln("net operation error:", err)
+		} else {
+			a.log.Errorln("announce error:", err)
+		}
 		a.nextAnnounce = a.backoff.NextBackOff()
 	} else {
 		a.backoff.Reset()

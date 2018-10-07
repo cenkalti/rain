@@ -1,6 +1,7 @@
 package outgoinghandshaker
 
 import (
+	"io"
 	"net"
 
 	"github.com/cenkalti/rain/internal/logger"
@@ -60,15 +61,22 @@ func (h *OutgoingHandshaker) Run() {
 	// TODO separate dial and handshake
 	conn, cipher, peerExtensions, peerID, err := btconn.Dial(h.addr, !encryptionDisableOutgoing, encryptionForceOutgoing, ourExtensions, h.infoHash, h.peerID, h.closeC)
 	if err != nil {
+		if err == io.EOF {
+			log.Debug("peer has closed the connection: EOF")
+		} else if err == io.ErrUnexpectedEOF {
+			log.Debug("peer has closed the connection: Unexpected EOF")
+		} else if _, ok := err.(*net.OpError); ok {
+			log.Debugln("net operation error:", err)
+		} else {
+			log.Errorln("cannot complete outgoing handshake:", err)
+		}
 		select {
 		case h.resultC <- Result{Addr: h.addr, Error: err}:
 		case <-h.closeC:
-		default:
-			log.Errorln("cannot complete handshake:", err)
 		}
 		return
 	}
-	log.Infof("Connected to peer. (cipher=%s extensions=%x client=%q)", cipher, peerExtensions, peerID[:8])
+	log.Debugf("Connected to peer. (cipher=%s extensions=%x client=%q)", cipher, peerExtensions, peerID[:8])
 
 	peerbf := bitfield.NewBytes(peerExtensions[:], 64)
 	extensions := ourbf.And(peerbf)

@@ -57,12 +57,19 @@ func (p *PeerReader) Run() {
 
 	var err error
 	defer func() {
-		if err != nil {
-			select {
-			case <-p.stopC:
-			default:
-				p.log.Error(err)
-			}
+		if err == nil {
+			return
+		} else if err == io.EOF { // peer closed the connection
+			return
+		} else if err == io.ErrUnexpectedEOF {
+			return
+		} else if _, ok := err.(*net.OpError); ok {
+			return
+		}
+		select {
+		case <-p.stopC: // don't log error if peer is stopped
+		default:
+			p.log.Error(err)
 		}
 	}()
 

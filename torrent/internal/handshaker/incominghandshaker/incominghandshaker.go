@@ -1,6 +1,7 @@
 package incominghandshaker
 
 import (
+	"io"
 	"net"
 
 	"github.com/cenkalti/rain/internal/logger"
@@ -61,14 +62,22 @@ func (h *IncomingHandshaker) Run() {
 	conn, cipher, peerExtensions, peerID, _, err := btconn.Accept(
 		h.conn, h.getSKey, encryptionForceIncoming, h.checkInfoHash, ourExtensions, h.peerID)
 	if err != nil {
-		log.Error(err)
+		if err == io.EOF {
+			log.Debug("peer has closed the connection: EOF")
+		} else if err == io.ErrUnexpectedEOF {
+			log.Debug("peer has closed the connection: Unexpected EOF")
+		} else if _, ok := err.(*net.OpError); ok {
+			log.Debugln("net operation error:", err)
+		} else {
+			log.Errorln("cannot complete incoming handshake:", err)
+		}
 		select {
 		case h.resultC <- Result{Conn: h.conn, Error: err}:
 		case <-h.closeC:
 		}
 		return
 	}
-	log.Infof("Connection accepted. (cipher=%s extensions=%x client=%q)", cipher, peerExtensions, peerID[:8])
+	log.Debugf("Connection accepted. (cipher=%s extensions=%x client=%q)", cipher, peerExtensions, peerID[:8])
 
 	peerbf := bitfield.NewBytes(peerExtensions[:], 64)
 	extensions := ourbf.And(peerbf)
