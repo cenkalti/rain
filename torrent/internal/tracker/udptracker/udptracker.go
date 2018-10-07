@@ -5,6 +5,7 @@ package udptracker
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"errors"
 	"net"
@@ -24,7 +25,7 @@ const connectionIDInterval = time.Minute
 type UDPTracker struct {
 	url           *url.URL
 	log           logger.Logger
-	conn          *net.UDPConn
+	conn          net.Conn
 	dialMutex     sync.Mutex
 	connected     bool
 	transactions  map[int32]*transaction
@@ -42,11 +43,9 @@ func New(u *url.URL) *UDPTracker {
 }
 
 func (t *UDPTracker) dial() error {
-	serverAddr, err := net.ResolveUDPAddr("udp", t.url.Host)
-	if err != nil {
-		return err
-	}
-	t.conn, err = net.DialUDP("udp", nil, serverAddr)
+	var dialer net.Dialer
+	var err error
+	t.conn, err = dialer.DialContext(context.Background(), "udp", t.url.Host) // TODO give cancelable context
 	if err != nil {
 		return err
 	}
