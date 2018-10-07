@@ -15,7 +15,7 @@ type udpMessage interface {
 	SetTransactionID(int32)
 }
 
-type udpReqeust interface {
+type udpRequest interface {
 	udpMessage
 	GetConnectionID() int64
 	SetConnectionID(int64)
@@ -71,17 +71,14 @@ type announceRequest struct {
 }
 
 type transferAnnounceRequest struct {
-	transfer tracker.Transfer
 	*announceRequest
 	urlData string
 }
 
 func (r *transferAnnounceRequest) WriteTo(w io.Writer) (int64, error) {
+	// Add 255 extra spece to packet buffer since most UDP tracker addresses contains URL data.
 	buf := bufio.NewWriterSize(w, 98+2+255)
 
-	r.announceRequest.Downloaded = r.transfer.BytesDownloaded
-	r.announceRequest.Uploaded = r.transfer.BytesUploaded
-	r.announceRequest.Left = r.transfer.BytesLeft
 	err := binary.Write(buf, binary.BigEndian, r.announceRequest)
 	if err != nil {
 		return 0, err

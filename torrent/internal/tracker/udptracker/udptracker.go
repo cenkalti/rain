@@ -219,17 +219,17 @@ func (t *UDPTracker) Announce(transfer tracker.Transfer, e tracker.Event, cancel
 	request := &announceRequest{
 		InfoHash:   transfer.InfoHash,
 		PeerID:     transfer.PeerID,
+		Downloaded: transfer.BytesDownloaded,
+		Left:       transfer.BytesLeft,
+		Uploaded:   transfer.BytesUploaded,
 		Event:      e,
-		IP:         0, // Tracker uses sender of this UDP packet.
 		Key:        rand.Uint32(),
 		NumWant:    tracker.NumWant,
 		Port:       uint16(transfer.Port),
-		Extensions: 0,
 	}
 	request.SetAction(actionAnnounce)
 
 	request2 := &transferAnnounceRequest{
-		transfer:        transfer,
 		announceRequest: request,
 		urlData:         t.url.RequestURI(),
 	}

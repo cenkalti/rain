@@ -5,13 +5,13 @@ import (
 )
 
 type transaction struct {
-	request  udpReqeust
+	request  udpRequest
 	response []byte
 	err      error
 	done     chan struct{}
 }
 
-func newTransaction(req udpReqeust) *transaction {
+func newTransaction(req udpRequest) *transaction {
 	req.SetTransactionID(rand.Int31())
 	return &transaction{
 		request: req,
