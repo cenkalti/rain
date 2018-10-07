@@ -8,13 +8,13 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"math/rand"
 	"net"
 	"net/url"
 	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff"
-
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent/internal/tracker"
 )
@@ -221,7 +221,7 @@ func (t *UDPTracker) Announce(transfer tracker.Transfer, e tracker.Event, cancel
 		PeerID:     transfer.PeerID,
 		Event:      e,
 		IP:         0, // Tracker uses sender of this UDP packet.
-		Key:        0, // TODO set it random int
+		Key:        rand.Uint32(),
 		NumWant:    tracker.NumWant,
 		Port:       uint16(transfer.Port),
 		Extensions: 0,
