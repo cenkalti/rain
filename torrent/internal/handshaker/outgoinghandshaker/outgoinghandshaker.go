@@ -16,7 +16,7 @@ type OutgoingHandshaker struct {
 	infoHash [20]byte
 	resultC  chan Result
 	closeC   chan struct{}
-	closedC  chan struct{}
+	doneC    chan struct{}
 	log      logger.Logger
 }
 
@@ -33,18 +33,18 @@ func NewOutgoing(addr net.Addr, peerID, infoHash [20]byte, resultC chan Result, 
 		infoHash: infoHash,
 		resultC:  resultC,
 		closeC:   make(chan struct{}),
-		closedC:  make(chan struct{}),
+		doneC:    make(chan struct{}),
 		log:      l,
 	}
 }
 
 func (h *OutgoingHandshaker) Close() {
 	close(h.closeC)
-	<-h.closedC
+	<-h.doneC
 }
 
 func (h *OutgoingHandshaker) Run() {
-	defer close(h.closedC)
+	defer close(h.doneC)
 	log := logger.New("peer -> " + h.addr.String())
 
 	// TODO get this from config

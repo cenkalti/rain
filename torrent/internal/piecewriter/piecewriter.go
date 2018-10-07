@@ -9,7 +9,7 @@ type PieceWriter struct {
 	requests  chan Request
 	responses chan Response
 	closeC    chan struct{}
-	closedC   chan struct{}
+	doneC     chan struct{}
 	log       logger.Logger
 }
 
@@ -28,18 +28,18 @@ func New(requests chan Request, responses chan Response, l logger.Logger) *Piece
 		requests:  requests,
 		responses: responses,
 		closeC:    make(chan struct{}),
-		closedC:   make(chan struct{}),
+		doneC:     make(chan struct{}),
 		log:       l,
 	}
 }
 
 func (w *PieceWriter) Close() {
 	close(w.closeC)
-	<-w.closedC
+	<-w.doneC
 }
 
 func (w *PieceWriter) Run() {
-	defer close(w.closedC)
+	defer close(w.doneC)
 	for {
 		select {
 		case req := <-w.requests:

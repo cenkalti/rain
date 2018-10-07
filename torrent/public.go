@@ -5,7 +5,7 @@ package torrent
 func (t *Torrent) Start() {
 	select {
 	case t.startCommandC <- struct{}{}:
-	case <-t.closedC:
+	case <-t.doneC:
 	}
 }
 
@@ -14,7 +14,7 @@ func (t *Torrent) Start() {
 func (t *Torrent) Stop() {
 	select {
 	case t.stopCommandC <- struct{}{}:
-	case <-t.closedC:
+	case <-t.doneC:
 	}
 }
 
@@ -23,8 +23,8 @@ func (t *Torrent) Stop() {
 func (t *Torrent) Close() {
 	select {
 	case t.closeC <- struct{}{}:
-		<-t.closedC
-	case <-t.closedC:
+		<-t.doneC
+	case <-t.doneC:
 	}
 }
 
@@ -46,7 +46,7 @@ func (t *Torrent) NotifyError() <-chan error {
 	select {
 	case t.notifyErrorCommandC <- cmd:
 		return <-cmd.errCC
-	case <-t.closedC:
+	case <-t.doneC:
 		return nil
 	}
 }

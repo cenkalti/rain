@@ -27,8 +27,8 @@ type Peer struct {
 
 	ExtensionHandshake *peerprotocol.ExtensionHandshakeMessage
 
-	closeC  chan struct{}
-	closedC chan struct{}
+	closeC chan struct{}
+	doneC  chan struct{}
 }
 
 type Message struct {
@@ -44,18 +44,18 @@ func New(p *peerconn.Conn, messages chan Message, disconnect chan *Peer) *Peer {
 		AmChoking:   true,
 		PeerChoking: true,
 		closeC:      make(chan struct{}),
-		closedC:     make(chan struct{}),
+		doneC:       make(chan struct{}),
 	}
 }
 
 func (p *Peer) Close() {
 	close(p.closeC)
 	p.Conn.Close()
-	<-p.closedC
+	<-p.doneC
 }
 
 func (p *Peer) Run() {
-	defer close(p.closedC)
+	defer close(p.doneC)
 	go p.Conn.Run()
 	for msg := range p.Conn.Messages() {
 		select {

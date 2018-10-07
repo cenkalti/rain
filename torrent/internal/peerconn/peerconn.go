@@ -19,7 +19,7 @@ type Conn struct {
 	writer        *peerwriter.PeerWriter
 	log           logger.Logger
 	closeC        chan struct{}
-	closedC       chan struct{}
+	doneC         chan struct{}
 }
 
 func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, l logger.Logger) *Conn {
@@ -33,7 +33,7 @@ func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, l logger.Log
 		writer:        peerwriter.New(conn, l),
 		log:           l,
 		closeC:        make(chan struct{}),
-		closedC:       make(chan struct{}),
+		doneC:         make(chan struct{}),
 	}
 }
 
@@ -47,7 +47,7 @@ func (p *Conn) String() string {
 
 func (p *Conn) Close() {
 	close(p.closeC)
-	<-p.closedC
+	<-p.doneC
 }
 
 func (p *Conn) CloseConn() {
@@ -72,7 +72,7 @@ func (p *Conn) SendPiece(msg peerprotocol.RequestMessage, pi *pieceio.Piece) {
 
 // Run reads and processes incoming messages after handshake.
 func (p *Conn) Run() {
-	defer close(p.closedC)
+	defer close(p.doneC)
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 
 	readerDone := make(chan struct{})

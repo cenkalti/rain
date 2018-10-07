@@ -124,7 +124,7 @@ type Torrent struct {
 	closeC chan struct{}
 
 	// This channel will be closed after run loop exists.
-	closedC chan struct{}
+	doneC chan struct{}
 
 	// These are the channels for sending a message to run() loop.
 	statsCommandC       chan statsRequest       // Stats()
@@ -358,7 +358,7 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		writeResponseC:            make(chan piecewriter.Response),
 		completeC:                 make(chan struct{}),
 		closeC:                    make(chan struct{}),
-		closedC:                   make(chan struct{}),
+		doneC:                     make(chan struct{}),
 		statsCommandC:             make(chan statsRequest),
 		notifyErrorCommandC:       make(chan notifyErrorCommand),
 		addrsFromTrackers:         make(chan []*net.TCPAddr),

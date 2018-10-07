@@ -150,7 +150,7 @@ func (t *Torrent) close() {
 
 	// TODO close data
 	// TODO order closes here
-	close(t.closedC)
+	close(t.doneC)
 }
 
 func (t *Torrent) run() {
