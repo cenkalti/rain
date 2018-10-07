@@ -221,7 +221,7 @@ func (t *UDPTracker) Announce(transfer tracker.Transfer, e tracker.Event, cancel
 		PeerID:     transfer.PeerID,
 		Event:      e,
 		IP:         0, // Tracker uses sender of this UDP packet.
-		Key:        0, // TODO set it
+		Key:        0, // TODO set it random int
 		NumWant:    tracker.NumWant,
 		Port:       uint16(transfer.Port),
 		Extensions: 0,
