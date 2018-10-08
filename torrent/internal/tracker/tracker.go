@@ -17,10 +17,11 @@ const NumWant = 50
 
 type Tracker interface {
 	// Announce transfer to the tracker.
+	// Announce should be called periodically with the interval returned in AnnounceResponse.
+	// Announce should also be called on specific events.
 	Announce(ctx context.Context, t Transfer, e Event) (*AnnounceResponse, error)
 	// Close open connections to the tracker.
 	Close() error
-	// TODO implement scrape
 }
 
 type AnnounceResponse struct {
