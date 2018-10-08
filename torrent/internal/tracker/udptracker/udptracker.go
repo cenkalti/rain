@@ -31,6 +31,7 @@ type UDPTracker struct {
 	transactions  map[int32]*transaction
 	transactionsM sync.Mutex // TODO remove udp tracker mutex
 	writeC        chan *transaction
+	closeC        chan struct{}
 }
 
 func New(u *url.URL) *UDPTracker {
@@ -39,6 +40,7 @@ func New(u *url.URL) *UDPTracker {
 		log:          logger.New("tracker " + u.String()),
 		transactions: make(map[int32]*transaction),
 		writeC:       make(chan *transaction),
+		closeC:       make(chan struct{}),
 	}
 }
 
@@ -56,7 +58,7 @@ func (t *UDPTracker) dial() error {
 
 // Close the tracker connection.
 func (t *UDPTracker) Close() error {
-	close(t.writeC)
+	close(t.closeC)
 	if t.conn != nil {
 		return t.conn.Close()
 	}
@@ -72,12 +74,12 @@ func (t *UDPTracker) readLoop() {
 	for {
 		n, err := t.conn.Read(buf)
 		if err != nil {
-			t.log.Error(err)
-			if nerr, ok := err.(net.Error); ok && !nerr.Temporary() {
-				t.log.Debug("End of tracker read loop")
-				return
+			select {
+			case <-t.closeC:
+			default:
+				t.log.Error(err)
 			}
-			continue
+			return
 		}
 		t.log.Debug("Read ", n, " bytes")
 
@@ -123,14 +125,18 @@ func (t *UDPTracker) writeLoop() {
 	var connectionID int64
 	var connectionIDtime time.Time
 
-	for trx := range t.writeC {
-		if time.Since(connectionIDtime) > connectionIDInterval {
-			connectionID = t.connect()
-			connectionIDtime = time.Now()
+	for {
+		select {
+		case trx := <-t.writeC:
+			if time.Since(connectionIDtime) > connectionIDInterval {
+				connectionID = t.connect()
+				connectionIDtime = time.Now()
+			}
+			trx.request.SetConnectionID(connectionID)
+			t.writeTrx(trx)
+		case <-t.closeC:
+			return
 		}
-		trx.request.SetConnectionID(connectionID)
-
-		t.writeTrx(trx)
 	}
 }
 
