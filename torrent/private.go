@@ -152,6 +152,38 @@ func (t *Torrent) close() {
 	// TODO order closes here
 }
 
+func (t *Torrent) stats() Stats {
+	stats := Stats{
+		Status: t.status(),
+	}
+	if t.info != nil {
+		stats.BytesTotal = t.info.TotalLength
+		// TODO this is wrong, pre-calculate complete and incomplete bytes
+		stats.BytesComplete = int64(t.info.PieceLength) * int64(t.bitfield.Count())
+		if t.bitfield.Test(t.bitfield.Len() - 1) {
+			stats.BytesComplete -= int64(t.info.PieceLength)
+			stats.BytesComplete += int64(t.pieces[t.bitfield.Len()-1].Length)
+		}
+		stats.BytesIncomplete = stats.BytesTotal - stats.BytesComplete
+		// TODO calculate bytes downloaded
+		// TODO calculate bytes uploaded
+	} else {
+		stats.BytesIncomplete = math.MaxUint32
+		// TODO this is wrong, pre-calculate complete and incomplete bytes
+	}
+	return stats
+}
+
+func (t *Torrent) status() Status {
+	if !t.running {
+		return Stopped
+	}
+	if !t.completed {
+		return Downloading
+	}
+	return Seeding
+}
+
 func (t *Torrent) run() {
 	defer close(t.doneC)
 	defer t.close()
@@ -180,23 +212,7 @@ func (t *Torrent) run() {
 			t.addrList.Push(addrs, t.port)
 			t.dialLimit.Signal(len(addrs))
 		case req := <-t.statsCommandC:
-			var stats Stats
-			if t.info != nil {
-				stats.BytesTotal = t.info.TotalLength
-				// TODO this is wrong, pre-calculate complete and incomplete bytes
-				stats.BytesComplete = int64(t.info.PieceLength) * int64(t.bitfield.Count())
-				if t.bitfield.Test(t.bitfield.Len() - 1) {
-					stats.BytesComplete -= int64(t.info.PieceLength)
-					stats.BytesComplete += int64(t.pieces[t.bitfield.Len()-1].Length)
-				}
-				stats.BytesIncomplete = stats.BytesTotal - stats.BytesComplete
-				// TODO calculate bytes downloaded
-				// TODO calculate bytes uploaded
-			} else {
-				stats.BytesIncomplete = math.MaxUint32
-				// TODO this is wrong, pre-calculate complete and incomplete bytes
-			}
-			req.Response <- stats
+			req.Response <- t.stats()
 		case <-t.dialLimit.Ready:
 			addr := t.addrList.Pop()
 			if addr == nil {
