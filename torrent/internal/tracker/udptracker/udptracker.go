@@ -44,6 +44,69 @@ func New(u *url.URL) *UDPTracker {
 	}
 }
 
+func (t *UDPTracker) Announce(transfer tracker.Transfer, e tracker.Event, cancel <-chan struct{}) (*tracker.AnnounceResponse, error) {
+	t.dialMutex.Lock()
+	if !t.connected {
+		err := t.dial() // TODO dial with context
+		if err != nil {
+			t.dialMutex.Unlock()
+			return nil, err
+		}
+		t.connected = true
+	}
+	t.dialMutex.Unlock()
+
+	request := &announceRequest{
+		InfoHash:   transfer.InfoHash,
+		PeerID:     transfer.PeerID,
+		Downloaded: transfer.BytesDownloaded,
+		Left:       transfer.BytesLeft,
+		Uploaded:   transfer.BytesUploaded,
+		Event:      e,
+		Key:        rand.Uint32(),
+		NumWant:    tracker.NumWant,
+		Port:       uint16(transfer.Port),
+	}
+	request.SetAction(actionAnnounce)
+
+	request2 := &transferAnnounceRequest{
+		announceRequest: request,
+		urlData:         t.url.RequestURI(),
+	}
+	trx := newTransaction(request2)
+
+	// t.request may block, that's why we pass cancel as argument.
+	reply, err := t.sendTransaction(trx, cancel)
+	if err != nil {
+		if err, ok := err.(tracker.Error); ok {
+			return &tracker.AnnounceResponse{Error: err}, nil
+		}
+		return nil, err
+	}
+
+	response, peers, err := t.parseAnnounceResponse(reply)
+	if err != nil {
+		return nil, err
+	}
+	t.log.Debugf("Announce response: %#v", response)
+
+	return &tracker.AnnounceResponse{
+		Interval: time.Duration(response.Interval) * time.Second,
+		Leechers: response.Leechers,
+		Seeders:  response.Seeders,
+		Peers:    peers,
+	}, nil
+}
+
+// Close the tracker connection.
+func (t *UDPTracker) Close() error {
+	close(t.closeC)
+	if t.conn != nil {
+		return t.conn.Close()
+	}
+	return nil
+}
+
 func (t *UDPTracker) dial() error {
 	var dialer net.Dialer
 	var err error
@@ -53,15 +116,6 @@ func (t *UDPTracker) dial() error {
 	}
 	go t.readLoop()
 	go t.writeLoop()
-	return nil
-}
-
-// Close the tracker connection.
-func (t *UDPTracker) Close() error {
-	close(t.closeC)
-	if t.conn != nil {
-		return t.conn.Close()
-	}
 	return nil
 }
 
@@ -208,60 +262,6 @@ func (t *UDPTracker) retryTransaction(f func(*transaction), trx *transaction, ca
 func (t *UDPTracker) sendTransaction(trx *transaction, cancel <-chan struct{}) ([]byte, error) {
 	f := func(trx *transaction) { t.writeC <- trx }
 	return t.retryTransaction(f, trx, cancel)
-}
-
-func (t *UDPTracker) Announce(transfer tracker.Transfer, e tracker.Event, cancel <-chan struct{}) (*tracker.AnnounceResponse, error) {
-	t.dialMutex.Lock()
-	if !t.connected {
-		err := t.dial() // TODO dial with context
-		if err != nil {
-			t.dialMutex.Unlock()
-			return nil, err
-		}
-		t.connected = true
-	}
-	t.dialMutex.Unlock()
-
-	request := &announceRequest{
-		InfoHash:   transfer.InfoHash,
-		PeerID:     transfer.PeerID,
-		Downloaded: transfer.BytesDownloaded,
-		Left:       transfer.BytesLeft,
-		Uploaded:   transfer.BytesUploaded,
-		Event:      e,
-		Key:        rand.Uint32(),
-		NumWant:    tracker.NumWant,
-		Port:       uint16(transfer.Port),
-	}
-	request.SetAction(actionAnnounce)
-
-	request2 := &transferAnnounceRequest{
-		announceRequest: request,
-		urlData:         t.url.RequestURI(),
-	}
-	trx := newTransaction(request2)
-
-	// t.request may block, that's why we pass cancel as argument.
-	reply, err := t.sendTransaction(trx, cancel)
-	if err != nil {
-		if err, ok := err.(tracker.Error); ok {
-			return &tracker.AnnounceResponse{Error: err}, nil
-		}
-		return nil, err
-	}
-
-	response, peers, err := t.parseAnnounceResponse(reply)
-	if err != nil {
-		return nil, err
-	}
-	t.log.Debugf("Announce response: %#v", response)
-
-	return &tracker.AnnounceResponse{
-		Interval: time.Duration(response.Interval) * time.Second,
-		Leechers: response.Leechers,
-		Seeders:  response.Seeders,
-		Peers:    peers,
-	}, nil
 }
 
 func (t *UDPTracker) parseAnnounceResponse(data []byte) (*udpAnnounceResponse, []*net.TCPAddr, error) {
