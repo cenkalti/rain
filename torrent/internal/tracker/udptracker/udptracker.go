@@ -34,6 +34,8 @@ type UDPTracker struct {
 	closeC        chan struct{}
 }
 
+var _ tracker.Tracker = (*UDPTracker)(nil)
+
 func New(u *url.URL) *UDPTracker {
 	return &UDPTracker{
 		url:          u,
@@ -44,10 +46,10 @@ func New(u *url.URL) *UDPTracker {
 	}
 }
 
-func (t *UDPTracker) Announce(transfer tracker.Transfer, e tracker.Event, cancel <-chan struct{}) (*tracker.AnnounceResponse, error) {
+func (t *UDPTracker) Announce(ctx context.Context, transfer tracker.Transfer, e tracker.Event) (*tracker.AnnounceResponse, error) {
 	t.dialMutex.Lock()
 	if !t.connected {
-		err := t.dial() // TODO dial with context
+		err := t.dial(ctx)
 		if err != nil {
 			t.dialMutex.Unlock()
 			return nil, err
@@ -76,7 +78,16 @@ func (t *UDPTracker) Announce(transfer tracker.Transfer, e tracker.Event, cancel
 	trx := newTransaction(request2)
 
 	// t.request may block, that's why we pass cancel as argument.
-	reply, err := t.sendTransaction(trx, cancel)
+	f := func(trx *transaction) {
+		select {
+		case t.writeC <- trx:
+		case <-ctx.Done():
+		}
+	}
+	reply, err := t.retryTransaction(ctx, f, trx)
+	if err == context.Canceled {
+		return nil, err
+	}
 	if err != nil {
 		if err, ok := err.(tracker.Error); ok {
 			return &tracker.AnnounceResponse{Error: err}, nil
@@ -107,10 +118,10 @@ func (t *UDPTracker) Close() error {
 	return nil
 }
 
-func (t *UDPTracker) dial() error {
+func (t *UDPTracker) dial(ctx context.Context) error {
 	var dialer net.Dialer
 	var err error
-	t.conn, err = dialer.DialContext(context.Background(), "udp", t.url.Host) // TODO give cancelable context
+	t.conn, err = dialer.DialContext(ctx, "udp", t.url.Host)
 	if err != nil {
 		return err
 	}
@@ -154,7 +165,7 @@ func (t *UDPTracker) readLoop() {
 		delete(t.transactions, header.TransactionID)
 		t.transactionsM.Unlock()
 		if !ok {
-			t.log.Errorln("unexpected transaction_id:", header.TransactionID)
+			t.log.Debugln("unexpected transaction_id:", header.TransactionID)
 			continue
 		}
 
@@ -179,11 +190,21 @@ func (t *UDPTracker) writeLoop() {
 	var connectionID int64
 	var connectionIDtime time.Time
 
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		<-t.closeC
+		cancel()
+	}()
+
 	for {
 		select {
 		case trx := <-t.writeC:
 			if time.Since(connectionIDtime) > connectionIDInterval {
-				connectionID = t.connect()
+				var canceled bool
+				connectionID, canceled = t.connect(ctx)
+				if canceled {
+					return
+				}
 				connectionIDtime = time.Now()
 			}
 			trx.request.SetConnectionID(connectionID)
@@ -205,7 +226,7 @@ func (t *UDPTracker) writeTrx(trx *transaction) {
 // connect sends a connectRequest and returns a ConnectionID given by the tracker.
 // On error, it backs off with the algorithm described in BEP15 and retries.
 // It does not return until tracker sends a ConnectionID.
-func (t *UDPTracker) connect() int64 {
+func (t *UDPTracker) connect(ctx context.Context) (connectionID int64, canceled bool) {
 	req := new(connectRequest)
 	req.SetAction(actionConnect)
 	req.SetConnectionID(connectionIDMagic)
@@ -213,8 +234,10 @@ func (t *UDPTracker) connect() int64 {
 	trx := newTransaction(req)
 
 	for {
-		data, err := t.retryTransaction(t.writeTrx, trx, nil) // Does not return until transaction is completed.
-		if err != nil {
+		data, err := t.retryTransaction(ctx, t.writeTrx, trx) // Does not return until transaction is completed.
+		if err == context.Canceled {
+			return 0, true
+		} else if err != nil {
 			t.log.Error(err)
 			continue
 		}
@@ -232,11 +255,11 @@ func (t *UDPTracker) connect() int64 {
 		}
 
 		t.log.Debugf("connect Response: %#v\n", response)
-		return response.ConnectionID
+		return response.ConnectionID, false
 	}
 }
 
-func (t *UDPTracker) retryTransaction(f func(*transaction), trx *transaction, cancel <-chan struct{}) ([]byte, error) {
+func (t *UDPTracker) retryTransaction(ctx context.Context, f func(*transaction), trx *transaction) ([]byte, error) {
 	t.transactionsM.Lock()
 	t.transactions[trx.ID()] = trx
 	t.transactionsM.Unlock()
@@ -250,18 +273,13 @@ func (t *UDPTracker) retryTransaction(f func(*transaction), trx *transaction, ca
 		case <-trx.done:
 			// transaction is deleted in readLoop()
 			return trx.response, trx.err
-		case <-cancel:
+		case <-ctx.Done():
 			t.transactionsM.Lock()
 			delete(t.transactions, trx.ID())
 			t.transactionsM.Unlock()
-			return nil, tracker.ErrRequestCancelled
+			return nil, context.Canceled
 		}
 	}
-}
-
-func (t *UDPTracker) sendTransaction(trx *transaction, cancel <-chan struct{}) ([]byte, error) {
-	f := func(trx *transaction) { t.writeC <- trx }
-	return t.retryTransaction(f, trx, cancel)
 }
 
 func (t *UDPTracker) parseAnnounceResponse(data []byte) (*udpAnnounceResponse, []*net.TCPAddr, error) {

@@ -2,6 +2,7 @@ package httptracker
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -27,6 +28,8 @@ type HTTPTracker struct {
 	trackerID string
 }
 
+var _ tracker.Tracker = (*HTTPTracker)(nil)
+
 func New(u *url.URL) *HTTPTracker {
 	transport := &http.Transport{
 		Dial: (&net.Dialer{
@@ -46,7 +49,7 @@ func New(u *url.URL) *HTTPTracker {
 	}
 }
 
-func (t *HTTPTracker) Announce(transfer tracker.Transfer, e tracker.Event, cancel <-chan struct{}) (*tracker.AnnounceResponse, error) {
+func (t *HTTPTracker) Announce(ctx context.Context, transfer tracker.Transfer, e tracker.Event) (*tracker.AnnounceResponse, error) {
 	peerID := transfer.PeerID
 	infoHash := transfer.InfoHash
 	q := url.Values{}
@@ -79,6 +82,7 @@ func (t *HTTPTracker) Announce(transfer tracker.Transfer, e tracker.Event, cance
 		Header:     make(http.Header),
 		Host:       u.Host,
 	}
+	req = req.WithContext(ctx)
 
 	bodyC := make(chan io.ReadCloser, 1)
 	errC := make(chan error, 1)
@@ -103,10 +107,10 @@ func (t *HTTPTracker) Announce(transfer tracker.Transfer, e tracker.Event, cance
 
 	select {
 	case err := <-errC:
+		if uerr, ok := err.(*url.Error); ok && uerr.Err == context.Canceled {
+			err = context.Canceled
+		}
 		return nil, err
-	case <-cancel:
-		t.transport.CancelRequest(req)
-		return nil, tracker.ErrRequestCancelled
 	case body := <-bodyC:
 		d := bencode.NewDecoder(body)
 		err := d.Decode(&response)

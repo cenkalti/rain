@@ -3,6 +3,7 @@ package tracker
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"errors"
 	"net"
@@ -14,11 +15,9 @@ import (
 // NumWant is the number of peers we want from trackers.
 const NumWant = 50
 
-var ErrRequestCancelled = errors.New("request cancelled")
-
 type Tracker interface {
 	// Announce transfer to the tracker.
-	Announce(t Transfer, e Event, cancel <-chan struct{}) (*AnnounceResponse, error)
+	Announce(ctx context.Context, t Transfer, e Event) (*AnnounceResponse, error)
 	// Close open connections to the tracker.
 	Close() error
 	// TODO implement scrape

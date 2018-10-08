@@ -102,7 +102,7 @@ func (d *PieceDownloader) Run() {
 		case blk := <-d.RejectC:
 			b := d.blocks[blk.Index]
 			if !b.requested {
-				d.Peer.Logger().Warningln("received invalid reject message")
+				d.Peer.Logger().Warningln("received reject message for block not requested yet")
 				break
 			}
 			d.blocks[blk.Index].requested = false

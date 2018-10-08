@@ -1,6 +1,7 @@
 package announcer
 
 import (
+	"context"
 	"net"
 	"time"
 
@@ -41,6 +42,7 @@ func New(trk tracker.Tracker, requests chan *Request, completedC chan struct{}, 
 		requests:   requests,
 		closeC:     make(chan struct{}),
 		doneC:      make(chan struct{}),
+		// TODO remove this backoff, move into http
 		backoff: &backoff.ExponentialBackOff{
 			InitialInterval:     5 * time.Second,
 			RandomizationFactor: 0.5,
@@ -59,14 +61,21 @@ func (a *Announcer) Close() {
 
 func (a *Announcer) Run() {
 	defer close(a.doneC)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		<-a.closeC
+		cancel()
+	}()
+
 	a.backoff.Reset()
-	a.announce(tracker.EventStarted, a.closeC)
+	a.announce(ctx, tracker.EventStarted)
 	for {
 		select {
 		case <-time.After(a.nextAnnounce):
-			a.announce(tracker.EventNone, a.closeC)
+			a.announce(ctx, tracker.EventNone)
 		case <-a.completedC:
-			a.announce(tracker.EventCompleted, a.closeC)
+			a.announce(ctx, tracker.EventCompleted)
 			a.completedC = nil
 		case <-a.closeC:
 			go a.announceStopAndClose()
@@ -75,23 +84,23 @@ func (a *Announcer) Run() {
 	}
 }
 
-func (a *Announcer) announce(e tracker.Event, stopC chan struct{}) {
+func (a *Announcer) announce(ctx context.Context, e tracker.Event) {
 	req := &Request{
 		Response: make(chan Response),
 	}
 	select {
 	case a.requests <- req:
-	case <-stopC:
+	case <-ctx.Done():
 		return
 	}
 	var resp Response
 	select {
 	case resp = <-req.Response:
-	case <-stopC:
+	case <-ctx.Done():
 		return
 	}
-	r, err := a.tracker.Announce(resp.Transfer, e, stopC)
-	if err == tracker.ErrRequestCancelled {
+	r, err := a.tracker.Announce(ctx, resp.Transfer, e)
+	if err == context.Canceled {
 		return
 	}
 	if err != nil {
@@ -106,17 +115,14 @@ func (a *Announcer) announce(e tracker.Event, stopC chan struct{}) {
 		a.nextAnnounce = r.Interval
 		select {
 		case a.newPeers <- r.Peers:
-		case <-stopC:
+		case <-ctx.Done():
 		}
 	}
 }
 
 func (a *Announcer) announceStopAndClose() {
-	stopC := make(chan struct{})
-	go func() {
-		<-time.After(stopEventTimeout)
-		close(stopC)
-	}()
-	a.announce(tracker.EventStopped, stopC)
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(stopEventTimeout))
+	defer cancel()
+	a.announce(ctx, tracker.EventStopped)
 	a.tracker.Close()
 }
