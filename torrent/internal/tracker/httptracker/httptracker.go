@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -84,40 +83,28 @@ func (t *HTTPTracker) Announce(ctx context.Context, transfer tracker.Transfer, e
 	}
 	req = req.WithContext(ctx)
 
-	bodyC := make(chan io.ReadCloser, 1)
-	errC := make(chan error, 1)
-	go func() {
+	do := func() ([]byte, error) {
 		resp, err := t.http.Do(req)
-		if err != nil {
-			errC <- err
-			return
-		}
-
-		if resp.StatusCode != 200 {
-			data, _ := ioutil.ReadAll(resp.Body)
-			_ = resp.Body.Close()
-			errC <- fmt.Errorf("status not 200 OK (status: %d body: %q)", resp.StatusCode, string(data))
-			return
-		}
-
-		bodyC <- resp.Body
-	}()
-
-	var response = new(announceResponse)
-
-	select {
-	case err := <-errC:
-		if uerr, ok := err.(*url.Error); ok && uerr.Err == context.Canceled {
-			err = context.Canceled
-		}
-		return nil, err
-	case body := <-bodyC:
-		d := bencode.NewDecoder(body)
-		err := d.Decode(&response)
-		_ = body.Close()
 		if err != nil {
 			return nil, err
 		}
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			data, _ := ioutil.ReadAll(resp.Body)
+			return nil, fmt.Errorf("status not 200 OK (status: %d body: %q)", resp.StatusCode, string(data))
+		}
+		return ioutil.ReadAll(resp.Body)
+	}
+
+	body, err := do()
+	if uerr, ok := err.(*url.Error); ok && uerr.Err == context.Canceled {
+		return nil, context.Canceled
+	}
+
+	var response announceResponse
+	err = bencode.DecodeBytes(body, &response)
+	if err != nil {
+		return nil, err
 	}
 
 	if response.WarningMessage != "" {
@@ -133,7 +120,6 @@ func (t *HTTPTracker) Announce(ctx context.Context, transfer tracker.Transfer, e
 
 	// Peers may be in binary or dictionary model.
 	var peers []*net.TCPAddr
-	var err error
 	if len(response.Peers) > 0 {
 		if response.Peers[0] == 'l' {
 			peers, err = t.parsePeersDictionary(response.Peers)
