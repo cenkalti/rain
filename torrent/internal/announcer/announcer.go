@@ -42,7 +42,6 @@ func New(trk tracker.Tracker, requests chan *Request, completedC chan struct{}, 
 		requests:   requests,
 		closeC:     make(chan struct{}),
 		doneC:      make(chan struct{}),
-		// TODO remove this backoff, move into http
 		backoff: &backoff.ExponentialBackOff{
 			InitialInterval:     5 * time.Second,
 			RandomizationFactor: 0.5,
