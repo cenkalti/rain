@@ -221,8 +221,8 @@ func New(r io.Reader, port int, sto storage.Storage) (*Torrent, error) {
 }
 
 // NewMagnet returns a new torrent by parsing a magnet link.
-func NewMagnet(magnetLink string, port int, sto storage.Storage) (*Torrent, error) {
-	m, err := magnet.New(magnetLink)
+func NewMagnet(link string, port int, sto storage.Storage) (*Torrent, error) {
+	m, err := magnet.New(link)
 	if err != nil {
 		return nil, err
 	}
