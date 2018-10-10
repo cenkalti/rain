@@ -6,6 +6,7 @@ import (
 
 	"github.com/cenkalti/rain/torrent/internal/peerconn"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
+	"github.com/cenkalti/rain/torrent/internal/semaphore"
 )
 
 const blockSize = 16 * 1024
@@ -16,9 +17,9 @@ const maxQueuedBlocks = 10
 type InfoDownloader struct {
 	extID     uint8
 	totalSize uint32
-	limiter   chan struct{}
 	Peer      *peerconn.Conn
 	blocks    []block
+	semaphore *semaphore.Semaphore
 	DataC     chan Data
 	// RejectC chan *piece.Block
 	resultC chan Result
@@ -64,7 +65,7 @@ func New(pe *peerconn.Conn, extID uint8, totalSize uint32, resultC chan Result) 
 		totalSize: totalSize,
 		Peer:      pe,
 		blocks:    blocks,
-		limiter:   make(chan struct{}, maxQueuedBlocks),
+		semaphore: semaphore.New(maxQueuedBlocks),
 		DataC:     make(chan Data),
 		// RejectC: make(chan *piece.Block),
 		resultC: resultC,
@@ -86,12 +87,13 @@ func (d *InfoDownloader) Run() {
 		case <-d.closeC:
 		}
 	}()
+	d.semaphore.Start()
 	for {
 		select {
-		case d.limiter <- struct{}{}:
+		case <-d.semaphore.Ready:
 			b := d.nextBlock()
 			if b == nil {
-				d.limiter = nil
+				d.semaphore.Stop()
 				break
 			}
 			msg := peerprotocol.ExtensionMessage{
@@ -113,9 +115,7 @@ func (d *InfoDownloader) Run() {
 				return
 			}
 			if b.requested && b.data == nil {
-				if d.limiter == nil {
-					d.limiter = make(chan struct{}, maxQueuedBlocks)
-				}
+				d.semaphore.Signal(1)
 			}
 			b.data = msg.Data
 			if d.allDone() {
