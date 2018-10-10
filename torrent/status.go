@@ -42,11 +42,24 @@ func (t *Torrent) status() Status {
 	if t.verifier != nil {
 		return Verifying
 	}
-	if t.completed {
+	if t.completed() {
 		return Seeding
 	}
 	if t.info == nil {
 		return DownloadingMetadata
 	}
 	return Downloading
+}
+
+func (t *Torrent) running() bool {
+	return t.errC != nil
+}
+
+func (t *Torrent) completed() bool {
+	select {
+	case <-t.completeC:
+		return true
+	default:
+		return false
+	}
 }

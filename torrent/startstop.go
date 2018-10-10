@@ -10,10 +10,6 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/piecewriter"
 )
 
-func (t *Torrent) running() bool {
-	return t.errC != nil
-}
-
 func (t *Torrent) start() {
 	if t.running() {
 		return

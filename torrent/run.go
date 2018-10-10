@@ -442,11 +442,10 @@ func (t *Torrent) unchokePeer(pe *peer.Peer) {
 }
 
 func (t *Torrent) checkCompletion() {
-	if t.completed {
+	if t.completed() {
 		return
 	}
 	if t.bitfield.All() {
 		close(t.completeC)
-		t.completed = true
 	}
 }

@@ -62,9 +62,6 @@ type Torrent struct {
 	// Data provides IO access to pieces in torrent.
 	data *torrentdata.Data
 
-	// Boolean state to to tell if all pieces are downloaded.
-	completed bool
-
 	// Contains state about the pieces in torrent.
 	pieces []piece.Piece
 
