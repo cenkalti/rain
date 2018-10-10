@@ -14,13 +14,12 @@ const maxQueuedBlocks = 10
 
 // InfoDownloader downloads all blocks of a piece from a peer.
 type InfoDownloader struct {
-	extID          uint8
-	totalSize      uint32
-	nextBlockIndex uint32
-	requested      map[uint32]struct{}
-	Peer           *peerconn.Conn
-	blocks         []block
-	DataC          chan Data
+	extID     uint8
+	totalSize uint32
+	limiter   chan struct{}
+	Peer      *peerconn.Conn
+	blocks    []block
+	DataC     chan Data
 	// RejectC chan *piece.Block
 	resultC chan Result
 	closeC  chan struct{}
@@ -32,9 +31,10 @@ type Data struct {
 }
 
 type block struct {
-	index uint32
-	size  uint32
-	data  []byte
+	index     uint32
+	size      uint32
+	requested bool
+	data      []byte
 }
 
 type Result struct {
@@ -64,7 +64,7 @@ func New(pe *peerconn.Conn, extID uint8, totalSize uint32, resultC chan Result) 
 		totalSize: totalSize,
 		Peer:      pe,
 		blocks:    blocks,
-		requested: make(map[uint32]struct{}),
+		limiter:   make(chan struct{}, maxQueuedBlocks),
 		DataC:     make(chan Data),
 		// RejectC: make(chan *piece.Block),
 		resultC: resultC,
@@ -74,20 +74,6 @@ func New(pe *peerconn.Conn, extID uint8, totalSize uint32, resultC chan Result) 
 
 func (d *InfoDownloader) Close() {
 	close(d.closeC)
-}
-
-func (d *InfoDownloader) requestBlocks() {
-	for ; d.nextBlockIndex < uint32(len(d.blocks)) && len(d.requested) < maxQueuedBlocks; d.nextBlockIndex++ {
-		d.requested[d.nextBlockIndex] = struct{}{}
-		msg := peerprotocol.ExtensionMessage{
-			ExtendedMessageID: d.extID,
-			Payload: peerprotocol.ExtensionMetadataMessage{
-				Type:  peerprotocol.ExtensionMetadataMessageTypeRequest,
-				Piece: d.nextBlockIndex,
-			},
-		}
-		d.Peer.SendMessage(msg)
-	}
 }
 
 func (d *InfoDownloader) Run() {
@@ -101,11 +87,24 @@ func (d *InfoDownloader) Run() {
 		}
 	}()
 	for {
-		d.requestBlocks()
 		select {
+		case d.limiter <- struct{}{}:
+			b := d.nextBlock()
+			if b == nil {
+				d.limiter = nil
+				break
+			}
+			msg := peerprotocol.ExtensionMessage{
+				ExtendedMessageID: d.extID,
+				Payload: peerprotocol.ExtensionMetadataMessage{
+					Type:  peerprotocol.ExtensionMetadataMessageTypeRequest,
+					Piece: b.index,
+				},
+			}
+			d.Peer.SendMessage(msg)
 		case msg := <-d.DataC:
-			if _, ok := d.requested[msg.Index]; !ok {
-				result.Error = fmt.Errorf("peer sent unrequested index for metadata message: %q", msg.Index)
+			if msg.Index >= uint32(len(d.blocks)) {
+				result.Error = fmt.Errorf("peer sent invalid index for metadata message: %q", msg.Index)
 				return
 			}
 			b := &d.blocks[msg.Index]
@@ -113,7 +112,11 @@ func (d *InfoDownloader) Run() {
 				result.Error = fmt.Errorf("peer sent invalid size for metadata message: %q", len(msg.Data))
 				return
 			}
-			delete(d.requested, msg.Index)
+			if b.requested && b.data == nil {
+				if d.limiter == nil {
+					d.limiter = make(chan struct{}, maxQueuedBlocks)
+				}
+			}
 			b.data = msg.Data
 			if d.allDone() {
 				result.Bytes = d.assembleBlocks().Bytes()
@@ -134,8 +137,23 @@ func (d *InfoDownloader) Run() {
 	}
 }
 
+func (d *InfoDownloader) nextBlock() *block {
+	for i := range d.blocks {
+		if !d.blocks[i].requested {
+			d.blocks[i].requested = true
+			return &d.blocks[i]
+		}
+	}
+	return nil
+}
+
 func (d *InfoDownloader) allDone() bool {
-	return d.nextBlockIndex == uint32(len(d.blocks)) && len(d.requested) == 0
+	for i := range d.blocks {
+		if d.blocks[i].data == nil {
+			return false
+		}
+	}
+	return true
 }
 
 func (d *InfoDownloader) assembleBlocks() *bytes.Buffer {
