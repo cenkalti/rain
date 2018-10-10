@@ -350,6 +350,7 @@ func (t *Torrent) run() {
 			t.startPeer(res.Peer, t.incomingPeers)
 		case res := <-t.outgoingHandshakerResultC:
 			delete(t.outgoingHandshakers, res.Addr.String())
+			t.dialLimit.Signal(maxPeerDial - len(t.outgoingPeers) - len(t.outgoingHandshakers))
 			if res.Error != nil {
 				break
 			}
@@ -365,13 +366,16 @@ func (t *Torrent) run() {
 				delete(t.infoDownloads, pe.Conn)
 			}
 			delete(t.connectedPeers, pe.Conn)
-			delete(t.incomingPeers, pe.Conn)
-			delete(t.outgoingPeers, pe.Conn)
 			for i := range t.pieces {
 				delete(t.pieces[i].HavingPeers, pe.Conn)
 				delete(t.pieces[i].AllowedFastPeers, pe.Conn)
 				delete(t.pieces[i].RequestedPeers, pe.Conn)
 			}
+			if _, ok := t.outgoingPeers[pe.Conn]; ok {
+				delete(t.outgoingPeers, pe.Conn)
+				t.dialLimit.Signal(maxPeerDial - len(t.outgoingPeers) - len(t.outgoingHandshakers))
+			}
+			delete(t.incomingPeers, pe.Conn)
 		case pm := <-t.messages:
 			t.handlePeerMessage(pm)
 		}
