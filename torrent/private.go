@@ -125,16 +125,16 @@ func (t *Torrent) run() {
 				t.checkCompletion()
 				t.processQueuedMessages()
 				t.pieceDownloaders.Start()
-			t.startAcceptor()
-			t.startAnnouncers()
+				t.startAcceptor()
+				t.startAnnouncers()
 				break
 			}
 			if !res.NeedHashCheck {
 				t.bitfield = bitfield.New(t.info.NumPieces)
 				t.processQueuedMessages()
 				t.pieceDownloaders.Start()
-			t.startAcceptor()
-			t.startAnnouncers()
+				t.startAcceptor()
+				t.startAnnouncers()
 				break
 			}
 			if res.NeedHashCheck {
@@ -230,9 +230,9 @@ func (t *Torrent) run() {
 				res.Peer.Close()
 				break
 			}
-			hash := sha1.New()    // nolint: gosec
-			hash.Write(res.Bytes) // nolint: gosec
-			if !bytes.Equal(hash.Sum(nil), t.infoHash[:]) {
+			hash := sha1.New()                              // nolint: gosec
+			hash.Write(res.Bytes)                           // nolint: gosec
+			if !bytes.Equal(hash.Sum(nil), t.infoHash[:]) { // nolint: gosec
 				res.Peer.Logger().Errorln("received info does not match with hash")
 				t.infoDownloaders.Signal(1)
 				res.Peer.Close()
