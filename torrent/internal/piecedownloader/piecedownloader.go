@@ -2,6 +2,7 @@ package piecedownloader
 
 import (
 	"bytes"
+	"fmt"
 
 	"github.com/cenkalti/rain/torrent/internal/peerconn"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
@@ -12,29 +13,30 @@ const maxQueuedBlocks = 10
 
 // PieceDownloader downloads all blocks of a piece from a peer.
 type PieceDownloader struct {
-	Piece    *pieceio.Piece
-	Peer     *peerconn.Conn
-	blocks   []block
-	limiter  chan struct{}
-	PieceC   chan Piece
-	RejectC  chan *pieceio.Block
-	ChokeC   chan struct{}
-	UnchokeC chan struct{}
-	resultC  chan Result
-	closeC   chan struct{}
-	doneC    chan struct{}
+	Piece          *pieceio.Piece
+	Peer           *peerconn.Conn
+	blocks         []block
+	nextBlockIndex uint32
+	requested      map[uint32]struct{}
+	PieceC         chan Piece
+	RejectC        chan *pieceio.Block
+	ChokeC         chan struct{}
+	UnchokeC       chan struct{}
+	resultC        chan Result
+	closeC         chan struct{}
+	doneC          chan struct{}
 }
 
 type block struct {
 	*pieceio.Block
-	requested bool
-	data      []byte
+	data []byte
 }
 
 type Result struct {
 	Peer  *peerconn.Conn
 	Piece *pieceio.Piece
 	Bytes []byte
+	Error error
 }
 
 func New(pi *pieceio.Piece, pe *peerconn.Conn, resultC chan Result) *PieceDownloader {
@@ -43,17 +45,17 @@ func New(pi *pieceio.Piece, pe *peerconn.Conn, resultC chan Result) *PieceDownlo
 		blocks[i] = block{Block: &pi.Blocks[i]}
 	}
 	return &PieceDownloader{
-		Piece:    pi,
-		Peer:     pe,
-		blocks:   blocks,
-		limiter:  make(chan struct{}, maxQueuedBlocks),
-		PieceC:   make(chan Piece),
-		RejectC:  make(chan *pieceio.Block),
-		ChokeC:   make(chan struct{}),
-		UnchokeC: make(chan struct{}),
-		resultC:  resultC,
-		closeC:   make(chan struct{}),
-		doneC:    make(chan struct{}),
+		Piece:     pi,
+		Peer:      pe,
+		blocks:    blocks,
+		requested: make(map[uint32]struct{}),
+		PieceC:    make(chan Piece),
+		RejectC:   make(chan *pieceio.Block),
+		ChokeC:    make(chan struct{}),
+		UnchokeC:  make(chan struct{}),
+		resultC:   resultC,
+		closeC:    make(chan struct{}),
+		doneC:     make(chan struct{}),
 	}
 }
 
@@ -63,6 +65,18 @@ func (d *PieceDownloader) Close() {
 
 func (d *PieceDownloader) Done() <-chan struct{} {
 	return d.doneC
+}
+
+func (d *PieceDownloader) requestBlocks() {
+	for ; d.nextBlockIndex < uint32(len(d.blocks)) && len(d.requested) < maxQueuedBlocks; d.nextBlockIndex++ {
+		b := d.blocks[d.nextBlockIndex]
+		if b.data != nil {
+			continue
+		}
+		d.requested[d.nextBlockIndex] = struct{}{}
+		msg := peerprotocol.RequestMessage{Index: d.Piece.Index, Begin: b.Begin, Length: b.Length}
+		d.Peer.SendMessage(msg)
+	}
 }
 
 func (d *PieceDownloader) Run() {
@@ -79,56 +93,38 @@ func (d *PieceDownloader) Run() {
 		}
 	}()
 
+	d.requestBlocks()
 	for {
 		select {
-		case d.limiter <- struct{}{}:
-			b := d.nextBlock()
-			if b == nil {
-				d.limiter = nil
-				break
-			}
-			msg := peerprotocol.RequestMessage{Index: d.Piece.Index, Begin: b.Begin, Length: b.Length}
-			d.Peer.SendMessage(msg)
 		case p := <-d.PieceC:
-			b := &d.blocks[p.Block.Index]
-			if b.requested && b.data == nil && d.limiter != nil {
-				<-d.limiter
+			if _, ok := d.requested[p.Block.Index]; !ok {
+				result.Error = fmt.Errorf("peer sent unrequested piece block: %q", p.Block)
+				return
 			}
+			b := &d.blocks[p.Block.Index]
+			delete(d.requested, p.Block.Index)
 			b.data = p.Data
 			if d.allDone() {
 				result.Bytes = d.assembleBlocks().Bytes()
 				return
 			}
+			d.requestBlocks()
 		case blk := <-d.RejectC:
-			b := d.blocks[blk.Index]
-			if !b.requested {
-				d.Peer.Logger().Warningln("received reject message for block not requested yet")
-				break
+			if _, ok := d.requested[blk.Index]; !ok {
+				result.Error = fmt.Errorf("peer sent reject to unrequested block: %q", blk)
+				return
 			}
-			d.blocks[blk.Index].requested = false
+			delete(d.requested, blk.Index)
+			d.nextBlockIndex = 0
 		case <-d.ChokeC:
-			for i := range d.blocks {
-				if d.blocks[i].data == nil && d.blocks[i].requested {
-					d.blocks[i].requested = false
-				}
-			}
-			d.limiter = nil
+			d.requested = make(map[uint32]struct{})
+			d.nextBlockIndex = 0
 		case <-d.UnchokeC:
-			d.limiter = make(chan struct{}, maxQueuedBlocks)
+			d.requestBlocks()
 		case <-d.closeC:
 			return
 		}
 	}
-}
-
-func (d *PieceDownloader) nextBlock() *block {
-	for i := range d.blocks {
-		if !d.blocks[i].requested {
-			d.blocks[i].requested = true
-			return &d.blocks[i]
-		}
-	}
-	return nil
 }
 
 func (d *PieceDownloader) allDone() bool {
