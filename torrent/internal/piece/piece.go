@@ -14,8 +14,8 @@ type Piece struct {
 	Writing          bool
 }
 
-func New(p *pp.Piece) Piece {
-	return Piece{
+func New(p *pp.Piece) *Piece {
+	return &Piece{
 		Piece:            p,
 		HavingPeers:      make(map[*peerconn.Conn]struct{}),
 		AllowedFastPeers: make(map[*peerconn.Conn]struct{}),

@@ -63,7 +63,7 @@ type Torrent struct {
 	data *torrentdata.Data
 
 	// Contains state about the pieces in torrent.
-	pieces []piece.Piece
+	pieces []*piece.Piece
 
 	// Contains pieces in sorted order for piece selection function.
 	sortedPieces []*piece.Piece

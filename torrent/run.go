@@ -86,7 +86,13 @@ func (t *Torrent) run() {
 				break
 			}
 			t.data = res.Data
-			t.preparePieces()
+			t.pieces = make([]*piece.Piece, len(t.data.Pieces))
+			t.sortedPieces = make([]*piece.Piece, len(t.data.Pieces))
+			for i := range t.data.Pieces {
+				p := piece.New(&t.data.Pieces[i])
+				t.pieces[i] = p
+				t.sortedPieces[i] = p
+			}
 			if t.bitfield != nil {
 				t.checkCompletion()
 				t.processQueuedMessages()
@@ -412,17 +418,6 @@ func (t *Torrent) sendFirstMessage(p *peerconn.Conn) {
 		Payload:           extHandshakeMsg,
 	}
 	p.SendMessage(msg)
-}
-
-func (t *Torrent) preparePieces() {
-	pieces := make([]piece.Piece, len(t.data.Pieces))
-	sortedPieces := make([]*piece.Piece, len(t.data.Pieces))
-	for i := range t.data.Pieces {
-		pieces[i] = piece.New(&t.data.Pieces[i])
-		sortedPieces[i] = &pieces[i]
-	}
-	t.pieces = pieces
-	t.sortedPieces = sortedPieces
 }
 
 func (t *Torrent) chokePeer(pe *peer.Peer) {
