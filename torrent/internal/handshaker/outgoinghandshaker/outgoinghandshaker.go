@@ -12,7 +12,6 @@ import (
 
 type OutgoingHandshaker struct {
 	addr     net.Addr
-	bitfield *bitfield.Bitfield
 	peerID   [20]byte
 	infoHash [20]byte
 	resultC  chan Result

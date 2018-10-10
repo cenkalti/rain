@@ -12,7 +12,6 @@ import (
 
 type IncomingHandshaker struct {
 	conn     net.Conn
-	bitfield *bitfield.Bitfield
 	peerID   [20]byte
 	sKeyHash [20]byte
 	infoHash [20]byte
