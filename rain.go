@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -149,8 +150,12 @@ func handleDownload(c *cli.Context) error {
 	t.Start()
 
 	go func() {
-		for range time.Tick(time.Second) {
-			fmt.Printf("%#v\n", t.Stats())
+		for range time.Tick(100 * time.Millisecond) {
+			b, err2 := json.Marshal(t.Stats())
+			if err2 != nil {
+				log.Fatal(err2)
+			}
+			fmt.Println(string(b))
 		}
 	}()
 

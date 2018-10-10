@@ -32,6 +32,10 @@ func (m Status) String() string {
 	return s
 }
 
+func (m Status) MarshalText() ([]byte, error) {
+	return []byte(m.String()), nil
+}
+
 func (t *Torrent) status() Status {
 	if !t.running() {
 		return Stopped

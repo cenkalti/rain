@@ -22,30 +22,68 @@ type Stats struct {
 
 	// BytesDownloaded is the number of bytes downloaded from swarm.
 	// Because some pieces may be downloaded more than once, this number may be greater than BytesCompleted returns.
-	// BytesDownloaded int64
+	// TODO BytesDownloaded int64
 
 	// BytesUploaded is the number of bytes uploaded to the swarm.
-	// BytesUploaded   int64
+	// TODO BytesUploaded   int64
+
+	// Number of peers that are connected, handshaked and ready to send and receive messages.
+	// ConnectedPeers = IncomingPeers + OutgoingPeers
+	ConnectedPeers int
+
+	// Number of peers that have connected to us.
+	IncomingPeers int
+
+	// Number of peers that we have connected to.
+	OutgoingPeers int
+
+	// Number of active piece downloads.
+	ActiveDownloads int
+
+	// Number of active metadata downloads.
+	ActiveMetadataDownloads int
+
+	// Number of peer addresses that are ready to be connected.
+	ReadyPeerAddresses int
+
+	// Number of incoming peers in handshake state.
+	IncomingHandshakes int
+
+	// Number of outgoing peers in handshake state.
+	OutgoingHandshakes int
 }
 
 func (t *Torrent) stats() Stats {
 	stats := Stats{
-		Status: t.status(),
+		Status:                  t.status(),
+		ConnectedPeers:          len(t.connectedPeers),
+		IncomingPeers:           len(t.incomingPeers),
+		OutgoingPeers:           len(t.outgoingPeers),
+		ActiveDownloads:         len(t.pieceDownloads),
+		ActiveMetadataDownloads: len(t.infoDownloads),
+		ReadyPeerAddresses:      t.addrList.Len(),
+		IncomingHandshakes:      len(t.incomingHandshakers),
+		OutgoingHandshakes:      len(t.outgoingHandshakers),
 	}
-	if t.info != nil && t.bitfield != nil { // TODO split this if cond
+	if t.info != nil {
 		stats.BytesTotal = t.info.TotalLength
-		// TODO this is wrong, pre-calculate complete and incomplete bytes
-		stats.BytesComplete = int64(t.info.PieceLength) * int64(t.bitfield.Count())
-		if t.bitfield.Test(t.bitfield.Len() - 1) {
-			stats.BytesComplete -= int64(t.info.PieceLength)
-			stats.BytesComplete += int64(t.pieces[t.bitfield.Len()-1].Length)
-		}
+		stats.BytesComplete = t.bytesComplete()
 		stats.BytesIncomplete = stats.BytesTotal - stats.BytesComplete
-		// TODO calculate bytes downloaded
-		// TODO calculate bytes uploaded
 	} else {
+		// Some trackers don't send any peer address if don't tell we have missing bytes.
 		stats.BytesIncomplete = math.MaxUint32
-		// TODO this is wrong, pre-calculate complete and incomplete bytes
 	}
 	return stats
+}
+
+func (t *Torrent) bytesComplete() int64 {
+	if t.bitfield == nil {
+		return 0
+	}
+	n := int64(t.info.PieceLength) * int64(t.bitfield.Count())
+	if t.bitfield.Test(t.bitfield.Len() - 1) {
+		n -= int64(t.info.PieceLength)
+		n += int64(t.pieces[t.bitfield.Len()-1].Length)
+	}
+	return n
 }
