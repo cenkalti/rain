@@ -90,7 +90,7 @@ func (d *InfoDownloader) Run() {
 	d.semaphore.Start()
 	for {
 		select {
-		case <-d.semaphore.Ready:
+		case <-d.semaphore.Wait:
 			b := d.nextBlock()
 			if b == nil {
 				d.semaphore.Stop()
