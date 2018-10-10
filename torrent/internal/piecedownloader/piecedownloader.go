@@ -6,23 +6,24 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/peerconn"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
 	"github.com/cenkalti/rain/torrent/internal/pieceio"
+	"github.com/cenkalti/rain/torrent/internal/semaphore"
 )
 
 const maxQueuedBlocks = 10
 
 // PieceDownloader downloads all blocks of a piece from a peer.
 type PieceDownloader struct {
-	Piece    *pieceio.Piece
-	Peer     *peerconn.Conn
-	blocks   []block
-	limiter  chan struct{}
-	PieceC   chan Piece
-	RejectC  chan *pieceio.Block
-	ChokeC   chan struct{}
-	UnchokeC chan struct{}
-	resultC  chan Result
-	closeC   chan struct{}
-	doneC    chan struct{}
+	Piece     *pieceio.Piece
+	Peer      *peerconn.Conn
+	blocks    []block
+	semaphore *semaphore.Semaphore
+	PieceC    chan Piece
+	RejectC   chan *pieceio.Block
+	ChokeC    chan struct{}
+	UnchokeC  chan struct{}
+	resultC   chan Result
+	closeC    chan struct{}
+	doneC     chan struct{}
 }
 
 type block struct {
@@ -43,17 +44,17 @@ func New(pi *pieceio.Piece, pe *peerconn.Conn, resultC chan Result) *PieceDownlo
 		blocks[i] = block{Block: &pi.Blocks[i]}
 	}
 	return &PieceDownloader{
-		Piece:    pi,
-		Peer:     pe,
-		blocks:   blocks,
-		limiter:  make(chan struct{}, maxQueuedBlocks),
-		PieceC:   make(chan Piece),
-		RejectC:  make(chan *pieceio.Block),
-		ChokeC:   make(chan struct{}),
-		UnchokeC: make(chan struct{}),
-		resultC:  resultC,
-		closeC:   make(chan struct{}),
-		doneC:    make(chan struct{}),
+		Piece:     pi,
+		Peer:      pe,
+		blocks:    blocks,
+		semaphore: semaphore.New(maxQueuedBlocks),
+		PieceC:    make(chan Piece),
+		RejectC:   make(chan *pieceio.Block),
+		ChokeC:    make(chan struct{}),
+		UnchokeC:  make(chan struct{}),
+		resultC:   resultC,
+		closeC:    make(chan struct{}),
+		doneC:     make(chan struct{}),
 	}
 }
 
@@ -79,20 +80,21 @@ func (d *PieceDownloader) Run() {
 		}
 	}()
 
+	d.semaphore.Start()
 	for {
 		select {
-		case d.limiter <- struct{}{}:
+		case <-d.semaphore.Wait:
 			b := d.nextBlock()
 			if b == nil {
-				d.limiter = nil
+				d.semaphore.Stop()
 				break
 			}
 			msg := peerprotocol.RequestMessage{Index: d.Piece.Index, Begin: b.Begin, Length: b.Length}
 			d.Peer.SendMessage(msg)
 		case p := <-d.PieceC:
 			b := &d.blocks[p.Block.Index]
-			if b.requested && b.data == nil && d.limiter != nil {
-				<-d.limiter
+			if b.requested && b.data == nil {
+				d.semaphore.Signal(1)
 			}
 			b.data = p.Data
 			if d.allDone() {
@@ -112,9 +114,9 @@ func (d *PieceDownloader) Run() {
 					d.blocks[i].requested = false
 				}
 			}
-			d.limiter = nil
+			d.semaphore.Stop()
 		case <-d.UnchokeC:
-			d.limiter = make(chan struct{}, maxQueuedBlocks)
+			d.semaphore.Start()
 		case <-d.closeC:
 			return
 		}
