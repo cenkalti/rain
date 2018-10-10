@@ -9,21 +9,15 @@ import (
 
 type Data struct {
 	Pieces []pieceio.Piece
-	Exists bool
 	files  []storage.File
 }
 
-func New(info *metainfo.Info, sto storage.Storage) (*Data, error) {
-	files, exists, err := prepareFiles(info, sto)
-	if err != nil {
-		return nil, err
-	}
+func New(info *metainfo.Info, files []storage.File) *Data {
 	pieces := pieceio.NewPieces(info, files)
 	return &Data{
 		Pieces: pieces,
 		files:  files,
-		Exists: exists,
-	}, nil
+	}
 }
 
 func (d *Data) Close() error {

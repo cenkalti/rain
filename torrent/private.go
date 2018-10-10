@@ -7,11 +7,9 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
-	"net"
 	"sort"
-	"time"
 
-	"github.com/cenkalti/rain/torrent/internal/acceptor"
+	"github.com/cenkalti/rain/torrent/internal/allocator"
 	"github.com/cenkalti/rain/torrent/internal/announcer"
 	"github.com/cenkalti/rain/torrent/internal/bitfield"
 	"github.com/cenkalti/rain/torrent/internal/handshaker/incominghandshaker"
@@ -24,96 +22,9 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/piece"
 	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
 	"github.com/cenkalti/rain/torrent/internal/piecewriter"
-	"github.com/cenkalti/rain/torrent/internal/torrentdata"
 	"github.com/cenkalti/rain/torrent/internal/tracker"
+	"github.com/cenkalti/rain/torrent/internal/verifier"
 )
-
-func (t *Torrent) start() {
-	if t.running {
-		return
-	}
-	t.running = true
-
-	listener, err := net.ListenTCP("tcp4", &net.TCPAddr{Port: t.port})
-	if err != nil {
-		t.log.Warningf("cannot listen port %d: %s", t.port, err)
-	} else {
-		t.log.Notice("Listening peers on tcp://" + listener.Addr().String())
-		t.port = listener.Addr().(*net.TCPAddr).Port
-		t.acceptor = acceptor.New(listener, t.newInConnC, t.log)
-		go t.acceptor.Run()
-	}
-
-	for _, tr := range t.trackersInstances {
-		an := announcer.New(tr, t.announcerRequests, t.completeC, t.addrsFromTrackers, t.log)
-		t.announcers = append(t.announcers, an)
-		go an.Run()
-	}
-
-	for i := 0; i < parallelPieceWrites; i++ {
-		w := piecewriter.New(t.writeRequestC, t.writeResponseC, t.log)
-		t.pieceWriters = append(t.pieceWriters, w)
-		go w.Run()
-	}
-
-	t.unchokeTimer = time.NewTicker(10 * time.Second)
-	t.unchokeTimerC = t.unchokeTimer.C
-
-	t.optimisticUnchokeTimer = time.NewTicker(30 * time.Second)
-	t.optimisticUnchokeTimerC = t.optimisticUnchokeTimer.C
-
-	t.dialLimit.Start()
-
-	t.pieceDownloaders.Start()
-	t.infoDownloaders.Start()
-
-	t.errC = make(chan error, 1)
-}
-
-func (t *Torrent) stop(err error) {
-	if !t.running {
-		return
-	}
-	t.running = false
-
-	t.log.Debugln("stopping acceptor")
-	if t.acceptor != nil {
-		t.acceptor.Close()
-	}
-	t.acceptor = nil
-
-	t.log.Debugln("stopping dialer")
-	t.dialLimit.Stop()
-
-	t.log.Debugln("stopping piece downloaders")
-	t.pieceDownloaders.Stop()
-
-	t.log.Debugln("stopping info downloaders")
-	t.infoDownloaders.Stop()
-
-	t.log.Debugln("stopping announcers")
-	for _, an := range t.announcers {
-		an.Close()
-	}
-	t.announcers = nil
-
-	t.log.Debugln("stopping piece writers")
-	for _, pw := range t.pieceWriters {
-		pw.Close()
-	}
-	t.pieceWriters = nil
-
-	t.log.Debugln("stopping unchoke timers")
-	t.unchokeTimer.Stop()
-	t.unchokeTimerC = nil
-	t.optimisticUnchokeTimer.Stop()
-	t.optimisticUnchokeTimerC = nil
-
-	if err != nil {
-		t.errC <- err
-	}
-	t.errC = nil
-}
 
 func (t *Torrent) close() {
 	t.stop(errors.New("torrent is closed"))
@@ -156,7 +67,7 @@ func (t *Torrent) stats() Stats {
 	stats := Stats{
 		Status: t.status(),
 	}
-	if t.info != nil {
+	if t.info != nil && t.bitfield != nil { // TODO split this if cond
 		stats.BytesTotal = t.info.TotalLength
 		// TODO this is wrong, pre-calculate complete and incomplete bytes
 		stats.BytesComplete = int64(t.info.PieceLength) * int64(t.bitfield.Count())
@@ -188,16 +99,6 @@ func (t *Torrent) run() {
 	defer close(t.doneC)
 	defer t.close()
 
-	// TODO where to put this? this may take long
-	if t.info != nil {
-		err2 := t.processInfo()
-		if err2 != nil {
-			t.log.Errorln("cannot process info:", err2)
-			t.errC <- err2
-			return
-		}
-	}
-
 	for {
 		select {
 		case <-t.closeC:
@@ -208,11 +109,71 @@ func (t *Torrent) run() {
 			t.stop(errors.New("torrent is stopped"))
 		case cmd := <-t.notifyErrorCommandC:
 			cmd.errCC <- t.errC
+		case req := <-t.statsCommandC:
+			req.Response <- t.stats()
+		case <-t.allocatorProgressC:
+			// TODO handle allocation progress
+		case res := <-t.allocatorResultC:
+			t.allocator = nil
+			if res.Error != nil {
+				t.stop(fmt.Errorf("file allocation error: %s", res.Error))
+				break
+			}
+			t.data = res.Data
+			t.preparePieces()
+			if t.bitfield != nil {
+				t.checkCompletion()
+				t.processQueuedMessages()
+				t.pieceDownloaders.Start()
+			t.startAcceptor()
+			t.startAnnouncers()
+				break
+			}
+			if !res.NeedHashCheck {
+				t.bitfield = bitfield.New(t.info.NumPieces)
+				t.processQueuedMessages()
+				t.pieceDownloaders.Start()
+			t.startAcceptor()
+			t.startAnnouncers()
+				break
+			}
+			if res.NeedHashCheck {
+				t.verifier = verifier.New(t.data.Pieces, t.verifierProgressC, t.verifierResultC)
+				go t.verifier.Run()
+			}
+		case <-t.verifierProgressC:
+			// TODO handle verification progress
+		case res := <-t.verifierResultC:
+			t.verifier = nil
+			if res.Error != nil {
+				t.stop(fmt.Errorf("file verification error: %s", res.Error))
+				break
+			}
+			t.bitfield = res.Bitfield
+			if t.resume != nil {
+				err := t.resume.WriteBitfield(t.bitfield.Bytes())
+				if err != nil {
+					t.stop(fmt.Errorf("cannot write bitfield to resume db: %s", err))
+					break
+				}
+			}
+			for _, pe := range t.connectedPeers {
+				for i := uint32(0); i < t.bitfield.Len(); i++ {
+					if t.bitfield.Test(i) {
+						msg := peerprotocol.HaveMessage{Index: i}
+						pe.SendMessage(msg)
+					}
+				}
+				t.updateInterestedState(pe)
+			}
+			t.checkCompletion()
+			t.processQueuedMessages()
+			t.pieceDownloaders.Start()
+			t.startAcceptor()
+			t.startAnnouncers()
 		case addrs := <-t.addrsFromTrackers:
 			t.addrList.Push(addrs, t.port)
 			t.dialLimit.Signal(len(addrs))
-		case req := <-t.statsCommandC:
-			req.Response <- t.stats()
 		case <-t.dialLimit.Ready:
 			addr := t.addrList.Pop()
 			if addr == nil {
@@ -237,7 +198,7 @@ func (t *Torrent) run() {
 				PeerID:   t.peerID,
 				Port:     t.port,
 			}
-			if t.info == nil {
+			if t.bitfield == nil {
 				tr.BytesLeft = math.MaxUint32
 			} else {
 				// TODO this is wrong, pre-calculate complete and incomplete bytes
@@ -277,6 +238,8 @@ func (t *Torrent) run() {
 				res.Peer.Close()
 				break
 			}
+			t.infoDownloaders.Stop()
+
 			var err error
 			t.info, err = metainfo.NewInfo(res.Bytes)
 			if err != nil {
@@ -294,24 +257,10 @@ func (t *Torrent) run() {
 					break
 				}
 			}
-			err = t.processInfo()
-			if err != nil {
-				err = fmt.Errorf("cannot process info: %s", err)
-				t.log.Error(err)
-				t.stop(err)
-				break
-			}
-			// process previously received messages
-			for _, pe := range t.connectedPeers {
-				for _, msg := range pe.Messages {
-					pm := peer.Message{Peer: pe, Message: msg}
-					t.handlePeerMessage(pm)
-				}
-			}
-			t.infoDownloaders.Stop()
-			t.pieceDownloaders.Signal(parallelPieceDownloads)
+			t.allocator = allocator.New(t.info, t.storage, t.allocatorProgressC, t.allocatorResultC)
+			go t.allocator.Run()
 		case <-t.pieceDownloaders.Ready:
-			if t.info == nil {
+			if t.bitfield == nil {
 				t.pieceDownloaders.Stop()
 				break
 			}
@@ -328,7 +277,6 @@ func (t *Torrent) run() {
 			go pd.Run()
 		case res := <-t.pieceDownloaderResultC:
 			t.log.Debugln("piece download completed. index:", res.Piece.Index)
-			// TODO fix nil pointer exception
 			if pe, ok := t.connectedPeers[res.Peer]; ok {
 				pe.Downloader = nil
 			}
@@ -362,7 +310,6 @@ func (t *Torrent) run() {
 			}
 			t.checkCompletion()
 			// Tell everyone that we have this piece
-			// TODO skip peers already having that piece
 			for _, pe := range t.connectedPeers {
 				msg := peerprotocol.HaveMessage{Index: resp.Request.Piece.Index}
 				pe.SendMessage(msg)
@@ -451,7 +398,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 	switch msg := pm.Message.(type) {
 	case peerprotocol.HaveMessage:
 		// Save have messages for processesing later received while we don't have info yet.
-		if t.info == nil {
+		if t.bitfield == nil {
 			pe.Messages = append(pe.Messages, msg)
 			break
 		}
@@ -467,7 +414,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		t.updateInterestedState(pe)
 	case peerprotocol.BitfieldMessage:
 		// Save bitfield messages while we don't have info yet.
-		if t.info == nil {
+		if t.bitfield == nil {
 			pe.Messages = append(pe.Messages, msg)
 			break
 		}
@@ -487,7 +434,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		t.pieceDownloaders.Signal(int(bf.Count()))
 		t.updateInterestedState(pe)
 	case peerprotocol.HaveAllMessage:
-		if t.info == nil {
+		if t.bitfield == nil {
 			pe.Messages = append(pe.Messages, msg)
 			break
 		}
@@ -496,10 +443,9 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		}
 		t.pieceDownloaders.Signal(len(t.pieces))
 		t.updateInterestedState(pe)
-	case peerprotocol.HaveNoneMessage:
-		// TODO handle?
+	case peerprotocol.HaveNoneMessage: // TODO handle?
 	case peerprotocol.AllowedFastMessage:
-		if t.info == nil {
+		if t.bitfield == nil {
 			pe.Messages = append(pe.Messages, msg)
 			break
 		}
@@ -525,16 +471,20 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		if pd, ok := t.pieceDownloads[pe.Conn]; ok {
 			select {
 			case pd.ChokeC <- struct{}{}:
+				// TODO start another downloader
 			case <-pd.Done():
 			}
 		}
 	case peerprotocol.InterestedMessage:
 		// TODO handle intereseted messages
-		_ = pe
 	case peerprotocol.NotInterestedMessage:
 		// TODO handle not intereseted messages
-		_ = pe
 	case peerprotocol.PieceMessage:
+		if t.bitfield == nil {
+			pe.Conn.Logger().Error("piece received but we don't have info")
+			pe.Conn.Close()
+			break
+		}
 		if msg.Index >= uint32(len(t.data.Pieces)) {
 			pe.Conn.Logger().Errorln("invalid piece index:", msg.Index)
 			pe.Conn.Close()
@@ -549,10 +499,10 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		}
 		pe.BytesDownlaodedInChokePeriod += int64(len(msg.Data))
 		if pd, ok := t.pieceDownloads[pe.Conn]; ok {
-			pd.PieceC <- piecedownloader.Piece{Block: block, Data: msg.Data}
+			pd.PieceC <- piecedownloader.Piece{Block: block, Data: msg.Data} // TODO may block
 		}
 	case peerprotocol.RequestMessage:
-		if t.info == nil {
+		if t.bitfield == nil {
 			pe.Conn.Logger().Error("request received but we don't have info")
 			pe.Conn.Close()
 			break
@@ -577,7 +527,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			pe.Conn.SendPiece(msg, pi)
 		}
 	case peerprotocol.RejectMessage:
-		if t.info == nil {
+		if t.bitfield == nil {
 			pe.Conn.Logger().Error("reject received but we don't have info")
 			pe.Conn.Close()
 			break
@@ -653,6 +603,16 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 	}
 }
 
+func (t *Torrent) processQueuedMessages() {
+	// process previously received messages
+	for _, pe := range t.connectedPeers {
+		for _, msg := range pe.Messages {
+			pm := peer.Message{Peer: pe, Message: msg}
+			t.handlePeerMessage(pm)
+		}
+	}
+}
+
 func (t *Torrent) startPeer(p *peerconn.Conn, peers *[]*peer.Peer) {
 	_, ok := t.peerIDs[p.ID()]
 	if ok {
@@ -698,42 +658,6 @@ func (t *Torrent) sendFirstMessage(p *peerconn.Conn) {
 	p.SendMessage(msg)
 }
 
-func (t *Torrent) processInfo() error {
-	var err error
-	t.data, err = torrentdata.New(t.info, t.storage)
-	if err != nil {
-		return err
-	}
-	// TODO defer data.Close()
-
-	if t.bitfield == nil {
-		t.bitfield = bitfield.New(t.info.NumPieces)
-		if t.data.Exists {
-			buf := make([]byte, t.info.PieceLength)
-			hash := sha1.New() // nolint: gosec
-			for _, p := range t.data.Pieces {
-				buf = buf[:p.Length]
-				_, err = p.Data.ReadAt(buf, 0)
-				if err != nil {
-					return err
-				}
-				ok := p.VerifyHash(buf[:p.Length], hash)
-				t.bitfield.SetTo(p.Index, ok)
-				hash.Reset()
-			}
-			if t.resume != nil {
-				err = t.resume.WriteBitfield(t.bitfield.Bytes())
-				if err != nil {
-					return err
-				}
-			}
-		}
-	}
-	t.checkCompletion()
-	t.preparePieces()
-	return nil
-}
-
 func (t *Torrent) preparePieces() {
 	pieces := make([]piece.Piece, len(t.data.Pieces))
 	sortedPieces := make([]*piece.Piece, len(t.data.Pieces))
@@ -743,61 +667,6 @@ func (t *Torrent) preparePieces() {
 	}
 	t.pieces = pieces
 	t.sortedPieces = sortedPieces
-}
-
-func (t *Torrent) nextInfoDownload() *infodownloader.InfoDownloader {
-	for _, pe := range t.connectedPeers {
-		if pe.InfoDownloader != nil {
-			continue
-		}
-		extID, ok := pe.ExtensionHandshake.M[peerprotocol.ExtensionMetadataKey]
-		if !ok {
-			continue
-		}
-		return infodownloader.New(pe.Conn, extID, pe.ExtensionHandshake.MetadataSize, t.infoDownloaderResultC)
-	}
-	return nil
-}
-
-func (t *Torrent) nextPieceDownload() *piecedownloader.PieceDownloader {
-	// TODO request first 4 pieces randomly
-	sort.Sort(piece.ByAvailability(t.sortedPieces))
-	for _, p := range t.sortedPieces {
-		if t.bitfield.Test(p.Index) {
-			continue
-		}
-		if len(p.RequestedPeers) > 0 {
-			continue
-		}
-		if p.Writing {
-			continue
-		}
-		if len(p.HavingPeers) == 0 {
-			continue
-		}
-		// prefer allowed fast peers first
-		for pe := range p.HavingPeers {
-			if _, ok := p.AllowedFastPeers[pe]; !ok {
-				continue
-			}
-			if _, ok := t.pieceDownloads[pe]; ok {
-				continue
-			}
-			// TODO selecting first peer having the piece, change to more smart decision
-			return piecedownloader.New(p.Piece, pe, t.pieceDownloaderResultC)
-		}
-		for pe := range p.HavingPeers {
-			if pp, ok := t.connectedPeers[pe]; ok && pp.PeerChoking {
-				continue
-			}
-			if _, ok := t.pieceDownloads[pe]; ok {
-				continue
-			}
-			// TODO selecting first peer having the piece, change to more smart decision
-			return piecedownloader.New(p.Piece, pe, t.pieceDownloaderResultC)
-		}
-	}
-	return nil
 }
 
 func (t *Torrent) updateInterestedState(pe *peer.Peer) {

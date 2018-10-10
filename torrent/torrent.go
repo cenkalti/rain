@@ -17,6 +17,7 @@ import (
 	"github.com/cenkalti/rain/storage/filestorage"
 	"github.com/cenkalti/rain/torrent/internal/acceptor"
 	"github.com/cenkalti/rain/torrent/internal/addrlist"
+	"github.com/cenkalti/rain/torrent/internal/allocator"
 	"github.com/cenkalti/rain/torrent/internal/announcer"
 	"github.com/cenkalti/rain/torrent/internal/bitfield"
 	"github.com/cenkalti/rain/torrent/internal/handshaker/incominghandshaker"
@@ -35,6 +36,7 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/tracker"
 	"github.com/cenkalti/rain/torrent/internal/tracker/httptracker"
 	"github.com/cenkalti/rain/torrent/internal/tracker/udptracker"
+	"github.com/cenkalti/rain/torrent/internal/verifier"
 )
 
 const (
@@ -199,6 +201,14 @@ type Torrent struct {
 
 	// To limit the max number of parallel metadata downloads.
 	infoDownloaders *semaphore.Semaphore
+
+	allocator          *allocator.Allocator
+	allocatorProgressC chan allocator.Progress
+	allocatorResultC   chan allocator.Result
+
+	verifier          *verifier.Verifier
+	verifierProgressC chan verifier.Progress
+	verifierResultC   chan verifier.Result
 
 	log logger.Logger
 }
@@ -378,6 +388,10 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		dialLimit:                 semaphore.New(maxPeerDial),
 		pieceDownloaders:          semaphore.New(parallelPieceDownloads),
 		infoDownloaders:           semaphore.New(parallelPieceDownloads),
+		allocatorProgressC:        make(chan allocator.Progress),
+		allocatorResultC:          make(chan allocator.Result),
+		verifierProgressC:         make(chan verifier.Progress),
+		verifierResultC:           make(chan verifier.Result),
 	}
 	copy(d.peerID[:], peerIDPrefix)
 	_, err := rand.Read(d.peerID[len(peerIDPrefix):]) // nolint: gosec
