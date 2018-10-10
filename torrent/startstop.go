@@ -10,12 +10,14 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/piecewriter"
 )
 
+func (t *Torrent) running() bool {
+	return t.errC != nil
+}
+
 func (t *Torrent) start() {
-	if t.running {
+	if t.running() {
 		return
 	}
-	t.running = true
-
 	t.errC = make(chan error, 1)
 
 	// TODO do not run additional goroutines for writing piece data
@@ -96,10 +98,13 @@ func (t *Torrent) stopUnchokeTimers() {
 }
 
 func (t *Torrent) stop(err error) {
-	if !t.running {
+	if !t.running() {
 		return
 	}
-	t.running = false
+	if err != nil {
+		t.errC <- err
+	}
+	t.errC = nil
 
 	t.log.Debugln("stopping acceptor")
 	t.stopAcceptor()
@@ -144,9 +149,4 @@ func (t *Torrent) stop(err error) {
 		<-t.verifier.Done()
 		t.verifier = nil
 	}
-
-	if err != nil {
-		t.errC <- err
-	}
-	t.errC = nil
 }

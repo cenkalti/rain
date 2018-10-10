@@ -33,7 +33,7 @@ func (m Status) String() string {
 }
 
 func (t *Torrent) status() Status {
-	if !t.running {
+	if !t.running() {
 		return Stopped
 	}
 	if t.allocator != nil {

@@ -158,9 +158,6 @@ type Torrent struct {
 	// When a piece is downloaded completely a message is sent to this channel.
 	pieceDownloaderResultC chan piecedownloader.Result
 
-	// True after downloader is started with Start() method, false after Stop() is called.
-	running bool
-
 	// Announcers send a request to this channel to get information about the torrent.
 	announcerRequests chan *announcer.Request
 
