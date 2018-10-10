@@ -1,30 +1,8 @@
 package torrent
 
 import (
-	"strconv"
+	"math"
 )
-
-type Status int
-
-const (
-	Stopped Status = iota
-	Downloading
-	Seeding
-)
-
-var statusStrings = map[Status]string{
-	0: "Stopped",
-	1: "Downloading",
-	2: "Seeding",
-}
-
-func (m Status) String() string {
-	s, ok := statusStrings[m]
-	if !ok {
-		return strconv.FormatInt(int64(m), 10)
-	}
-	return s
-}
 
 // Stats contains statistics about Torrent.
 type Stats struct {
@@ -48,4 +26,26 @@ type Stats struct {
 
 	// BytesUploaded is the number of bytes uploaded to the swarm.
 	// BytesUploaded   int64
+}
+
+func (t *Torrent) stats() Stats {
+	stats := Stats{
+		Status: t.status(),
+	}
+	if t.info != nil && t.bitfield != nil { // TODO split this if cond
+		stats.BytesTotal = t.info.TotalLength
+		// TODO this is wrong, pre-calculate complete and incomplete bytes
+		stats.BytesComplete = int64(t.info.PieceLength) * int64(t.bitfield.Count())
+		if t.bitfield.Test(t.bitfield.Len() - 1) {
+			stats.BytesComplete -= int64(t.info.PieceLength)
+			stats.BytesComplete += int64(t.pieces[t.bitfield.Len()-1].Length)
+		}
+		stats.BytesIncomplete = stats.BytesTotal - stats.BytesComplete
+		// TODO calculate bytes downloaded
+		// TODO calculate bytes uploaded
+	} else {
+		stats.BytesIncomplete = math.MaxUint32
+		// TODO this is wrong, pre-calculate complete and incomplete bytes
+	}
+	return stats
 }
