@@ -54,7 +54,7 @@ var (
 
 // Torrent connects to peers and downloads files from swarm.
 type Torrent struct {
-	spec *downloadSpec
+	*downloadSpec
 
 	// Identifies the torrent being downloaded.
 	infoHash [20]byte
@@ -220,12 +220,12 @@ func New(r io.Reader, port int, sto storage.Storage) (*Torrent, error) {
 		return nil, err
 	}
 	spec := &downloadSpec{
-		InfoHash: m.Info.Hash,
-		Trackers: m.GetTrackers(),
-		Name:     m.Info.Name,
-		Port:     port,
-		Storage:  sto,
-		Info:     m.Info,
+		infoHash: m.Info.Hash,
+		trackers: m.GetTrackers(),
+		name:     m.Info.Name,
+		port:     port,
+		storage:  sto,
+		info:     m.Info,
 	}
 	return newTorrent(spec)
 }
@@ -237,11 +237,11 @@ func NewMagnet(link string, port int, sto storage.Storage) (*Torrent, error) {
 		return nil, err
 	}
 	spec := &downloadSpec{
-		InfoHash: m.InfoHash,
-		Trackers: m.Trackers,
-		Name:     m.Name,
-		Port:     port,
-		Storage:  sto,
+		infoHash: m.InfoHash,
+		trackers: m.Trackers,
+		name:     m.Name,
+		port:     port,
+		storage:  sto,
 	}
 	return newTorrent(spec)
 }
@@ -261,13 +261,13 @@ func NewResume(res resume.DB) (*Torrent, error) {
 // Name of the torrent.
 // For magnet downloads name can change after metadata is downloaded but this method still returns the initial name.
 func (t *Torrent) Name() string {
-	return t.spec.Name
+	return t.name
 }
 
 // InfoHash string encoded in hex.
 // InfoHash is a unique value that identifies the files in torrent.
 func (t *Torrent) InfoHash() string {
-	return hex.EncodeToString(t.spec.InfoHash[:])
+	return hex.EncodeToString(t.infoHash[:])
 }
 
 // SetResume adds resume capability to the torrent.
@@ -296,29 +296,29 @@ func (t *Torrent) SetResume(res resume.DB) error {
 func loadResumeSpec(spec *resume.Spec, res resume.DB) (*Torrent, error) {
 	var err error
 	dspec := &downloadSpec{
-		Port:     spec.Port,
-		Trackers: spec.Trackers,
-		Name:     spec.Name,
-		Resume:   res,
+		port:     spec.Port,
+		trackers: spec.Trackers,
+		name:     spec.Name,
+		resume:   res,
 	}
-	copy(dspec.InfoHash[:], spec.InfoHash)
+	copy(dspec.infoHash[:], spec.InfoHash)
 	if len(spec.Info) > 0 {
-		dspec.Info, err = metainfo.NewInfo(spec.Info)
+		dspec.info, err = metainfo.NewInfo(spec.Info)
 		if err != nil {
 			return nil, err
 		}
 		if len(spec.Bitfield) > 0 {
-			dspec.Bitfield = bitfield.New(dspec.Info.NumPieces)
-			copy(dspec.Bitfield.Bytes(), spec.Bitfield)
+			dspec.bitfield = bitfield.New(dspec.info.NumPieces)
+			copy(dspec.bitfield.Bytes(), spec.Bitfield)
 		}
 	}
 	switch spec.StorageType {
 	case filestorage.StorageType:
-		dspec.Storage = &filestorage.FileStorage{}
+		dspec.storage = &filestorage.FileStorage{}
 	default:
 		return nil, errors.New("unknown storage type: " + spec.StorageType)
 	}
-	err = dspec.Storage.Load(spec.StorageArgs)
+	err = dspec.storage.Load(spec.StorageArgs)
 	if err != nil {
 		return nil, err
 	}
@@ -327,37 +327,37 @@ func loadResumeSpec(spec *resume.Spec, res resume.DB) (*Torrent, error) {
 
 func (t *Torrent) writeResume(res resume.DB) error {
 	rspec := &resume.Spec{
-		InfoHash:    t.spec.InfoHash[:],
-		Port:        t.spec.Port,
-		Name:        t.spec.Name,
-		Trackers:    t.spec.Trackers,
-		StorageType: t.spec.Storage.Type(),
-		StorageArgs: t.spec.Storage.Args(),
+		InfoHash:    t.infoHash[:],
+		Port:        t.port,
+		Name:        t.name,
+		Trackers:    t.trackers,
+		StorageType: t.storage.Type(),
+		StorageArgs: t.storage.Args(),
 	}
-	if t.spec.Info != nil {
-		rspec.Info = t.spec.Info.Bytes
+	if t.info != nil {
+		rspec.Info = t.info.Bytes
 	}
-	if t.spec.Bitfield != nil {
-		rspec.Bitfield = t.spec.Bitfield.Bytes()
+	if t.bitfield != nil {
+		rspec.Bitfield = t.bitfield.Bytes()
 	}
 	return res.Write(rspec)
 }
 
 func newTorrent(spec *downloadSpec) (*Torrent, error) {
-	logName := spec.Name
+	logName := spec.name
 	if len(logName) > 8 {
 		logName = logName[:8]
 	}
 	d := &Torrent{
-		spec:     spec,
-		infoHash: spec.InfoHash,
-		trackers: spec.Trackers,
-		port:     spec.Port,
-		storage:  spec.Storage,
-		resume:   spec.Resume,
-		info:     spec.Info,
-		bitfield: spec.Bitfield,
-		log:      logger.New("download " + logName),
+		downloadSpec: spec,
+		infoHash:     spec.infoHash,
+		trackers:     spec.trackers,
+		port:         spec.port,
+		storage:      spec.storage,
+		resume:       spec.resume,
+		info:         spec.info,
+		bitfield:     spec.bitfield,
+		log:          logger.New("download " + logName),
 
 		peerDisconnectedC:         make(chan *peer.Peer),
 		messages:                  make(chan peer.Message),
@@ -375,7 +375,7 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		addrList:                  addrlist.New(),
 		peerIDs:                   make(map[[20]byte]struct{}),
 		newInConnC:                make(chan net.Conn),
-		sKeyHash:                  mse.HashSKey(spec.InfoHash[:]),
+		sKeyHash:                  mse.HashSKey(spec.infoHash[:]),
 		infoDownloaderResultC:     make(chan infodownloader.Result),
 		pieceDownloaderResultC:    make(chan piecedownloader.Result),
 		incomingHandshakers:       make(map[string]*incominghandshaker.IncomingHandshaker),

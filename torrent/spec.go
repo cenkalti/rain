@@ -9,12 +9,12 @@ import (
 
 // downloadSpec contains parameters for Download constructor.
 type downloadSpec struct {
-	InfoHash [20]byte
-	Trackers []string
-	Name     string
-	Storage  storage.Storage
-	Port     int
-	Resume   resume.DB
-	Info     *metainfo.Info
-	Bitfield *bitfield.Bitfield
+	infoHash [20]byte
+	trackers []string
+	name     string
+	storage  storage.Storage
+	port     int
+	resume   resume.DB
+	info     *metainfo.Info
+	bitfield *bitfield.Bitfield
 }
