@@ -1,16 +1,16 @@
 package semaphore
 
 type Semaphore struct {
-	Wait chan token
-	n    int
+	Ready chan token
+	n     int
 }
 
 type token struct{}
 
 func New(n int) *Semaphore {
 	return &Semaphore{
-		Wait: make(chan token, n),
-		n:    n,
+		Ready: make(chan token, n),
+		n:     n,
 	}
 }
 
@@ -21,7 +21,7 @@ func (s *Semaphore) Start() {
 func (s *Semaphore) Stop() {
 	for {
 		select {
-		case <-s.Wait:
+		case <-s.Ready:
 		default:
 			return
 		}
@@ -31,7 +31,7 @@ func (s *Semaphore) Stop() {
 func (s *Semaphore) Signal(n int) {
 	for i := 0; i < n; i++ {
 		select {
-		case s.Wait <- token{}:
+		case s.Ready <- token{}:
 		default:
 			return
 		}

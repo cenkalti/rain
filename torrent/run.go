@@ -146,7 +146,7 @@ func (t *Torrent) run() {
 		case addrs := <-t.addrsFromTrackers:
 			t.addrList.Push(addrs, t.port)
 			t.dialLimit.Signal(len(addrs))
-		case <-t.dialLimit.Wait:
+		case <-t.dialLimit.Ready:
 			if len(t.outgoingHandshakers) >= maxPeerDial {
 				t.dialLimit.Stop()
 				break
@@ -182,7 +182,7 @@ func (t *Torrent) run() {
 			}
 			// TODO set bytes uploaded/downloaded
 			req.Response <- announcer.Response{Transfer: tr}
-		case <-t.infoDownloaders.Wait:
+		case <-t.infoDownloaders.Ready:
 			if t.info != nil {
 				t.infoDownloaders.Stop()
 				break
@@ -238,7 +238,7 @@ func (t *Torrent) run() {
 			}
 			t.allocator = allocator.New(t.info, t.storage, t.allocatorProgressC, t.allocatorResultC)
 			go t.allocator.Run()
-		case <-t.pieceDownloaders.Wait:
+		case <-t.pieceDownloaders.Ready:
 			if t.bitfield == nil {
 				t.pieceDownloaders.Stop()
 				break
