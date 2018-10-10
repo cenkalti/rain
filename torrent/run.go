@@ -145,20 +145,7 @@ func (t *Torrent) run() {
 			t.startAnnouncers()
 		case addrs := <-t.addrsFromTrackers:
 			t.addrList.Push(addrs, t.port)
-			t.dialLimit.Signal(len(addrs))
-		case <-t.dialLimit.Ready:
-			if len(t.outgoingHandshakers) >= maxPeerDial {
-				t.dialLimit.Stop()
-				break
-			}
-			addr := t.addrList.Pop()
-			if addr == nil {
-				t.dialLimit.Stop()
-				break
-			}
-			h := outgoinghandshaker.NewOutgoing(addr, t.peerID, t.infoHash, t.outgoingHandshakerResultC, t.log)
-			t.outgoingHandshakers[addr.String()] = h
-			go h.Run()
+			t.dialAddresses()
 		case conn := <-t.newInConnC:
 			if len(t.incomingHandshakers)+len(t.incomingPeers) >= maxPeerAccept {
 				t.log.Debugln("peer limit reached, rejecting peer", conn.RemoteAddr().String())
@@ -350,8 +337,8 @@ func (t *Torrent) run() {
 			t.startPeer(res.Peer, t.incomingPeers)
 		case res := <-t.outgoingHandshakerResultC:
 			delete(t.outgoingHandshakers, res.Addr.String())
-			t.dialLimit.Signal(maxPeerDial - len(t.outgoingPeers) - len(t.outgoingHandshakers))
 			if res.Error != nil {
+				t.dialAddresses()
 				break
 			}
 			t.startPeer(res.Peer, t.outgoingPeers)
@@ -371,14 +358,26 @@ func (t *Torrent) run() {
 				delete(t.pieces[i].AllowedFastPeers, pe.Conn)
 				delete(t.pieces[i].RequestedPeers, pe.Conn)
 			}
+			delete(t.incomingPeers, pe.Conn)
 			if _, ok := t.outgoingPeers[pe.Conn]; ok {
 				delete(t.outgoingPeers, pe.Conn)
-				t.dialLimit.Signal(maxPeerDial - len(t.outgoingPeers) - len(t.outgoingHandshakers))
+				t.dialAddresses()
 			}
-			delete(t.incomingPeers, pe.Conn)
 		case pm := <-t.messages:
 			t.handlePeerMessage(pm)
 		}
+	}
+}
+
+func (t *Torrent) dialAddresses() {
+	for len(t.outgoingPeers)+len(t.outgoingHandshakers) < maxPeerDial {
+		addr := t.addrList.Pop()
+		if addr == nil {
+			break
+		}
+		h := outgoinghandshaker.NewOutgoing(addr, t.peerID, t.infoHash, t.outgoingHandshakerResultC, t.log)
+		t.outgoingHandshakers[addr.String()] = h
+		go h.Run()
 	}
 }
 
