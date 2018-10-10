@@ -76,6 +76,8 @@ type Torrent struct {
 
 	// We keep connected peers in this map after they complete handshake phase.
 	connectedPeers map[*peerconn.Conn]*peer.Peer
+	incomingPeers  map[*peerconn.Conn]struct{}
+	outgoingPeers  map[*peerconn.Conn]struct{}
 
 	// Active piece downloads are kept in this map.
 	pieceDownloads map[*peerconn.Conn]*piecedownloader.PieceDownloader
@@ -144,10 +146,6 @@ type Torrent struct {
 	// Handshake results are sent to these channels by handshakers.
 	incomingHandshakerResultC chan incominghandshaker.Result
 	outgoingHandshakerResultC chan outgoinghandshaker.Result
-
-	// We keep connected and handshake completed peers here.
-	incomingPeers []*peer.Peer
-	outgoingPeers []*peer.Peer
 
 	// When metadata of the torrent downloaded completely, a message is sent to this channel.
 	infoDownloaderResultC chan infodownloader.Result
@@ -327,6 +325,8 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		peerDisconnectedC:         make(chan *peer.Peer),
 		messages:                  make(chan peer.Message),
 		connectedPeers:            make(map[*peerconn.Conn]*peer.Peer),
+		incomingPeers:             make(map[*peerconn.Conn]struct{}),
+		outgoingPeers:             make(map[*peerconn.Conn]struct{}),
 		pieceDownloads:            make(map[*peerconn.Conn]*piecedownloader.PieceDownloader),
 		infoDownloads:             make(map[*peerconn.Conn]*infodownloader.InfoDownloader),
 		writeRequestC:             make(chan piecewriter.Request),

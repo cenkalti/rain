@@ -48,12 +48,12 @@ func (t *Torrent) close() {
 	}
 
 	t.log.Debugln("closing incoming peer connections")
-	for _, ip := range t.incomingPeers {
+	for ip := range t.incomingPeers {
 		ip.Close()
 	}
 
 	t.log.Debugln("closing outgoin peer connections")
-	for _, op := range t.outgoingPeers {
+	for op := range t.outgoingPeers {
 		op.Close()
 	}
 
@@ -147,6 +147,10 @@ func (t *Torrent) run() {
 			t.addrList.Push(addrs, t.port)
 			t.dialLimit.Signal(len(addrs))
 		case <-t.dialLimit.Ready:
+			if len(t.outgoingHandshakers) >= maxPeerDial {
+				t.dialLimit.Stop()
+				break
+			}
 			addr := t.addrList.Pop()
 			if addr == nil {
 				t.dialLimit.Stop()
@@ -183,6 +187,10 @@ func (t *Torrent) run() {
 				t.infoDownloaders.Stop()
 				break
 			}
+			if len(t.infoDownloads) >= parallelInfoDownloads {
+				t.infoDownloaders.Stop()
+				break
+			}
 			id := t.nextInfoDownload()
 			if id == nil {
 				t.infoDownloaders.Stop()
@@ -193,7 +201,6 @@ func (t *Torrent) run() {
 			t.connectedPeers[id.Peer].InfoDownloader = id
 			go id.Run()
 		case res := <-t.infoDownloaderResultC:
-			// TODO handle info downloader result
 			t.connectedPeers[res.Peer].InfoDownloader = nil
 			delete(t.infoDownloads, res.Peer)
 			t.infoDownloaders.Signal(1)
@@ -233,6 +240,10 @@ func (t *Torrent) run() {
 			go t.allocator.Run()
 		case <-t.pieceDownloaders.Ready:
 			if t.bitfield == nil {
+				t.pieceDownloaders.Stop()
+				break
+			}
+			if len(t.pieceDownloads) >= parallelPieceDownloads {
 				t.pieceDownloaders.Stop()
 				break
 			}
@@ -336,13 +347,13 @@ func (t *Torrent) run() {
 				res.Conn.Close()
 				break
 			}
-			t.startPeer(res.Peer, &t.incomingPeers)
+			t.startPeer(res.Peer, t.incomingPeers)
 		case res := <-t.outgoingHandshakerResultC:
 			delete(t.outgoingHandshakers, res.Addr.String())
 			if res.Error != nil {
 				break
 			}
-			t.startPeer(res.Peer, &t.outgoingPeers)
+			t.startPeer(res.Peer, t.outgoingPeers)
 		case pe := <-t.peerDisconnectedC:
 			delete(t.peerIDs, pe.ID())
 			if pe.Downloader != nil {
@@ -354,6 +365,8 @@ func (t *Torrent) run() {
 				delete(t.infoDownloads, pe.Conn)
 			}
 			delete(t.connectedPeers, pe.Conn)
+			delete(t.incomingPeers, pe.Conn)
+			delete(t.outgoingPeers, pe.Conn)
 			for i := range t.pieces {
 				delete(t.pieces[i].HavingPeers, pe.Conn)
 				delete(t.pieces[i].AllowedFastPeers, pe.Conn)
@@ -375,7 +388,7 @@ func (t *Torrent) processQueuedMessages() {
 	}
 }
 
-func (t *Torrent) startPeer(p *peerconn.Conn, peers *[]*peer.Peer) {
+func (t *Torrent) startPeer(p *peerconn.Conn, peers map[*peerconn.Conn]struct{}) {
 	_, ok := t.peerIDs[p.ID()]
 	if ok {
 		p.Logger().Errorln("peer with same id already connected:", p.ID())
@@ -386,7 +399,7 @@ func (t *Torrent) startPeer(p *peerconn.Conn, peers *[]*peer.Peer) {
 
 	pe := peer.New(p, t.messages, t.peerDisconnectedC)
 	t.connectedPeers[p] = pe
-	*peers = append(*peers, pe) // TODO remove from this list
+	peers[p] = struct{}{}
 	go pe.Run()
 
 	t.sendFirstMessage(p)
