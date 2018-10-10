@@ -56,29 +56,8 @@ var (
 type Torrent struct {
 	*downloadSpec
 
-	// Identifies the torrent being downloaded.
-	infoHash [20]byte
-
 	// Unique peer ID is generated per downloader.
 	peerID [20]byte
-
-	// TCP Port to listen for peer connections.
-	port int
-
-	// List of addresses to announce this torrent.
-	trackers []string
-
-	// Storage implementation to save the files in torrent.
-	storage storage.Storage
-
-	// Optional DB implementation to save resume state of the torrent.
-	resume resume.DB
-
-	// Contains info about files in torrent. This can be nil at start for magnet downloads.
-	info *metainfo.Info
-
-	// Bitfield for pieces we have. It is created after we got info.
-	bitfield *bitfield.Bitfield
 
 	// Data provides IO access to pieces in torrent.
 	data *torrentdata.Data
@@ -349,16 +328,8 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		logName = logName[:8]
 	}
 	d := &Torrent{
-		downloadSpec: spec,
-		infoHash:     spec.infoHash,
-		trackers:     spec.trackers,
-		port:         spec.port,
-		storage:      spec.storage,
-		resume:       spec.resume,
-		info:         spec.info,
-		bitfield:     spec.bitfield,
-		log:          logger.New("download " + logName),
-
+		downloadSpec:              spec,
+		log:                       logger.New("download " + logName),
 		peerDisconnectedC:         make(chan *peer.Peer),
 		messages:                  make(chan peer.Message),
 		connectedPeers:            make(map[*peerconn.Conn]*peer.Peer),
