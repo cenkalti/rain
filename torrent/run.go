@@ -169,42 +169,24 @@ func (t *Torrent) run() {
 			}
 			// TODO set bytes uploaded/downloaded
 			req.Response <- announcer.Response{Transfer: tr}
-		case <-t.infoDownloaders.Ready:
-			if t.info != nil {
-				t.infoDownloaders.Stop()
-				break
-			}
-			if len(t.infoDownloads) >= parallelInfoDownloads {
-				t.infoDownloaders.Stop()
-				break
-			}
-			id := t.nextInfoDownload()
-			if id == nil {
-				t.infoDownloaders.Stop()
-				break
-			}
-			t.log.Debugln("downloading info from", id.Peer.String())
-			t.infoDownloads[id.Peer] = id
-			t.connectedPeers[id.Peer].InfoDownloader = id
-			go id.Run()
 		case res := <-t.infoDownloaderResultC:
 			t.connectedPeers[res.Peer].InfoDownloader = nil
 			delete(t.infoDownloads, res.Peer)
-			t.infoDownloaders.Signal(1)
 			if res.Error != nil {
 				res.Peer.Logger().Error(res.Error)
 				res.Peer.Close()
+				t.startInfoDownloaders()
 				break
 			}
 			hash := sha1.New()                              // nolint: gosec
 			hash.Write(res.Bytes)                           // nolint: gosec
 			if !bytes.Equal(hash.Sum(nil), t.infoHash[:]) { // nolint: gosec
 				res.Peer.Logger().Errorln("received info does not match with hash")
-				t.infoDownloaders.Signal(1)
 				res.Peer.Close()
+				t.startInfoDownloaders()
 				break
 			}
-			t.infoDownloaders.Stop()
+			t.stopInfoDownloaders()
 
 			var err error
 			t.info, err = metainfo.NewInfo(res.Bytes)

@@ -170,9 +170,6 @@ type Torrent struct {
 	// To limit the max number of parallel piece downloads.
 	pieceDownloaders *semaphore.Semaphore
 
-	// To limit the max number of parallel metadata downloads.
-	infoDownloaders *semaphore.Semaphore
-
 	allocator          *allocator.Allocator
 	allocatorProgressC chan allocator.Progress
 	allocatorResultC   chan allocator.Result
@@ -352,7 +349,6 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		announcerRequests:         make(chan *announcer.Request),
 		dialLimit:                 semaphore.New(maxPeerDial),
 		pieceDownloaders:          semaphore.New(parallelPieceDownloads),
-		infoDownloaders:           semaphore.New(parallelPieceDownloads),
 		allocatorProgressC:        make(chan allocator.Progress),
 		allocatorResultC:          make(chan allocator.Result),
 		verifierProgressC:         make(chan verifier.Progress),

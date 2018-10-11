@@ -7,6 +7,8 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/acceptor"
 	"github.com/cenkalti/rain/torrent/internal/allocator"
 	"github.com/cenkalti/rain/torrent/internal/announcer"
+	"github.com/cenkalti/rain/torrent/internal/infodownloader"
+	"github.com/cenkalti/rain/torrent/internal/peerconn"
 	"github.com/cenkalti/rain/torrent/internal/piecewriter"
 )
 
@@ -32,7 +34,7 @@ func (t *Torrent) start() {
 	} else {
 		t.startAcceptor()
 		t.startAnnouncers()
-		t.infoDownloaders.Start()
+		t.startInfoDownloaders()
 	}
 }
 
@@ -93,6 +95,29 @@ func (t *Torrent) stopUnchokeTimers() {
 	}
 }
 
+func (t *Torrent) startInfoDownloaders() {
+	if t.info != nil {
+		return
+	}
+	for len(t.infoDownloads) < parallelInfoDownloads {
+		id := t.nextInfoDownload()
+		if id == nil {
+			break
+		}
+		t.log.Debugln("downloading info from", id.Peer.String())
+		t.infoDownloads[id.Peer] = id
+		t.connectedPeers[id.Peer].InfoDownloader = id
+		go id.Run()
+	}
+}
+
+func (t *Torrent) stopInfoDownloaders() {
+	for id := range t.infoDownloads {
+		id.Close()
+	}
+	t.infoDownloads = make(map[*peerconn.Conn]*infodownloader.InfoDownloader)
+}
+
 func (t *Torrent) stop(err error) {
 	if !t.running() {
 		return
@@ -112,7 +137,7 @@ func (t *Torrent) stop(err error) {
 	t.pieceDownloaders.Stop()
 
 	t.log.Debugln("stopping info downloaders")
-	t.infoDownloaders.Stop()
+	t.stopInfoDownloaders()
 
 	t.log.Debugln("stopping announcers")
 	for _, an := range t.announcers {

@@ -173,7 +173,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 	case *peerprotocol.ExtensionHandshakeMessage:
 		t.log.Debugln("extension handshake received", msg)
 		pe.ExtensionHandshake = msg
-		t.infoDownloaders.Signal(1)
+		t.startInfoDownloaders()
 	// TODO make it value type
 	case *peerprotocol.ExtensionMetadataMessage:
 		switch msg.Type {
