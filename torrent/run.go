@@ -150,6 +150,7 @@ func (t *Torrent) run() {
 				t.startInfoDownloaders()
 				break
 			}
+			// TODO reduce allocation by making hash field
 			hash := sha1.New()                              // nolint: gosec
 			hash.Write(res.Bytes)                           // nolint: gosec
 			if !bytes.Equal(hash.Sum(nil), t.infoHash[:]) { // nolint: gosec
