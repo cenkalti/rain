@@ -76,7 +76,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		t.pieces[msg.Index].AllowedFastPeers[pe.Conn] = struct{}{}
 	case peerprotocol.UnchokeMessage:
 		pe.PeerChoking = false
-		if pd, ok := t.pieceDownloads[pe.Conn]; ok {
+		if pd, ok := t.pieceDownloaders[pe.Conn]; ok {
 			select {
 			case pd.UnchokeC <- struct{}{}:
 			case <-pd.Done():
@@ -85,7 +85,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		t.startPieceDownloaders()
 	case peerprotocol.ChokeMessage:
 		pe.PeerChoking = true
-		if pd, ok := t.pieceDownloads[pe.Conn]; ok {
+		if pd, ok := t.pieceDownloaders[pe.Conn]; ok {
 			select {
 			case pd.ChokeC <- struct{}{}:
 				// TODO start another downloader
@@ -115,7 +115,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			break
 		}
 		pe.BytesDownlaodedInChokePeriod += int64(len(msg.Data))
-		if pd, ok := t.pieceDownloads[pe.Conn]; ok {
+		if pd, ok := t.pieceDownloaders[pe.Conn]; ok {
 			pd.PieceC <- piecedownloader.Piece{Block: block, Data: msg.Data} // TODO may block
 		}
 	case peerprotocol.RequestMessage:
@@ -162,7 +162,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			pe.Conn.Close()
 			break
 		}
-		pd, ok := t.pieceDownloads[pe.Conn]
+		pd, ok := t.pieceDownloaders[pe.Conn]
 		if !ok {
 			pe.Conn.Logger().Error("reject received but we don't have active download")
 			pe.Conn.Close()
@@ -206,7 +206,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			}
 			pe.Conn.SendMessage(extDataMsg)
 		case peerprotocol.ExtensionMetadataMessageTypeData:
-			id, ok := t.infoDownloads[pe.Conn]
+			id, ok := t.infoDownloaders[pe.Conn]
 			if !ok {
 				pe.Conn.Logger().Warningln("received unexpected metadata piece:", msg.Piece)
 				break

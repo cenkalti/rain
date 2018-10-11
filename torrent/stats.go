@@ -56,11 +56,11 @@ type Stats struct {
 func (t *Torrent) stats() Stats {
 	stats := Stats{
 		Status:                  t.status(),
-		ConnectedPeers:          len(t.connectedPeers),
+		ConnectedPeers:          len(t.peers),
 		IncomingPeers:           len(t.incomingPeers),
 		OutgoingPeers:           len(t.outgoingPeers),
-		ActiveDownloads:         len(t.pieceDownloads),
-		ActiveMetadataDownloads: len(t.infoDownloads),
+		ActiveDownloads:         len(t.pieceDownloaders),
+		ActiveMetadataDownloads: len(t.infoDownloaders),
 		ReadyPeerAddresses:      t.addrList.Len(),
 		IncomingHandshakes:      len(t.incomingHandshakers),
 		OutgoingHandshakes:      len(t.outgoingHandshakers),

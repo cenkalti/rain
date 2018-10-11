@@ -75,10 +75,10 @@ func (t *Torrent) stopAcceptor() {
 }
 
 func (t *Torrent) stopPeers() {
-	for p := range t.connectedPeers {
+	for p := range t.peers {
 		p.Close()
 	}
-	t.connectedPeers = make(map[*peerconn.Conn]*peer.Peer)
+	t.peers = make(map[*peerconn.Conn]*peer.Peer)
 }
 
 func (t *Torrent) stopUnchokeTimers() {
@@ -95,15 +95,15 @@ func (t *Torrent) stopUnchokeTimers() {
 }
 
 func (t *Torrent) stopInfoDownloaders() {
-	for _, id := range t.infoDownloads {
+	for _, id := range t.infoDownloaders {
 		id.Close()
 	}
-	t.infoDownloads = make(map[*peerconn.Conn]*infodownloader.InfoDownloader)
+	t.infoDownloaders = make(map[*peerconn.Conn]*infodownloader.InfoDownloader)
 }
 
 func (t *Torrent) stopPiecedownloaders() {
-	for _, pd := range t.pieceDownloads {
+	for _, pd := range t.pieceDownloaders {
 		pd.Close()
 	}
-	t.pieceDownloads = make(map[*peerconn.Conn]*piecedownloader.PieceDownloader)
+	t.pieceDownloaders = make(map[*peerconn.Conn]*piecedownloader.PieceDownloader)
 }

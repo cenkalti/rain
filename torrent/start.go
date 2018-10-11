@@ -64,7 +64,7 @@ func (t *Torrent) startAnnouncers() {
 		return
 	}
 	for _, tr := range t.trackersInstances {
-		an := announcer.New(tr, t.announcerRequests, t.completeC, t.addrsFromTrackers, t.log)
+		an := announcer.New(tr, t.announcerRequestC, t.completeC, t.addrsFromTrackers, t.log)
 		t.announcers = append(t.announcers, an)
 		go an.Run()
 	}
@@ -80,7 +80,7 @@ func (t *Torrent) startAcceptor() {
 	} else {
 		t.log.Notice("Listening peers on tcp://" + listener.Addr().String())
 		t.port = listener.Addr().(*net.TCPAddr).Port
-		t.acceptor = acceptor.New(listener, t.newInConnC, t.log)
+		t.acceptor = acceptor.New(listener, t.incomingConnC, t.log)
 		go t.acceptor.Run()
 	}
 }
@@ -100,14 +100,14 @@ func (t *Torrent) startInfoDownloaders() {
 	if t.info != nil {
 		return
 	}
-	for len(t.infoDownloads) < parallelInfoDownloads {
+	for len(t.infoDownloaders) < parallelInfoDownloads {
 		id := t.nextInfoDownload()
 		if id == nil {
 			break
 		}
 		t.log.Debugln("downloading info from", id.Peer.String())
-		t.infoDownloads[id.Peer] = id
-		t.connectedPeers[id.Peer].InfoDownloader = id
+		t.infoDownloaders[id.Peer] = id
+		t.peers[id.Peer].InfoDownloader = id
 		go id.Run()
 	}
 }
@@ -116,16 +116,16 @@ func (t *Torrent) startPieceDownloaders() {
 	if t.bitfield == nil {
 		return
 	}
-	for len(t.pieceDownloads) < parallelPieceDownloads {
+	for len(t.pieceDownloaders) < parallelPieceDownloads {
 		// TODO check status of existing downloads
 		pd := t.nextPieceDownload()
 		if pd == nil {
 			break
 		}
 		t.log.Debugln("downloading piece", pd.Piece.Index, "from", pd.Peer.String())
-		t.pieceDownloads[pd.Peer] = pd
+		t.pieceDownloaders[pd.Peer] = pd
 		t.pieces[pd.Piece.Index].RequestedPeers[pd.Peer] = pd
-		t.connectedPeers[pd.Peer].Downloader = pd
+		t.peers[pd.Peer].Downloader = pd
 		go pd.Run()
 	}
 }

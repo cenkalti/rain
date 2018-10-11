@@ -74,15 +74,15 @@ type Torrent struct {
 	messages chan peer.Message
 
 	// We keep connected peers in this map after they complete handshake phase.
-	connectedPeers map[*peerconn.Conn]*peer.Peer
-	incomingPeers  map[*peerconn.Conn]struct{}
-	outgoingPeers  map[*peerconn.Conn]struct{}
+	peers         map[*peerconn.Conn]*peer.Peer
+	incomingPeers map[*peerconn.Conn]struct{}
+	outgoingPeers map[*peerconn.Conn]struct{}
 
 	// Active piece downloads are kept in this map.
-	pieceDownloads map[*peerconn.Conn]*piecedownloader.PieceDownloader
+	pieceDownloaders map[*peerconn.Conn]*piecedownloader.PieceDownloader
 
 	// Active metadata downloads are kept in this map.
-	infoDownloads map[*peerconn.Conn]*infodownloader.InfoDownloader
+	infoDownloaders map[*peerconn.Conn]*infodownloader.InfoDownloader
 
 	// Downloader run loop sends a message to this channel for writing a piece to disk.
 	writeRequestC chan piecewriter.Request
@@ -118,7 +118,7 @@ type Torrent struct {
 	addrList *addrlist.AddrList
 
 	// New raw connections created by OutgoingHandshaker are sent to here.
-	newInConnC chan net.Conn
+	incomingConnC chan net.Conn
 
 	// Keep a set of peer IDs to block duplicate connections.
 	peerIDs map[[20]byte]struct{}
@@ -153,7 +153,7 @@ type Torrent struct {
 	pieceDownloaderResultC chan piecedownloader.Result
 
 	// Announcers send a request to this channel to get information about the torrent.
-	announcerRequests chan *announcer.Request
+	announcerRequestC chan *announcer.Request
 
 	// A timer that ticks periodically to keep a certain number of peers unchoked.
 	unchokeTimer  *time.Ticker
@@ -314,11 +314,11 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		log:                       logger.New("download " + logName),
 		peerDisconnectedC:         make(chan *peer.Peer),
 		messages:                  make(chan peer.Message),
-		connectedPeers:            make(map[*peerconn.Conn]*peer.Peer),
+		peers:                     make(map[*peerconn.Conn]*peer.Peer),
 		incomingPeers:             make(map[*peerconn.Conn]struct{}),
 		outgoingPeers:             make(map[*peerconn.Conn]struct{}),
-		pieceDownloads:            make(map[*peerconn.Conn]*piecedownloader.PieceDownloader),
-		infoDownloads:             make(map[*peerconn.Conn]*infodownloader.InfoDownloader),
+		pieceDownloaders:          make(map[*peerconn.Conn]*piecedownloader.PieceDownloader),
+		infoDownloaders:           make(map[*peerconn.Conn]*infodownloader.InfoDownloader),
 		writeRequestC:             make(chan piecewriter.Request),
 		writeResponseC:            make(chan piecewriter.Response),
 		completeC:                 make(chan struct{}),
@@ -329,7 +329,7 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		addrsFromTrackers:         make(chan []*net.TCPAddr),
 		addrList:                  addrlist.New(),
 		peerIDs:                   make(map[[20]byte]struct{}),
-		newInConnC:                make(chan net.Conn),
+		incomingConnC:             make(chan net.Conn),
 		sKeyHash:                  mse.HashSKey(spec.infoHash[:]),
 		infoDownloaderResultC:     make(chan infodownloader.Result),
 		pieceDownloaderResultC:    make(chan piecedownloader.Result),
@@ -339,7 +339,7 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		outgoingHandshakerResultC: make(chan outgoinghandshaker.Result),
 		startCommandC:             make(chan struct{}),
 		stopCommandC:              make(chan struct{}),
-		announcerRequests:         make(chan *announcer.Request),
+		announcerRequestC:         make(chan *announcer.Request),
 		allocatorProgressC:        make(chan allocator.Progress),
 		allocatorResultC:          make(chan allocator.Result),
 		verifierProgressC:         make(chan verifier.Progress),

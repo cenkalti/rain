@@ -10,7 +10,7 @@ import (
 )
 
 func (t *Torrent) nextInfoDownload() *infodownloader.InfoDownloader {
-	for _, pe := range t.connectedPeers {
+	for _, pe := range t.peers {
 		if pe.InfoDownloader != nil {
 			continue
 		}
@@ -44,17 +44,17 @@ func (t *Torrent) nextPieceDownload() *piecedownloader.PieceDownloader {
 			if _, ok := p.AllowedFastPeers[pe]; !ok {
 				continue
 			}
-			if _, ok := t.pieceDownloads[pe]; ok {
+			if _, ok := t.pieceDownloaders[pe]; ok {
 				continue
 			}
 			// TODO selecting first peer having the piece, change to more smart decision
 			return piecedownloader.New(p.Piece, pe, t.pieceDownloaderResultC)
 		}
 		for pe := range p.HavingPeers {
-			if pp, ok := t.connectedPeers[pe]; ok && pp.PeerChoking {
+			if pp, ok := t.peers[pe]; ok && pp.PeerChoking {
 				continue
 			}
-			if _, ok := t.pieceDownloads[pe]; ok {
+			if _, ok := t.pieceDownloaders[pe]; ok {
 				continue
 			}
 			// TODO selecting first peer having the piece, change to more smart decision
