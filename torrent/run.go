@@ -9,7 +9,6 @@ import (
 	"math/rand"
 	"sort"
 
-	"github.com/cenkalti/rain/torrent/internal/allocator"
 	"github.com/cenkalti/rain/torrent/internal/announcer"
 	"github.com/cenkalti/rain/torrent/internal/bitfield"
 	"github.com/cenkalti/rain/torrent/internal/handshaker/incominghandshaker"
@@ -21,11 +20,14 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/piece"
 	"github.com/cenkalti/rain/torrent/internal/piecewriter"
 	"github.com/cenkalti/rain/torrent/internal/tracker"
-	"github.com/cenkalti/rain/torrent/internal/verifier"
 )
 
 func (t *Torrent) close() {
 	t.stop(errors.New("torrent is closed"))
+
+	if t.data != nil {
+		t.data.Close()
+	}
 }
 
 func (t *Torrent) run() {
@@ -63,23 +65,24 @@ func (t *Torrent) run() {
 			if t.bitfield != nil {
 				t.checkCompletion()
 				t.processQueuedMessages()
-				t.startPieceDownloaders()
 				t.startAcceptor()
 				t.startAnnouncers()
+				t.startPieceDownloaders()
+				t.startPieceWriters()
+				t.startUnchokeTimers()
 				break
 			}
 			if !res.NeedHashCheck {
 				t.bitfield = bitfield.New(t.info.NumPieces)
 				t.processQueuedMessages()
-				t.startPieceDownloaders()
 				t.startAcceptor()
 				t.startAnnouncers()
+				t.startPieceDownloaders()
+				t.startPieceWriters()
+				t.startUnchokeTimers()
 				break
 			}
-			if res.NeedHashCheck {
-				t.verifier = verifier.New(t.data.Pieces, t.verifierProgressC, t.verifierResultC)
-				go t.verifier.Run()
-			}
+			t.startVerifier()
 		case <-t.verifierProgressC:
 			// TODO handle verification progress
 		case res := <-t.verifierResultC:
@@ -107,9 +110,11 @@ func (t *Torrent) run() {
 			}
 			t.checkCompletion()
 			t.processQueuedMessages()
-			t.startPieceDownloaders()
 			t.startAcceptor()
 			t.startAnnouncers()
+			t.startPieceDownloaders()
+			t.startPieceWriters()
+			t.startUnchokeTimers()
 		case addrs := <-t.addrsFromTrackers:
 			t.addrList.Push(addrs, t.port)
 			t.dialAddresses()
@@ -172,8 +177,7 @@ func (t *Torrent) run() {
 					break
 				}
 			}
-			t.allocator = allocator.New(t.info, t.storage, t.allocatorProgressC, t.allocatorResultC)
-			go t.allocator.Run()
+			t.startAllocator()
 		case res := <-t.pieceDownloaderResultC:
 			t.log.Debugln("piece download completed. index:", res.Piece.Index)
 			if pe, ok := t.connectedPeers[res.Peer]; ok {
