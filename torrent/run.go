@@ -99,7 +99,7 @@ func (t *Torrent) run() {
 					break
 				}
 			}
-			for _, pe := range t.peers {
+			for pe := range t.peers {
 				for i := uint32(0); i < t.bitfield.Len(); i++ {
 					if t.bitfield.Test(i) {
 						msg := peerprotocol.HaveMessage{Index: i}
@@ -142,7 +142,6 @@ func (t *Torrent) run() {
 			// TODO set bytes uploaded/downloaded
 			req.Response <- announcer.Response{Transfer: tr}
 		case res := <-t.infoDownloaderResultC:
-			t.peers[res.Peer].InfoDownloader = nil
 			delete(t.infoDownloaders, res.Peer)
 			if res.Error != nil {
 				res.Peer.Logger().Error(res.Error)
@@ -181,9 +180,6 @@ func (t *Torrent) run() {
 			t.startAllocator()
 		case res := <-t.pieceDownloaderResultC:
 			t.log.Debugln("piece download completed. index:", res.Piece.Index)
-			if pe, ok := t.peers[res.Peer]; ok {
-				pe.Downloader = nil
-			}
 			delete(t.pieceDownloaders, res.Peer)
 			delete(t.pieces[res.Piece.Index].RequestedPeers, res.Peer)
 			t.startPieceDownloaders()
@@ -214,20 +210,20 @@ func (t *Torrent) run() {
 			}
 			t.checkCompletion()
 			// Tell everyone that we have this piece
-			for _, pe := range t.peers {
+			for pe := range t.peers {
 				msg := peerprotocol.HaveMessage{Index: resp.Request.Piece.Index}
 				pe.SendMessage(msg)
 				t.updateInterestedState(pe)
 			}
 		case <-t.unchokeTimerC:
 			peers := make([]*peer.Peer, 0, len(t.peers))
-			for _, pe := range t.peers {
+			for pe := range t.peers {
 				if !pe.OptimisticUnchoked {
 					peers = append(peers, pe)
 				}
 			}
 			sort.Sort(peer.ByDownloadRate(peers))
-			for _, pe := range t.peers {
+			for pe := range t.peers {
 				pe.BytesDownlaodedInChokePeriod = 0
 			}
 			unchokedPeers := make(map[*peer.Peer]struct{}, 3)
@@ -238,14 +234,14 @@ func (t *Torrent) run() {
 				t.unchokePeer(pe)
 				unchokedPeers[pe] = struct{}{}
 			}
-			for _, pe := range t.peers {
+			for pe := range t.peers {
 				if _, ok := unchokedPeers[pe]; !ok {
 					t.chokePeer(pe)
 				}
 			}
 		case <-t.optimisticUnchokeTimerC:
 			peers := make([]*peer.Peer, 0, len(t.peers))
-			for _, pe := range t.peers {
+			for pe := range t.peers {
 				if !pe.OptimisticUnchoked && pe.AmChoking {
 					peers = append(peers, pe)
 				}
@@ -277,24 +273,24 @@ func (t *Torrent) run() {
 			}
 			t.startPeer(res.Peer, t.outgoingPeers)
 		case pe := <-t.peerDisconnectedC:
+			if pd, ok := t.pieceDownloaders[pe]; ok {
+				pd.Close()
+				delete(t.pieceDownloaders, pe)
+			}
+			if id, ok := t.infoDownloaders[pe]; ok {
+				id.Close()
+				delete(t.infoDownloaders, pe)
+			}
+			delete(t.peers, pe)
 			delete(t.peerIDs, pe.ID())
-			if pe.Downloader != nil {
-				pe.Downloader.Close()
-				delete(t.pieceDownloaders, pe.Conn)
-			}
-			if pe.InfoDownloader != nil {
-				pe.InfoDownloader.Close()
-				delete(t.infoDownloaders, pe.Conn)
-			}
-			delete(t.peers, pe.Conn)
 			for i := range t.pieces {
-				delete(t.pieces[i].HavingPeers, pe.Conn)
-				delete(t.pieces[i].AllowedFastPeers, pe.Conn)
-				delete(t.pieces[i].RequestedPeers, pe.Conn)
+				delete(t.pieces[i].HavingPeers, pe)
+				delete(t.pieces[i].AllowedFastPeers, pe)
+				delete(t.pieces[i].RequestedPeers, pe)
 			}
-			delete(t.incomingPeers, pe.Conn)
-			if _, ok := t.outgoingPeers[pe.Conn]; ok {
-				delete(t.outgoingPeers, pe.Conn)
+			delete(t.incomingPeers, pe)
+			if _, ok := t.outgoingPeers[pe]; ok {
+				delete(t.outgoingPeers, pe)
 				t.dialAddresses()
 			}
 		case pm := <-t.messages:
@@ -317,7 +313,7 @@ func (t *Torrent) dialAddresses() {
 
 func (t *Torrent) processQueuedMessages() {
 	// process previously received messages
-	for _, pe := range t.peers {
+	for pe := range t.peers {
 		for _, msg := range pe.Messages {
 			pm := peer.Message{Peer: pe, Message: msg}
 			t.handlePeerMessage(pm)
@@ -325,7 +321,7 @@ func (t *Torrent) processQueuedMessages() {
 	}
 }
 
-func (t *Torrent) startPeer(p *peerconn.Conn, peers map[*peerconn.Conn]struct{}) {
+func (t *Torrent) startPeer(p *peerconn.Conn, peers map[*peer.Peer]struct{}) {
 	_, ok := t.peerIDs[p.ID()]
 	if ok {
 		p.Logger().Errorln("peer with same id already connected:", p.ID())
@@ -335,8 +331,8 @@ func (t *Torrent) startPeer(p *peerconn.Conn, peers map[*peerconn.Conn]struct{})
 	t.peerIDs[p.ID()] = struct{}{}
 
 	pe := peer.New(p, t.messages, t.peerDisconnectedC)
-	t.peers[p] = pe
-	peers[p] = struct{}{}
+	t.peers[pe] = struct{}{}
+	peers[pe] = struct{}{}
 	go pe.Run()
 
 	t.sendFirstMessage(p)

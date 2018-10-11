@@ -1,25 +1,25 @@
 package piece
 
 import (
-	"github.com/cenkalti/rain/torrent/internal/peerconn"
+	"github.com/cenkalti/rain/torrent/internal/peer"
 	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
 	pp "github.com/cenkalti/rain/torrent/internal/pieceio"
 )
 
 type Piece struct {
 	*pp.Piece
-	HavingPeers      map[*peerconn.Conn]struct{}
-	AllowedFastPeers map[*peerconn.Conn]struct{}
-	RequestedPeers   map[*peerconn.Conn]*piecedownloader.PieceDownloader
+	HavingPeers      map[*peer.Peer]struct{}
+	AllowedFastPeers map[*peer.Peer]struct{}
+	RequestedPeers   map[*peer.Peer]*piecedownloader.PieceDownloader
 	Writing          bool
 }
 
 func New(p *pp.Piece) *Piece {
 	return &Piece{
 		Piece:            p,
-		HavingPeers:      make(map[*peerconn.Conn]struct{}),
-		AllowedFastPeers: make(map[*peerconn.Conn]struct{}),
-		RequestedPeers:   make(map[*peerconn.Conn]*piecedownloader.PieceDownloader),
+		HavingPeers:      make(map[*peer.Peer]struct{}),
+		AllowedFastPeers: make(map[*peer.Peer]struct{}),
+		RequestedPeers:   make(map[*peer.Peer]*piecedownloader.PieceDownloader),
 	}
 }
 

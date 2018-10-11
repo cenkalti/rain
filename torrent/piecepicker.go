@@ -10,15 +10,15 @@ import (
 )
 
 func (t *Torrent) nextInfoDownload() *infodownloader.InfoDownloader {
-	for _, pe := range t.peers {
-		if pe.InfoDownloader != nil {
+	for pe := range t.peers {
+		if _, ok := t.infoDownloaders[pe]; ok {
 			continue
 		}
 		extID, ok := pe.ExtensionHandshake.M[peerprotocol.ExtensionMetadataKey]
 		if !ok {
 			continue
 		}
-		return infodownloader.New(pe.Conn, extID, pe.ExtensionHandshake.MetadataSize, t.infoDownloaderResultC)
+		return infodownloader.New(pe, extID, pe.ExtensionHandshake.MetadataSize, t.infoDownloaderResultC)
 	}
 	return nil
 }
@@ -51,7 +51,7 @@ func (t *Torrent) nextPieceDownload() *piecedownloader.PieceDownloader {
 			return piecedownloader.New(p.Piece, pe, t.pieceDownloaderResultC)
 		}
 		for pe := range p.HavingPeers {
-			if pp, ok := t.peers[pe]; ok && pp.PeerChoking {
+			if pe.PeerChoking {
 				continue
 			}
 			if _, ok := t.pieceDownloaders[pe]; ok {

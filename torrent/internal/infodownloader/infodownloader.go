@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/cenkalti/rain/torrent/internal/peerconn"
+	"github.com/cenkalti/rain/torrent/internal/peer"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
 )
 
@@ -18,7 +18,7 @@ type InfoDownloader struct {
 	totalSize      uint32
 	nextBlockIndex uint32
 	requested      map[uint32]struct{}
-	Peer           *peerconn.Conn
+	Peer           *peer.Peer
 	blocks         []block
 	DataC          chan Data
 	// RejectC chan *piece.Block
@@ -38,12 +38,12 @@ type block struct {
 }
 
 type Result struct {
-	Peer  *peerconn.Conn
+	Peer  *peer.Peer
 	Bytes []byte
 	Error error
 }
 
-func New(pe *peerconn.Conn, extID uint8, totalSize uint32, resultC chan Result) *InfoDownloader {
+func New(pe *peer.Peer, extID uint8, totalSize uint32, resultC chan Result) *InfoDownloader {
 	numBlocks := totalSize / blockSize
 	mod := totalSize % blockSize
 	if mod != 0 {

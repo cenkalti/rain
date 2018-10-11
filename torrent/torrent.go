@@ -27,7 +27,6 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/metainfo"
 	"github.com/cenkalti/rain/torrent/internal/mse"
 	"github.com/cenkalti/rain/torrent/internal/peer"
-	"github.com/cenkalti/rain/torrent/internal/peerconn"
 	"github.com/cenkalti/rain/torrent/internal/piece"
 	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
 	"github.com/cenkalti/rain/torrent/internal/piecewriter"
@@ -74,15 +73,15 @@ type Torrent struct {
 	messages chan peer.Message
 
 	// We keep connected peers in this map after they complete handshake phase.
-	peers         map[*peerconn.Conn]*peer.Peer
-	incomingPeers map[*peerconn.Conn]struct{}
-	outgoingPeers map[*peerconn.Conn]struct{}
+	peers         map[*peer.Peer]struct{}
+	incomingPeers map[*peer.Peer]struct{}
+	outgoingPeers map[*peer.Peer]struct{}
 
 	// Active piece downloads are kept in this map.
-	pieceDownloaders map[*peerconn.Conn]*piecedownloader.PieceDownloader
+	pieceDownloaders map[*peer.Peer]*piecedownloader.PieceDownloader
 
 	// Active metadata downloads are kept in this map.
-	infoDownloaders map[*peerconn.Conn]*infodownloader.InfoDownloader
+	infoDownloaders map[*peer.Peer]*infodownloader.InfoDownloader
 
 	// Downloader run loop sends a message to this channel for writing a piece to disk.
 	writeRequestC chan piecewriter.Request
@@ -314,11 +313,11 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		log:                       logger.New("download " + logName),
 		peerDisconnectedC:         make(chan *peer.Peer),
 		messages:                  make(chan peer.Message),
-		peers:                     make(map[*peerconn.Conn]*peer.Peer),
-		incomingPeers:             make(map[*peerconn.Conn]struct{}),
-		outgoingPeers:             make(map[*peerconn.Conn]struct{}),
-		pieceDownloaders:          make(map[*peerconn.Conn]*piecedownloader.PieceDownloader),
-		infoDownloaders:           make(map[*peerconn.Conn]*infodownloader.InfoDownloader),
+		peers:                     make(map[*peer.Peer]struct{}),
+		incomingPeers:             make(map[*peer.Peer]struct{}),
+		outgoingPeers:             make(map[*peer.Peer]struct{}),
+		pieceDownloaders:          make(map[*peer.Peer]*piecedownloader.PieceDownloader),
+		infoDownloaders:           make(map[*peer.Peer]*infodownloader.InfoDownloader),
 		writeRequestC:             make(chan piecewriter.Request),
 		writeResponseC:            make(chan piecewriter.Response),
 		completeC:                 make(chan struct{}),

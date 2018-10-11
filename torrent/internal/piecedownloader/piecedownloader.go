@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/cenkalti/rain/torrent/internal/peerconn"
+	"github.com/cenkalti/rain/torrent/internal/peer"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
 	"github.com/cenkalti/rain/torrent/internal/pieceio"
 )
@@ -14,7 +14,7 @@ const maxQueuedBlocks = 10
 // PieceDownloader downloads all blocks of a piece from a peer.
 type PieceDownloader struct {
 	Piece          *pieceio.Piece
-	Peer           *peerconn.Conn
+	Peer           *peer.Peer
 	blocks         []block
 	nextBlockIndex uint32
 	requested      map[uint32]struct{}
@@ -33,13 +33,13 @@ type block struct {
 }
 
 type Result struct {
-	Peer  *peerconn.Conn
+	Peer  *peer.Peer
 	Piece *pieceio.Piece
 	Bytes []byte
 	Error error
 }
 
-func New(pi *pieceio.Piece, pe *peerconn.Conn, resultC chan Result) *PieceDownloader {
+func New(pi *pieceio.Piece, pe *peer.Peer, resultC chan Result) *PieceDownloader {
 	blocks := make([]block, len(pi.Blocks))
 	for i := range blocks {
 		blocks[i] = block{Block: &pi.Blocks[i]}

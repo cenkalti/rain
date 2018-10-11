@@ -1,19 +1,14 @@
 package peer
 
 import (
-	"github.com/cenkalti/rain/torrent/internal/infodownloader"
 	"github.com/cenkalti/rain/torrent/internal/peerconn"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
-	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
 )
 
 type Peer struct {
 	*peerconn.Conn
 	messages   chan Message
 	disconnect chan *Peer
-
-	Downloader     *piecedownloader.PieceDownloader
-	InfoDownloader *infodownloader.InfoDownloader
 
 	AmChoking                    bool
 	AmInterested                 bool

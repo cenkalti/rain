@@ -3,7 +3,6 @@ package torrent
 import (
 	"github.com/cenkalti/rain/torrent/internal/infodownloader"
 	"github.com/cenkalti/rain/torrent/internal/peer"
-	"github.com/cenkalti/rain/torrent/internal/peerconn"
 	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
 )
 
@@ -78,7 +77,7 @@ func (t *Torrent) stopPeers() {
 	for p := range t.peers {
 		p.Close()
 	}
-	t.peers = make(map[*peerconn.Conn]*peer.Peer)
+	t.peers = make(map[*peer.Peer]struct{})
 }
 
 func (t *Torrent) stopUnchokeTimers() {
@@ -98,12 +97,12 @@ func (t *Torrent) stopInfoDownloaders() {
 	for _, id := range t.infoDownloaders {
 		id.Close()
 	}
-	t.infoDownloaders = make(map[*peerconn.Conn]*infodownloader.InfoDownloader)
+	t.infoDownloaders = make(map[*peer.Peer]*infodownloader.InfoDownloader)
 }
 
 func (t *Torrent) stopPiecedownloaders() {
 	for _, pd := range t.pieceDownloaders {
 		pd.Close()
 	}
-	t.pieceDownloaders = make(map[*peerconn.Conn]*piecedownloader.PieceDownloader)
+	t.pieceDownloaders = make(map[*peer.Peer]*piecedownloader.PieceDownloader)
 }
