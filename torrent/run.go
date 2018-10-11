@@ -145,7 +145,7 @@ func (t *Torrent) run() {
 			delete(t.infoDownloaders, res.Peer)
 			if res.Error != nil {
 				res.Peer.Logger().Error(res.Error)
-				res.Peer.Close()
+				t.closePeer(res.Peer)
 				t.startInfoDownloaders()
 				break
 			}
@@ -154,7 +154,7 @@ func (t *Torrent) run() {
 			hash.Write(res.Bytes)                           // nolint: gosec
 			if !bytes.Equal(hash.Sum(nil), t.infoHash[:]) { // nolint: gosec
 				res.Peer.Logger().Errorln("received info does not match with hash")
-				res.Peer.Close()
+				t.closePeer(res.Peer)
 				t.startInfoDownloaders()
 				break
 			}
@@ -273,30 +273,32 @@ func (t *Torrent) run() {
 			}
 			t.startPeer(res.Peer, t.outgoingPeers)
 		case pe := <-t.peerDisconnectedC:
-			if pd, ok := t.pieceDownloaders[pe]; ok {
-				pd.Close()
-				delete(t.pieceDownloaders, pe)
-			}
-			if id, ok := t.infoDownloaders[pe]; ok {
-				id.Close()
-				delete(t.infoDownloaders, pe)
-			}
-			delete(t.peers, pe)
-			delete(t.peerIDs, pe.ID())
-			for i := range t.pieces {
-				delete(t.pieces[i].HavingPeers, pe)
-				delete(t.pieces[i].AllowedFastPeers, pe)
-				delete(t.pieces[i].RequestedPeers, pe)
-			}
-			delete(t.incomingPeers, pe)
-			if _, ok := t.outgoingPeers[pe]; ok {
-				delete(t.outgoingPeers, pe)
-				t.dialAddresses()
-			}
+			t.closePeer(pe)
 		case pm := <-t.messages:
 			t.handlePeerMessage(pm)
 		}
 	}
+}
+
+func (t *Torrent) closePeer(pe *peer.Peer) {
+	if pd, ok := t.pieceDownloaders[pe]; ok {
+		pd.Close()
+		delete(t.pieceDownloaders, pe)
+	}
+	if id, ok := t.infoDownloaders[pe]; ok {
+		id.Close()
+		delete(t.infoDownloaders, pe)
+	}
+	delete(t.peers, pe)
+	delete(t.peerIDs, pe.ID())
+	for i := range t.pieces {
+		delete(t.pieces[i].HavingPeers, pe)
+		delete(t.pieces[i].AllowedFastPeers, pe)
+		delete(t.pieces[i].RequestedPeers, pe)
+	}
+	delete(t.incomingPeers, pe)
+	delete(t.outgoingPeers, pe)
+	t.dialAddresses()
 }
 
 func (t *Torrent) dialAddresses() {

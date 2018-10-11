@@ -21,7 +21,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		}
 		if msg.Index >= uint32(len(t.data.Pieces)) {
 			pe.Logger().Errorln("unexpected piece index:", msg.Index)
-			pe.Close()
+			t.closePeer(pe)
 			break
 		}
 		pi := &t.data.Pieces[msg.Index]
@@ -38,7 +38,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		numBytes := uint32(bitfield.NumBytes(uint32(len(t.data.Pieces))))
 		if uint32(len(msg.Data)) != numBytes {
 			pe.Logger().Errorln("invalid bitfield length:", len(msg.Data))
-			pe.Close()
+			t.closePeer(pe)
 			break
 		}
 		bf := bitfield.NewBytes(msg.Data, uint32(len(t.data.Pieces)))
@@ -68,7 +68,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		}
 		if msg.Index >= uint32(len(t.data.Pieces)) {
 			pe.Logger().Errorln("invalid allowed fast piece index:", msg.Index)
-			pe.Close()
+			t.closePeer(pe)
 			break
 		}
 		pi := &t.data.Pieces[msg.Index]
@@ -99,19 +99,19 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 	case peerprotocol.PieceMessage:
 		if t.bitfield == nil {
 			pe.Logger().Error("piece received but we don't have info")
-			pe.Close()
+			t.closePeer(pe)
 			break
 		}
 		if msg.Index >= uint32(len(t.data.Pieces)) {
 			pe.Logger().Errorln("invalid piece index:", msg.Index)
-			pe.Close()
+			t.closePeer(pe)
 			break
 		}
 		piece := &t.data.Pieces[msg.Index]
 		block := piece.Blocks.Find(msg.Begin, msg.Length)
 		if block == nil {
 			pe.Logger().Errorln("invalid piece begin:", msg.Begin, "length:", msg.Length)
-			pe.Close()
+			t.closePeer(pe)
 			break
 		}
 		pe.BytesDownlaodedInChokePeriod += int64(len(msg.Data))
@@ -121,17 +121,17 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 	case peerprotocol.RequestMessage:
 		if t.bitfield == nil {
 			pe.Logger().Error("request received but we don't have info")
-			pe.Close()
+			t.closePeer(pe)
 			break
 		}
 		if msg.Index >= uint32(len(t.data.Pieces)) {
 			pe.Logger().Errorln("invalid request index:", msg.Index)
-			pe.Close()
+			t.closePeer(pe)
 			break
 		}
 		if msg.Begin+msg.Length > t.data.Pieces[msg.Index].Length {
 			pe.Logger().Errorln("invalid request length:", msg.Length)
-			pe.Close()
+			t.closePeer(pe)
 			break
 		}
 		pi := &t.data.Pieces[msg.Index]
@@ -146,26 +146,26 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 	case peerprotocol.RejectMessage:
 		if t.bitfield == nil {
 			pe.Logger().Error("reject received but we don't have info")
-			pe.Close()
+			t.closePeer(pe)
 			break
 		}
 
 		if msg.Index >= uint32(len(t.data.Pieces)) {
 			pe.Logger().Errorln("invalid reject index:", msg.Index)
-			pe.Close()
+			t.closePeer(pe)
 			break
 		}
 		piece := &t.data.Pieces[msg.Index]
 		block := piece.Blocks.Find(msg.Begin, msg.Length)
 		if block == nil {
 			pe.Logger().Errorln("invalid reject begin:", msg.Begin, "length:", msg.Length)
-			pe.Close()
+			t.closePeer(pe)
 			break
 		}
 		pd, ok := t.pieceDownloaders[pe]
 		if !ok {
 			pe.Logger().Error("reject received but we don't have active download")
-			pe.Close()
+			t.closePeer(pe)
 			break
 		}
 		pd.RejectC <- block
