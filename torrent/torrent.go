@@ -2,10 +2,8 @@
 package torrent
 
 import (
-	"crypto/sha1" // nolint: gosec
 	"encoding/hex"
 	"errors"
-	"hash"
 	"io"
 	"math/rand"
 	"net"
@@ -31,7 +29,6 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/peer"
 	"github.com/cenkalti/rain/torrent/internal/piece"
 	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
-	"github.com/cenkalti/rain/torrent/internal/piecewriter"
 	"github.com/cenkalti/rain/torrent/internal/torrentdata"
 	"github.com/cenkalti/rain/torrent/internal/tracker"
 	"github.com/cenkalti/rain/torrent/internal/tracker/httptracker"
@@ -42,7 +39,6 @@ import (
 const (
 	parallelInfoDownloads  = 4
 	parallelPieceDownloads = 4
-	parallelPieceWrites    = 4 // TODO remove this
 	maxPeerDial            = 40
 	maxPeerAccept          = 40
 )
@@ -85,12 +81,6 @@ type Torrent struct {
 	// Active metadata downloads are kept in this map.
 	infoDownloaders map[*peer.Peer]*infodownloader.InfoDownloader
 
-	// Downloader run loop sends a message to this channel for writing a piece to disk.
-	writeRequestC chan piecewriter.Request
-
-	// When a piece is written to the disk, a message is sent to this channel.
-	writeResponseC chan piecewriter.Response
-
 	// A peer is optimistically unchoked regardless of their download rate.
 	optimisticUnchokedPeer *peer.Peer
 
@@ -130,9 +120,6 @@ type Torrent struct {
 	// Special hash of info hash for encypted connection handshake.
 	sKeyHash [20]byte
 
-	// Responsible for writing downloaded pieces to disk.
-	pieceWriters []*piecewriter.PieceWriter
-
 	// Tracker implementations for giving to announcers.
 	trackersInstances []tracker.Tracker
 
@@ -171,8 +158,6 @@ type Torrent struct {
 	verifier          *verifier.Verifier
 	verifierProgressC chan verifier.Progress
 	verifierResultC   chan verifier.Result
-
-	hash hash.Hash
 
 	log logger.Logger
 }
@@ -322,8 +307,6 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		outgoingPeers:             make(map[*peer.Peer]struct{}),
 		pieceDownloaders:          make(map[*peer.Peer]*piecedownloader.PieceDownloader),
 		infoDownloaders:           make(map[*peer.Peer]*infodownloader.InfoDownloader),
-		writeRequestC:             make(chan piecewriter.Request),
-		writeResponseC:            make(chan piecewriter.Response),
 		completeC:                 make(chan struct{}),
 		closeC:                    make(chan struct{}),
 		doneC:                     make(chan struct{}),
@@ -347,7 +330,6 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		allocatorResultC:          make(chan allocator.Result),
 		verifierProgressC:         make(chan verifier.Progress),
 		verifierResultC:           make(chan verifier.Result),
-		hash:                      sha1.New(), // nolint: gosec
 	}
 	copy(d.peerID[:], peerIDPrefix)
 	_, err := rand.Read(d.peerID[len(peerIDPrefix):]) // nolint: gosec

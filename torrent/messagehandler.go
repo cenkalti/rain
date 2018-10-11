@@ -6,6 +6,7 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/bitfield"
 	"github.com/cenkalti/rain/torrent/internal/infodownloader"
 	"github.com/cenkalti/rain/torrent/internal/peer"
+	"github.com/cenkalti/rain/torrent/internal/peerconn/peerreader"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
 	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
 )
@@ -96,7 +97,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		// TODO handle intereseted messages
 	case peerprotocol.NotInterestedMessage:
 		// TODO handle not intereseted messages
-	case peerprotocol.PieceMessage:
+	case *peerreader.Piece:
 		if t.bitfield == nil {
 			pe.Logger().Error("piece received but we don't have info")
 			t.closePeer(pe)
@@ -114,9 +115,12 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			t.closePeer(pe)
 			break
 		}
-		pe.BytesDownlaodedInChokePeriod += int64(len(msg.Data))
+		pe.BytesDownlaodedInChokePeriod += int64(msg.Length) // TODO not download yet, but will be
 		if pd, ok := t.pieceDownloaders[pe]; ok {
-			pd.PieceC <- piecedownloader.Piece{Block: block, Data: msg.Data} // TODO may block
+			select {
+			case pd.PieceC <- piecedownloader.Piece{Block: block, Piece: msg}: // TODO may block
+			case <-pd.Done():
+			}
 		}
 	case peerprotocol.RequestMessage:
 		if t.bitfield == nil {

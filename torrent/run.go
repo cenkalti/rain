@@ -2,6 +2,7 @@ package torrent
 
 import (
 	"bytes"
+	"crypto/sha1" // nolint: gosec
 	"errors"
 	"fmt"
 	"math"
@@ -17,7 +18,6 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/peerconn"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
 	"github.com/cenkalti/rain/torrent/internal/piece"
-	"github.com/cenkalti/rain/torrent/internal/piecewriter"
 	"github.com/cenkalti/rain/torrent/internal/tracker"
 )
 
@@ -67,7 +67,6 @@ func (t *Torrent) run() {
 				t.startAcceptor()
 				t.startAnnouncers()
 				t.startPieceDownloaders()
-				t.startPieceWriters()
 				t.startUnchokeTimers()
 				break
 			}
@@ -77,7 +76,6 @@ func (t *Torrent) run() {
 				t.startAcceptor()
 				t.startAnnouncers()
 				t.startPieceDownloaders()
-				t.startPieceWriters()
 				t.startUnchokeTimers()
 				break
 			}
@@ -112,7 +110,6 @@ func (t *Torrent) run() {
 			t.startAcceptor()
 			t.startAnnouncers()
 			t.startPieceDownloaders()
-			t.startPieceWriters()
 			t.startUnchokeTimers()
 		case addrs := <-t.addrsFromTrackers:
 			t.addrList.Push(addrs, t.port)
@@ -148,9 +145,9 @@ func (t *Torrent) run() {
 				t.startInfoDownloaders()
 				break
 			}
-			t.hash.Reset()
-			t.hash.Write(res.Bytes)                           // nolint: gosec
-			if !bytes.Equal(t.hash.Sum(nil), t.infoHash[:]) { // nolint: gosec
+			hash := sha1.New()                              // nolint: gosec
+			hash.Write(res.Bytes)                           // nolint: gosec
+			if !bytes.Equal(hash.Sum(nil), t.infoHash[:]) { // nolint: gosec
 				res.Peer.Logger().Errorln("received info does not match with hash")
 				t.closePeer(res.Peer)
 				t.startInfoDownloaders()
@@ -181,25 +178,17 @@ func (t *Torrent) run() {
 			delete(t.pieceDownloaders, res.Peer)
 			delete(t.pieces[res.Piece.Index].RequestedPeers, res.Peer)
 			t.startPieceDownloaders()
-			t.hash.Reset()
-			ok := t.pieces[res.Piece.Index].Piece.VerifyHash(res.Bytes, t.hash)
-			if !ok {
+			if res.Error != nil {
 				// TODO handle corrupt piece
+				// TODO stop on write error
+				t.log.Errorln(res.Error)
+				t.closePeer(res.Peer)
+				t.startPieceDownloaders()
 				break
 			}
-			t.writeRequestC <- piecewriter.Request{Piece: res.Piece, Data: res.Bytes}
-			t.pieces[res.Piece.Index].Writing = true
-		case resp := <-t.writeResponseC:
-			t.pieces[resp.Request.Piece.Index].Writing = false
-			if resp.Error != nil {
-				err := fmt.Errorf("cannot write piece data: %s", resp.Error)
-				t.log.Errorln(err)
-				t.stop(err)
-				break
-			}
-			t.bitfield.Set(resp.Request.Piece.Index)
+			t.bitfield.Set(res.Piece.Index) // TODO set bits in piece downloader, make thread-safe
 			if t.resume != nil {
-				err := t.resume.WriteBitfield(t.bitfield.Bytes())
+				err := t.resume.WriteBitfield(t.bitfield.Bytes()) // TODO write bitfield in piece downloader
 				if err != nil {
 					err = fmt.Errorf("cannot write bitfield to resume db: %s", err)
 					t.log.Errorln(err)
@@ -210,7 +199,7 @@ func (t *Torrent) run() {
 			t.checkCompletion()
 			// Tell everyone that we have this piece
 			for pe := range t.peers {
-				msg := peerprotocol.HaveMessage{Index: resp.Request.Piece.Index}
+				msg := peerprotocol.HaveMessage{Index: res.Piece.Index}
 				pe.SendMessage(msg)
 				t.updateInterestedState(pe)
 			}

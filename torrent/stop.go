@@ -33,12 +33,6 @@ func (t *Torrent) stop(err error) {
 	}
 	t.announcers = nil
 
-	t.log.Debugln("stopping piece writers")
-	for _, pw := range t.pieceWriters {
-		pw.Close()
-	}
-	t.pieceWriters = nil
-
 	t.log.Debugln("stopping unchoke timers")
 	t.stopUnchokeTimers()
 

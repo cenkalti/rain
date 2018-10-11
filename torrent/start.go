@@ -7,7 +7,6 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/acceptor"
 	"github.com/cenkalti/rain/torrent/internal/allocator"
 	"github.com/cenkalti/rain/torrent/internal/announcer"
-	"github.com/cenkalti/rain/torrent/internal/piecewriter"
 	"github.com/cenkalti/rain/torrent/internal/verifier"
 )
 
@@ -25,7 +24,6 @@ func (t *Torrent) start() {
 				t.startAcceptor()
 				t.startAnnouncers()
 				t.startPieceDownloaders()
-				t.startPieceWriters()
 				t.startUnchokeTimers()
 			} else {
 				t.startVerifier()
@@ -43,15 +41,6 @@ func (t *Torrent) start() {
 func (t *Torrent) startVerifier() {
 	t.verifier = verifier.New(t.data.Pieces, t.verifierProgressC, t.verifierResultC)
 	go t.verifier.Run()
-}
-
-func (t *Torrent) startPieceWriters() {
-	// TODO do not run additional goroutines for writing piece data
-	for i := 0; i < parallelPieceWrites; i++ {
-		w := piecewriter.New(t.writeRequestC, t.writeResponseC, t.log)
-		t.pieceWriters = append(t.pieceWriters, w)
-		go w.Run()
-	}
 }
 
 func (t *Torrent) startAllocator() {

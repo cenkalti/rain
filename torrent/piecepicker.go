@@ -33,9 +33,6 @@ func (t *Torrent) nextPieceDownload() *piecedownloader.PieceDownloader {
 		if len(p.RequestedPeers) > 0 {
 			continue
 		}
-		if p.Writing {
-			continue
-		}
 		if len(p.HavingPeers) == 0 {
 			continue
 		}

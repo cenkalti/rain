@@ -41,36 +41,15 @@ func (m RequestMessage) MarshalBinary() ([]byte, error) {
 
 type PieceMessage struct {
 	Index, Begin uint32
-	Data         []byte
-	Length       uint32
 }
 
 func (m PieceMessage) ID() MessageID { return Piece }
 
 func (m PieceMessage) MarshalBinary() ([]byte, error) {
 	// TODO consider changing interface to io.WriterTo to reduce allocation
-	buf := bytes.NewBuffer(make([]byte, 0, 8+len(m.Data)))
-	msg := struct{ Index, Begin uint32 }{Index: m.Index, Begin: m.Begin}
-	err := binary.Write(buf, binary.BigEndian, msg)
-	if err != nil {
-		return nil, err
-	}
-	_, err = buf.Write(m.Data)
+	buf := bytes.NewBuffer(make([]byte, 0))
+	err := binary.Write(buf, binary.BigEndian, m)
 	return buf.Bytes(), err
-}
-
-func (m *PieceMessage) UnmarshalBinary(data []byte) error {
-	msg := struct{ Index, Begin uint32 }{}
-	r := bytes.NewReader(data)
-	err := binary.Read(r, binary.BigEndian, &msg)
-	if err != nil {
-		return err
-	}
-	m.Index = msg.Index
-	m.Begin = msg.Begin
-	m.Data = make([]byte, m.Length)
-	_, err = io.ReadFull(r, m.Data)
-	return err
 }
 
 type BitfieldMessage struct {

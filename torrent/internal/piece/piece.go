@@ -11,7 +11,6 @@ type Piece struct {
 	HavingPeers      map[*peer.Peer]struct{}
 	AllowedFastPeers map[*peer.Peer]struct{}
 	RequestedPeers   map[*peer.Peer]*piecedownloader.PieceDownloader
-	Writing          bool
 }
 
 func New(p *pp.Piece) *Piece {

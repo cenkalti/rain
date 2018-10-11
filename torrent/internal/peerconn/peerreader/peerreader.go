@@ -165,26 +165,26 @@ func (p *PeerReader) Run() {
 				return
 			}
 			p.log.Debugf("Received Reject: %+v", rm)
-
-			if rm.Length > MaxAllowedBlockSize {
-				err = errors.New("received a reject with block size larger than allowed")
-				return
-			}
 			msg = rm
 		case peerprotocol.Piece:
 			first = false
-			// TODO send a reader as message to read directly onto the piece buffer
-			buf := make([]byte, length)
-			_, err = io.ReadFull(p.conn, buf)
+			var pm peerprotocol.PieceMessage
+			err = binary.Read(p.conn, binary.BigEndian, &pm)
 			if err != nil {
 				return
 			}
-			pm := peerprotocol.PieceMessage{Length: length - 8}
-			err = pm.UnmarshalBinary(buf)
-			if err != nil {
+			pi := newPiece(pm, p.conn, length-8)
+			select {
+			case p.messages <- pi:
+			case <-p.stopC:
 				return
 			}
-			msg = pm
+			select {
+			case <-pi.Done:
+			case <-p.stopC:
+				return
+			}
+			continue
 		case peerprotocol.HaveAll:
 			if !p.fastExtension {
 				err = errors.New("have_all message received but fast extensions is not enabled")

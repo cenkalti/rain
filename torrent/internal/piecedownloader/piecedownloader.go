@@ -1,7 +1,8 @@
 package piecedownloader
 
 import (
-	"bytes"
+	"crypto/sha1" // nolint: gosec
+	"errors"
 	"fmt"
 
 	"github.com/cenkalti/rain/torrent/internal/peer"
@@ -15,9 +16,10 @@ const maxQueuedBlocks = 10
 type PieceDownloader struct {
 	Piece          *pieceio.Piece
 	Peer           *peer.Peer
-	blocks         []block
+	buffer         []byte
 	nextBlockIndex uint32
 	requested      map[uint32]struct{}
+	done           map[uint32]struct{}
 	PieceC         chan Piece
 	RejectC        chan *pieceio.Block
 	ChokeC         chan struct{}
@@ -27,28 +29,19 @@ type PieceDownloader struct {
 	doneC          chan struct{}
 }
 
-type block struct {
-	*pieceio.Block
-	data []byte
-}
-
 type Result struct {
 	Peer  *peer.Peer
 	Piece *pieceio.Piece
-	Bytes []byte
 	Error error
 }
 
 func New(pi *pieceio.Piece, pe *peer.Peer, resultC chan Result) *PieceDownloader {
-	blocks := make([]block, len(pi.Blocks))
-	for i := range blocks {
-		blocks[i] = block{Block: &pi.Blocks[i]}
-	}
 	return &PieceDownloader{
 		Piece:     pi,
 		Peer:      pe,
-		blocks:    blocks,
+		buffer:    make([]byte, pi.Length),
 		requested: make(map[uint32]struct{}),
+		done:      make(map[uint32]struct{}),
 		PieceC:    make(chan Piece),
 		RejectC:   make(chan *pieceio.Block),
 		ChokeC:    make(chan struct{}),
@@ -68,9 +61,9 @@ func (d *PieceDownloader) Done() <-chan struct{} {
 }
 
 func (d *PieceDownloader) requestBlocks() {
-	for ; d.nextBlockIndex < uint32(len(d.blocks)) && len(d.requested) < maxQueuedBlocks; d.nextBlockIndex++ {
-		b := d.blocks[d.nextBlockIndex]
-		if b.data != nil {
+	for ; d.nextBlockIndex < uint32(len(d.Piece.Blocks)) && len(d.requested) < maxQueuedBlocks; d.nextBlockIndex++ {
+		b := d.Piece.Blocks[d.nextBlockIndex]
+		if _, ok := d.done[d.nextBlockIndex]; ok {
 			continue
 		}
 		d.requested[d.nextBlockIndex] = struct{}{}
@@ -101,11 +94,20 @@ func (d *PieceDownloader) Run() {
 				result.Error = fmt.Errorf("peer sent unrequested piece block: %q", p.Block)
 				return
 			}
-			b := &d.blocks[p.Block.Index]
 			delete(d.requested, p.Block.Index)
-			b.data = p.Data
+			_, result.Error = p.Piece.Reader.Read(d.buffer[p.Piece.Begin : p.Piece.Begin+p.Piece.Length])
+			close(p.Piece.Done)
+			if result.Error != nil {
+				return
+			}
+			d.done[p.Block.Index] = struct{}{}
 			if d.allDone() {
-				result.Bytes = d.assembleBlocks().Bytes()
+				ok := d.Piece.VerifyHash(d.buffer, sha1.New()) // nolint: gosec
+				if !ok {
+					result.Error = errors.New("received corrupt piece")
+					break
+				}
+				_, result.Error = d.Piece.Data.Write(d.buffer)
 				return
 			}
 			d.requestBlocks()
@@ -128,18 +130,5 @@ func (d *PieceDownloader) Run() {
 }
 
 func (d *PieceDownloader) allDone() bool {
-	for i := range d.blocks {
-		if d.blocks[i].data == nil {
-			return false
-		}
-	}
-	return true
-}
-
-func (d *PieceDownloader) assembleBlocks() *bytes.Buffer {
-	buf := bytes.NewBuffer(make([]byte, 0, d.Piece.Length))
-	for i := range d.blocks {
-		buf.Write(d.blocks[i].data)
-	}
-	return buf
+	return len(d.done) == len(d.Piece.Blocks)
 }
