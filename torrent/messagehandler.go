@@ -26,9 +26,9 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		}
 		pi := &t.data.Pieces[msg.Index]
 		pe.Conn.Logger().Debug("Peer ", pe.Conn.String(), " has piece #", pi.Index)
-		t.pieceDownloaders.Signal(1)
 		t.pieces[pi.Index].HavingPeers[pe.Conn] = struct{}{}
 		t.updateInterestedState(pe)
+		t.startPieceDownloaders()
 	case peerprotocol.BitfieldMessage:
 		// Save bitfield messages while we don't have info yet.
 		if t.bitfield == nil {
@@ -48,8 +48,8 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 				t.pieces[i].HavingPeers[pe.Conn] = struct{}{}
 			}
 		}
-		t.pieceDownloaders.Signal(int(bf.Count()))
 		t.updateInterestedState(pe)
+		t.startPieceDownloaders()
 	case peerprotocol.HaveAllMessage:
 		if t.bitfield == nil {
 			pe.Messages = append(pe.Messages, msg)
@@ -58,8 +58,8 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		for i := range t.pieces {
 			t.pieces[i].HavingPeers[pe.Conn] = struct{}{}
 		}
-		t.pieceDownloaders.Signal(len(t.pieces))
 		t.updateInterestedState(pe)
+		t.startPieceDownloaders()
 	case peerprotocol.HaveNoneMessage: // TODO handle?
 	case peerprotocol.AllowedFastMessage:
 		if t.bitfield == nil {
@@ -75,7 +75,6 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		pe.Conn.Logger().Debug("Peer ", pe.Conn.String(), " has allowed fast for piece #", pi.Index)
 		t.pieces[msg.Index].AllowedFastPeers[pe.Conn] = struct{}{}
 	case peerprotocol.UnchokeMessage:
-		t.pieceDownloaders.Signal(1)
 		pe.PeerChoking = false
 		if pd, ok := t.pieceDownloads[pe.Conn]; ok {
 			select {
@@ -83,6 +82,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			case <-pd.Done():
 			}
 		}
+		t.startPieceDownloaders()
 	case peerprotocol.ChokeMessage:
 		pe.PeerChoking = true
 		if pd, ok := t.pieceDownloads[pe.Conn]; ok {
@@ -171,7 +171,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		pd.RejectC <- block
 	// TODO make it value type
 	case *peerprotocol.ExtensionHandshakeMessage:
-		t.log.Debugln("extension handshake received", msg)
+		pe.Logger().Debugln("extension handshake received:", msg)
 		pe.ExtensionHandshake = msg
 		t.startInfoDownloaders()
 	// TODO make it value type

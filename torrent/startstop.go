@@ -8,7 +8,9 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/allocator"
 	"github.com/cenkalti/rain/torrent/internal/announcer"
 	"github.com/cenkalti/rain/torrent/internal/infodownloader"
+	"github.com/cenkalti/rain/torrent/internal/peer"
 	"github.com/cenkalti/rain/torrent/internal/peerconn"
+	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
 	"github.com/cenkalti/rain/torrent/internal/piecewriter"
 )
 
@@ -16,6 +18,7 @@ func (t *Torrent) start() {
 	if t.running() {
 		return
 	}
+	t.log.Info("starting torrent")
 	t.errC = make(chan error, 1)
 
 	// TODO do not run additional goroutines for writing piece data
@@ -26,7 +29,6 @@ func (t *Torrent) start() {
 	}
 
 	t.startUnchokeTimers()
-	t.dialLimit.Start()
 
 	if t.info != nil {
 		t.allocator = allocator.New(t.info, t.storage, t.allocatorProgressC, t.allocatorResultC)
@@ -118,10 +120,36 @@ func (t *Torrent) stopInfoDownloaders() {
 	t.infoDownloads = make(map[*peerconn.Conn]*infodownloader.InfoDownloader)
 }
 
+func (t *Torrent) startPieceDownloaders() {
+	if t.bitfield == nil {
+		return
+	}
+	for len(t.pieceDownloads) < parallelPieceDownloads {
+		// TODO check status of existing downloads
+		pd := t.nextPieceDownload()
+		if pd == nil {
+			break
+		}
+		t.log.Debugln("downloading piece", pd.Piece.Index, "from", pd.Peer.String())
+		t.pieceDownloads[pd.Peer] = pd
+		t.pieces[pd.Piece.Index].RequestedPeers[pd.Peer] = pd
+		t.connectedPeers[pd.Peer].Downloader = pd
+		go pd.Run()
+	}
+}
+
+func (t *Torrent) stopPiecedownloaders() {
+	for pd := range t.pieceDownloads {
+		pd.Close()
+	}
+	t.pieceDownloads = make(map[*peerconn.Conn]*piecedownloader.PieceDownloader)
+}
+
 func (t *Torrent) stop(err error) {
 	if !t.running() {
 		return
 	}
+	t.log.Info("stopping torrent")
 	if err != nil {
 		t.errC <- err
 	}
@@ -130,11 +158,18 @@ func (t *Torrent) stop(err error) {
 	t.log.Debugln("stopping acceptor")
 	t.stopAcceptor()
 
-	t.log.Debugln("stopping dialer")
-	t.dialLimit.Stop()
+	t.log.Debugln("closing peer connections")
+	for p := range t.connectedPeers {
+		p.Close()
+	}
 
+	if t.data != nil {
+		t.data.Close()
+	}
+
+	t.connectedPeers = make(map[*peerconn.Conn]*peer.Peer)
 	t.log.Debugln("stopping piece downloaders")
-	t.pieceDownloaders.Stop()
+	t.stopPiecedownloaders()
 
 	t.log.Debugln("stopping info downloaders")
 	t.stopInfoDownloaders()
@@ -154,10 +189,6 @@ func (t *Torrent) stop(err error) {
 	t.log.Debugln("stopping unchoke timers")
 	t.stopUnchokeTimers()
 
-	if t.data != nil {
-		t.data.Close()
-	}
-
 	t.log.Debugln("stopping allocator")
 	if t.allocator != nil {
 		t.allocator.Close()
@@ -169,5 +200,15 @@ func (t *Torrent) stop(err error) {
 		t.verifier.Stop()
 		<-t.verifier.Done()
 		t.verifier = nil
+	}
+
+	t.log.Debugln("closing outgoing handshakers")
+	for _, oh := range t.outgoingHandshakers {
+		oh.Close()
+	}
+
+	t.log.Debugln("closing incoming handshakers")
+	for _, ih := range t.incomingHandshakers {
+		ih.Close()
 	}
 }

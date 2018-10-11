@@ -26,39 +26,6 @@ import (
 
 func (t *Torrent) close() {
 	t.stop(errors.New("torrent is closed"))
-
-	t.log.Debugln("closing outgoing handshakers")
-	for _, oh := range t.outgoingHandshakers {
-		oh.Close()
-	}
-
-	t.log.Debugln("closing incoming handshakers")
-	for _, ih := range t.incomingHandshakers {
-		ih.Close()
-	}
-
-	t.log.Debugln("closing info downloaders")
-	for _, id := range t.infoDownloads {
-		id.Close()
-	}
-
-	t.log.Debugln("closing piece downloaders")
-	for _, pd := range t.pieceDownloads {
-		pd.Close()
-	}
-
-	t.log.Debugln("closing incoming peer connections")
-	for ip := range t.incomingPeers {
-		ip.Close()
-	}
-
-	t.log.Debugln("closing outgoin peer connections")
-	for op := range t.outgoingPeers {
-		op.Close()
-	}
-
-	// TODO close data
-	// TODO order closes here
 }
 
 func (t *Torrent) run() {
@@ -96,7 +63,7 @@ func (t *Torrent) run() {
 			if t.bitfield != nil {
 				t.checkCompletion()
 				t.processQueuedMessages()
-				t.pieceDownloaders.Start()
+				t.startPieceDownloaders()
 				t.startAcceptor()
 				t.startAnnouncers()
 				break
@@ -104,7 +71,7 @@ func (t *Torrent) run() {
 			if !res.NeedHashCheck {
 				t.bitfield = bitfield.New(t.info.NumPieces)
 				t.processQueuedMessages()
-				t.pieceDownloaders.Start()
+				t.startPieceDownloaders()
 				t.startAcceptor()
 				t.startAnnouncers()
 				break
@@ -140,7 +107,7 @@ func (t *Torrent) run() {
 			}
 			t.checkCompletion()
 			t.processQueuedMessages()
-			t.pieceDownloaders.Start()
+			t.startPieceDownloaders()
 			t.startAcceptor()
 			t.startAnnouncers()
 		case addrs := <-t.addrsFromTrackers:
@@ -207,26 +174,6 @@ func (t *Torrent) run() {
 			}
 			t.allocator = allocator.New(t.info, t.storage, t.allocatorProgressC, t.allocatorResultC)
 			go t.allocator.Run()
-		case <-t.pieceDownloaders.Ready:
-			if t.bitfield == nil {
-				t.pieceDownloaders.Stop()
-				break
-			}
-			if len(t.pieceDownloads) >= parallelPieceDownloads {
-				t.pieceDownloaders.Stop()
-				break
-			}
-			// TODO check status of existing downloads
-			pd := t.nextPieceDownload()
-			if pd == nil {
-				t.pieceDownloaders.Stop()
-				break
-			}
-			t.log.Debugln("downloading piece", pd.Piece.Index, "from", pd.Peer.String())
-			t.pieceDownloads[pd.Peer] = pd
-			t.pieces[pd.Piece.Index].RequestedPeers[pd.Peer] = pd
-			t.connectedPeers[pd.Peer].Downloader = pd
-			go pd.Run()
 		case res := <-t.pieceDownloaderResultC:
 			t.log.Debugln("piece download completed. index:", res.Piece.Index)
 			if pe, ok := t.connectedPeers[res.Peer]; ok {
@@ -234,7 +181,7 @@ func (t *Torrent) run() {
 			}
 			delete(t.pieceDownloads, res.Peer)
 			delete(t.pieces[res.Piece.Index].RequestedPeers, res.Peer)
-			t.pieceDownloaders.Signal(1)
+			t.startPieceDownloaders()
 			ok := t.pieces[res.Piece.Index].Piece.Verify(res.Bytes)
 			if !ok {
 				// TODO handle corrupt piece
@@ -439,6 +386,7 @@ func (t *Torrent) checkCompletion() {
 		return
 	}
 	if t.bitfield.All() {
+		t.log.Info("download completed")
 		close(t.completeC)
 	}
 }

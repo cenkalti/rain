@@ -31,7 +31,6 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/piece"
 	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
 	"github.com/cenkalti/rain/torrent/internal/piecewriter"
-	"github.com/cenkalti/rain/torrent/internal/semaphore"
 	"github.com/cenkalti/rain/torrent/internal/torrentdata"
 	"github.com/cenkalti/rain/torrent/internal/tracker"
 	"github.com/cenkalti/rain/torrent/internal/tracker/httptracker"
@@ -163,12 +162,6 @@ type Torrent struct {
 	// A timer that ticks periodically to keep a random peer unchoked regardless of its upload rate.
 	optimisticUnchokeTimer  *time.Ticker
 	optimisticUnchokeTimerC <-chan time.Time
-
-	// To limit the max number of peers to connect to.
-	dialLimit *semaphore.Semaphore
-
-	// To limit the max number of parallel piece downloads.
-	pieceDownloaders *semaphore.Semaphore
 
 	allocator          *allocator.Allocator
 	allocatorProgressC chan allocator.Progress
@@ -347,8 +340,6 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		startCommandC:             make(chan struct{}),
 		stopCommandC:              make(chan struct{}),
 		announcerRequests:         make(chan *announcer.Request),
-		dialLimit:                 semaphore.New(maxPeerDial),
-		pieceDownloaders:          semaphore.New(parallelPieceDownloads),
 		allocatorProgressC:        make(chan allocator.Progress),
 		allocatorResultC:          make(chan allocator.Result),
 		verifierProgressC:         make(chan verifier.Progress),
