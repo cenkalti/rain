@@ -2,7 +2,6 @@ package pieceio
 
 import (
 	"bytes"
-	"crypto/sha1" // nolint: gosec
 	"hash"
 	"io"
 
@@ -91,10 +90,7 @@ func NewPieces(info *metainfo.Info, osFiles []storage.File) []Piece {
 	return pieces
 }
 
-func (p *Piece) Verify(buf []byte) bool {
-	return p.VerifyHash(buf, sha1.New()) // nolint: gosec
-}
-
+// VerifyHash TODO remove method
 func (p *Piece) VerifyHash(buf []byte, h hash.Hash) bool {
 	if uint32(len(buf)) != p.Length {
 		return false

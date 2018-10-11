@@ -2,7 +2,6 @@ package torrent
 
 import (
 	"bytes"
-	"crypto/sha1" // nolint: gosec
 	"errors"
 	"fmt"
 	"math"
@@ -149,10 +148,9 @@ func (t *Torrent) run() {
 				t.startInfoDownloaders()
 				break
 			}
-			// TODO reduce allocation by making hash field
-			hash := sha1.New()                              // nolint: gosec
-			hash.Write(res.Bytes)                           // nolint: gosec
-			if !bytes.Equal(hash.Sum(nil), t.infoHash[:]) { // nolint: gosec
+			t.hash.Reset()
+			t.hash.Write(res.Bytes)                           // nolint: gosec
+			if !bytes.Equal(t.hash.Sum(nil), t.infoHash[:]) { // nolint: gosec
 				res.Peer.Logger().Errorln("received info does not match with hash")
 				t.closePeer(res.Peer)
 				t.startInfoDownloaders()
@@ -183,7 +181,8 @@ func (t *Torrent) run() {
 			delete(t.pieceDownloaders, res.Peer)
 			delete(t.pieces[res.Piece.Index].RequestedPeers, res.Peer)
 			t.startPieceDownloaders()
-			ok := t.pieces[res.Piece.Index].Piece.Verify(res.Bytes)
+			t.hash.Reset()
+			ok := t.pieces[res.Piece.Index].Piece.VerifyHash(res.Bytes, t.hash)
 			if !ok {
 				// TODO handle corrupt piece
 				break

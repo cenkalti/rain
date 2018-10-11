@@ -2,8 +2,10 @@
 package torrent
 
 import (
+	"crypto/sha1" // nolint: gosec
 	"encoding/hex"
 	"errors"
+	"hash"
 	"io"
 	"math/rand"
 	"net"
@@ -169,6 +171,8 @@ type Torrent struct {
 	verifier          *verifier.Verifier
 	verifierProgressC chan verifier.Progress
 	verifierResultC   chan verifier.Result
+
+	hash hash.Hash
 
 	log logger.Logger
 }
@@ -343,6 +347,7 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		allocatorResultC:          make(chan allocator.Result),
 		verifierProgressC:         make(chan verifier.Progress),
 		verifierResultC:           make(chan verifier.Result),
+		hash:                      sha1.New(), // nolint: gosec
 	}
 	copy(d.peerID[:], peerIDPrefix)
 	_, err := rand.Read(d.peerID[len(peerIDPrefix):]) // nolint: gosec
