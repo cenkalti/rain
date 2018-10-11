@@ -314,8 +314,8 @@ func (t *Torrent) dialAddresses() {
 	}
 }
 
+// Process messages received while we don't have metadata yet.
 func (t *Torrent) processQueuedMessages() {
-	// process previously received messages
 	for pe := range t.peers {
 		for _, msg := range pe.Messages {
 			pm := peer.Message{Peer: pe, Message: msg}
@@ -338,13 +338,13 @@ func (t *Torrent) startPeer(p *peerconn.Conn, peers map[*peer.Peer]struct{}) {
 	peers[pe] = struct{}{}
 	go pe.Run()
 
-	t.sendFirstMessage(p)
+	t.sendFirstMessage(pe)
 	if len(t.peers) <= 4 {
 		t.unchokePeer(pe)
 	}
 }
 
-func (t *Torrent) sendFirstMessage(p *peerconn.Conn) {
+func (t *Torrent) sendFirstMessage(p *peer.Peer) {
 	bf := t.bitfield
 	if p.FastExtension && bf != nil && bf.All() {
 		msg := peerprotocol.HaveAllMessage{}
