@@ -281,6 +281,7 @@ func (t *Torrent) run() {
 }
 
 func (t *Torrent) closePeer(pe *peer.Peer) {
+	pe.Close()
 	if pd, ok := t.pieceDownloaders[pe]; ok {
 		pd.Close()
 		delete(t.pieceDownloaders, pe)
