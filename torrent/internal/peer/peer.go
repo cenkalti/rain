@@ -20,7 +20,7 @@ type Peer struct {
 	PeerChoking                  bool
 	PeerInterested               bool
 	BytesDownlaodedInChokePeriod int64
-	OptimisticUnhoked            bool
+	OptimisticUnchoked           bool
 
 	// Messages received while we don't have info yet are saved here.
 	Messages []interface{}

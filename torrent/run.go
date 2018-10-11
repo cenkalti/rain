@@ -222,7 +222,7 @@ func (t *Torrent) run() {
 		case <-t.unchokeTimerC:
 			peers := make([]*peer.Peer, 0, len(t.peers))
 			for _, pe := range t.peers {
-				if !pe.OptimisticUnhoked {
+				if !pe.OptimisticUnchoked {
 					peers = append(peers, pe)
 				}
 			}
@@ -246,12 +246,12 @@ func (t *Torrent) run() {
 		case <-t.optimisticUnchokeTimerC:
 			peers := make([]*peer.Peer, 0, len(t.peers))
 			for _, pe := range t.peers {
-				if !pe.OptimisticUnhoked && pe.AmChoking {
+				if !pe.OptimisticUnchoked && pe.AmChoking {
 					peers = append(peers, pe)
 				}
 			}
 			if t.optimisticUnchokedPeer != nil {
-				t.optimisticUnchokedPeer.OptimisticUnhoked = false
+				t.optimisticUnchokedPeer.OptimisticUnchoked = false
 				t.chokePeer(t.optimisticUnchokedPeer)
 			}
 			if len(peers) == 0 {
@@ -259,7 +259,7 @@ func (t *Torrent) run() {
 				break
 			}
 			pe := peers[rand.Intn(len(peers))]
-			pe.OptimisticUnhoked = true
+			pe.OptimisticUnchoked = true
 			t.unchokePeer(pe)
 			t.optimisticUnchokedPeer = pe
 		case res := <-t.incomingHandshakerResultC:
