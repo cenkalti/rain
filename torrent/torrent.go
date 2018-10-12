@@ -38,7 +38,7 @@ import (
 
 const (
 	parallelInfoDownloads  = 4
-	parallelPieceDownloads = 4
+	parallelPieceDownloads = 80
 	maxPeerDial            = 40
 	maxPeerAccept          = 40
 )
