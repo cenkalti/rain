@@ -4,6 +4,7 @@ import (
 	"crypto/sha1" // nolint: gosec
 	"errors"
 	"fmt"
+	"io"
 
 	"github.com/cenkalti/rain/torrent/internal/peer"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
@@ -95,7 +96,7 @@ func (d *PieceDownloader) Run() {
 				return
 			}
 			delete(d.requested, p.Block.Index)
-			_, result.Error = p.Piece.Reader.Read(d.buffer[p.Piece.Begin : p.Piece.Begin+p.Piece.Length])
+			_, result.Error = io.ReadFull(p.Piece.Reader, d.buffer[p.Piece.Begin:p.Piece.Begin+p.Piece.Length])
 			close(p.Piece.Done)
 			if result.Error != nil {
 				return
