@@ -26,25 +26,25 @@ func (t *Torrent) nextInfoDownload() *infodownloader.InfoDownloader {
 func (t *Torrent) nextPieceDownload() *piecedownloader.PieceDownloader {
 	// TODO request first 4 pieces randomly
 	sort.Sort(piece.ByAvailability(t.sortedPieces))
-	for _, p := range t.sortedPieces {
-		if t.bitfield.Test(p.Index) {
+	for _, pi := range t.sortedPieces {
+		if t.bitfield.Test(pi.Index) {
 			continue
 		}
 		// prefer allowed fast peers first
-		for pe := range p.HavingPeers {
+		for pe := range pi.HavingPeers {
 			if pe.Snubbed {
 				continue
 			}
-			if _, ok := p.AllowedFastPeers[pe]; !ok {
+			if _, ok := pi.AllowedFastPeers[pe]; !ok {
 				continue
 			}
 			if _, ok := t.pieceDownloaders[pe]; ok {
 				continue
 			}
 			// TODO selecting first peer having the piece, change to more smart decision
-			return piecedownloader.New(p.Piece, pe, t.snubbedPieceDownloaderC, t.pieceDownloaderResultC)
+			return piecedownloader.New(pi.Piece, pe, t.snubbedPieceDownloaderC, t.pieceDownloaderResultC)
 		}
-		for pe := range p.HavingPeers {
+		for pe := range pi.HavingPeers {
 			if pe.Snubbed {
 				continue
 			}
@@ -55,10 +55,10 @@ func (t *Torrent) nextPieceDownload() *piecedownloader.PieceDownloader {
 				continue
 			}
 			// TODO selecting first peer having the piece, change to more smart decision
-			return piecedownloader.New(p.Piece, pe, t.snubbedPieceDownloaderC, t.pieceDownloaderResultC)
+			return piecedownloader.New(pi.Piece, pe, t.snubbedPieceDownloaderC, t.pieceDownloaderResultC)
 		}
-		for pe := range p.HavingPeers {
-			if _, ok := p.AllowedFastPeers[pe]; !ok {
+		for pe := range pi.HavingPeers {
+			if _, ok := pi.AllowedFastPeers[pe]; !ok {
 				continue
 			}
 			if _, ok := t.pieceDownloaders[pe]; ok {
@@ -66,9 +66,9 @@ func (t *Torrent) nextPieceDownload() *piecedownloader.PieceDownloader {
 			}
 			pe.Snubbed = false
 			// TODO selecting first peer having the piece, change to more smart decision
-			return piecedownloader.New(p.Piece, pe, t.snubbedPieceDownloaderC, t.pieceDownloaderResultC)
+			return piecedownloader.New(pi.Piece, pe, t.snubbedPieceDownloaderC, t.pieceDownloaderResultC)
 		}
-		for pe := range p.HavingPeers {
+		for pe := range pi.HavingPeers {
 			if pe.PeerChoking {
 				continue
 			}
@@ -77,7 +77,7 @@ func (t *Torrent) nextPieceDownload() *piecedownloader.PieceDownloader {
 			}
 			pe.Snubbed = false
 			// TODO selecting first peer having the piece, change to more smart decision
-			return piecedownloader.New(p.Piece, pe, t.snubbedPieceDownloaderC, t.pieceDownloaderResultC)
+			return piecedownloader.New(pi.Piece, pe, t.snubbedPieceDownloaderC, t.pieceDownloaderResultC)
 		}
 	}
 	return nil
