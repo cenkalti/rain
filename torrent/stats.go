@@ -40,6 +40,9 @@ type Stats struct {
 	// Number of active piece downloads.
 	ActiveDownloads int
 
+	// Number of pieces that are being downloaded normally.
+	RunningDownloads int
+
 	// Number of peers that uploading too slow.
 	SnubbedDownloads int
 
@@ -67,6 +70,7 @@ func (t *Torrent) stats() Stats {
 		OutgoingPeers:           len(t.outgoingPeers),
 		ActiveDownloads:         len(t.pieceDownloaders),
 		ActiveMetadataDownloads: len(t.infoDownloaders),
+		RunningDownloads:        len(t.pieceDownloaders) - len(t.chokedDownloaders) - len(t.snubbedDownloaders),
 		SnubbedDownloads:        len(t.snubbedDownloaders),
 		ChokedDownloads:         len(t.chokedDownloaders),
 		ReadyPeerAddresses:      t.addrList.Len(),
