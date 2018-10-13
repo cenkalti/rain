@@ -37,10 +37,10 @@ import (
 )
 
 const (
-	parallelInfoDownloads  = 4
-	parallelPieceDownloads = 80
 	maxPeerDial            = 40
 	maxPeerAccept          = 40
+	parallelPieceDownloads = maxPeerDial + maxPeerAccept
+	parallelInfoDownloads  = 4
 )
 
 var (
@@ -76,7 +76,11 @@ type Torrent struct {
 	outgoingPeers map[*peer.Peer]struct{}
 
 	// Active piece downloads are kept in this map.
-	pieceDownloaders map[*peer.Peer]*piecedownloader.PieceDownloader
+	pieceDownloaders   map[*peer.Peer]*piecedownloader.PieceDownloader
+	snubbedDownloaders map[*peer.Peer]*piecedownloader.PieceDownloader
+
+	// When piece downloaders detects that a peer has snubbed us, it will send a signal to this channel.
+	snubbedC chan *piecedownloader.PieceDownloader
 
 	// Active metadata downloads are kept in this map.
 	infoDownloaders map[*peer.Peer]*infodownloader.InfoDownloader
@@ -306,6 +310,8 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		incomingPeers:             make(map[*peer.Peer]struct{}),
 		outgoingPeers:             make(map[*peer.Peer]struct{}),
 		pieceDownloaders:          make(map[*peer.Peer]*piecedownloader.PieceDownloader),
+		snubbedDownloaders:        make(map[*peer.Peer]*piecedownloader.PieceDownloader),
+		snubbedC:                  make(chan *piecedownloader.PieceDownloader),
 		infoDownloaders:           make(map[*peer.Peer]*infodownloader.InfoDownloader),
 		completeC:                 make(chan struct{}),
 		closeC:                    make(chan struct{}),

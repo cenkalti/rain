@@ -17,6 +17,9 @@ type Peer struct {
 	BytesDownlaodedInChokePeriod int64
 	OptimisticUnchoked           bool
 
+	// Snubbed means peer is sending pieces too slow.
+	Snubbed bool
+
 	// Messages received while we don't have info yet are saved here.
 	Messages []interface{}
 

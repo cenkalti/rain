@@ -104,7 +104,7 @@ func (t *Torrent) startPieceDownloaders() {
 	if t.bitfield == nil {
 		return
 	}
-	for len(t.pieceDownloaders) < parallelPieceDownloads {
+	for len(t.pieceDownloaders)-len(t.snubbedDownloaders) < parallelPieceDownloads {
 		// TODO check status of existing downloads
 		pd := t.nextPieceDownload()
 		if pd == nil {
@@ -112,7 +112,6 @@ func (t *Torrent) startPieceDownloaders() {
 		}
 		t.log.Debugln("downloading piece", pd.Piece.Index, "from", pd.Peer.String())
 		t.pieceDownloaders[pd.Peer] = pd
-		t.pieces[pd.Piece.Index].RequestedPeers[pd.Peer] = pd
 		go pd.Run()
 	}
 }

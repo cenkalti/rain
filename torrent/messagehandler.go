@@ -8,7 +8,6 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/peer"
 	"github.com/cenkalti/rain/torrent/internal/peerconn/peerreader"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
-	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
 )
 
 func (t *Torrent) handlePeerMessage(pm peer.Message) {
@@ -78,20 +77,14 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 	case peerprotocol.UnchokeMessage:
 		pe.PeerChoking = false
 		if pd, ok := t.pieceDownloaders[pe]; ok {
-			select {
-			case pd.UnchokeC <- struct{}{}:
-			case <-pd.Done():
-			}
+			pd.Unchoke()
 		}
 		t.startPieceDownloaders()
 	case peerprotocol.ChokeMessage:
 		pe.PeerChoking = true
 		if pd, ok := t.pieceDownloaders[pe]; ok {
-			select {
-			case pd.ChokeC <- struct{}{}:
-				// TODO start another downloader
-			case <-pd.Done():
-			}
+			pd.Choke()
+			// TODO start another downloader
 		}
 	case peerprotocol.InterestedMessage:
 		// TODO handle intereseted messages
@@ -115,12 +108,9 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			t.closePeer(pe)
 			break
 		}
-		pe.BytesDownlaodedInChokePeriod += int64(msg.Length) // TODO not download yet, but will be
+		pe.BytesDownlaodedInChokePeriod += int64(msg.Length) // TODO not downloaded yet, but will be
 		if pd, ok := t.pieceDownloaders[pe]; ok {
-			select {
-			case pd.PieceC <- piecedownloader.Piece{Block: block, Piece: msg}: // TODO may block
-			case <-pd.Done():
-			}
+			pd.Download(block, msg.Conn, msg.Done)
 		}
 	case peerprotocol.RequestMessage:
 		if t.bitfield == nil {
@@ -172,7 +162,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			t.closePeer(pe)
 			break
 		}
-		pd.RejectC <- block
+		pd.Reject(block)
 	// TODO make it value type
 	case *peerprotocol.ExtensionHandshakeMessage:
 		pe.Logger().Debugln("extension handshake received:", msg)
@@ -215,7 +205,10 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 				pe.Logger().Warningln("received unexpected metadata piece:", msg.Piece)
 				break
 			}
-			id.DataC <- infodownloader.Data{Index: msg.Piece, Data: msg.Data}
+			select {
+			case id.DataC <- infodownloader.Data{Index: msg.Piece, Data: msg.Data}:
+			case <-id.Done():
+			}
 		case peerprotocol.ExtensionMetadataMessageTypeReject:
 			// TODO handle metadata piece reject
 		}

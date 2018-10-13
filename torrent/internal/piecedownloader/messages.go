@@ -1,11 +1,13 @@
 package piecedownloader
 
 import (
-	"github.com/cenkalti/rain/torrent/internal/peerconn/peerreader"
+	"net"
+
 	"github.com/cenkalti/rain/torrent/internal/pieceio"
 )
 
-type Piece struct {
+type piece struct {
 	Block *pieceio.Block
-	Piece *peerreader.Piece
+	Conn  net.Conn
+	DoneC chan struct{}
 }

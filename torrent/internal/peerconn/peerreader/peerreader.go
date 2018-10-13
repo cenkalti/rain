@@ -15,7 +15,7 @@ import (
 // MaxAllowedBlockSize is the max size of block data that we accept from peers.
 const MaxAllowedBlockSize = 32 * 1024
 
-const connReadTimeout = 3 * time.Minute
+const ReadTimeout = 2 * time.Minute // equal to keep-alive period
 
 type PeerReader struct {
 	conn              net.Conn
@@ -75,7 +75,7 @@ func (p *PeerReader) Run() {
 
 	first := true
 	for {
-		err = p.conn.SetReadDeadline(time.Now().Add(connReadTimeout))
+		err = p.conn.SetReadDeadline(time.Now().Add(ReadTimeout))
 		if err != nil {
 			return
 		}

@@ -176,8 +176,7 @@ func (t *Torrent) run() {
 		case res := <-t.pieceDownloaderResultC:
 			t.log.Debugln("piece download completed. index:", res.Piece.Index)
 			delete(t.pieceDownloaders, res.Peer)
-			delete(t.pieces[res.Piece.Index].RequestedPeers, res.Peer)
-			t.startPieceDownloaders()
+			delete(t.snubbedDownloaders, res.Peer)
 			if res.Error != nil {
 				// TODO handle corrupt piece
 				// TODO stop on write error
@@ -203,6 +202,12 @@ func (t *Torrent) run() {
 				pe.SendMessage(msg)
 				t.updateInterestedState(pe)
 			}
+			t.startPieceDownloaders()
+		case pd := <-t.snubbedC:
+			// Mark slow peer as snubbed and don't select that peer in piece picker
+			pd.Peer.Snubbed = true
+			t.snubbedDownloaders[pd.Peer] = pd
+			t.startPieceDownloaders()
 		case <-t.unchokeTimerC:
 			peers := make([]*peer.Peer, 0, len(t.peers))
 			for pe := range t.peers {
@@ -283,7 +288,6 @@ func (t *Torrent) closePeer(pe *peer.Peer) {
 	for i := range t.pieces {
 		delete(t.pieces[i].HavingPeers, pe)
 		delete(t.pieces[i].AllowedFastPeers, pe)
-		delete(t.pieces[i].RequestedPeers, pe)
 	}
 	delete(t.incomingPeers, pe)
 	delete(t.outgoingPeers, pe)

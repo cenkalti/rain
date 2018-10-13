@@ -2,7 +2,6 @@ package piece
 
 import (
 	"github.com/cenkalti/rain/torrent/internal/peer"
-	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
 	pp "github.com/cenkalti/rain/torrent/internal/pieceio"
 )
 
@@ -10,7 +9,6 @@ type Piece struct {
 	*pp.Piece
 	HavingPeers      map[*peer.Peer]struct{}
 	AllowedFastPeers map[*peer.Peer]struct{}
-	RequestedPeers   map[*peer.Peer]*piecedownloader.PieceDownloader
 }
 
 func New(p *pp.Piece) *Piece {
@@ -18,7 +16,6 @@ func New(p *pp.Piece) *Piece {
 		Piece:            p,
 		HavingPeers:      make(map[*peer.Peer]struct{}),
 		AllowedFastPeers: make(map[*peer.Peer]struct{}),
-		RequestedPeers:   make(map[*peer.Peer]*piecedownloader.PieceDownloader),
 	}
 }
 

@@ -24,6 +24,7 @@ type InfoDownloader struct {
 	// RejectC chan *piece.Block
 	resultC chan Result
 	closeC  chan struct{}
+	doneC   chan struct{}
 }
 
 type Data struct {
@@ -69,11 +70,16 @@ func New(pe *peer.Peer, extID uint8, totalSize uint32, resultC chan Result) *Inf
 		// RejectC: make(chan *piece.Block),
 		resultC: resultC,
 		closeC:  make(chan struct{}),
+		doneC:   make(chan struct{}),
 	}
 }
 
 func (d *InfoDownloader) Close() {
 	close(d.closeC)
+}
+
+func (d *InfoDownloader) Done() <-chan struct{} {
+	return d.doneC
 }
 
 func (d *InfoDownloader) requestBlocks() {
@@ -91,6 +97,7 @@ func (d *InfoDownloader) requestBlocks() {
 }
 
 func (d *InfoDownloader) Run() {
+	defer close(d.doneC)
 	result := Result{
 		Peer: d.Peer,
 	}
