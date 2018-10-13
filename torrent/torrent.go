@@ -78,6 +78,7 @@ type Torrent struct {
 	// Active piece downloads are kept in this map.
 	pieceDownloaders   map[*peer.Peer]*piecedownloader.PieceDownloader
 	snubbedDownloaders map[*peer.Peer]*piecedownloader.PieceDownloader
+	chokedDownloaders  map[*peer.Peer]*piecedownloader.PieceDownloader
 
 	// When piece downloaders detects that a peer has snubbed us, it will send a signal to this channel.
 	snubbedC chan *piecedownloader.PieceDownloader
@@ -311,6 +312,7 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		outgoingPeers:             make(map[*peer.Peer]struct{}),
 		pieceDownloaders:          make(map[*peer.Peer]*piecedownloader.PieceDownloader),
 		snubbedDownloaders:        make(map[*peer.Peer]*piecedownloader.PieceDownloader),
+		chokedDownloaders:         make(map[*peer.Peer]*piecedownloader.PieceDownloader),
 		snubbedC:                  make(chan *piecedownloader.PieceDownloader),
 		infoDownloaders:           make(map[*peer.Peer]*infodownloader.InfoDownloader),
 		completeC:                 make(chan struct{}),

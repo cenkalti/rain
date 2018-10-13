@@ -84,7 +84,8 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		pe.PeerChoking = true
 		if pd, ok := t.pieceDownloaders[pe]; ok {
 			pd.Choke()
-			// TODO start another downloader
+			t.chokedDownloaders[pe] = pd
+			t.startPieceDownloaders()
 		}
 	case peerprotocol.InterestedMessage:
 		// TODO handle intereseted messages

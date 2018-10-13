@@ -177,6 +177,7 @@ func (t *Torrent) run() {
 			t.log.Debugln("piece download completed. index:", res.Piece.Index)
 			delete(t.pieceDownloaders, res.Peer)
 			delete(t.snubbedDownloaders, res.Peer)
+			delete(t.chokedDownloaders, res.Peer)
 			if res.Error != nil {
 				// TODO handle corrupt piece
 				// TODO stop on write error

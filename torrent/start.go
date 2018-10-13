@@ -104,7 +104,8 @@ func (t *Torrent) startPieceDownloaders() {
 	if t.bitfield == nil {
 		return
 	}
-	for len(t.pieceDownloaders)-len(t.snubbedDownloaders) < parallelPieceDownloads {
+	running := len(t.pieceDownloaders) - len(t.chokedDownloaders) - len(t.snubbedDownloaders)
+	for running < parallelPieceDownloads {
 		// TODO check status of existing downloads
 		pd := t.nextPieceDownload()
 		if pd == nil {
