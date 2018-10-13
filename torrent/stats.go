@@ -9,86 +9,107 @@ type Stats struct {
 	// Status of the torrent.
 	Status Status
 
-	// Bytes that are downloaded and passed hash check.
-	BytesComplete int64
+	Bytes struct {
+		// Bytes that are downloaded and passed hash check.
+		Complete int64
 
-	// BytesLeft is the number of bytes that is needed to complete all missing pieces.
-	BytesIncomplete int64
+		// BytesLeft is the number of bytes that is needed to complete all missing pieces.
+		Incomplete int64
 
-	// BytesTotal is the number of total bytes of files in torrent.
-	//
-	// BytesTotal = BytesComplete + BytesIncomplete
-	BytesTotal int64
+		// BytesTotal is the number of total bytes of files in torrent.
+		//
+		// BytesTotal = BytesComplete + BytesIncomplete
+		Total int64
 
-	// BytesDownloaded is the number of bytes downloaded from swarm.
-	// Because some pieces may be downloaded more than once, this number may be greater than BytesCompleted returns.
-	// TODO BytesDownloaded int64
+		// BytesDownloaded is the number of bytes downloaded from swarm.
+		// Because some pieces may be downloaded more than once, this number may be greater than BytesCompleted returns.
+		// TODO BytesDownloaded int64
 
-	// BytesUploaded is the number of bytes uploaded to the swarm.
-	// TODO BytesUploaded   int64
+		// BytesUploaded is the number of bytes uploaded to the swarm.
+		// TODO BytesUploaded   int64
+	}
 
-	// Number of peers that are connected, handshaked and ready to send and receive messages.
-	// ConnectedPeers = IncomingPeers + OutgoingPeers
-	ConnectedPeers int
+	Peers struct {
+		Connected struct {
+			// Number of peers that are connected, handshaked and ready to send and receive messages.
+			// ConnectedPeers = IncomingPeers + OutgoingPeers
+			Total int
 
-	// Number of peers that have connected to us.
-	IncomingPeers int
+			// Number of peers that have connected to us.
+			Incoming int
 
-	// Number of peers that we have connected to.
-	OutgoingPeers int
+			// Number of peers that we have connected to.
+			Outgoing int
+		}
 
-	// Number of active piece downloads.
-	ActiveDownloads int
+		Handshake struct {
+			// Number of peers that are not handshaked yet.
+			Total int
 
-	// Number of pieces that are being downloaded normally.
-	RunningDownloads int
+			// Number of incoming peers in handshake state.
+			Incoming int
 
-	// Number of peers that uploading too slow.
-	SnubbedDownloads int
+			// Number of outgoing peers in handshake state.
+			Outgoing int
+		}
 
-	// Number of active piece downloads in choked state.
-	ChokedDownloads int
+		// Number of peer addresses that are ready to be connected.
+		Ready int
+	}
 
-	// Number of active metadata downloads.
-	ActiveMetadataDownloads int
+	Downloads struct {
+		Piece struct {
+			// Number of active piece downloads.
+			Active int
 
-	SnubbedMetadataDownloads int
-	RunningMetadataDownloads int
+			// Number of pieces that are being downloaded normally.
+			Running int
 
-	// Number of peer addresses that are ready to be connected.
-	ReadyPeerAddresses int
+			// Number of pieces that are being downloaded too slow.
+			Snubbed int
 
-	// Number of incoming peers in handshake state.
-	IncomingHandshakes int
+			// Number of piece downloads in choked state.
+			Choked int
+		}
 
-	// Number of outgoing peers in handshake state.
-	OutgoingHandshakes int
+		Metadata struct {
+			// Number of active metadata downloads.
+			Active int
+
+			// Number of peers that uploading too slow.
+			Snubbed int
+
+			// Number of peers that are being downloaded normally.
+			Running int
+		}
+	}
 }
 
 func (t *Torrent) stats() Stats {
-	stats := Stats{
-		Status:                   t.status(),
-		ConnectedPeers:           len(t.peers),
-		IncomingPeers:            len(t.incomingPeers),
-		OutgoingPeers:            len(t.outgoingPeers),
-		ActiveMetadataDownloads:  len(t.infoDownloaders),
-		SnubbedMetadataDownloads: len(t.infoDownloadersSnubbed),
-		RunningMetadataDownloads: len(t.infoDownloaders) - len(t.infoDownloadersSnubbed),
-		ActiveDownloads:          len(t.pieceDownloaders),
-		SnubbedDownloads:         len(t.pieceDownloadersSnubbed),
-		ChokedDownloads:          len(t.pieceDownloadersChoked),
-		RunningDownloads:         len(t.pieceDownloaders) - len(t.pieceDownloadersChoked) - len(t.pieceDownloadersSnubbed),
-		ReadyPeerAddresses:       t.addrList.Len(),
-		IncomingHandshakes:       len(t.incomingHandshakers),
-		OutgoingHandshakes:       len(t.outgoingHandshakers),
-	}
+	var stats Stats
+	stats.Status = t.status()
+	stats.Peers.Ready = t.addrList.Len()
+	stats.Peers.Handshake.Incoming = len(t.incomingHandshakers)
+	stats.Peers.Handshake.Outgoing = len(t.outgoingHandshakers)
+	stats.Peers.Handshake.Total = len(t.incomingHandshakers) + len(t.outgoingHandshakers)
+	stats.Peers.Connected.Total = len(t.peers)
+	stats.Peers.Connected.Incoming = len(t.incomingPeers)
+	stats.Peers.Connected.Outgoing = len(t.outgoingPeers)
+	stats.Downloads.Metadata.Active = len(t.infoDownloaders)
+	stats.Downloads.Metadata.Snubbed = len(t.infoDownloadersSnubbed)
+	stats.Downloads.Metadata.Running = len(t.infoDownloaders) - len(t.infoDownloadersSnubbed)
+	stats.Downloads.Piece.Active = len(t.pieceDownloaders)
+	stats.Downloads.Piece.Snubbed = len(t.pieceDownloadersSnubbed)
+	stats.Downloads.Piece.Choked = len(t.pieceDownloadersChoked)
+	stats.Downloads.Piece.Running = len(t.pieceDownloaders) - len(t.pieceDownloadersChoked) - len(t.pieceDownloadersSnubbed)
+
 	if t.info != nil {
-		stats.BytesTotal = t.info.TotalLength
-		stats.BytesComplete = t.bytesComplete()
-		stats.BytesIncomplete = stats.BytesTotal - stats.BytesComplete
+		stats.Bytes.Total = t.info.TotalLength
+		stats.Bytes.Complete = t.bytesComplete()
+		stats.Bytes.Incomplete = stats.Bytes.Total - stats.Bytes.Complete
 	} else {
 		// Some trackers don't send any peer address if don't tell we have missing bytes.
-		stats.BytesIncomplete = math.MaxUint32
+		stats.Bytes.Incomplete = math.MaxUint32
 	}
 	return stats
 }
