@@ -10,6 +10,8 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/mse"
 )
 
+const connectTimeout = 15 * time.Second
+
 func Dial(
 	addr net.Addr,
 	enableEncryption,
@@ -35,7 +37,7 @@ func Dial(
 
 	// First connection
 	log.Debug("Connecting to peer...")
-	dialer := net.Dialer{Timeout: handshakeDeadline}
+	dialer := net.Dialer{Timeout: connectTimeout}
 	conn, err = dialer.DialContext(ctx, addr.Network(), addr.String())
 	if err != nil {
 		return

@@ -151,7 +151,7 @@ func handleDownload(c *cli.Context) error {
 
 	go func() {
 		for range time.Tick(100 * time.Millisecond) {
-			b, err2 := json.Marshal(t.Stats())
+			b, err2 := json.MarshalIndent(t.Stats(), "", "  ")
 			if err2 != nil {
 				log.Fatal(err2)
 			}

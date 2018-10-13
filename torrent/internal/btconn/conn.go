@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-const handshakeDeadline = 30 * time.Second
+const handshakeDeadline = 10 * time.Second
 
 var (
 	errInvalidInfoHash = errors.New("invalid info hash")

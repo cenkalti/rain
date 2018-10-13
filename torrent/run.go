@@ -284,19 +284,22 @@ func (t *Torrent) closePeer(pe *peer.Peer) {
 	if pd, ok := t.pieceDownloaders[pe]; ok {
 		pd.Close()
 		delete(t.pieceDownloaders, pe)
+		delete(t.pieceDownloadersSnubbed, pe)
+		delete(t.pieceDownloadersChoked, pe)
 	}
 	if id, ok := t.infoDownloaders[pe]; ok {
 		id.Close()
 		delete(t.infoDownloaders, pe)
+		delete(t.infoDownloadersSnubbed, pe)
 	}
 	delete(t.peers, pe)
+	delete(t.incomingPeers, pe)
+	delete(t.outgoingPeers, pe)
 	delete(t.peerIDs, pe.ID())
 	for i := range t.pieces {
 		delete(t.pieces[i].HavingPeers, pe)
 		delete(t.pieces[i].AllowedFastPeers, pe)
 	}
-	delete(t.incomingPeers, pe)
-	delete(t.outgoingPeers, pe)
 	t.dialAddresses()
 }
 
