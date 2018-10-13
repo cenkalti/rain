@@ -91,7 +91,7 @@ func (p *PeerWriter) queueMessage(msg peerprotocol.Message) {
 }
 
 func (p *PeerWriter) messageWriter() {
-	keepAliveTicker := time.NewTicker(keepAlivePeriod)
+	keepAliveTicker := time.NewTicker(keepAlivePeriod / 2)
 	defer keepAliveTicker.Stop()
 	for {
 		select {
