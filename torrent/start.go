@@ -89,7 +89,8 @@ func (t *Torrent) startInfoDownloaders() {
 	if t.info != nil {
 		return
 	}
-	for len(t.infoDownloaders) < parallelInfoDownloads {
+	running := len(t.infoDownloaders) - len(t.infoDownloadersSnubbed)
+	for running < parallelInfoDownloads {
 		id := t.nextInfoDownload()
 		if id == nil {
 			break
@@ -104,7 +105,7 @@ func (t *Torrent) startPieceDownloaders() {
 	if t.bitfield == nil {
 		return
 	}
-	running := len(t.pieceDownloaders) - len(t.chokedDownloaders) - len(t.snubbedDownloaders)
+	running := len(t.pieceDownloaders) - len(t.pieceDownloadersChoked) - len(t.pieceDownloadersSnubbed)
 	for running < parallelPieceDownloads {
 		// TODO check status of existing downloads
 		pd := t.nextPieceDownload()

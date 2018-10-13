@@ -18,7 +18,7 @@ func (t *Torrent) nextInfoDownload() *infodownloader.InfoDownloader {
 		if !ok {
 			continue
 		}
-		return infodownloader.New(pe, extID, pe.ExtensionHandshake.MetadataSize, t.infoDownloaderResultC)
+		return infodownloader.New(pe, extID, pe.ExtensionHandshake.MetadataSize, t.snubbedInfoDownloaderC, t.infoDownloaderResultC)
 	}
 	return nil
 }
@@ -42,7 +42,7 @@ func (t *Torrent) nextPieceDownload() *piecedownloader.PieceDownloader {
 				continue
 			}
 			// TODO selecting first peer having the piece, change to more smart decision
-			return piecedownloader.New(p.Piece, pe, t.snubbedC, t.pieceDownloaderResultC)
+			return piecedownloader.New(p.Piece, pe, t.snubbedPieceDownloaderC, t.pieceDownloaderResultC)
 		}
 		for pe := range p.HavingPeers {
 			if pe.Snubbed {
@@ -55,7 +55,7 @@ func (t *Torrent) nextPieceDownload() *piecedownloader.PieceDownloader {
 				continue
 			}
 			// TODO selecting first peer having the piece, change to more smart decision
-			return piecedownloader.New(p.Piece, pe, t.snubbedC, t.pieceDownloaderResultC)
+			return piecedownloader.New(p.Piece, pe, t.snubbedPieceDownloaderC, t.pieceDownloaderResultC)
 		}
 		for pe := range p.HavingPeers {
 			if _, ok := p.AllowedFastPeers[pe]; !ok {
@@ -66,7 +66,7 @@ func (t *Torrent) nextPieceDownload() *piecedownloader.PieceDownloader {
 			}
 			pe.Snubbed = false
 			// TODO selecting first peer having the piece, change to more smart decision
-			return piecedownloader.New(p.Piece, pe, t.snubbedC, t.pieceDownloaderResultC)
+			return piecedownloader.New(p.Piece, pe, t.snubbedPieceDownloaderC, t.pieceDownloaderResultC)
 		}
 		for pe := range p.HavingPeers {
 			if pe.PeerChoking {
@@ -77,7 +77,7 @@ func (t *Torrent) nextPieceDownload() *piecedownloader.PieceDownloader {
 			}
 			pe.Snubbed = false
 			// TODO selecting first peer having the piece, change to more smart decision
-			return piecedownloader.New(p.Piece, pe, t.snubbedC, t.pieceDownloaderResultC)
+			return piecedownloader.New(p.Piece, pe, t.snubbedPieceDownloaderC, t.pieceDownloaderResultC)
 		}
 	}
 	return nil

@@ -52,6 +52,9 @@ type Stats struct {
 	// Number of active metadata downloads.
 	ActiveMetadataDownloads int
 
+	SnubbedMetadataDownloads int
+	RunningMetadataDownloads int
+
 	// Number of peer addresses that are ready to be connected.
 	ReadyPeerAddresses int
 
@@ -64,18 +67,20 @@ type Stats struct {
 
 func (t *Torrent) stats() Stats {
 	stats := Stats{
-		Status:                  t.status(),
-		ConnectedPeers:          len(t.peers),
-		IncomingPeers:           len(t.incomingPeers),
-		OutgoingPeers:           len(t.outgoingPeers),
-		ActiveDownloads:         len(t.pieceDownloaders),
-		ActiveMetadataDownloads: len(t.infoDownloaders),
-		RunningDownloads:        len(t.pieceDownloaders) - len(t.chokedDownloaders) - len(t.snubbedDownloaders),
-		SnubbedDownloads:        len(t.snubbedDownloaders),
-		ChokedDownloads:         len(t.chokedDownloaders),
-		ReadyPeerAddresses:      t.addrList.Len(),
-		IncomingHandshakes:      len(t.incomingHandshakers),
-		OutgoingHandshakes:      len(t.outgoingHandshakers),
+		Status:                   t.status(),
+		ConnectedPeers:           len(t.peers),
+		IncomingPeers:            len(t.incomingPeers),
+		OutgoingPeers:            len(t.outgoingPeers),
+		ActiveMetadataDownloads:  len(t.infoDownloaders),
+		SnubbedMetadataDownloads: len(t.infoDownloadersSnubbed),
+		RunningMetadataDownloads: len(t.infoDownloaders) - len(t.infoDownloadersSnubbed),
+		ActiveDownloads:          len(t.pieceDownloaders),
+		SnubbedDownloads:         len(t.pieceDownloadersSnubbed),
+		ChokedDownloads:          len(t.pieceDownloadersChoked),
+		RunningDownloads:         len(t.pieceDownloaders) - len(t.pieceDownloadersChoked) - len(t.pieceDownloadersSnubbed),
+		ReadyPeerAddresses:       t.addrList.Len(),
+		IncomingHandshakes:       len(t.incomingHandshakers),
+		OutgoingHandshakes:       len(t.outgoingHandshakers),
 	}
 	if t.info != nil {
 		stats.BytesTotal = t.info.TotalLength

@@ -130,9 +130,9 @@ func (d *PieceDownloader) requestBlocks() {
 		if _, ok := d.downloading[b.Index]; ok {
 			continue
 		}
-		d.requested[b.Index] = struct{}{}
 		msg := peerprotocol.RequestMessage{Index: d.Piece.Index, Begin: b.Begin, Length: b.Length}
 		d.Peer.SendMessage(msg)
+		d.requested[b.Index] = struct{}{}
 	}
 	if len(d.requested) > 0 {
 		d.pieceTimeoutC = time.After(pieceTimeout)

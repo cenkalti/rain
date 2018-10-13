@@ -40,7 +40,7 @@ const (
 	maxPeerDial            = 40
 	maxPeerAccept          = 40
 	parallelPieceDownloads = maxPeerDial + maxPeerAccept
-	parallelInfoDownloads  = 4
+	parallelInfoDownloads  = 1
 )
 
 var (
@@ -76,15 +76,17 @@ type Torrent struct {
 	outgoingPeers map[*peer.Peer]struct{}
 
 	// Active piece downloads are kept in this map.
-	pieceDownloaders   map[*peer.Peer]*piecedownloader.PieceDownloader
-	snubbedDownloaders map[*peer.Peer]*piecedownloader.PieceDownloader
-	chokedDownloaders  map[*peer.Peer]*piecedownloader.PieceDownloader
+	pieceDownloaders        map[*peer.Peer]*piecedownloader.PieceDownloader
+	pieceDownloadersSnubbed map[*peer.Peer]*piecedownloader.PieceDownloader
+	pieceDownloadersChoked  map[*peer.Peer]*piecedownloader.PieceDownloader
 
 	// When piece downloaders detects that a peer has snubbed us, it will send a signal to this channel.
-	snubbedC chan *piecedownloader.PieceDownloader
+	snubbedPieceDownloaderC chan *piecedownloader.PieceDownloader
+	snubbedInfoDownloaderC  chan *infodownloader.InfoDownloader
 
 	// Active metadata downloads are kept in this map.
-	infoDownloaders map[*peer.Peer]*infodownloader.InfoDownloader
+	infoDownloaders        map[*peer.Peer]*infodownloader.InfoDownloader
+	infoDownloadersSnubbed map[*peer.Peer]*infodownloader.InfoDownloader
 
 	// A peer is optimistically unchoked regardless of their download rate.
 	optimisticUnchokedPeer *peer.Peer
@@ -311,10 +313,12 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		incomingPeers:             make(map[*peer.Peer]struct{}),
 		outgoingPeers:             make(map[*peer.Peer]struct{}),
 		pieceDownloaders:          make(map[*peer.Peer]*piecedownloader.PieceDownloader),
-		snubbedDownloaders:        make(map[*peer.Peer]*piecedownloader.PieceDownloader),
-		chokedDownloaders:         make(map[*peer.Peer]*piecedownloader.PieceDownloader),
-		snubbedC:                  make(chan *piecedownloader.PieceDownloader),
+		pieceDownloadersSnubbed:   make(map[*peer.Peer]*piecedownloader.PieceDownloader),
+		pieceDownloadersChoked:    make(map[*peer.Peer]*piecedownloader.PieceDownloader),
+		snubbedPieceDownloaderC:   make(chan *piecedownloader.PieceDownloader),
+		snubbedInfoDownloaderC:    make(chan *infodownloader.InfoDownloader),
 		infoDownloaders:           make(map[*peer.Peer]*infodownloader.InfoDownloader),
+		infoDownloadersSnubbed:    make(map[*peer.Peer]*infodownloader.InfoDownloader),
 		completeC:                 make(chan struct{}),
 		closeC:                    make(chan struct{}),
 		doneC:                     make(chan struct{}),

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/cenkalti/rain/torrent/internal/bitfield"
-	"github.com/cenkalti/rain/torrent/internal/infodownloader"
 	"github.com/cenkalti/rain/torrent/internal/peer"
 	"github.com/cenkalti/rain/torrent/internal/peerconn/peerreader"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
@@ -84,7 +83,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		pe.PeerChoking = true
 		if pd, ok := t.pieceDownloaders[pe]; ok {
 			pd.Choke()
-			t.chokedDownloaders[pe] = pd
+			t.pieceDownloadersChoked[pe] = pd
 			t.startPieceDownloaders()
 		}
 	case peerprotocol.InterestedMessage:
@@ -202,16 +201,15 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			pe.SendMessage(extDataMsg)
 		case peerprotocol.ExtensionMetadataMessageTypeData:
 			id, ok := t.infoDownloaders[pe]
-			if !ok {
-				pe.Logger().Warningln("received unexpected metadata piece:", msg.Piece)
-				break
-			}
-			select {
-			case id.DataC <- infodownloader.Data{Index: msg.Piece, Data: msg.Data}:
-			case <-id.Done():
+			if ok {
+				id.Download(msg.Piece, msg.Data)
 			}
 		case peerprotocol.ExtensionMetadataMessageTypeReject:
-			// TODO handle metadata piece reject
+			id, ok := t.infoDownloaders[pe]
+			if ok {
+				t.closePeer(id.Peer)
+				t.startInfoDownloaders()
+			}
 		}
 	default:
 		panic(fmt.Sprintf("unhandled peer message type: %T", msg))

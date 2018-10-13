@@ -3,39 +3,42 @@ package infodownloader
 import (
 	"bytes"
 	"fmt"
+	"time"
 
 	"github.com/cenkalti/rain/torrent/internal/peer"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
 )
 
-const blockSize = 16 * 1024
-
-const maxQueuedBlocks = 10
+const (
+	maxQueuedBlocks = 10
+	blockSize       = 16 * 1024
+	pieceTimeout    = 20 * time.Second
+)
 
 // InfoDownloader downloads all blocks of a piece from a peer.
 type InfoDownloader struct {
+	Peer           *peer.Peer
 	extID          uint8
 	totalSize      uint32
 	nextBlockIndex uint32
 	requested      map[uint32]struct{}
-	Peer           *peer.Peer
 	blocks         []block
-	DataC          chan Data
-	// RejectC chan *piece.Block
-	resultC chan Result
-	closeC  chan struct{}
-	doneC   chan struct{}
+	pieceTimeoutC  <-chan time.Time
+	dataC          chan data
+	resultC        chan Result
+	snubbedC       chan<- *InfoDownloader
+	closeC         chan struct{}
+	doneC          chan struct{}
 }
 
-type Data struct {
+type data struct {
 	Index uint32
 	Data  []byte
 }
 
 type block struct {
-	index uint32
-	size  uint32
-	data  []byte
+	size uint32
+	data []byte
 }
 
 type Result struct {
@@ -44,7 +47,7 @@ type Result struct {
 	Error error
 }
 
-func New(pe *peer.Peer, extID uint8, totalSize uint32, resultC chan Result) *InfoDownloader {
+func New(pe *peer.Peer, extID uint8, totalSize uint32, snubbedC chan *InfoDownloader, resultC chan Result) *InfoDownloader {
 	numBlocks := totalSize / blockSize
 	mod := totalSize % blockSize
 	if mod != 0 {
@@ -53,8 +56,7 @@ func New(pe *peer.Peer, extID uint8, totalSize uint32, resultC chan Result) *Inf
 	blocks := make([]block, numBlocks)
 	for i := range blocks {
 		blocks[i] = block{
-			index: uint32(i),
-			size:  blockSize,
+			size: blockSize,
 		}
 	}
 	if mod != 0 && len(blocks) > 0 {
@@ -66,25 +68,28 @@ func New(pe *peer.Peer, extID uint8, totalSize uint32, resultC chan Result) *Inf
 		Peer:      pe,
 		blocks:    blocks,
 		requested: make(map[uint32]struct{}),
-		DataC:     make(chan Data),
-		// RejectC: make(chan *piece.Block),
-		resultC: resultC,
-		closeC:  make(chan struct{}),
-		doneC:   make(chan struct{}),
+		dataC:     make(chan data),
+		snubbedC:  snubbedC,
+		resultC:   resultC,
+		closeC:    make(chan struct{}),
+		doneC:     make(chan struct{}),
 	}
 }
 
 func (d *InfoDownloader) Close() {
 	close(d.closeC)
+	<-d.doneC
 }
 
-func (d *InfoDownloader) Done() <-chan struct{} {
-	return d.doneC
+func (d *InfoDownloader) Download(index uint32, b []byte) {
+	select {
+	case d.dataC <- data{Index: index, Data: b}:
+	case <-d.doneC:
+	}
 }
 
 func (d *InfoDownloader) requestBlocks() {
 	for ; d.nextBlockIndex < uint32(len(d.blocks)) && len(d.requested) < maxQueuedBlocks; d.nextBlockIndex++ {
-		d.requested[d.nextBlockIndex] = struct{}{}
 		msg := peerprotocol.ExtensionMessage{
 			ExtendedMessageID: d.extID,
 			Payload: peerprotocol.ExtensionMetadataMessage{
@@ -93,6 +98,12 @@ func (d *InfoDownloader) requestBlocks() {
 			},
 		}
 		d.Peer.SendMessage(msg)
+		d.requested[d.nextBlockIndex] = struct{}{}
+	}
+	if len(d.requested) > 0 {
+		d.pieceTimeoutC = time.After(pieceTimeout)
+	} else {
+		d.pieceTimeoutC = nil
 	}
 }
 
@@ -110,7 +121,7 @@ func (d *InfoDownloader) Run() {
 	d.requestBlocks()
 	for {
 		select {
-		case msg := <-d.DataC:
+		case msg := <-d.dataC:
 			if _, ok := d.requested[msg.Index]; !ok {
 				result.Error = fmt.Errorf("peer sent unrequested index for metadata message: %q", msg.Index)
 				return
@@ -126,16 +137,14 @@ func (d *InfoDownloader) Run() {
 				result.Bytes = d.assembleBlocks().Bytes()
 				return
 			}
+			d.pieceTimeoutC = nil
 			d.requestBlocks()
-		// TODO handle rejects in info downloader
-		// case blk := <-d.RejectC:
-		// 	b := d.blocks[blk.Index]
-		// 	if !b.requested {
-		// 		d.Peer.Close()
-		// 		d.ErrC <- errors.New("received invalid reject message")
-		// 		return
-		// 	}
-		// 	d.blocks[blk.Index].requested = false
+		case <-d.pieceTimeoutC:
+			select {
+			case d.snubbedC <- d:
+			case <-d.closeC:
+				return
+			}
 		case <-d.closeC:
 			return
 		}

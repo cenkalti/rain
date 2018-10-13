@@ -139,6 +139,7 @@ func (t *Torrent) run() {
 			req.Response <- announcer.Response{Transfer: tr}
 		case res := <-t.infoDownloaderResultC:
 			delete(t.infoDownloaders, res.Peer)
+			delete(t.infoDownloadersSnubbed, res.Peer)
 			if res.Error != nil {
 				res.Peer.Logger().Error(res.Error)
 				t.closePeer(res.Peer)
@@ -176,8 +177,8 @@ func (t *Torrent) run() {
 		case res := <-t.pieceDownloaderResultC:
 			t.log.Debugln("piece download completed. index:", res.Piece.Index)
 			delete(t.pieceDownloaders, res.Peer)
-			delete(t.snubbedDownloaders, res.Peer)
-			delete(t.chokedDownloaders, res.Peer)
+			delete(t.pieceDownloadersSnubbed, res.Peer)
+			delete(t.pieceDownloadersChoked, res.Peer)
 			if res.Error != nil {
 				// TODO handle corrupt piece
 				// TODO stop on write error
@@ -204,11 +205,15 @@ func (t *Torrent) run() {
 				t.updateInterestedState(pe)
 			}
 			t.startPieceDownloaders()
-		case pd := <-t.snubbedC:
+		case pd := <-t.snubbedPieceDownloaderC:
 			// Mark slow peer as snubbed and don't select that peer in piece picker
 			pd.Peer.Snubbed = true
-			t.snubbedDownloaders[pd.Peer] = pd
+			t.pieceDownloadersSnubbed[pd.Peer] = pd
 			t.startPieceDownloaders()
+		case id := <-t.snubbedInfoDownloaderC:
+			id.Peer.Snubbed = true
+			t.infoDownloadersSnubbed[id.Peer] = id
+			t.startInfoDownloaders()
 		case <-t.unchokeTimerC:
 			peers := make([]*peer.Peer, 0, len(t.peers))
 			for pe := range t.peers {
