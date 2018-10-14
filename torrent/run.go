@@ -5,9 +5,6 @@ import (
 	"crypto/sha1" // nolint: gosec
 	"errors"
 	"fmt"
-	"math"
-	"math/rand"
-	"sort"
 
 	"github.com/cenkalti/rain/torrent/internal/announcer"
 	"github.com/cenkalti/rain/torrent/internal/bitfield"
@@ -20,7 +17,6 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
 	"github.com/cenkalti/rain/torrent/internal/piece"
 	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
-	"github.com/cenkalti/rain/torrent/internal/tracker"
 )
 
 func (t *Torrent) close() {
@@ -126,17 +122,7 @@ func (t *Torrent) run() {
 			t.incomingHandshakers[conn.RemoteAddr().String()] = h
 			go h.Run()
 		case req := <-t.announcerRequestC:
-			tr := tracker.Transfer{
-				InfoHash: t.infoHash,
-				PeerID:   t.peerID,
-				Port:     t.port,
-			}
-			if t.bitfield == nil {
-				tr.BytesLeft = math.MaxUint32
-			} else {
-				// TODO this is wrong, pre-calculate complete and incomplete bytes
-				tr.BytesLeft = t.info.TotalLength - int64(t.info.PieceLength)*int64(t.bitfield.Count())
-			}
+			tr := t.announcerFields()
 			// TODO set bytes uploaded/downloaded
 			req.Response <- announcer.Response{Transfer: tr}
 		case id := <-t.infoDownloaderDoneC:
@@ -217,48 +203,9 @@ func (t *Torrent) run() {
 			t.infoDownloadersSnubbed[id.Peer] = id
 			t.startInfoDownloaders()
 		case <-t.unchokeTimerC:
-			peers := make([]*peer.Peer, 0, len(t.peers))
-			for pe := range t.peers {
-				if !pe.OptimisticUnchoked {
-					peers = append(peers, pe)
-				}
-			}
-			sort.Sort(peer.ByDownloadRate(peers))
-			for pe := range t.peers {
-				pe.BytesDownlaodedInChokePeriod = 0
-			}
-			unchokedPeers := make(map[*peer.Peer]struct{}, 3)
-			for i, pe := range peers {
-				if i == 3 {
-					break
-				}
-				t.unchokePeer(pe)
-				unchokedPeers[pe] = struct{}{}
-			}
-			for pe := range t.peers {
-				if _, ok := unchokedPeers[pe]; !ok {
-					t.chokePeer(pe)
-				}
-			}
+			t.tickUnchoke()
 		case <-t.optimisticUnchokeTimerC:
-			peers := make([]*peer.Peer, 0, len(t.peers))
-			for pe := range t.peers {
-				if !pe.OptimisticUnchoked && pe.AmChoking {
-					peers = append(peers, pe)
-				}
-			}
-			if t.optimisticUnchokedPeer != nil {
-				t.optimisticUnchokedPeer.OptimisticUnchoked = false
-				t.chokePeer(t.optimisticUnchokedPeer)
-			}
-			if len(peers) == 0 {
-				t.optimisticUnchokedPeer = nil
-				break
-			}
-			pe := peers[rand.Intn(len(peers))]
-			pe.OptimisticUnchoked = true
-			t.unchokePeer(pe)
-			t.optimisticUnchokedPeer = pe
+			t.tickOptimisticUnchoke()
 		case res := <-t.incomingHandshakerResultC:
 			delete(t.incomingHandshakers, res.Conn.RemoteAddr().String())
 			if res.Error != nil {
