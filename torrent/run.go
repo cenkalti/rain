@@ -316,6 +316,9 @@ func (t *Torrent) closeInfoDownloader(id *infodownloader.InfoDownloader) {
 }
 
 func (t *Torrent) dialAddresses() {
+	if t.completed() {
+		return
+	}
 	for len(t.outgoingPeers)+len(t.outgoingHandshakers) < maxPeerDial {
 		addr := t.addrList.Pop()
 		if addr == nil {
@@ -405,7 +408,10 @@ func (t *Torrent) checkCompletion() {
 	if t.bitfield.All() {
 		t.log.Info("download completed")
 		close(t.completeC)
-		// TODO close all uninterested peers
-		// TODO do not dial new connections
+		for pe := range t.peers {
+			if !pe.PeerInterested {
+				t.closePeer(pe)
+			}
+		}
 	}
 }
