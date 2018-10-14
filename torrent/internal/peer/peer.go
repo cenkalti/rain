@@ -25,8 +25,6 @@ type Peer struct {
 
 	ExtensionHandshake *peerprotocol.ExtensionHandshakeMessage
 
-	Downloader interface{}
-
 	closeC chan struct{}
 	doneC  chan struct{}
 }

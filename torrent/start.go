@@ -96,7 +96,6 @@ func (t *Torrent) startInfoDownloaders() {
 		}
 		t.log.Debugln("downloading info from", id.Peer.String())
 		t.infoDownloaders[id.Peer] = id
-		id.Peer.Downloader = id
 		go id.Run()
 	}
 }
@@ -116,7 +115,6 @@ func (t *Torrent) startPieceDownloaders() {
 		}
 		t.pieceDownloaders[pd.Peer] = pd
 		t.pieces[pd.Piece.Index].RequestedPeers[pd.Peer] = pd
-		pd.Peer.Downloader = pd
 		go pd.Run()
 	}
 }
