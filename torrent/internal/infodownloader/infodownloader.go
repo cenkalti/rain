@@ -17,7 +17,10 @@ const (
 
 // InfoDownloader downloads all blocks of a piece from a peer.
 type InfoDownloader struct {
-	Peer           *peer.Peer
+	Peer  *peer.Peer
+	Bytes []byte
+	Error error
+
 	extID          uint8
 	totalSize      uint32
 	nextBlockIndex uint32
@@ -25,7 +28,7 @@ type InfoDownloader struct {
 	blocks         []block
 	pieceTimeoutC  <-chan time.Time
 	dataC          chan data
-	resultC        chan Result
+	resultC        chan<- *InfoDownloader
 	snubbedC       chan<- *InfoDownloader
 	closeC         chan struct{}
 	doneC          chan struct{}
@@ -41,13 +44,7 @@ type block struct {
 	data []byte
 }
 
-type Result struct {
-	Peer  *peer.Peer
-	Bytes []byte
-	Error error
-}
-
-func New(pe *peer.Peer, extID uint8, totalSize uint32, snubbedC chan *InfoDownloader, resultC chan Result) *InfoDownloader {
+func New(pe *peer.Peer, extID uint8, totalSize uint32, snubbedC chan *InfoDownloader, resultC chan *InfoDownloader) *InfoDownloader {
 	numBlocks := totalSize / blockSize
 	mod := totalSize % blockSize
 	if mod != 0 {
@@ -109,12 +106,9 @@ func (d *InfoDownloader) requestBlocks() {
 
 func (d *InfoDownloader) Run() {
 	defer close(d.doneC)
-	result := Result{
-		Peer: d.Peer,
-	}
 	defer func() {
 		select {
-		case d.resultC <- result:
+		case d.resultC <- d:
 		case <-d.closeC:
 		}
 	}()
@@ -123,18 +117,18 @@ func (d *InfoDownloader) Run() {
 		select {
 		case msg := <-d.dataC:
 			if _, ok := d.requested[msg.Index]; !ok {
-				result.Error = fmt.Errorf("peer sent unrequested index for metadata message: %q", msg.Index)
+				d.Error = fmt.Errorf("peer sent unrequested index for metadata message: %q", msg.Index)
 				return
 			}
 			b := &d.blocks[msg.Index]
 			if uint32(len(msg.Data)) != b.size {
-				result.Error = fmt.Errorf("peer sent invalid size for metadata message: %q", len(msg.Data))
+				d.Error = fmt.Errorf("peer sent invalid size for metadata message: %q", len(msg.Data))
 				return
 			}
 			delete(d.requested, msg.Index)
 			b.data = msg.Data
 			if d.allDone() {
-				result.Bytes = d.assembleBlocks().Bytes()
+				d.Bytes = d.assembleBlocks().Bytes()
 				return
 			}
 			d.pieceTimeoutC = nil

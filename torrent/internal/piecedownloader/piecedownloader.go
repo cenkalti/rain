@@ -23,6 +23,7 @@ const (
 type PieceDownloader struct {
 	Piece *pieceio.Piece
 	Peer  *peer.Peer
+	Error error
 
 	// state
 	choked         bool
@@ -40,7 +41,7 @@ type PieceDownloader struct {
 
 	// actions sent
 	snubbedC chan<- *PieceDownloader
-	resultC  chan<- Result
+	resultC  chan<- *PieceDownloader
 
 	// internal actions
 	pieceReaderResultC chan pieceReaderResult
@@ -51,18 +52,12 @@ type PieceDownloader struct {
 	doneC  chan struct{}
 }
 
-type Result struct {
-	Peer  *peer.Peer
-	Piece *pieceio.Piece
-	Error error
-}
-
 type pieceReaderResult struct {
 	BlockIndex uint32
 	Error      error
 }
 
-func New(pi *pieceio.Piece, pe *peer.Peer, snubbedC chan *PieceDownloader, resultC chan Result) *PieceDownloader {
+func New(pi *pieceio.Piece, pe *peer.Peer, snubbedC chan *PieceDownloader, resultC chan *PieceDownloader) *PieceDownloader {
 	return &PieceDownloader{
 		Piece: pi,
 		Peer:  pe,
@@ -147,13 +142,9 @@ func (d *PieceDownloader) requestBlocks() {
 func (d *PieceDownloader) Run() {
 	defer close(d.doneC)
 
-	result := Result{
-		Peer:  d.Peer,
-		Piece: d.Piece,
-	}
 	defer func() {
 		select {
-		case d.resultC <- result:
+		case d.resultC <- d:
 		case <-d.closeC:
 		}
 	}()
@@ -176,12 +167,12 @@ func (d *PieceDownloader) Run() {
 			if d.allDone() {
 				ok := d.Piece.VerifyHash(d.buffer, sha1.New()) // nolint: gosec
 				if !ok {
-					result.Error = errors.New("received corrupt piece")
+					d.Error = errors.New("received corrupt piece")
 					return
 				}
 				go d.pieceWriter()
 			}
-		case result.Error = <-d.pieceWriterResultC:
+		case d.Error = <-d.pieceWriterResultC:
 			return
 		case blk := <-d.rejectC:
 			delete(d.requested, blk.Index)

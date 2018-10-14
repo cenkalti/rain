@@ -18,7 +18,7 @@ func (t *Torrent) nextInfoDownload() *infodownloader.InfoDownloader {
 		if !ok {
 			continue
 		}
-		return infodownloader.New(pe, extID, pe.ExtensionHandshake.MetadataSize, t.snubbedInfoDownloaderC, t.infoDownloaderResultC)
+		return infodownloader.New(pe, extID, pe.ExtensionHandshake.MetadataSize, t.snubbedInfoDownloaderC, t.infoDownloaderDoneC)
 	}
 	return nil
 }
@@ -48,7 +48,7 @@ func (t *Torrent) nextPieceDownload() *piecedownloader.PieceDownloader {
 				continue
 			}
 			// TODO selecting first peer having the piece, change to more smart decision
-			return piecedownloader.New(pi.Piece, pe, t.snubbedPieceDownloaderC, t.pieceDownloaderResultC)
+			return piecedownloader.New(pi.Piece, pe, t.snubbedPieceDownloaderC, t.pieceDownloaderDoneC)
 		}
 		for pe := range pi.HavingPeers {
 			if pe.Snubbed {
@@ -61,7 +61,7 @@ func (t *Torrent) nextPieceDownload() *piecedownloader.PieceDownloader {
 				continue
 			}
 			// TODO selecting first peer having the piece, change to more smart decision
-			return piecedownloader.New(pi.Piece, pe, t.snubbedPieceDownloaderC, t.pieceDownloaderResultC)
+			return piecedownloader.New(pi.Piece, pe, t.snubbedPieceDownloaderC, t.pieceDownloaderDoneC)
 		}
 		for pe := range pi.HavingPeers {
 			if _, ok := pi.AllowedFastPeers[pe]; !ok {
@@ -72,7 +72,7 @@ func (t *Torrent) nextPieceDownload() *piecedownloader.PieceDownloader {
 			}
 			pe.Snubbed = false
 			// TODO selecting first peer having the piece, change to more smart decision
-			return piecedownloader.New(pi.Piece, pe, t.snubbedPieceDownloaderC, t.pieceDownloaderResultC)
+			return piecedownloader.New(pi.Piece, pe, t.snubbedPieceDownloaderC, t.pieceDownloaderDoneC)
 		}
 		for pe := range pi.HavingPeers {
 			if pe.PeerChoking {
@@ -83,7 +83,7 @@ func (t *Torrent) nextPieceDownload() *piecedownloader.PieceDownloader {
 			}
 			pe.Snubbed = false
 			// TODO selecting first peer having the piece, change to more smart decision
-			return piecedownloader.New(pi.Piece, pe, t.snubbedPieceDownloaderC, t.pieceDownloaderResultC)
+			return piecedownloader.New(pi.Piece, pe, t.snubbedPieceDownloaderC, t.pieceDownloaderDoneC)
 		}
 	}
 	return nil

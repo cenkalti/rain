@@ -139,28 +139,26 @@ func (t *Torrent) run() {
 			}
 			// TODO set bytes uploaded/downloaded
 			req.Response <- announcer.Response{Transfer: tr}
-		case res := <-t.infoDownloaderResultC:
-			// TODO close info downloader
-			delete(t.infoDownloaders, res.Peer)
-			delete(t.infoDownloadersSnubbed, res.Peer)
-			if res.Error != nil {
-				res.Peer.Logger().Error(res.Error)
-				t.closePeer(res.Peer)
+		case id := <-t.infoDownloaderDoneC:
+			t.closeInfoDownloader(id)
+			if id.Error != nil {
+				id.Peer.Logger().Error(id.Error)
+				t.closePeer(id.Peer)
 				t.startInfoDownloaders()
 				break
 			}
 			hash := sha1.New()                              // nolint: gosec
-			hash.Write(res.Bytes)                           // nolint: gosec
+			hash.Write(id.Bytes)                            // nolint: gosec
 			if !bytes.Equal(hash.Sum(nil), t.infoHash[:]) { // nolint: gosec
-				res.Peer.Logger().Errorln("received info does not match with hash")
-				t.closePeer(res.Peer)
+				id.Peer.Logger().Errorln("received info does not match with hash")
+				t.closePeer(id.Peer)
 				t.startInfoDownloaders()
 				break
 			}
 			t.stopInfoDownloaders()
 
 			var err error
-			t.info, err = metainfo.NewInfo(res.Bytes)
+			t.info, err = metainfo.NewInfo(id.Bytes)
 			if err != nil {
 				err = fmt.Errorf("cannot parse info bytes: %s", err)
 				t.log.Error(err)
@@ -177,25 +175,21 @@ func (t *Torrent) run() {
 				}
 			}
 			t.startAllocator()
-		case res := <-t.pieceDownloaderResultC:
-			// TODO close piece downloader
-			t.log.Debugln("piece download completed. index:", res.Piece.Index)
-			delete(t.pieceDownloaders, res.Peer)
-			delete(t.pieceDownloadersSnubbed, res.Peer)
-			delete(t.pieceDownloadersChoked, res.Peer)
-			delete(t.pieces[res.Piece.Index].RequestedPeers, res.Peer)
-			if res.Error != nil {
+		case pd := <-t.pieceDownloaderDoneC:
+			t.log.Debugln("piece download completed. index:", pd.Piece.Index)
+			t.closePieceDownloader(pd)
+			if pd.Error != nil {
 				// TODO handle corrupt piece
 				// TODO stop on write error
-				t.log.Errorln(res.Error)
-				t.closePeer(res.Peer)
+				t.log.Errorln(pd.Error)
+				t.closePeer(pd.Peer)
 				t.startPieceDownloaders()
 				break
 			}
-			if t.bitfield.Test(res.Piece.Index) {
+			if t.bitfield.Test(pd.Piece.Index) {
 				panic("already have the piece")
 			}
-			t.bitfield.Set(res.Piece.Index) // TODO set bits in piece downloader, make thread-safe
+			t.bitfield.Set(pd.Piece.Index) // TODO set bits in piece downloader, make thread-safe
 			if t.resume != nil {
 				err := t.resume.WriteBitfield(t.bitfield.Bytes()) // TODO write bitfield in piece downloader
 				if err != nil {
@@ -208,7 +202,7 @@ func (t *Torrent) run() {
 			t.checkCompletion()
 			// Tell everyone that we have this piece
 			for pe := range t.peers {
-				msg := peerprotocol.HaveMessage{Index: res.Piece.Index}
+				msg := peerprotocol.HaveMessage{Index: pd.Piece.Index}
 				pe.SendMessage(msg)
 				t.updateInterestedState(pe)
 			}
@@ -312,9 +306,7 @@ func (t *Torrent) closePieceDownloader(pd *piecedownloader.PieceDownloader) {
 	delete(t.pieceDownloaders, pd.Peer)
 	delete(t.pieceDownloadersSnubbed, pd.Peer)
 	delete(t.pieceDownloadersChoked, pd.Peer)
-	for _, pi := range t.pieces {
-		delete(pi.RequestedPeers, pd.Peer)
-	}
+	delete(t.pieces[pd.Piece.Index].RequestedPeers, pd.Peer)
 }
 
 func (t *Torrent) closeInfoDownloader(id *infodownloader.InfoDownloader) {

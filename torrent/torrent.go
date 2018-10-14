@@ -142,10 +142,10 @@ type Torrent struct {
 	outgoingHandshakerResultC chan outgoinghandshaker.Result
 
 	// When metadata of the torrent downloaded completely, a message is sent to this channel.
-	infoDownloaderResultC chan infodownloader.Result
+	infoDownloaderDoneC chan *infodownloader.InfoDownloader
 
 	// When a piece is downloaded completely a message is sent to this channel.
-	pieceDownloaderResultC chan piecedownloader.Result
+	pieceDownloaderDoneC chan *piecedownloader.PieceDownloader
 
 	// Announcers send a request to this channel to get information about the torrent.
 	announcerRequestC chan *announcer.Request
@@ -333,8 +333,8 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		peerIDs:                   make(map[[20]byte]struct{}),
 		incomingConnC:             make(chan net.Conn),
 		sKeyHash:                  mse.HashSKey(spec.infoHash[:]),
-		infoDownloaderResultC:     make(chan infodownloader.Result),
-		pieceDownloaderResultC:    make(chan piecedownloader.Result),
+		infoDownloaderDoneC:       make(chan *infodownloader.InfoDownloader),
+		pieceDownloaderDoneC:      make(chan *piecedownloader.PieceDownloader),
 		incomingHandshakers:       make(map[string]*incominghandshaker.IncomingHandshaker),
 		outgoingHandshakers:       make(map[string]*outgoinghandshaker.OutgoingHandshaker),
 		incomingHandshakerResultC: make(chan incominghandshaker.Result),
