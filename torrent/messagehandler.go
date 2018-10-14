@@ -109,6 +109,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			break
 		}
 		pe.BytesDownlaodedInChokePeriod += int64(msg.Length) // TODO not downloaded yet, but will be
+		t.bytesDownloaded += int64(msg.Length)
 		if pd, ok := t.pieceDownloaders[pe]; ok {
 			pd.Download(block, msg.Conn, msg.Done)
 		}

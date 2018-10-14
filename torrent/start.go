@@ -89,8 +89,7 @@ func (t *Torrent) startInfoDownloaders() {
 	if t.info != nil {
 		return
 	}
-	running := len(t.infoDownloaders) - len(t.infoDownloadersSnubbed)
-	for running < parallelInfoDownloads {
+	for len(t.infoDownloaders)-len(t.infoDownloadersSnubbed) < parallelInfoDownloads {
 		id := t.nextInfoDownload()
 		if id == nil {
 			break
@@ -105,15 +104,18 @@ func (t *Torrent) startPieceDownloaders() {
 	if t.bitfield == nil {
 		return
 	}
-	running := len(t.pieceDownloaders) - len(t.pieceDownloadersChoked) - len(t.pieceDownloadersSnubbed)
-	for running < parallelPieceDownloads {
+	for len(t.pieceDownloaders)-len(t.pieceDownloadersChoked)-len(t.pieceDownloadersSnubbed) < parallelPieceDownloads {
 		// TODO check status of existing downloads
 		pd := t.nextPieceDownload()
 		if pd == nil {
 			break
 		}
 		t.log.Debugln("downloading piece", pd.Piece.Index, "from", pd.Peer.String())
+		if _, ok := t.pieceDownloaders[pd.Peer]; ok {
+			panic("peer already has a piece downloader")
+		}
 		t.pieceDownloaders[pd.Peer] = pd
+		t.pieces[pd.Piece.Index].RequestedPeers[pd.Peer] = pd
 		go pd.Run()
 	}
 }

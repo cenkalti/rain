@@ -130,6 +130,9 @@ func (d *PieceDownloader) requestBlocks() {
 		if _, ok := d.downloading[b.Index]; ok {
 			continue
 		}
+		if _, ok := d.requested[b.Index]; ok {
+			continue
+		}
 		msg := peerprotocol.RequestMessage{Index: d.Piece.Index, Begin: b.Begin, Length: b.Length}
 		d.Peer.SendMessage(msg)
 		d.requested[b.Index] = struct{}{}
@@ -159,6 +162,9 @@ func (d *PieceDownloader) Run() {
 	for {
 		select {
 		case p := <-d.pieceC:
+			if _, ok := d.done[p.Block.Index]; ok {
+				panic("got piece twice")
+			}
 			delete(d.requested, p.Block.Index)
 			d.downloading[p.Block.Index] = struct{}{}
 			d.pieceTimeoutC = nil

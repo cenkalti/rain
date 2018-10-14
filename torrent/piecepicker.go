@@ -30,6 +30,12 @@ func (t *Torrent) nextPieceDownload() *piecedownloader.PieceDownloader {
 		if t.bitfield.Test(pi.Index) {
 			continue
 		}
+		if len(pi.RequestedPeers) > 0 {
+			continue
+		}
+		if len(pi.HavingPeers) == 0 {
+			continue
+		}
 		// prefer allowed fast peers first
 		for pe := range pi.HavingPeers {
 			if pe.Snubbed {

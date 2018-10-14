@@ -166,6 +166,8 @@ type Torrent struct {
 	verifierProgressC chan verifier.Progress
 	verifierResultC   chan verifier.Result
 
+	bytesDownloaded int64
+
 	log logger.Logger
 }
 

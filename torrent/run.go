@@ -13,11 +13,13 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/bitfield"
 	"github.com/cenkalti/rain/torrent/internal/handshaker/incominghandshaker"
 	"github.com/cenkalti/rain/torrent/internal/handshaker/outgoinghandshaker"
+	"github.com/cenkalti/rain/torrent/internal/infodownloader"
 	"github.com/cenkalti/rain/torrent/internal/metainfo"
 	"github.com/cenkalti/rain/torrent/internal/peer"
 	"github.com/cenkalti/rain/torrent/internal/peerconn"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
 	"github.com/cenkalti/rain/torrent/internal/piece"
+	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
 	"github.com/cenkalti/rain/torrent/internal/tracker"
 )
 
@@ -138,6 +140,7 @@ func (t *Torrent) run() {
 			// TODO set bytes uploaded/downloaded
 			req.Response <- announcer.Response{Transfer: tr}
 		case res := <-t.infoDownloaderResultC:
+			// TODO close info downloader
 			delete(t.infoDownloaders, res.Peer)
 			delete(t.infoDownloadersSnubbed, res.Peer)
 			if res.Error != nil {
@@ -175,10 +178,12 @@ func (t *Torrent) run() {
 			}
 			t.startAllocator()
 		case res := <-t.pieceDownloaderResultC:
+			// TODO close piece downloader
 			t.log.Debugln("piece download completed. index:", res.Piece.Index)
 			delete(t.pieceDownloaders, res.Peer)
 			delete(t.pieceDownloadersSnubbed, res.Peer)
 			delete(t.pieceDownloadersChoked, res.Peer)
+			delete(t.pieces[res.Piece.Index].RequestedPeers, res.Peer)
 			if res.Error != nil {
 				// TODO handle corrupt piece
 				// TODO stop on write error
@@ -186,6 +191,9 @@ func (t *Torrent) run() {
 				t.closePeer(res.Peer)
 				t.startPieceDownloaders()
 				break
+			}
+			if t.bitfield.Test(res.Piece.Index) {
+				panic("already have the piece")
 			}
 			t.bitfield.Set(res.Piece.Index) // TODO set bits in piece downloader, make thread-safe
 			if t.resume != nil {
@@ -282,15 +290,10 @@ func (t *Torrent) run() {
 func (t *Torrent) closePeer(pe *peer.Peer) {
 	pe.Close()
 	if pd, ok := t.pieceDownloaders[pe]; ok {
-		pd.Close()
-		delete(t.pieceDownloaders, pe)
-		delete(t.pieceDownloadersSnubbed, pe)
-		delete(t.pieceDownloadersChoked, pe)
+		t.closePieceDownloader(pd)
 	}
 	if id, ok := t.infoDownloaders[pe]; ok {
-		id.Close()
-		delete(t.infoDownloaders, pe)
-		delete(t.infoDownloadersSnubbed, pe)
+		t.closeInfoDownloader(id)
 	}
 	delete(t.peers, pe)
 	delete(t.incomingPeers, pe)
@@ -299,8 +302,25 @@ func (t *Torrent) closePeer(pe *peer.Peer) {
 	for i := range t.pieces {
 		delete(t.pieces[i].HavingPeers, pe)
 		delete(t.pieces[i].AllowedFastPeers, pe)
+		delete(t.pieces[i].RequestedPeers, pe)
 	}
 	t.dialAddresses()
+}
+
+func (t *Torrent) closePieceDownloader(pd *piecedownloader.PieceDownloader) {
+	pd.Close()
+	delete(t.pieceDownloaders, pd.Peer)
+	delete(t.pieceDownloadersSnubbed, pd.Peer)
+	delete(t.pieceDownloadersChoked, pd.Peer)
+	for _, pi := range t.pieces {
+		delete(pi.RequestedPeers, pd.Peer)
+	}
+}
+
+func (t *Torrent) closeInfoDownloader(id *infodownloader.InfoDownloader) {
+	id.Close()
+	delete(t.infoDownloaders, id.Peer)
+	delete(t.infoDownloadersSnubbed, id.Peer)
 }
 
 func (t *Torrent) dialAddresses() {
@@ -393,5 +413,7 @@ func (t *Torrent) checkCompletion() {
 	if t.bitfield.All() {
 		t.log.Info("download completed")
 		close(t.completeC)
+		// TODO close all uninterested peers
+		// TODO do not dial new connections
 	}
 }

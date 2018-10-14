@@ -13,17 +13,18 @@ type Stats struct {
 		// Bytes that are downloaded and passed hash check.
 		Complete int64
 
-		// BytesLeft is the number of bytes that is needed to complete all missing pieces.
+		// The number of bytes that is needed to complete all missing pieces.
 		Incomplete int64
 
-		// BytesTotal is the number of total bytes of files in torrent.
+		// The number of total bytes of files in torrent.
 		//
-		// BytesTotal = BytesComplete + BytesIncomplete
+		// Total = Complete + Incomplete
 		Total int64
 
-		// BytesDownloaded is the number of bytes downloaded from swarm.
+		// Downloaded is the number of bytes downloaded from swarm.
 		// Because some pieces may be downloaded more than once, this number may be greater than BytesCompleted returns.
-		// TODO BytesDownloaded int64
+		// TODO put into resume
+		Downloaded int64
 
 		// BytesUploaded is the number of bytes uploaded to the swarm.
 		// TODO BytesUploaded   int64
@@ -60,7 +61,7 @@ type Stats struct {
 	Downloads struct {
 		Piece struct {
 			// Number of active piece downloads.
-			Active int
+			Total int
 
 			// Number of pieces that are being downloaded normally.
 			Running int
@@ -74,7 +75,7 @@ type Stats struct {
 
 		Metadata struct {
 			// Number of active metadata downloads.
-			Active int
+			Total int
 
 			// Number of peers that uploading too slow.
 			Snubbed int
@@ -95,10 +96,10 @@ func (t *Torrent) stats() Stats {
 	stats.Peers.Connected.Total = len(t.peers)
 	stats.Peers.Connected.Incoming = len(t.incomingPeers)
 	stats.Peers.Connected.Outgoing = len(t.outgoingPeers)
-	stats.Downloads.Metadata.Active = len(t.infoDownloaders)
+	stats.Downloads.Metadata.Total = len(t.infoDownloaders)
 	stats.Downloads.Metadata.Snubbed = len(t.infoDownloadersSnubbed)
 	stats.Downloads.Metadata.Running = len(t.infoDownloaders) - len(t.infoDownloadersSnubbed)
-	stats.Downloads.Piece.Active = len(t.pieceDownloaders)
+	stats.Downloads.Piece.Total = len(t.pieceDownloaders)
 	stats.Downloads.Piece.Snubbed = len(t.pieceDownloadersSnubbed)
 	stats.Downloads.Piece.Choked = len(t.pieceDownloadersChoked)
 	stats.Downloads.Piece.Running = len(t.pieceDownloaders) - len(t.pieceDownloadersChoked) - len(t.pieceDownloadersSnubbed)
@@ -111,6 +112,7 @@ func (t *Torrent) stats() Stats {
 		// Some trackers don't send any peer address if don't tell we have missing bytes.
 		stats.Bytes.Incomplete = math.MaxUint32
 	}
+	stats.Bytes.Downloaded = t.bytesDownloaded
 	return stats
 }
 
