@@ -283,11 +283,12 @@ func (t *Torrent) run() {
 
 func (t *Torrent) closePeer(pe *peer.Peer) {
 	pe.Close()
-	if pd, ok := t.pieceDownloaders[pe]; ok {
-		t.closePieceDownloader(pd)
-	}
-	if id, ok := t.infoDownloaders[pe]; ok {
-		t.closeInfoDownloader(id)
+	switch d := pe.Downloader.(type) {
+	case *infodownloader.InfoDownloader:
+		t.closeInfoDownloader(d)
+	case *piecedownloader.PieceDownloader:
+		t.closePieceDownloader(d)
+	case nil:
 	}
 	delete(t.peers, pe)
 	delete(t.incomingPeers, pe)
@@ -303,6 +304,7 @@ func (t *Torrent) closePeer(pe *peer.Peer) {
 
 func (t *Torrent) closePieceDownloader(pd *piecedownloader.PieceDownloader) {
 	pd.Close()
+	pd.Peer.Downloader = nil
 	delete(t.pieceDownloaders, pd.Peer)
 	delete(t.pieceDownloadersSnubbed, pd.Peer)
 	delete(t.pieceDownloadersChoked, pd.Peer)
@@ -311,6 +313,7 @@ func (t *Torrent) closePieceDownloader(pd *piecedownloader.PieceDownloader) {
 
 func (t *Torrent) closeInfoDownloader(id *infodownloader.InfoDownloader) {
 	id.Close()
+	id.Peer.Downloader = nil
 	delete(t.infoDownloaders, id.Peer)
 	delete(t.infoDownloadersSnubbed, id.Peer)
 }
