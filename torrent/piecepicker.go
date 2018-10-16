@@ -10,6 +10,8 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
 )
 
+const endgameMaxDownloadPerPiece = 2
+
 func (t *Torrent) nextInfoDownload() *infodownloader.InfoDownloader {
 	for pe := range t.peers {
 		if _, ok := t.infoDownloaders[pe]; ok {
@@ -71,7 +73,7 @@ func (t *Torrent) selectAllowedFastPiece(skipSnubbed, noDuplicate bool) (*piece.
 		}
 		if noDuplicate && len(pi.RequestedPeers) > 0 {
 			continue
-		} else if pi.RunningDownloads() >= parallelPieceDownloads {
+		} else if pi.RunningDownloads() >= endgameMaxDownloadPerPiece {
 			continue
 		}
 		for pe := range pi.HavingPeers {
@@ -97,7 +99,7 @@ func (t *Torrent) selectUnchokedPeer(skipSnubbed, noDuplicate bool) (*piece.Piec
 		}
 		if noDuplicate && len(pi.RequestedPeers) > 0 {
 			continue
-		} else if pi.RunningDownloads() >= parallelPieceDownloads {
+		} else if pi.RunningDownloads() >= endgameMaxDownloadPerPiece {
 			continue
 		}
 		for pe := range pi.HavingPeers {

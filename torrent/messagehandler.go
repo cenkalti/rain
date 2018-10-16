@@ -2,9 +2,6 @@ package torrent
 
 import (
 	"fmt"
-	"io"
-	"io/ioutil"
-	"time"
 
 	"github.com/cenkalti/rain/torrent/internal/bitfield"
 	"github.com/cenkalti/rain/torrent/internal/peer"
@@ -94,7 +91,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		// TODO handle intereseted messages
 	case peerprotocol.NotInterestedMessage:
 		// TODO handle not intereseted messages
-	case *peerreader.Piece:
+	case peerreader.Piece:
 		if t.bitfield == nil {
 			pe.Logger().Error("piece received but we don't have info")
 			t.closePeer(pe)
@@ -106,32 +103,18 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			break
 		}
 		piece := &t.data.Pieces[msg.Index]
-		block := piece.Blocks.Find(msg.Begin, msg.Length)
+		block := piece.Blocks.Find(msg.Begin, uint32(len(msg.Data)))
 		if block == nil {
-			pe.Logger().Errorln("invalid piece begin:", msg.Begin, "length:", msg.Length)
+			pe.Logger().Errorln("invalid piece begin:", msg.Begin, "length:", len(msg.Data))
 			t.closePeer(pe)
 			break
 		}
-		pe.BytesDownlaodedInChokePeriod += int64(msg.Length) // TODO not downloaded yet, but will be
-		t.bytesDownloaded += int64(msg.Length)
+		pe.BytesDownlaodedInChokePeriod += int64(len(msg.Data))
+		t.bytesDownloaded += int64(len(msg.Data))
 		if pd, ok := t.pieceDownloaders[pe]; ok && pd.Piece.Index == msg.Index {
-			pd.Download(block, msg.Conn, msg.Done)
+			pd.Download(block, msg.Data)
 		} else {
-			go func() {
-				err := msg.Conn.SetReadDeadline(time.Now().Add(30 * time.Second)) // TODO adjust timeout
-				if err != nil {
-					pe.Logger().Errorln("cannot set read deadline:", err)
-					t.closePeer(pe)
-					return
-				}
-				_, err = io.CopyN(ioutil.Discard, msg.Conn, int64(msg.Length))
-				if err != nil {
-					pe.Logger().Errorln("cannot download piece data:", err)
-					t.closePeer(pe)
-					return
-				}
-				close(msg.Done)
-			}()
+			t.bytesWasted += int64(len(msg.Data))
 		}
 	case peerprotocol.RequestMessage:
 		if t.bitfield == nil {

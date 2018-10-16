@@ -3,12 +3,9 @@ package piecedownloader
 import (
 	"crypto/sha1" // nolint: gosec
 	"errors"
-	"io"
-	"net"
 	"time"
 
 	"github.com/cenkalti/rain/torrent/internal/peer"
-	"github.com/cenkalti/rain/torrent/internal/peerconn/peerreader"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
 	"github.com/cenkalti/rain/torrent/internal/pieceio"
 )
@@ -16,7 +13,6 @@ import (
 const (
 	maxQueuedBlocks = 10
 	pieceTimeout    = 20 * time.Second
-	requestTimeout  = 60 * time.Second
 )
 
 // PieceDownloader downloads all blocks of a piece from a peer.
@@ -30,7 +26,6 @@ type PieceDownloader struct {
 	buffer         []byte
 	nextBlockIndex uint32
 	requested      map[uint32]struct{}
-	downloading    map[uint32]struct{}
 	done           map[uint32]struct{}
 
 	// actions received
@@ -62,10 +57,9 @@ func New(pi *pieceio.Piece, pe *peer.Peer, snubbedC chan *PieceDownloader, resul
 		Piece: pi,
 		Peer:  pe,
 
-		buffer:      make([]byte, pi.Length),
-		requested:   make(map[uint32]struct{}),
-		downloading: make(map[uint32]struct{}),
-		done:        make(map[uint32]struct{}),
+		buffer:    make([]byte, pi.Length),
+		requested: make(map[uint32]struct{}),
+		done:      make(map[uint32]struct{}),
 
 		pieceC:   make(chan piece),
 		rejectC:  make(chan *pieceio.Block),
@@ -102,9 +96,9 @@ func (d *PieceDownloader) Unchoke() {
 	}
 }
 
-func (d *PieceDownloader) Download(block *pieceio.Block, conn net.Conn, doneC chan struct{}) {
+func (d *PieceDownloader) Download(block *pieceio.Block, data []byte) {
 	select {
-	case d.pieceC <- piece{Block: block, Conn: conn, DoneC: doneC}:
+	case d.pieceC <- piece{Block: block, Data: data}:
 	case <-d.doneC:
 	}
 }
@@ -128,9 +122,6 @@ func (d *PieceDownloader) requestBlocks() {
 	for ; d.nextBlockIndex < uint32(len(d.Piece.Blocks)) && len(d.requested) < maxQueuedBlocks; d.nextBlockIndex++ {
 		b := d.Piece.Blocks[d.nextBlockIndex]
 		if _, ok := d.done[b.Index]; ok {
-			continue
-		}
-		if _, ok := d.downloading[b.Index]; ok {
 			continue
 		}
 		if _, ok := d.requested[b.Index]; ok {
@@ -164,22 +155,20 @@ func (d *PieceDownloader) Run() {
 			if _, ok := d.done[p.Block.Index]; ok {
 				d.Peer.Logger().Warningln("received duplicate block:", p.Block.Index)
 			}
+			copy(d.buffer[p.Block.Begin:p.Block.Begin+p.Block.Length], p.Data)
 			delete(d.requested, p.Block.Index)
-			d.downloading[p.Block.Index] = struct{}{}
+			d.done[p.Block.Index] = struct{}{}
 			d.pieceTimeoutC = nil
-			go d.pieceReader(p)
-		case res := <-d.pieceReaderResultC:
-			delete(d.downloading, res.BlockIndex)
-			d.done[res.BlockIndex] = struct{}{}
 			d.requestBlocks()
-			if d.allDone() {
-				ok := d.Piece.VerifyHash(d.buffer, sha1.New()) // nolint: gosec
-				if !ok {
-					d.Error = errors.New("received corrupt piece")
-					return
-				}
-				go d.pieceWriter()
+			if !d.allDone() {
+				break
 			}
+			ok := d.Piece.VerifyHash(d.buffer, sha1.New()) // nolint: gosec
+			if !ok {
+				d.Error = errors.New("received corrupt piece")
+				return
+			}
+			go d.pieceWriter()
 		case d.Error = <-d.pieceWriterResultC:
 			return
 		case blk := <-d.rejectC:
@@ -189,7 +178,6 @@ func (d *PieceDownloader) Run() {
 			d.choked = true
 			d.pieceTimeoutC = nil
 			d.requested = make(map[uint32]struct{})
-			d.downloading = make(map[uint32]struct{})
 			d.nextBlockIndex = 0
 		case <-d.unchokeC:
 			d.choked = false
@@ -208,41 +196,6 @@ func (d *PieceDownloader) Run() {
 
 func (d *PieceDownloader) allDone() bool {
 	return len(d.done) == len(d.Piece.Blocks)
-}
-
-func (d *PieceDownloader) pieceReader(p piece) {
-	result := pieceReaderResult{
-		BlockIndex: p.Block.Index,
-	}
-	defer func() {
-		if result.Error == nil {
-			close(p.DoneC)
-		}
-		select {
-		case d.pieceReaderResultC <- result:
-		case <-d.closeC:
-		}
-	}()
-	result.Error = p.Conn.SetReadDeadline(time.Now().Add(requestTimeout))
-	if result.Error != nil {
-		return
-	}
-	var n int
-	b := d.buffer[p.Block.Begin : p.Block.Begin+p.Block.Length]
-	n, result.Error = io.ReadFull(p.Conn, b)
-	if nerr, ok := result.Error.(net.Error); ok && nerr.Timeout() {
-		// Peer couldn't send the block in allowed time.
-		select {
-		case d.snubbedC <- d:
-		case <-d.closeC:
-			return
-		}
-		result.Error = p.Conn.SetReadDeadline(time.Now().Add(peerreader.ReadTimeout - requestTimeout))
-		if result.Error != nil {
-			return
-		}
-		_, result.Error = io.ReadFull(p.Conn, b[n:])
-	}
 }
 
 func (d *PieceDownloader) pieceWriter() {
