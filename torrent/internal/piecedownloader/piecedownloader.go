@@ -116,6 +116,14 @@ func (d *PieceDownloader) Reject(block *pieceio.Block) {
 	}
 }
 
+func (d *PieceDownloader) CancelPending() {
+	for i := range d.requested {
+		b := d.Piece.Blocks[i]
+		msg := peerprotocol.CancelMessage{RequestMessage: peerprotocol.RequestMessage{Index: d.Piece.Index, Begin: b.Begin, Length: b.Length}}
+		d.Peer.SendMessage(msg)
+	}
+}
+
 func (d *PieceDownloader) requestBlocks() {
 	for ; d.nextBlockIndex < uint32(len(d.Piece.Blocks)) && len(d.requested) < maxQueuedBlocks; d.nextBlockIndex++ {
 		b := d.Piece.Blocks[d.nextBlockIndex]
@@ -154,7 +162,7 @@ func (d *PieceDownloader) Run() {
 		select {
 		case p := <-d.pieceC:
 			if _, ok := d.done[p.Block.Index]; ok {
-				panic("got piece twice")
+				d.Peer.Logger().Warningln("received duplicate block:", p.Block.Index)
 			}
 			delete(d.requested, p.Block.Index)
 			d.downloading[p.Block.Index] = struct{}{}

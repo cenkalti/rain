@@ -19,8 +19,10 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
 )
 
+var errClosed = errors.New("torrent is closed")
+
 func (t *Torrent) close() {
-	t.stop(errors.New("torrent is closed"))
+	t.stop(errClosed)
 
 	if t.data != nil {
 		t.data.Close()
@@ -172,12 +174,16 @@ func (t *Torrent) run() {
 				t.startPieceDownloaders()
 				break
 			}
+			for _, pd := range t.pieces[pd.Piece.Index].RequestedPeers {
+				t.closePieceDownloader(pd)
+				pd.CancelPending()
+			}
 			if t.bitfield.Test(pd.Piece.Index) {
 				panic("already have the piece")
 			}
-			t.bitfield.Set(pd.Piece.Index) // TODO set bits in piece downloader, make thread-safe
+			t.bitfield.Set(pd.Piece.Index)
 			if t.resume != nil {
-				err := t.resume.WriteBitfield(t.bitfield.Bytes()) // TODO write bitfield in piece downloader
+				err := t.resume.WriteBitfield(t.bitfield.Bytes())
 				if err != nil {
 					err = fmt.Errorf("cannot write bitfield to resume db: %s", err)
 					t.log.Errorln(err)
@@ -196,10 +202,12 @@ func (t *Torrent) run() {
 		case pd := <-t.snubbedPieceDownloaderC:
 			// Mark slow peer as snubbed and don't select that peer in piece picker
 			pd.Peer.Snubbed = true
+			t.peersSnubbed[pd.Peer] = struct{}{}
 			t.pieceDownloadersSnubbed[pd.Peer] = pd
 			t.startPieceDownloaders()
 		case id := <-t.snubbedInfoDownloaderC:
 			id.Peer.Snubbed = true
+			t.peersSnubbed[id.Peer] = struct{}{}
 			t.infoDownloadersSnubbed[id.Peer] = id
 			t.startInfoDownloaders()
 		case <-t.unchokeTimerC:
@@ -239,6 +247,7 @@ func (t *Torrent) closePeer(pe *peer.Peer) {
 	delete(t.peers, pe)
 	delete(t.incomingPeers, pe)
 	delete(t.outgoingPeers, pe)
+	delete(t.peersSnubbed, pe)
 	delete(t.peerIDs, pe.ID())
 	for i := range t.pieces {
 		delete(t.pieces[i].HavingPeers, pe)
@@ -355,6 +364,10 @@ func (t *Torrent) checkCompletion() {
 	if t.bitfield.All() {
 		t.log.Info("download completed")
 		close(t.completeC)
+		for _, h := range t.outgoingHandshakers {
+			h.Close()
+		}
+		t.outgoingHandshakers = make(map[string]*outgoinghandshaker.OutgoingHandshaker)
 		for pe := range t.peers {
 			if !pe.PeerInterested {
 				t.closePeer(pe)

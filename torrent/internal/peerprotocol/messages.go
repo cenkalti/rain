@@ -79,6 +79,7 @@ type NotInterestedMessage struct{ emptyMessage }
 type HaveAllMessage struct{ emptyMessage }
 type HaveNoneMessage struct{ emptyMessage }
 type RejectMessage struct{ RequestMessage }
+type CancelMessage struct{ RequestMessage }
 
 func (m ChokeMessage) ID() MessageID         { return Choke }
 func (m UnchokeMessage) ID() MessageID       { return Unchoke }
@@ -87,6 +88,7 @@ func (m NotInterestedMessage) ID() MessageID { return NotInterested }
 func (m HaveAllMessage) ID() MessageID       { return HaveAll }
 func (m HaveNoneMessage) ID() MessageID      { return HaveNone }
 func (m RejectMessage) ID() MessageID        { return Reject }
+func (m CancelMessage) ID() MessageID        { return Cancel }
 
 type ExtensionMessage struct {
 	ExtendedMessageID uint8

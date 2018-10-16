@@ -29,64 +29,117 @@ func (t *Torrent) nextPieceDownload() *piecedownloader.PieceDownloader {
 	if pi == nil || pe == nil {
 		return nil
 	}
+	pe.Snubbed = false
+	delete(t.peersSnubbed, pe)
 	return piecedownloader.New(pi.Piece, pe, t.snubbedPieceDownloaderC, t.pieceDownloaderDoneC)
 }
 
 func (t *Torrent) findPieceAndPeer() (*piece.Piece, *peer.Peer) {
-	// TODO request first 4 pieces randomly
+	pe, pi := t.select4RandomPiece()
+	if pe != nil && pi != nil {
+		return pe, pi
+	}
 	sort.Sort(piece.ByAvailability(t.sortedPieces))
+	pe, pi = t.selectAllowedFastPiece(true, true)
+	if pe != nil && pi != nil {
+		return pe, pi
+	}
+	pe, pi = t.selectUnchokedPeer(true, true)
+	if pe != nil && pi != nil {
+		return pe, pi
+	}
+	pe, pi = t.selectSnubbedPeer(true)
+	if pe != nil && pi != nil {
+		return pe, pi
+	}
+	pe, pi = t.selectDuplicatePiece()
+	if pe != nil && pi != nil {
+		return pe, pi
+	}
+	return nil, nil
+}
+
+func (t *Torrent) select4RandomPiece() (*piece.Piece, *peer.Peer) {
+	// TODO request first 4 pieces randomly
+	return nil, nil
+}
+
+func (t *Torrent) selectAllowedFastPiece(skipSnubbed, noDuplicate bool) (*piece.Piece, *peer.Peer) {
 	for _, pi := range t.sortedPieces {
 		if t.bitfield.Test(pi.Index) {
 			continue
 		}
-		if len(pi.RequestedPeers) > 0 {
+		if noDuplicate && len(pi.RequestedPeers) > 0 {
+			continue
+		} else if pi.RunningDownloads() >= parallelPieceDownloads {
 			continue
 		}
-		if len(pi.HavingPeers) == 0 {
-			continue
-		}
-		// prefer not snubbed peers first, then prefer allowed fast peers
-		pe := t.selectPeer(pi, true, true)
-		if pe != nil {
-			return pi, pe
-		}
-		pe = t.selectPeer(pi, true, false)
-		if pe != nil {
-			return pi, pe
-		}
-		pe = t.selectPeer(pi, false, true)
-		if pe != nil {
-			return pi, pe
-		}
-		pe = t.selectPeer(pi, false, false)
-		if pe != nil {
+		for pe := range pi.HavingPeers {
+			if _, ok := t.pieceDownloaders[pe]; ok {
+				continue
+			}
+			if skipSnubbed && pe.Snubbed {
+				continue
+			}
+			if _, ok := pe.AllowedFastPieces[pi.Index]; !ok {
+				continue
+			}
 			return pi, pe
 		}
 	}
 	return nil, nil
 }
 
-func (t *Torrent) selectPeer(pi *piece.Piece, skipSnubbed, allowedFastOnly bool) *peer.Peer {
-	for pe := range pi.HavingPeers {
-		if _, ok := t.pieceDownloaders[pe]; ok {
+func (t *Torrent) selectUnchokedPeer(skipSnubbed, noDuplicate bool) (*piece.Piece, *peer.Peer) {
+	for _, pi := range t.sortedPieces {
+		if t.bitfield.Test(pi.Index) {
 			continue
 		}
-		if skipSnubbed {
-			if pe.Snubbed {
-				continue
-			}
+		if noDuplicate && len(pi.RequestedPeers) > 0 {
+			continue
+		} else if pi.RunningDownloads() >= parallelPieceDownloads {
+			continue
 		}
-		if allowedFastOnly {
-			if _, ok := pi.AllowedFastPeers[pe]; !ok {
+		for pe := range pi.HavingPeers {
+			if _, ok := t.pieceDownloaders[pe]; ok {
 				continue
 			}
-		} else {
+			if skipSnubbed && pe.Snubbed {
+				continue
+			}
 			if pe.PeerChoking {
 				continue
 			}
+			return pi, pe
 		}
-		pe.Snubbed = false
-		return pe
 	}
-	return nil
+	return nil, nil
+}
+
+func (t *Torrent) selectSnubbedPeer(noDuplicate bool) (*piece.Piece, *peer.Peer) {
+	pi, pe := t.selectAllowedFastPiece(false, noDuplicate)
+	if pi != nil && pe != nil {
+		return pi, pe
+	}
+	pi, pe = t.selectUnchokedPeer(false, noDuplicate)
+	if pi != nil && pe != nil {
+		return pi, pe
+	}
+	return nil, nil
+}
+
+func (t *Torrent) selectDuplicatePiece() (*piece.Piece, *peer.Peer) {
+	pe, pi := t.selectAllowedFastPiece(true, false)
+	if pe != nil && pi != nil {
+		return pe, pi
+	}
+	pe, pi = t.selectUnchokedPeer(true, false)
+	if pe != nil && pi != nil {
+		return pe, pi
+	}
+	pe, pi = t.selectSnubbedPeer(false)
+	if pe != nil && pi != nil {
+		return pe, pi
+	}
+	return nil, nil
 }

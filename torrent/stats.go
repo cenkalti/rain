@@ -9,6 +9,12 @@ type Stats struct {
 	// Status of the torrent.
 	Status Status
 
+	Pieces struct {
+		Have    uint32
+		Missing uint32
+		Total   uint32
+	}
+
 	Bytes struct {
 		// Bytes that are downloaded and passed hash check.
 		Complete int64
@@ -25,6 +31,8 @@ type Stats struct {
 		// Because some pieces may be downloaded more than once, this number may be greater than BytesCompleted returns.
 		// TODO put into resume
 		Downloaded int64
+
+		Wasted int64
 
 		// BytesUploaded is the number of bytes uploaded to the swarm.
 		// TODO BytesUploaded   int64
@@ -112,7 +120,13 @@ func (t *Torrent) stats() Stats {
 		// Some trackers don't send any peer address if don't tell we have missing bytes.
 		stats.Bytes.Incomplete = math.MaxUint32
 	}
+	if t.bitfield != nil {
+		stats.Pieces.Total = t.bitfield.Len()
+		stats.Pieces.Have = t.bitfield.Count()
+		stats.Pieces.Missing = stats.Pieces.Total - stats.Pieces.Have
+	}
 	stats.Bytes.Downloaded = t.bytesDownloaded
+	stats.Bytes.Wasted = t.bytesWasted
 	return stats
 }
 

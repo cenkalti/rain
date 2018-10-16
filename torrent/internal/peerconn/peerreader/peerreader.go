@@ -12,8 +12,8 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
 )
 
-// MaxAllowedBlockSize is the max size of block data that we accept from peers.
-const MaxAllowedBlockSize = 32 * 1024
+// BlockSize is the max size of block data that we accept from peers.
+const BlockSize = 16 * 1024
 
 const ReadTimeout = 2 * time.Minute // equal to keep-alive period
 
@@ -149,7 +149,7 @@ func (p *PeerReader) Run() {
 			}
 			p.log.Debugf("Received Request: %+v", rm)
 
-			if rm.Length > MaxAllowedBlockSize {
+			if rm.Length > BlockSize {
 				err = errors.New("received a request with block size larger than allowed")
 				return
 			}
@@ -166,6 +166,7 @@ func (p *PeerReader) Run() {
 			}
 			p.log.Debugf("Received Reject: %+v", rm)
 			msg = rm
+		// TODO handle cancel message
 		case peerprotocol.Piece:
 			first = false
 			var pm peerprotocol.PieceMessage
@@ -207,7 +208,6 @@ func (p *PeerReader) Run() {
 			}
 			first = false
 			msg = peerprotocol.HaveNoneMessage{}
-		// case peerprotocol.Suggest:
 		case peerprotocol.AllowedFast:
 			var am peerprotocol.AllowedFastMessage
 			err = binary.Read(p.conn, binary.BigEndian, &am)
@@ -215,8 +215,6 @@ func (p *PeerReader) Run() {
 				return
 			}
 			msg = am
-		// case peerprotocol.Cancel: TODO handle cancel messages
-		// TODO handle extension messages
 		case peerprotocol.Extension:
 			buf := make([]byte, length)
 			_, err = io.ReadFull(p.conn, buf)

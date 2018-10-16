@@ -39,8 +39,8 @@ import (
 const (
 	maxPeerDial            = 40
 	maxPeerAccept          = 40
-	parallelPieceDownloads = maxPeerDial + maxPeerAccept
-	parallelInfoDownloads  = 1
+	parallelPieceDownloads = 25 // running downloads, snubbed and choked peers don't count
+	parallelInfoDownloads  = 1  // running downloads, snubbed peers don't count
 )
 
 var (
@@ -74,6 +74,7 @@ type Torrent struct {
 	peers         map[*peer.Peer]struct{}
 	incomingPeers map[*peer.Peer]struct{}
 	outgoingPeers map[*peer.Peer]struct{}
+	peersSnubbed  map[*peer.Peer]struct{}
 
 	// Active piece downloads are kept in this map.
 	pieceDownloaders        map[*peer.Peer]*piecedownloader.PieceDownloader
@@ -167,6 +168,7 @@ type Torrent struct {
 	verifierResultC   chan verifier.Result
 
 	bytesDownloaded int64
+	bytesWasted     int64
 
 	log logger.Logger
 }
@@ -314,6 +316,7 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		peers:                     make(map[*peer.Peer]struct{}),
 		incomingPeers:             make(map[*peer.Peer]struct{}),
 		outgoingPeers:             make(map[*peer.Peer]struct{}),
+		peersSnubbed:              make(map[*peer.Peer]struct{}),
 		pieceDownloaders:          make(map[*peer.Peer]*piecedownloader.PieceDownloader),
 		pieceDownloadersSnubbed:   make(map[*peer.Peer]*piecedownloader.PieceDownloader),
 		pieceDownloadersChoked:    make(map[*peer.Peer]*piecedownloader.PieceDownloader),

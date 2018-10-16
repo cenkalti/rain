@@ -8,6 +8,7 @@ import (
 
 type Piece struct {
 	*pieceio.Piece
+	// TODO Piece has no state. Move these maps into downloader.
 	HavingPeers      map[*peer.Peer]struct{}
 	AllowedFastPeers map[*peer.Peer]struct{}
 	RequestedPeers   map[*peer.Peer]*piecedownloader.PieceDownloader
@@ -20,6 +21,16 @@ func New(p *pieceio.Piece) *Piece {
 		AllowedFastPeers: make(map[*peer.Peer]struct{}),
 		RequestedPeers:   make(map[*peer.Peer]*piecedownloader.PieceDownloader),
 	}
+}
+
+func (p *Piece) RunningDownloads() int {
+	n := len(p.RequestedPeers)
+	for pe := range p.RequestedPeers {
+		if pe.Snubbed {
+			n--
+		}
+	}
+	return n
 }
 
 type ByAvailability []*Piece
