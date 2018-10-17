@@ -289,6 +289,9 @@ func (t *Torrent) dialAddresses() {
 	for len(t.outgoingPeers)+len(t.outgoingHandshakers) < maxPeerDial {
 		addr := t.addrList.Pop()
 		if addr == nil {
+			for _, an := range t.announcers {
+				an.Trigger()
+			}
 			break
 		}
 		ip := addr.IP.String()

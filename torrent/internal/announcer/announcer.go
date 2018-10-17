@@ -10,7 +10,10 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/tracker"
 )
 
-const stopEventTimeout = 5 * time.Second
+const (
+	stopEventTimeout    = 5 * time.Second
+	minAnnounceInterval = time.Minute
+)
 
 type Announcer struct {
 	url          string
@@ -21,6 +24,8 @@ type Announcer struct {
 	backoff      backoff.BackOff
 	nextAnnounce time.Duration
 	requests     chan *Request
+	lastAnnounce time.Time
+	triggerC     chan struct{}
 	closeC       chan struct{}
 	doneC        chan struct{}
 }
@@ -40,6 +45,7 @@ func New(trk tracker.Tracker, requests chan *Request, completedC chan struct{}, 
 		completedC: completedC,
 		newPeers:   newPeers,
 		requests:   requests,
+		triggerC:   make(chan struct{}),
 		closeC:     make(chan struct{}),
 		doneC:      make(chan struct{}),
 		backoff: &backoff.ExponentialBackOff{
@@ -58,6 +64,13 @@ func (a *Announcer) Close() {
 	<-a.doneC
 }
 
+func (a *Announcer) Trigger() {
+	select {
+	case a.triggerC <- struct{}{}:
+	default:
+	}
+}
+
 func (a *Announcer) Run() {
 	defer close(a.doneC)
 
@@ -73,6 +86,10 @@ func (a *Announcer) Run() {
 		select {
 		case <-time.After(a.nextAnnounce):
 			a.announce(ctx, tracker.EventNone)
+		case <-a.triggerC:
+			if time.Since(a.lastAnnounce) > minAnnounceInterval {
+				a.announce(ctx, tracker.EventNone)
+			}
 		case <-a.completedC:
 			a.announce(ctx, tracker.EventCompleted)
 			a.completedC = nil
@@ -98,6 +115,7 @@ func (a *Announcer) announce(ctx context.Context, e tracker.Event) {
 	case <-ctx.Done():
 		return
 	}
+	a.lastAnnounce = time.Now()
 	r, err := a.tracker.Announce(ctx, resp.Transfer, e)
 	if err == context.Canceled {
 		return
