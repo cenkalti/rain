@@ -135,7 +135,7 @@ func (t *UDPTracker) dial(ctx context.Context) error {
 func (t *UDPTracker) readLoop() {
 	// Read buffer must be big enough to hold a UDP packet of maximum expected size.
 	// Current value is: 320 = 20 + 50*6 (AnnounceResponse with 50 peers)
-	buf := make([]byte, 320)
+	buf := make([]byte, 20+6*tracker.NumWant)
 	for {
 		n, err := t.conn.Read(buf)
 		if err != nil {

@@ -13,7 +13,7 @@ import (
 )
 
 // NumWant is the number of peers we want from trackers.
-const NumWant = 50
+const NumWant = 100
 
 type Tracker interface {
 	// Announce transfer to the tracker.
