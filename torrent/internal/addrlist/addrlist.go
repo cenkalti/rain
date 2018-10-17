@@ -34,7 +34,7 @@ func (d *AddrList) Len() int {
 	return len(d.peerAddrs)
 }
 
-func (d *AddrList) Pop() net.Addr {
+func (d *AddrList) Pop() *net.TCPAddr {
 	if len(d.peerAddrs) == 0 {
 		return nil
 	}

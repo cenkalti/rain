@@ -5,6 +5,7 @@ import (
 	"crypto/sha1" // nolint: gosec
 	"errors"
 	"fmt"
+	"net"
 
 	"github.com/cenkalti/rain/torrent/internal/announcer"
 	"github.com/cenkalti/rain/torrent/internal/bitfield"
@@ -120,8 +121,15 @@ func (t *Torrent) run() {
 				conn.Close()
 				break
 			}
+			ip := conn.RemoteAddr().(*net.TCPAddr).IP.String()
+			if _, ok := t.connectedPeerIPs[ip]; ok {
+				t.log.Debugln("received duplicate connection from same IP: ", conn.RemoteAddr().String())
+				conn.Close()
+				break
+			}
 			h := incominghandshaker.NewIncoming(conn, t.peerID, t.sKeyHash, t.infoHash, t.incomingHandshakerResultC, t.log)
 			t.incomingHandshakers[conn.RemoteAddr().String()] = h
+			t.connectedPeerIPs[ip] = struct{}{}
 			go h.Run()
 		case req := <-t.announcerRequestC:
 			tr := t.announcerFields()
@@ -218,12 +226,14 @@ func (t *Torrent) run() {
 			delete(t.incomingHandshakers, res.Conn.RemoteAddr().String())
 			if res.Error != nil {
 				res.Conn.Close()
+				delete(t.connectedPeerIPs, res.Conn.RemoteAddr().(*net.TCPAddr).IP.String())
 				break
 			}
 			t.startPeer(res.Peer, t.incomingPeers)
 		case res := <-t.outgoingHandshakerResultC:
 			delete(t.outgoingHandshakers, res.Addr.String())
 			if res.Error != nil {
+				delete(t.connectedPeerIPs, res.Addr.IP.String())
 				t.dialAddresses()
 				break
 			}
@@ -249,6 +259,7 @@ func (t *Torrent) closePeer(pe *peer.Peer) {
 	delete(t.outgoingPeers, pe)
 	delete(t.peersSnubbed, pe)
 	delete(t.peerIDs, pe.ID())
+	delete(t.connectedPeerIPs, pe.Conn.IP())
 	for i := range t.pieces {
 		delete(t.pieces[i].HavingPeers, pe)
 		delete(t.pieces[i].AllowedFastPeers, pe)
@@ -280,8 +291,13 @@ func (t *Torrent) dialAddresses() {
 		if addr == nil {
 			break
 		}
+		ip := addr.IP.String()
+		if _, ok := t.connectedPeerIPs[ip]; ok {
+			continue
+		}
 		h := outgoinghandshaker.NewOutgoing(addr, t.peerID, t.infoHash, t.outgoingHandshakerResultC, t.log)
 		t.outgoingHandshakers[addr.String()] = h
+		t.connectedPeerIPs[ip] = struct{}{}
 		go h.Run()
 	}
 }
@@ -301,6 +317,7 @@ func (t *Torrent) startPeer(p *peerconn.Conn, peers map[*peer.Peer]struct{}) {
 	if ok {
 		p.Logger().Errorln("peer with same id already connected:", p.ID())
 		p.CloseConn()
+		t.dialAddresses()
 		return
 	}
 	t.peerIDs[p.ID()] = struct{}{}

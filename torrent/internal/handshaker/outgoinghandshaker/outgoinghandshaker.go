@@ -11,7 +11,7 @@ import (
 )
 
 type OutgoingHandshaker struct {
-	addr     net.Addr
+	addr     *net.TCPAddr
 	peerID   [20]byte
 	infoHash [20]byte
 	resultC  chan Result
@@ -22,11 +22,11 @@ type OutgoingHandshaker struct {
 
 type Result struct {
 	Peer  *peerconn.Conn
-	Addr  net.Addr
+	Addr  *net.TCPAddr
 	Error error
 }
 
-func NewOutgoing(addr net.Addr, peerID, infoHash [20]byte, resultC chan Result, l logger.Logger) *OutgoingHandshaker {
+func NewOutgoing(addr *net.TCPAddr, peerID, infoHash [20]byte, resultC chan Result, l logger.Logger) *OutgoingHandshaker {
 	return &OutgoingHandshaker{
 		addr:     addr,
 		peerID:   peerID,

@@ -170,6 +170,9 @@ type Torrent struct {
 	bytesDownloaded int64
 	bytesWasted     int64
 
+	// Holds connected peer IPs so we don't dial/accept multiple connections to/from same IP.
+	connectedPeerIPs map[string]struct{}
+
 	log logger.Logger
 }
 
@@ -347,6 +350,7 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		allocatorResultC:          make(chan allocator.Result),
 		verifierProgressC:         make(chan verifier.Progress),
 		verifierResultC:           make(chan verifier.Result),
+		connectedPeerIPs:          make(map[string]struct{}),
 	}
 	copy(d.peerID[:], peerIDPrefix)
 	_, err := rand.Read(d.peerID[len(peerIDPrefix):]) // nolint: gosec
