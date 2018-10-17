@@ -109,13 +109,13 @@ func (a *Announcer) announce(ctx context.Context, e tracker.Event) {
 			a.log.Errorln("announce error:", err)
 		}
 		a.nextAnnounce = a.backoff.NextBackOff()
-	} else {
-		a.backoff.Reset()
-		a.nextAnnounce = r.Interval
-		select {
-		case a.newPeers <- r.Peers:
-		case <-ctx.Done():
-		}
+		return
+	}
+	a.backoff.Reset()
+	a.nextAnnounce = r.Interval
+	select {
+	case a.newPeers <- r.Peers:
+	case <-ctx.Done():
 	}
 }
 
