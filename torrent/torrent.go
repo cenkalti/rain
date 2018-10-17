@@ -37,9 +37,9 @@ import (
 )
 
 const (
-	maxPeerDial            = 40
-	maxPeerAccept          = 40
-	parallelPieceDownloads = 25 // running downloads, snubbed and choked peers don't count
+	maxPeerDial            = 25
+	maxPeerAccept          = 25
+	parallelPieceDownloads = 50 // running downloads, snubbed and choked peers don't count
 	parallelInfoDownloads  = 1  // running downloads, snubbed peers don't count
 )
 
