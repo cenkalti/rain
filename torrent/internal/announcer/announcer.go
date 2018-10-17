@@ -10,7 +10,7 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/tracker"
 )
 
-const stopEventTimeout = time.Minute
+const stopEventTimeout = 5 * time.Second
 
 type Announcer struct {
 	url          string
