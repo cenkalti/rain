@@ -2,6 +2,7 @@ package torrent
 
 import (
 	"github.com/cenkalti/rain/torrent/internal/announcer"
+	"github.com/cenkalti/rain/torrent/internal/tracker"
 )
 
 func (t *Torrent) stop(err error) {
@@ -70,7 +71,13 @@ func (t *Torrent) stop(err error) {
 	// Then start another announcer to announce Stopped event to the trackers.
 	// The torrent enters "Stopping" state.
 	// This announcer times out in 5 seconds. After it's done the torrent is in "Stopped" status.
-	t.stoppedEventAnnouncer = announcer.NewStopAnnouncer(t.trackersInstances, t.announcerFields(), t.announcersStoppedC, t.log)
+	trackers := make([]tracker.Tracker, 0, len(t.announcers))
+	for _, an := range t.announcers {
+		if an.HasAnnounced {
+			trackers = append(trackers, an.Tracker)
+		}
+	}
+	t.stoppedEventAnnouncer = announcer.NewStopAnnouncer(trackers, t.announcerFields(), t.announcersStoppedC, t.log)
 	go t.stoppedEventAnnouncer.Run()
 }
 

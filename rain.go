@@ -107,10 +107,10 @@ func handleBeforeCommand(c *cli.Context) error {
 		if err != nil {
 			log.Fatal("could not create log file: ", err)
 		}
-		logger.Handler = log.NewFileHandler(f)
+		logger.SetHandler(log.NewFileHandler(f))
 	}
 	if c.GlobalBool("debug") {
-		logger.Handler.SetLevel(log.DEBUG)
+		logger.SetLevel(log.DEBUG)
 	}
 	return nil
 }
@@ -162,23 +162,26 @@ func handleDownload(c *cli.Context) error {
 	sigC := make(chan os.Signal, 1)
 	signal.Notify(sigC, syscall.SIGINT, syscall.SIGTERM)
 
+	completeC := t.NotifyComplete()
+	errC := t.NotifyError()
 	for {
 		select {
-		case <-t.NotifyComplete():
+		case <-completeC:
+			completeC = nil
 			if !c.Bool("seed") {
 				t.Stop()
 				continue
 			}
 		case <-sigC:
 			t.Stop()
-		case err = <-t.NotifyError():
+		case err = <-errC:
 			return err
 		}
 	}
 }
 
 func printStats(t *torrent.Torrent) {
-	for range time.Tick(100 * time.Millisecond) {
+	for range time.Tick(1000 * time.Millisecond) {
 		b, err2 := json.MarshalIndent(t.Stats(), "", "  ")
 		if err2 != nil {
 			log.Fatal(err2)

@@ -16,14 +16,15 @@ const (
 )
 
 type Announcer struct {
+	Tracker      tracker.Tracker
 	log          logger.Logger
 	completedC   chan struct{}
 	newPeers     chan []*net.TCPAddr
-	tracker      tracker.Tracker
 	backoff      backoff.BackOff
 	nextAnnounce time.Duration
 	requests     chan *Request
 	lastAnnounce time.Time
+	HasAnnounced bool
 	triggerC     chan struct{}
 	closeC       chan struct{}
 	doneC        chan struct{}
@@ -39,7 +40,7 @@ type Response struct {
 
 func New(trk tracker.Tracker, requests chan *Request, completedC chan struct{}, newPeers chan []*net.TCPAddr, l logger.Logger) *Announcer {
 	return &Announcer{
-		tracker:    trk,
+		Tracker:    trk,
 		log:        l,
 		completedC: completedC,
 		newPeers:   newPeers,
@@ -114,19 +115,12 @@ func (a *Announcer) announce(ctx context.Context, e tracker.Event) {
 		return
 	}
 	a.lastAnnounce = time.Now()
-	r, err := a.tracker.Announce(ctx, resp.Transfer, e)
-	if err == context.Canceled {
-		return
-	}
+	r, err := callAnnounce(ctx, a.Tracker, resp.Transfer, e, a.log)
 	if err != nil {
-		if _, ok := err.(*net.OpError); ok {
-			a.log.Debugln("net operation error:", err)
-		} else {
-			a.log.Errorln("announce error:", err)
-		}
 		a.nextAnnounce = a.backoff.NextBackOff()
 		return
 	}
+	a.HasAnnounced = true
 	a.backoff.Reset()
 	a.nextAnnounce = r.Interval
 	select {
@@ -134,6 +128,21 @@ func (a *Announcer) announce(ctx context.Context, e tracker.Event) {
 	case <-a.closeC:
 	case <-ctx.Done():
 	}
+}
+
+func callAnnounce(ctx context.Context, trk tracker.Tracker, t tracker.Transfer, e tracker.Event, l logger.Logger) (*tracker.AnnounceResponse, error) {
+	r, err := trk.Announce(ctx, t, e)
+	if err == context.Canceled {
+		return nil, err
+	}
+	if err != nil {
+		if _, ok := err.(*net.OpError); ok {
+			l.Debugln("net operation error:", err)
+		} else {
+			l.Errorln("announce error:", err)
+		}
+	}
+	return r, err
 }
 
 type StopAnnouncer struct {
@@ -173,18 +182,8 @@ func (a *StopAnnouncer) Run() {
 	doneC := make(chan struct{})
 	for _, trk := range a.trackers {
 		go func(trk tracker.Tracker) {
-			defer func() { doneC <- struct{}{} }()
-			_, err := trk.Announce(ctx, a.transfer, tracker.EventStopped)
-			if err == context.Canceled {
-				return
-			}
-			if err != nil {
-				if _, ok := err.(*net.OpError); ok {
-					a.log.Debugln("net operation error:", err)
-				} else {
-					a.log.Errorln("announce error:", err)
-				}
-			}
+			callAnnounce(ctx, trk, a.transfer, tracker.EventStopped, a.log)
+			doneC <- struct{}{}
 		}(trk)
 	}
 	for range a.trackers {
