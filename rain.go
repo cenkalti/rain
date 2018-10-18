@@ -144,34 +144,33 @@ func handleDownload(c *cli.Context) error {
 		log.Fatal(err)
 	}
 
+	go printStats(t)
+	t.Start()
+
 	sigC := make(chan os.Signal, 1)
 	signal.Notify(sigC, syscall.SIGINT, syscall.SIGTERM)
 
-	t.Start()
-
-	go func() {
-		for range time.Tick(100 * time.Millisecond) {
-			b, err2 := json.MarshalIndent(t.Stats(), "", "  ")
-			if err2 != nil {
-				log.Fatal(err2)
-			}
-			fmt.Println(string(b))
-		}
-	}()
-
-	select {
-	case <-t.NotifyComplete():
-		if !c.Bool("seed") {
-			return nil
-		}
+	for {
 		select {
+		case <-t.NotifyComplete():
+			if !c.Bool("seed") {
+				t.Stop()
+				continue
+			}
 		case <-sigC:
+			t.Stop()
 		case err = <-t.NotifyError():
 			return err
 		}
-	case <-sigC:
-	case err = <-t.NotifyError():
-		return err
 	}
-	return nil
+}
+
+func printStats(t *torrent.Torrent) {
+	for range time.Tick(10 * time.Millisecond) {
+		b, err2 := json.MarshalIndent(t.Stats(), "", "  ")
+		if err2 != nil {
+			log.Fatal(err2)
+		}
+		fmt.Println(string(b))
+	}
 }
