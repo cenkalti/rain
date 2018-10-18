@@ -19,3 +19,13 @@ Features
 - [ ] RPC server
 - [ ] Webseed
 - [ ] IP blocklist
+
+Installing
+----------
+
+`go get github.com/cenkalti/rain`
+
+Usage
+-----
+
+`rain download <torrent file or magnet link>`
