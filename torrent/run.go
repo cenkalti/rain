@@ -44,10 +44,10 @@ func (t *Torrent) run() {
 		case <-t.stopCommandC:
 			t.stop(nil)
 		case <-t.announcersStoppedC:
-			t.log.Debug("announcers are stopped")
 			t.stoppedEventAnnouncer = nil
 			t.errC <- t.lastError
 			t.errC = nil
+			t.log.Info("torrent has stopped")
 		case cmd := <-t.notifyErrorCommandC:
 			cmd.errCC <- t.errC
 		case req := <-t.statsCommandC:

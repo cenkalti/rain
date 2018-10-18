@@ -43,6 +43,10 @@ func main() {
 			Name:  "debug, d",
 			Usage: "enable debug log",
 		},
+		cli.StringFlag{
+			Name:  "logfile",
+			Usage: "write log to `FILE`",
+		},
 	}
 	app.Before = handleBeforeCommand
 	app.After = handleAfterCommand
@@ -86,9 +90,6 @@ func handleBeforeCommand(c *cli.Context) error {
 			log.Fatal("could not start CPU profile: ", err)
 		}
 	}
-	if c.GlobalBool("debug") {
-		logger.SetLogLevel(log.DEBUG)
-	}
 	configPath := c.GlobalString("config")
 	if configPath != "" {
 		cp, err := homedir.Expand(configPath)
@@ -99,6 +100,17 @@ func handleBeforeCommand(c *cli.Context) error {
 		if err != nil {
 			log.Fatal(err)
 		}
+	}
+	logFile := c.GlobalString("logfile")
+	if logFile != "" {
+		f, err := os.Create(logFile)
+		if err != nil {
+			log.Fatal("could not create log file: ", err)
+		}
+		logger.Handler = log.NewFileHandler(f)
+	}
+	if c.GlobalBool("debug") {
+		logger.Handler.SetLevel(log.DEBUG)
 	}
 	return nil
 }
@@ -166,7 +178,7 @@ func handleDownload(c *cli.Context) error {
 }
 
 func printStats(t *torrent.Torrent) {
-	for range time.Tick(10 * time.Millisecond) {
+	for range time.Tick(100 * time.Millisecond) {
 		b, err2 := json.MarshalIndent(t.Stats(), "", "  ")
 		if err2 != nil {
 			log.Fatal(err2)

@@ -31,7 +31,7 @@ var (
 )
 
 func init() {
-	logger.SetLogLevel(log.DEBUG)
+	logger.Handler.SetLevel(log.DEBUG)
 }
 
 func newFileStorage(t *testing.T, dir string) *filestorage.FileStorage {

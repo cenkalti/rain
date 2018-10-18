@@ -9,14 +9,12 @@ import (
 	"github.com/cenkalti/log"
 )
 
-var DefaultLogHandler log.Handler
-
-func SetLogLevel(l log.Level) { DefaultLogHandler.SetLevel(l) }
+var Handler log.Handler
 
 func init() {
 	h := log.NewFileHandler(os.Stderr)
 	h.SetFormatter(logFormatter{})
-	DefaultLogHandler = h
+	Handler = h
 }
 
 type Logger log.Logger
@@ -24,7 +22,7 @@ type Logger log.Logger
 func New(name string) Logger {
 	logger := log.NewLogger(name)
 	logger.SetLevel(log.DEBUG) // forward all messages to handler
-	logger.SetHandler(DefaultLogHandler)
+	logger.SetHandler(Handler)
 	return logger
 }
 
