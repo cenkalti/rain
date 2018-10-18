@@ -95,8 +95,14 @@ type Torrent struct {
 	// This channel is closed once all pieces are downloaded and verified.
 	completeC chan struct{}
 
+	// True after all pieces are download, verified and written to disk.
+	completed bool
+
 	// If any unrecoverable error occurs, it will be sent to this channel and download will be stopped.
 	errC chan error
+
+	// Contains the last error sent to errC.
+	lastError error
 
 	// When Stop() is called, it will close this channel to signal run() function to stop.
 	closeC chan struct{}
@@ -131,8 +137,12 @@ type Torrent struct {
 	// Tracker implementations for giving to announcers.
 	trackersInstances []tracker.Tracker
 
-	// Announces the status of torrent to trackers to get peer addresses.
+	// Announces the status of torrent to trackers to get peer addresses periodically.
 	announcers []*announcer.Announcer
+
+	// This announcer announces Stopped event to the trackers after
+	// all periodical trackers are closed.
+	stoppedEventAnnouncer *announcer.StopAnnouncer
 
 	// List of peers in handshake state.
 	incomingHandshakers map[string]*incominghandshaker.IncomingHandshaker
@@ -172,6 +182,9 @@ type Torrent struct {
 
 	// Holds connected peer IPs so we don't dial/accept multiple connections to/from same IP.
 	connectedPeerIPs map[string]struct{}
+
+	// A signal sent to run() loop when announcers are stopped.
+	announcersStoppedC chan struct{}
 
 	log logger.Logger
 }
@@ -351,6 +364,7 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		verifierProgressC:         make(chan verifier.Progress),
 		verifierResultC:           make(chan verifier.Result),
 		connectedPeerIPs:          make(map[string]struct{}),
+		announcersStoppedC:        make(chan struct{}),
 	}
 	copy(d.peerID[:], peerIDPrefix)
 	_, err := rand.Read(d.peerID[len(peerIDPrefix):]) // nolint: gosec

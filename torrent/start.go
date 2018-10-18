@@ -11,12 +11,20 @@ import (
 )
 
 func (t *Torrent) start() {
-	if t.running() {
+	// Do not start if already started.
+	if t.errC != nil {
 		return
+	}
+
+	// Stop announcing Stopped event if in "Stopping" state.
+	if t.stoppedEventAnnouncer != nil {
+		t.stoppedEventAnnouncer.Close()
+		t.stoppedEventAnnouncer = nil
 	}
 
 	t.log.Info("starting torrent")
 	t.errC = make(chan error, 1)
+	t.lastError = nil
 
 	if t.info != nil {
 		if t.data != nil {

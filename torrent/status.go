@@ -13,6 +13,7 @@ const (
 	Verifying
 	Downloading
 	Seeding
+	Stopping
 )
 
 var statusStrings = map[Status]string{
@@ -22,6 +23,7 @@ var statusStrings = map[Status]string{
 	3: "Verifying",
 	4: "Downloading",
 	5: "Seeding",
+	6: "Stopping",
 }
 
 func (m Status) String() string {
@@ -37,8 +39,11 @@ func (m Status) MarshalText() ([]byte, error) {
 }
 
 func (t *Torrent) status() Status {
-	if !t.running() {
+	if t.errC == nil {
 		return Stopped
+	}
+	if t.stoppedEventAnnouncer != nil {
+		return Stopping
 	}
 	if t.allocator != nil {
 		return Allocating
@@ -46,24 +51,11 @@ func (t *Torrent) status() Status {
 	if t.verifier != nil {
 		return Verifying
 	}
-	if t.completed() {
+	if t.completed {
 		return Seeding
 	}
 	if t.info == nil {
 		return DownloadingMetadata
 	}
 	return Downloading
-}
-
-func (t *Torrent) running() bool {
-	return t.errC != nil
-}
-
-func (t *Torrent) completed() bool {
-	select {
-	case <-t.completeC:
-		return true
-	default:
-		return false
-	}
 }

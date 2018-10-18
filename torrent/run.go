@@ -24,16 +24,17 @@ var errClosed = errors.New("torrent is closed")
 
 func (t *Torrent) close() {
 	t.stop(errClosed)
-
-	if t.data != nil {
-		t.data.Close()
+	if t.stoppedEventAnnouncer != nil {
+		t.stoppedEventAnnouncer.Close()
+	}
+	for _, tr := range t.trackersInstances {
+		tr.Close()
 	}
 }
 
 func (t *Torrent) run() {
 	defer close(t.doneC)
 	defer t.close()
-
 	for {
 		select {
 		case <-t.closeC:
@@ -41,7 +42,12 @@ func (t *Torrent) run() {
 		case <-t.startCommandC:
 			t.start()
 		case <-t.stopCommandC:
-			t.stop(errors.New("torrent is stopped"))
+			t.stop(nil)
+		case <-t.announcersStoppedC:
+			t.log.Debug("announcers are stopped")
+			t.stoppedEventAnnouncer = nil
+			t.errC <- t.lastError
+			t.errC = nil
 		case cmd := <-t.notifyErrorCommandC:
 			cmd.errCC <- t.errC
 		case req := <-t.statsCommandC:
@@ -283,7 +289,7 @@ func (t *Torrent) closeInfoDownloader(id *infodownloader.InfoDownloader) {
 }
 
 func (t *Torrent) dialAddresses() {
-	if t.completed() {
+	if t.completed {
 		return
 	}
 	for len(t.outgoingPeers)+len(t.outgoingHandshakers) < maxPeerDial {
@@ -378,11 +384,12 @@ func (t *Torrent) unchokePeer(pe *peer.Peer) {
 }
 
 func (t *Torrent) checkCompletion() {
-	if t.completed() {
+	if t.completed {
 		return
 	}
 	if t.bitfield.All() {
 		t.log.Info("download completed")
+		t.completed = true
 		close(t.completeC)
 		for _, h := range t.outgoingHandshakers {
 			h.Close()

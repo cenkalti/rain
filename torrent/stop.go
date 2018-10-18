@@ -1,16 +1,20 @@
 package torrent
 
+import (
+	"github.com/cenkalti/rain/torrent/internal/announcer"
+)
+
 func (t *Torrent) stop(err error) {
-	if !t.running() {
+	s := t.status()
+	if s == Stopping || s == Stopped {
 		return
 	}
 
 	t.log.Info("stopping torrent")
-	if err != nil && err != errClosed {
+	t.lastError = err
+	if err != nil {
 		t.log.Error(err)
 	}
-	t.errC <- err
-	t.errC = nil
 
 	t.log.Debugln("stopping acceptor")
 	t.stopAcceptor()
@@ -24,23 +28,24 @@ func (t *Torrent) stop(err error) {
 	t.log.Debugln("stopping info downloaders")
 	t.stopInfoDownloaders()
 
-	t.log.Debugln("stopping announcers")
-	for _, an := range t.announcers {
-		an.Close()
-	}
-	t.announcers = nil
-
 	t.log.Debugln("stopping unchoke timers")
 	t.stopUnchokeTimers()
 
+	// Closing data is necessary to cancel ongoing IO operations on files.
+	t.log.Debugln("closing open files")
+	t.closeData()
+
+	// Data must be closed before closing Allocator.
 	t.log.Debugln("stopping allocator")
 	if t.allocator != nil {
 		t.allocator.Close()
 		t.allocator = nil
 	}
 
+	// Data must be closed before closing Verifier.
 	t.log.Debugln("stopping verifier")
 	if t.verifier != nil {
+		// TODO add close method to Verifier
 		t.verifier.Stop()
 		<-t.verifier.Done()
 		t.verifier = nil
@@ -50,11 +55,37 @@ func (t *Torrent) stop(err error) {
 	for _, oh := range t.outgoingHandshakers {
 		oh.Close()
 	}
+	// TODO reset t.outgoingHandshakers struct
 
 	t.log.Debugln("closing incoming handshakers")
 	for _, ih := range t.incomingHandshakers {
 		ih.Close()
 	}
+	// TODO reset t.incomingHandshakers struct
+
+	// Stop periodical announcers first.
+	t.log.Debugln("stopping announcers")
+	t.stopPeriodicalAnnouncers()
+
+	// Then start another announcer to announce Stopped event to the trackers.
+	// The torrent enters "Stopping" state.
+	// This announcer times out in 5 seconds. After it's done the torrent is in "Stopped" status.
+	t.stoppedEventAnnouncer = announcer.NewStopAnnouncer(t.trackersInstances, t.announcerFields(), t.announcersStoppedC, t.log)
+	go t.stoppedEventAnnouncer.Run()
+}
+
+func (t *Torrent) closeData() {
+	if t.data != nil {
+		t.data.Close()
+		t.data = nil
+	}
+}
+
+func (t *Torrent) stopPeriodicalAnnouncers() {
+	for _, an := range t.announcers {
+		an.Close()
+	}
+	t.announcers = nil
 }
 
 func (t *Torrent) stopAcceptor() {

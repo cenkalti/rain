@@ -9,6 +9,8 @@ type Stats struct {
 	// Status of the torrent.
 	Status Status
 
+	Error error
+
 	Pieces struct {
 		Have    uint32
 		Missing uint32
@@ -97,6 +99,7 @@ type Stats struct {
 func (t *Torrent) stats() Stats {
 	var stats Stats
 	stats.Status = t.status()
+	stats.Error = t.lastError
 	stats.Peers.Ready = t.addrList.Len()
 	stats.Peers.Handshake.Incoming = len(t.incomingHandshakers)
 	stats.Peers.Handshake.Outgoing = len(t.outgoingHandshakers)
