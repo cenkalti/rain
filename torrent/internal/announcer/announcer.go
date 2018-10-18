@@ -16,7 +16,6 @@ const (
 )
 
 type Announcer struct {
-	url          string
 	log          logger.Logger
 	completedC   chan struct{}
 	newPeers     chan []*net.TCPAddr
