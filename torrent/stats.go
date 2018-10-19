@@ -9,6 +9,7 @@ type Stats struct {
 	// Status of the torrent.
 	Status Status
 
+	// Contains the error if torrent is stopped unexpectedly.
 	Error error
 
 	Pieces struct {
@@ -33,6 +34,9 @@ type Stats struct {
 		// Because some pieces may be downloaded more than once, this number may be greater than BytesCompleted returns.
 		// TODO put into resume
 		Downloaded int64
+
+		// Protocol messages are not included, only piece data is counted.
+		Uploaded int64
 
 		Wasted int64
 
@@ -129,6 +133,7 @@ func (t *Torrent) stats() Stats {
 		stats.Pieces.Missing = stats.Pieces.Total - stats.Pieces.Have
 	}
 	stats.Bytes.Downloaded = t.bytesDownloaded
+	stats.Bytes.Uploaded = t.bytesUploaded
 	stats.Bytes.Wasted = t.bytesWasted
 	return stats
 }

@@ -14,24 +14,26 @@ import (
 const keepAlivePeriod = 2 * time.Minute
 
 type PeerWriter struct {
-	conn       net.Conn
-	queueC     chan peerprotocol.Message
-	writeQueue []peerprotocol.Message
-	writeC     chan peerprotocol.Message
-	log        logger.Logger
-	stopC      chan struct{}
-	doneC      chan struct{}
+	conn                  net.Conn
+	queueC                chan peerprotocol.Message
+	writeQueue            []peerprotocol.Message
+	writeC                chan peerprotocol.Message
+	uploadedBytesCounterC chan int64
+	log                   logger.Logger
+	stopC                 chan struct{}
+	doneC                 chan struct{}
 }
 
-func New(conn net.Conn, l logger.Logger) *PeerWriter {
+func New(conn net.Conn, l logger.Logger, uploadedBytesCounterC chan int64) *PeerWriter {
 	return &PeerWriter{
-		conn:       conn,
-		queueC:     make(chan peerprotocol.Message),
-		writeQueue: make([]peerprotocol.Message, 0),
-		writeC:     make(chan peerprotocol.Message),
-		log:        l,
-		stopC:      make(chan struct{}),
-		doneC:      make(chan struct{}),
+		conn:                  conn,
+		queueC:                make(chan peerprotocol.Message),
+		writeQueue:            make([]peerprotocol.Message, 0),
+		writeC:                make(chan peerprotocol.Message),
+		uploadedBytesCounterC: uploadedBytesCounterC,
+		log:                   l,
+		stopC:                 make(chan struct{}),
+		doneC:                 make(chan struct{}),
 	}
 }
 
@@ -113,7 +115,8 @@ func (p *PeerWriter) messageWriter() {
 			}
 			_ = binary.Write(buf, binary.BigEndian, &header)
 			buf.Write(payload)
-			_, err = p.conn.Write(buf.Bytes())
+			n, err := p.conn.Write(buf.Bytes())
+			p.countUploadBytes(msg, n)
 			if err != nil {
 				p.log.Errorf("cannot write message [%v]: %s", msg.ID(), err.Error())
 				p.conn.Close()
@@ -128,6 +131,21 @@ func (p *PeerWriter) messageWriter() {
 			}
 		case <-p.stopC:
 			return
+		}
+	}
+}
+
+func (p *PeerWriter) countUploadBytes(msg peerprotocol.Message, n int) {
+	if _, ok := msg.(Piece); ok {
+		uploaded := int64(n) - 13
+		if uploaded < 0 {
+			uploaded = 0
+		}
+		if uploaded > 0 {
+			select {
+			case p.uploadedBytesCounterC <- uploaded:
+			case <-p.stopC:
+			}
 		}
 	}
 }

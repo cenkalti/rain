@@ -52,6 +52,8 @@ func (t *Torrent) run() {
 			cmd.errCC <- t.errC
 		case req := <-t.statsCommandC:
 			req.Response <- t.stats()
+		case n := <-t.uploadByteCounterC:
+			t.bytesUploaded += n
 		case <-t.allocatorProgressC:
 			// TODO handle allocation progress
 		case res := <-t.allocatorResultC:
@@ -133,7 +135,7 @@ func (t *Torrent) run() {
 				conn.Close()
 				break
 			}
-			h := incominghandshaker.NewIncoming(conn, t.peerID, t.sKeyHash, t.infoHash, t.incomingHandshakerResultC, t.log)
+			h := incominghandshaker.NewIncoming(conn, t.peerID, t.sKeyHash, t.infoHash, t.incomingHandshakerResultC, t.log, t.uploadByteCounterC)
 			t.incomingHandshakers[conn.RemoteAddr().String()] = h
 			t.connectedPeerIPs[ip] = struct{}{}
 			go h.Run()
@@ -304,7 +306,7 @@ func (t *Torrent) dialAddresses() {
 		if _, ok := t.connectedPeerIPs[ip]; ok {
 			continue
 		}
-		h := outgoinghandshaker.NewOutgoing(addr, t.peerID, t.infoHash, t.outgoingHandshakerResultC, t.log)
+		h := outgoinghandshaker.NewOutgoing(addr, t.peerID, t.infoHash, t.outgoingHandshakerResultC, t.log, t.uploadByteCounterC)
 		t.outgoingHandshakers[addr.String()] = h
 		t.connectedPeerIPs[ip] = struct{}{}
 		go h.Run()

@@ -11,14 +11,15 @@ import (
 )
 
 type IncomingHandshaker struct {
-	conn     net.Conn
-	peerID   [20]byte
-	sKeyHash [20]byte
-	infoHash [20]byte
-	resultC  chan Result
-	closeC   chan struct{}
-	doneC    chan struct{}
-	log      logger.Logger
+	conn                  net.Conn
+	peerID                [20]byte
+	sKeyHash              [20]byte
+	infoHash              [20]byte
+	resultC               chan Result
+	uploadedBytesCounterC chan int64
+	closeC                chan struct{}
+	doneC                 chan struct{}
+	log                   logger.Logger
 }
 
 type Result struct {
@@ -27,16 +28,17 @@ type Result struct {
 	Error error
 }
 
-func NewIncoming(conn net.Conn, peerID, sKeyHash, infoHash [20]byte, resultC chan Result, l logger.Logger) *IncomingHandshaker {
+func NewIncoming(conn net.Conn, peerID, sKeyHash, infoHash [20]byte, resultC chan Result, l logger.Logger, uploadedBytesCounterC chan int64) *IncomingHandshaker {
 	return &IncomingHandshaker{
-		conn:     conn,
-		peerID:   peerID,
-		sKeyHash: sKeyHash,
-		infoHash: infoHash,
-		resultC:  resultC,
-		closeC:   make(chan struct{}),
-		doneC:    make(chan struct{}),
-		log:      l,
+		conn:                  conn,
+		peerID:                peerID,
+		sKeyHash:              sKeyHash,
+		infoHash:              infoHash,
+		resultC:               resultC,
+		uploadedBytesCounterC: uploadedBytesCounterC,
+		closeC:                make(chan struct{}),
+		doneC:                 make(chan struct{}),
+		log:                   l,
 	}
 }
 
@@ -81,7 +83,7 @@ func (h *IncomingHandshaker) Run() {
 	peerbf := bitfield.NewBytes(peerExtensions[:], 64)
 	extensions := ourbf.And(peerbf)
 
-	p := peerconn.New(conn, peerID, extensions, log)
+	p := peerconn.New(conn, peerID, extensions, log, h.uploadedBytesCounterC)
 	select {
 	case h.resultC <- Result{Conn: h.conn, Peer: p}:
 	case <-h.closeC:

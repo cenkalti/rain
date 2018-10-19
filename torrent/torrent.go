@@ -178,6 +178,7 @@ type Torrent struct {
 	verifierResultC   chan verifier.Result
 
 	bytesDownloaded int64
+	bytesUploaded   int64
 	bytesWasted     int64
 
 	// Holds connected peer IPs so we don't dial/accept multiple connections to/from same IP.
@@ -185,6 +186,8 @@ type Torrent struct {
 
 	// A signal sent to run() loop when announcers are stopped.
 	announcersStoppedC chan struct{}
+
+	uploadByteCounterC chan int64
 
 	log logger.Logger
 }
@@ -365,6 +368,7 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		verifierResultC:           make(chan verifier.Result),
 		connectedPeerIPs:          make(map[string]struct{}),
 		announcersStoppedC:        make(chan struct{}),
+		uploadByteCounterC:        make(chan int64),
 	}
 	copy(d.peerID[:], peerIDPrefix)
 	_, err := rand.Read(d.peerID[len(peerIDPrefix):]) // nolint: gosec

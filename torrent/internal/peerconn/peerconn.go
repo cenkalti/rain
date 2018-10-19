@@ -22,7 +22,7 @@ type Conn struct {
 	doneC         chan struct{}
 }
 
-func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, l logger.Logger) *Conn {
+func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, l logger.Logger, uploadedBytesCounterC chan int64) *Conn {
 	fastExtension := extensions.Test(61)
 	extensionProtocol := extensions.Test(43)
 	return &Conn{
@@ -30,7 +30,7 @@ func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, l logger.Log
 		id:            id,
 		FastExtension: fastExtension,
 		reader:        peerreader.New(conn, l, fastExtension, extensionProtocol),
-		writer:        peerwriter.New(conn, l),
+		writer:        peerwriter.New(conn, l, uploadedBytesCounterC),
 		log:           l,
 		closeC:        make(chan struct{}),
 		doneC:         make(chan struct{}),
