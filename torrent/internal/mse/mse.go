@@ -35,6 +35,7 @@ import (
 	"time"
 )
 
+// TODO use handshake deadline, set once
 const connDeadline = 30 * time.Second
 
 const enableDebug = false
