@@ -20,6 +20,8 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/allocator"
 	"github.com/cenkalti/rain/torrent/internal/announcer"
 	"github.com/cenkalti/rain/torrent/internal/bitfield"
+	"github.com/cenkalti/rain/torrent/internal/handshaker/incominghandshaker"
+	"github.com/cenkalti/rain/torrent/internal/handshaker/outgoinghandshaker"
 	"github.com/cenkalti/rain/torrent/internal/infodownloader"
 	"github.com/cenkalti/rain/torrent/internal/magnet"
 	"github.com/cenkalti/rain/torrent/internal/metainfo"
@@ -44,16 +46,7 @@ const (
 var (
 	// http://www.bittorrent.org/beps/bep_0020.html
 	peerIDPrefix = []byte("-RN" + clientversion.Version + "-")
-
-	// We send this in handshake tell supported extensions.
-	ourExtensionsBytes [8]byte
-	ourExtensions      = bitfield.NewBytes(ourExtensionsBytes[:], 64)
 )
-
-func init() {
-	ourExtensions.Set(61) // Fast Extension (BEP 6)
-	ourExtensions.Set(43) // Extension Protocol (BEP 10)
-}
 
 // Torrent connects to peers and downloads files from swarm.
 type Torrent struct {
@@ -152,12 +145,12 @@ type Torrent struct {
 	stoppedEventAnnouncer *announcer.StopAnnouncer
 
 	// List of peers in handshake state.
-	incomingHandshakers map[*incomingHandshaker]struct{}
-	outgoingHandshakers map[*outgoingHandshaker]struct{}
+	incomingHandshakers map[string]*incominghandshaker.IncomingHandshaker
+	outgoingHandshakers map[string]*outgoinghandshaker.OutgoingHandshaker
 
 	// Handshake results are sent to these channels by handshakers.
-	incomingHandshakerResultC chan *incomingHandshaker
-	outgoingHandshakerResultC chan *outgoingHandshaker
+	incomingHandshakerResultC chan incominghandshaker.Result
+	outgoingHandshakerResultC chan outgoinghandshaker.Result
 
 	// When metadata of the torrent downloaded completely, a message is sent to this channel.
 	infoDownloaderDoneC chan *infodownloader.InfoDownloader
@@ -364,10 +357,10 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		sKeyHash:                  mse.HashSKey(spec.infoHash[:]),
 		infoDownloaderDoneC:       make(chan *infodownloader.InfoDownloader),
 		pieceDownloaderDoneC:      make(chan *piecedownloader.PieceDownloader),
-		incomingHandshakers:       make(map[*incomingHandshaker]struct{}),
-		outgoingHandshakers:       make(map[*outgoingHandshaker]struct{}),
-		incomingHandshakerResultC: make(chan *incomingHandshaker),
-		outgoingHandshakerResultC: make(chan *outgoingHandshaker),
+		incomingHandshakers:       make(map[string]*incominghandshaker.IncomingHandshaker),
+		outgoingHandshakers:       make(map[string]*outgoinghandshaker.OutgoingHandshaker),
+		incomingHandshakerResultC: make(chan incominghandshaker.Result),
+		outgoingHandshakerResultC: make(chan outgoinghandshaker.Result),
 		announcerRequestC:         make(chan *announcer.Request),
 		allocatorProgressC:        make(chan allocator.Progress),
 		allocatorResultC:          make(chan allocator.Result),

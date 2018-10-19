@@ -53,13 +53,13 @@ func (t *Torrent) stop(err error) {
 	}
 
 	t.log.Debugln("closing outgoing handshakers")
-	for oh := range t.outgoingHandshakers {
+	for _, oh := range t.outgoingHandshakers {
 		oh.Close()
 	}
 	// TODO reset t.outgoingHandshakers struct
 
 	t.log.Debugln("closing incoming handshakers")
-	for ih := range t.incomingHandshakers {
+	for _, ih := range t.incomingHandshakers {
 		ih.Close()
 	}
 	// TODO reset t.incomingHandshakers struct
