@@ -26,8 +26,6 @@ var Config struct {
 		ConnectTimeout time.Duration
 		// Time to wait for BitTorrent handshake to complete.
 		HandshakeTimeout time.Duration
-		// If no message is received in ReadTimeout (including keepalive) the connection is closed.
-		ReadTimeout time.Duration
 		// When peer has started to send piece block, if it does not send any bytes in PieceTimeout, the connection is closed.
 		PieceTimeout time.Duration
 		// When the client want to connect a peer, first it tries to do encrypted handshake.
@@ -74,7 +72,6 @@ func init() {
 	Config.Download.ParallelMetadataDownloads = 2
 	Config.Peer.ConnectTimeout = 5 * time.Second
 	Config.Peer.HandshakeTimeout = 10 * time.Second
-	Config.Peer.ReadTimeout = 2 * time.Minute
 	Config.Peer.PieceTimeout = 30 * time.Second
 	Config.Tracker.NumWant = 100
 	Config.Tracker.StoppedEventTimeout = 5 * time.Second

@@ -61,7 +61,7 @@ func (t *Torrent) startAnnouncers() {
 		return
 	}
 	for _, tr := range t.trackersInstances {
-		an := announcer.New(tr, t.announcerRequestC, t.completeC, t.addrsFromTrackers, t.log)
+		an := announcer.New(tr, Config.Tracker.NumWant, Config.Tracker.MinAnnounceInterval, t.announcerRequestC, t.completeC, t.addrsFromTrackers, t.log)
 		t.announcers = append(t.announcers, an)
 		go an.Run()
 	}
@@ -97,7 +97,7 @@ func (t *Torrent) startInfoDownloaders() {
 	if t.info != nil {
 		return
 	}
-	for len(t.infoDownloaders)-len(t.infoDownloadersSnubbed) < parallelInfoDownloads {
+	for len(t.infoDownloaders)-len(t.infoDownloadersSnubbed) < Config.Download.ParallelMetadataDownloads {
 		id := t.nextInfoDownload()
 		if id == nil {
 			break
@@ -112,7 +112,7 @@ func (t *Torrent) startPieceDownloaders() {
 	if t.bitfield == nil {
 		return
 	}
-	for len(t.pieceDownloaders)-len(t.pieceDownloadersChoked)-len(t.pieceDownloadersSnubbed) < parallelPieceDownloads {
+	for len(t.pieceDownloaders)-len(t.pieceDownloadersChoked)-len(t.pieceDownloadersSnubbed) < Config.Download.ParallelPieceDownloads {
 		pd := t.nextPieceDownload()
 		if pd == nil {
 			break

@@ -10,13 +10,10 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/tracker"
 )
 
-const (
-	stopEventTimeout    = 5 * time.Second
-	minAnnounceInterval = time.Minute
-)
-
 type Announcer struct {
 	Tracker      tracker.Tracker
+	numWant      int
+	minInterval  time.Duration
 	log          logger.Logger
 	completedC   chan struct{}
 	newPeers     chan []*net.TCPAddr
@@ -38,16 +35,18 @@ type Response struct {
 	Transfer tracker.Transfer
 }
 
-func New(trk tracker.Tracker, requests chan *Request, completedC chan struct{}, newPeers chan []*net.TCPAddr, l logger.Logger) *Announcer {
+func New(trk tracker.Tracker, numWant int, minInterval time.Duration, requests chan *Request, completedC chan struct{}, newPeers chan []*net.TCPAddr, l logger.Logger) *Announcer {
 	return &Announcer{
-		Tracker:    trk,
-		log:        l,
-		completedC: completedC,
-		newPeers:   newPeers,
-		requests:   requests,
-		triggerC:   make(chan struct{}),
-		closeC:     make(chan struct{}),
-		doneC:      make(chan struct{}),
+		Tracker:     trk,
+		numWant:     numWant,
+		minInterval: minInterval,
+		log:         l,
+		completedC:  completedC,
+		newPeers:    newPeers,
+		requests:    requests,
+		triggerC:    make(chan struct{}),
+		closeC:      make(chan struct{}),
+		doneC:       make(chan struct{}),
 		backoff: &backoff.ExponentialBackOff{
 			InitialInterval:     5 * time.Second,
 			RandomizationFactor: 0.5,
@@ -87,7 +86,7 @@ func (a *Announcer) Run() {
 		case <-time.After(a.nextAnnounce):
 			a.announce(ctx, tracker.EventNone)
 		case <-a.triggerC:
-			if time.Since(a.lastAnnounce) > minAnnounceInterval {
+			if time.Since(a.lastAnnounce) > a.minInterval {
 				a.announce(ctx, tracker.EventNone)
 			}
 		case <-a.completedC:
@@ -115,7 +114,7 @@ func (a *Announcer) announce(ctx context.Context, e tracker.Event) {
 		return
 	}
 	a.lastAnnounce = time.Now()
-	r, err := callAnnounce(ctx, a.Tracker, resp.Transfer, e, a.log)
+	r, err := callAnnounce(ctx, a.Tracker, resp.Transfer, e, a.numWant, a.log)
 	if err != nil {
 		a.nextAnnounce = a.backoff.NextBackOff()
 		return
@@ -130,8 +129,8 @@ func (a *Announcer) announce(ctx context.Context, e tracker.Event) {
 	}
 }
 
-func callAnnounce(ctx context.Context, trk tracker.Tracker, t tracker.Transfer, e tracker.Event, l logger.Logger) (*tracker.AnnounceResponse, error) {
-	r, err := trk.Announce(ctx, t, e)
+func callAnnounce(ctx context.Context, trk tracker.Tracker, t tracker.Transfer, e tracker.Event, numWant int, l logger.Logger) (*tracker.AnnounceResponse, error) {
+	r, err := trk.Announce(ctx, t, e, numWant)
 	if err == context.Canceled {
 		return nil, err
 	}
@@ -147,6 +146,7 @@ func callAnnounce(ctx context.Context, trk tracker.Tracker, t tracker.Transfer, 
 
 type StopAnnouncer struct {
 	log      logger.Logger
+	timeout  time.Duration
 	trackers []tracker.Tracker
 	transfer tracker.Transfer
 	resultC  chan struct{}
@@ -154,9 +154,10 @@ type StopAnnouncer struct {
 	doneC    chan struct{}
 }
 
-func NewStopAnnouncer(trackers []tracker.Tracker, tra tracker.Transfer, resultC chan struct{}, l logger.Logger) *StopAnnouncer {
+func NewStopAnnouncer(trackers []tracker.Tracker, tra tracker.Transfer, timeout time.Duration, resultC chan struct{}, l logger.Logger) *StopAnnouncer {
 	return &StopAnnouncer{
 		log:      l,
+		timeout:  timeout,
 		trackers: trackers,
 		transfer: tra,
 		resultC:  resultC,
@@ -173,7 +174,7 @@ func (a *StopAnnouncer) Close() {
 func (a *StopAnnouncer) Run() {
 	defer close(a.doneC)
 
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(stopEventTimeout))
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(a.timeout))
 	go func() {
 		<-a.closeC
 		cancel()
@@ -182,7 +183,7 @@ func (a *StopAnnouncer) Run() {
 	doneC := make(chan struct{})
 	for _, trk := range a.trackers {
 		go func(trk tracker.Tracker) {
-			callAnnounce(ctx, trk, a.transfer, tracker.EventStopped, a.log)
+			callAnnounce(ctx, trk, a.transfer, tracker.EventStopped, 0, a.log)
 			doneC <- struct{}{}
 		}(trk)
 	}

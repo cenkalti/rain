@@ -46,7 +46,7 @@ func New(u *url.URL) *UDPTracker {
 	}
 }
 
-func (t *UDPTracker) Announce(ctx context.Context, transfer tracker.Transfer, e tracker.Event) (*tracker.AnnounceResponse, error) {
+func (t *UDPTracker) Announce(ctx context.Context, transfer tracker.Transfer, e tracker.Event, numWant int) (*tracker.AnnounceResponse, error) {
 	t.dialMutex.Lock()
 	if !t.connected {
 		err := t.dial(ctx)
@@ -66,7 +66,7 @@ func (t *UDPTracker) Announce(ctx context.Context, transfer tracker.Transfer, e 
 		Uploaded:   transfer.BytesUploaded,
 		Event:      e,
 		Key:        rand.Uint32(),
-		NumWant:    tracker.NumWant,
+		NumWant:    int32(numWant),
 		Port:       uint16(transfer.Port),
 	}
 	request.SetAction(actionAnnounce)
@@ -135,9 +135,10 @@ func (t *UDPTracker) dial(ctx context.Context) error {
 func (t *UDPTracker) readLoop() {
 	// Read buffer must be big enough to hold a UDP packet of maximum expected size.
 	// Current value is: 320 = 20 + 50*6 (AnnounceResponse with 50 peers)
-	buf := make([]byte, 20+6*tracker.NumWant)
+	const maxNumWant = 1000
+	bigBuf := make([]byte, 20+6*maxNumWant)
 	for {
-		n, err := t.conn.Read(buf)
+		n, err := t.conn.Read(bigBuf)
 		if err != nil {
 			select {
 			case <-t.closeC:
@@ -147,13 +148,9 @@ func (t *UDPTracker) readLoop() {
 			return
 		}
 		t.log.Debug("Read ", n, " bytes")
+		buf := bigBuf[:n]
 
 		var header udpMessageHeader
-		if n < binary.Size(header) {
-			t.log.Error("response is too small")
-			continue
-		}
-
 		err = binary.Read(bytes.NewReader(buf), binary.BigEndian, &header)
 		if err != nil {
 			t.log.Error(err)
@@ -178,7 +175,7 @@ func (t *UDPTracker) readLoop() {
 		}
 
 		// Copy data into a new slice because buf will be overwritten at next read.
-		trx.response = make([]byte, n)
+		trx.response = make([]byte, len(buf))
 		copy(trx.response, buf)
 		trx.Done()
 	}

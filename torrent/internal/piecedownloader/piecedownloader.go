@@ -10,16 +10,14 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/pieceio"
 )
 
-const (
-	maxQueuedBlocks = 10
-	pieceTimeout    = 20 * time.Second
-)
-
 // PieceDownloader downloads all blocks of a piece from a peer.
 type PieceDownloader struct {
 	Piece *pieceio.Piece
 	Peer  *peer.Peer
 	Error error
+
+	queueLength  int
+	pieceTimeout time.Duration
 
 	// state
 	choked         bool
@@ -52,10 +50,13 @@ type pieceReaderResult struct {
 	Error      error
 }
 
-func New(pi *pieceio.Piece, pe *peer.Peer, snubbedC chan *PieceDownloader, resultC chan *PieceDownloader) *PieceDownloader {
+func New(pi *pieceio.Piece, pe *peer.Peer, queueLength int, pieceTimeout time.Duration, snubbedC chan *PieceDownloader, resultC chan *PieceDownloader) *PieceDownloader {
 	return &PieceDownloader{
 		Piece: pi,
 		Peer:  pe,
+
+		queueLength:  queueLength,
+		pieceTimeout: pieceTimeout,
 
 		buffer:    make([]byte, pi.Length),
 		requested: make(map[uint32]struct{}),
@@ -119,7 +120,7 @@ func (d *PieceDownloader) CancelPending() {
 }
 
 func (d *PieceDownloader) requestBlocks() {
-	for ; d.nextBlockIndex < uint32(len(d.Piece.Blocks)) && len(d.requested) < maxQueuedBlocks; d.nextBlockIndex++ {
+	for ; d.nextBlockIndex < uint32(len(d.Piece.Blocks)) && len(d.requested) < d.queueLength; d.nextBlockIndex++ {
 		b := d.Piece.Blocks[d.nextBlockIndex]
 		if _, ok := d.done[b.Index]; ok {
 			continue
@@ -132,7 +133,7 @@ func (d *PieceDownloader) requestBlocks() {
 		d.requested[b.Index] = struct{}{}
 	}
 	if len(d.requested) > 0 {
-		d.pieceTimeoutC = time.After(pieceTimeout)
+		d.pieceTimeoutC = time.After(d.pieceTimeout)
 	} else {
 		d.pieceTimeoutC = nil
 	}

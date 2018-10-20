@@ -12,6 +12,7 @@ import (
 
 func Accept(
 	conn net.Conn,
+	handshakeTimeout time.Duration,
 	getSKey func(sKeyHash [20]byte) (sKey []byte),
 	forceEncryption bool,
 	hasInfoHash func([20]byte) bool,
@@ -27,7 +28,7 @@ func Accept(
 	isEncrypted := false
 	hasIncomingPayload := false
 
-	if err = conn.SetReadDeadline(time.Now().Add(handshakeDeadline)); err != nil {
+	if err = conn.SetDeadline(time.Now().Add(handshakeTimeout)); err != nil {
 		return
 	}
 
@@ -97,18 +98,12 @@ func Accept(
 	}
 
 	if !hasIncomingPayload {
-		if err = conn.SetReadDeadline(time.Now().Add(handshakeDeadline)); err != nil {
-			return
-		}
 		peerExtensions, infoHash, err = readHandshake1(conn)
 		if err != nil {
 			return
 		}
 		if !hasInfoHash(infoHash) {
 			err = errInvalidInfoHash
-			return
-		}
-		if err = conn.SetWriteDeadline(time.Now().Add(handshakeDeadline)); err != nil {
 			return
 		}
 		err = writeHandshake(conn, infoHash, ourID, ourExtensions)
@@ -126,7 +121,6 @@ func Accept(
 		return
 	}
 
-	err = conn.SetDeadline(time.Time{})
 	encConn = conn
 	return
 }

@@ -36,13 +36,6 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/verifier"
 )
 
-const (
-	maxPeerDial            = 25
-	maxPeerAccept          = 25
-	parallelPieceDownloads = 50 // running downloads, snubbed and choked peers don't count
-	parallelInfoDownloads  = 1  // running downloads, snubbed peers don't count
-)
-
 var (
 	// http://www.bittorrent.org/beps/bep_0020.html
 	peerIDPrefix = []byte("-RN" + clientversion.Version + "-")

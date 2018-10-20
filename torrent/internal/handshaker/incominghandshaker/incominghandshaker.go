@@ -3,6 +3,7 @@ package incominghandshaker
 import (
 	"io"
 	"net"
+	"time"
 
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent/internal/bitfield"
@@ -16,6 +17,8 @@ type IncomingHandshaker struct {
 	sKeyHash              [20]byte
 	infoHash              [20]byte
 	resultC               chan Result
+	timeout               time.Duration
+	readTimeout           time.Duration
 	uploadedBytesCounterC chan int64
 	closeC                chan struct{}
 	doneC                 chan struct{}
@@ -28,13 +31,15 @@ type Result struct {
 	Error error
 }
 
-func NewIncoming(conn net.Conn, peerID, sKeyHash, infoHash [20]byte, resultC chan Result, l logger.Logger, uploadedBytesCounterC chan int64) *IncomingHandshaker {
+func NewIncoming(conn net.Conn, peerID, sKeyHash, infoHash [20]byte, resultC chan Result, l logger.Logger, timeout, readTimeout time.Duration, uploadedBytesCounterC chan int64) *IncomingHandshaker {
 	return &IncomingHandshaker{
 		conn:                  conn,
 		peerID:                peerID,
 		sKeyHash:              sKeyHash,
 		infoHash:              infoHash,
 		resultC:               resultC,
+		timeout:               timeout,
+		readTimeout:           readTimeout,
 		uploadedBytesCounterC: uploadedBytesCounterC,
 		closeC:                make(chan struct{}),
 		doneC:                 make(chan struct{}),
@@ -61,7 +66,7 @@ func (h *IncomingHandshaker) Run() {
 	ourbf.Set(43) // Extension Protocol (BEP 10)
 
 	conn, cipher, peerExtensions, peerID, _, err := btconn.Accept(
-		h.conn, h.getSKey, encryptionForceIncoming, h.checkInfoHash, ourExtensions, h.peerID)
+		h.conn, h.timeout, h.getSKey, encryptionForceIncoming, h.checkInfoHash, ourExtensions, h.peerID)
 	if err != nil {
 		if err == io.EOF {
 			log.Debug("peer has closed the connection: EOF")
@@ -83,7 +88,7 @@ func (h *IncomingHandshaker) Run() {
 	peerbf := bitfield.NewBytes(peerExtensions[:], 64)
 	extensions := ourbf.And(peerbf)
 
-	p := peerconn.New(conn, peerID, extensions, log, h.uploadedBytesCounterC)
+	p := peerconn.New(conn, peerID, extensions, log, h.readTimeout, h.uploadedBytesCounterC)
 	select {
 	case h.resultC <- Result{Conn: h.conn, Peer: p}:
 	case <-h.closeC:

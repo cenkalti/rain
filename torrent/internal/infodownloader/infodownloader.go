@@ -9,11 +9,7 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
 )
 
-const (
-	maxQueuedBlocks = 10
-	blockSize       = 16 * 1024
-	pieceTimeout    = 20 * time.Second
-)
+const blockSize = 16 * 1024
 
 // InfoDownloader downloads all blocks of a piece from a peer.
 type InfoDownloader struct {
@@ -21,6 +17,8 @@ type InfoDownloader struct {
 	Bytes []byte
 	Error error
 
+	queueLength    int
+	pieceTimeout   time.Duration
 	extID          uint8
 	totalSize      uint32
 	nextBlockIndex uint32
@@ -44,7 +42,7 @@ type block struct {
 	data []byte
 }
 
-func New(pe *peer.Peer, extID uint8, totalSize uint32, snubbedC chan *InfoDownloader, resultC chan *InfoDownloader) *InfoDownloader {
+func New(pe *peer.Peer, queueLength int, pieceTimeout time.Duration, extID uint8, totalSize uint32, snubbedC chan *InfoDownloader, resultC chan *InfoDownloader) *InfoDownloader {
 	numBlocks := totalSize / blockSize
 	mod := totalSize % blockSize
 	if mod != 0 {
@@ -60,16 +58,18 @@ func New(pe *peer.Peer, extID uint8, totalSize uint32, snubbedC chan *InfoDownlo
 		blocks[len(blocks)-1].size = mod
 	}
 	return &InfoDownloader{
-		extID:     extID,
-		totalSize: totalSize,
-		Peer:      pe,
-		blocks:    blocks,
-		requested: make(map[uint32]struct{}),
-		dataC:     make(chan data),
-		snubbedC:  snubbedC,
-		resultC:   resultC,
-		closeC:    make(chan struct{}),
-		doneC:     make(chan struct{}),
+		queueLength:  queueLength,
+		pieceTimeout: pieceTimeout,
+		extID:        extID,
+		totalSize:    totalSize,
+		Peer:         pe,
+		blocks:       blocks,
+		requested:    make(map[uint32]struct{}),
+		dataC:        make(chan data),
+		snubbedC:     snubbedC,
+		resultC:      resultC,
+		closeC:       make(chan struct{}),
+		doneC:        make(chan struct{}),
 	}
 }
 
@@ -86,7 +86,7 @@ func (d *InfoDownloader) Download(index uint32, b []byte) {
 }
 
 func (d *InfoDownloader) requestBlocks() {
-	for ; d.nextBlockIndex < uint32(len(d.blocks)) && len(d.requested) < maxQueuedBlocks; d.nextBlockIndex++ {
+	for ; d.nextBlockIndex < uint32(len(d.blocks)) && len(d.requested) < d.queueLength; d.nextBlockIndex++ {
 		msg := peerprotocol.ExtensionMessage{
 			ExtendedMessageID: d.extID,
 			Payload: peerprotocol.ExtensionMetadataMessage{
@@ -98,7 +98,7 @@ func (d *InfoDownloader) requestBlocks() {
 		d.requested[d.nextBlockIndex] = struct{}{}
 	}
 	if len(d.requested) > 0 {
-		d.pieceTimeoutC = time.After(pieceTimeout)
+		d.pieceTimeoutC = time.After(d.pieceTimeout)
 	} else {
 		d.pieceTimeoutC = nil
 	}

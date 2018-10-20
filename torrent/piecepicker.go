@@ -10,8 +10,6 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
 )
 
-const endgameMaxDownloadPerPiece = 2
-
 func (t *Torrent) nextInfoDownload() *infodownloader.InfoDownloader {
 	for pe := range t.peers {
 		if _, ok := t.infoDownloaders[pe]; ok {
@@ -21,7 +19,7 @@ func (t *Torrent) nextInfoDownload() *infodownloader.InfoDownloader {
 		if !ok {
 			continue
 		}
-		return infodownloader.New(pe, extID, pe.ExtensionHandshake.MetadataSize, t.snubbedInfoDownloaderC, t.infoDownloaderDoneC)
+		return infodownloader.New(pe, Config.Download.RequestQueueLength, Config.Peer.PieceTimeout, extID, pe.ExtensionHandshake.MetadataSize, t.snubbedInfoDownloaderC, t.infoDownloaderDoneC)
 	}
 	return nil
 }
@@ -33,7 +31,7 @@ func (t *Torrent) nextPieceDownload() *piecedownloader.PieceDownloader {
 	}
 	pe.Snubbed = false
 	delete(t.peersSnubbed, pe)
-	return piecedownloader.New(pi.Piece, pe, t.snubbedPieceDownloaderC, t.pieceDownloaderDoneC)
+	return piecedownloader.New(pi.Piece, pe, Config.Download.RequestQueueLength, Config.Peer.PieceTimeout, t.snubbedPieceDownloaderC, t.pieceDownloaderDoneC)
 }
 
 func (t *Torrent) findPieceAndPeer() (*piece.Piece, *peer.Peer) {
@@ -73,7 +71,7 @@ func (t *Torrent) selectAllowedFastPiece(skipSnubbed, noDuplicate bool) (*piece.
 		}
 		if noDuplicate && len(pi.RequestedPeers) > 0 {
 			continue
-		} else if pi.RunningDownloads() >= endgameMaxDownloadPerPiece {
+		} else if pi.RunningDownloads() >= Config.Download.EndgameParallelDownloadsPerPiece {
 			continue
 		}
 		for pe := range pi.HavingPeers {
@@ -99,7 +97,7 @@ func (t *Torrent) selectUnchokedPeer(skipSnubbed, noDuplicate bool) (*piece.Piec
 		}
 		if noDuplicate && len(pi.RequestedPeers) > 0 {
 			continue
-		} else if pi.RunningDownloads() >= endgameMaxDownloadPerPiece {
+		} else if pi.RunningDownloads() >= Config.Download.EndgameParallelDownloadsPerPiece {
 			continue
 		}
 		for pe := range pi.HavingPeers {

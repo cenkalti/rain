@@ -10,10 +10,9 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/mse"
 )
 
-const connectTimeout = 15 * time.Second
-
 func Dial(
 	addr net.Addr,
+	dialTimeout, handshakeTimeout time.Duration,
 	enableEncryption,
 	forceEncryption bool,
 	ourExtensions [8]byte,
@@ -37,7 +36,7 @@ func Dial(
 
 	// First connection
 	log.Debug("Connecting to peer...")
-	dialer := net.Dialer{Timeout: connectTimeout}
+	dialer := net.Dialer{Timeout: dialTimeout}
 	conn, err = dialer.DialContext(ctx, addr.Network(), addr.String())
 	if err != nil {
 		return
@@ -55,6 +54,10 @@ func Dial(
 		case <-done:
 		}
 	}(conn)
+
+	if err = conn.SetDeadline(time.Now().Add(handshakeTimeout)); err != nil {
+		return
+	}
 
 	out := bytes.NewBuffer(make([]byte, 0, 68))
 	err = writeHandshake(out, ih, ourID, ourExtensions)
@@ -108,7 +111,7 @@ func Dial(
 				}
 			}(conn)
 			// Send BT handshake
-			if err = conn.SetWriteDeadline(time.Now().Add(handshakeDeadline)); err != nil {
+			if err = conn.SetDeadline(time.Now().Add(handshakeTimeout)); err != nil {
 				return
 			}
 			if _, err = conn.Write(out.Bytes()); err != nil {
@@ -124,19 +127,12 @@ func Dial(
 		}
 	} else {
 		// Send BT handshake
-		if err = conn.SetWriteDeadline(time.Now().Add(handshakeDeadline)); err != nil {
-			return
-		}
 		if _, err = conn.Write(out.Bytes()); err != nil {
 			return
 		}
 	}
 
 	// Read BT handshake
-	if err = conn.SetReadDeadline(time.Now().Add(handshakeDeadline)); err != nil {
-		return
-	}
-
 	var ihRead [20]byte
 	peerExtensions, ihRead, err = readHandshake1(conn)
 	if err != nil {
@@ -155,7 +151,5 @@ func Dial(
 		err = ErrOwnConnection
 		return
 	}
-
-	err = conn.SetDeadline(time.Time{})
 	return
 }

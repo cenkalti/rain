@@ -3,6 +3,7 @@ package btconn
 import (
 	"net"
 	"testing"
+	"time"
 
 	"github.com/cenkalti/rain/torrent/internal/mse"
 )
@@ -31,7 +32,7 @@ func TestUnencrypted(t *testing.T) {
 	var gerr error
 	go func() {
 		defer close(done)
-		conn, cipher, ext, id, err2 := Dial(addr, false, false, ext1, infoHash, id1, nil)
+		conn, cipher, ext, id, err2 := Dial(addr, time.Second, time.Second, false, false, ext1, infoHash, id1, nil)
 		if err2 != nil {
 			gerr = err2
 			return
@@ -53,7 +54,7 @@ func TestUnencrypted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, cipher, ext, id, ih, err := Accept(conn, nil, false, func(ih [20]byte) bool { return ih == infoHash }, ext2, id2)
+	_, cipher, ext, id, ih, err := Accept(conn, time.Second, nil, false, func(ih [20]byte) bool { return ih == infoHash }, ext2, id2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +86,7 @@ func TestEncrypted(t *testing.T) {
 	var gerr error
 	go func() {
 		defer close(done)
-		conn, cipher, ext, id, err2 := Dial(addr, true, false, ext1, infoHash, id1, nil)
+		conn, cipher, ext, id, err2 := Dial(addr, time.Second, time.Second, true, false, ext1, infoHash, id1, nil)
 		if err2 != nil {
 			gerr = err2
 			return
@@ -124,6 +125,7 @@ func TestEncrypted(t *testing.T) {
 	}
 	encConn, cipher, ext, id, ih, err := Accept(
 		conn,
+		time.Second,
 		func(h [20]byte) (sKey []byte) {
 			if h == sKeyHash {
 				return infoHash[:]

@@ -12,15 +12,12 @@ import (
 	"github.com/cenkalti/rain/internal/logger"
 )
 
-// NumWant is the number of peers we want from trackers.
-const NumWant = 100
-
 type Tracker interface {
 	// Announce transfer to the tracker.
 	// Announce should be called periodically with the interval returned in AnnounceResponse.
 	// Announce should also be called on specific events.
 	// TODO specify numwant in announce interface and give 0 for stopped and completed event
-	Announce(ctx context.Context, t Transfer, e Event) (*AnnounceResponse, error)
+	Announce(ctx context.Context, t Transfer, e Event, numWant int) (*AnnounceResponse, error)
 	// Close open connections to the tracker.
 	Close() error
 }

@@ -14,18 +14,17 @@ import (
 )
 
 const (
-	// BlockSize is the max size of block data that we accept from peers.
-	BlockSize = 16 * 1024
-	// ReadTimeout is max allowed duration to read single messsage except Piece message.
-	ReadTimeout = 2 * time.Minute // equal to keep-alive period
-	// PieceTimeout is the duration that if no bytes received in PieceTimeout period, connection will be closed.
-	PieceTimeout = 60 * time.Second
+	// maxBlockSize is the max size of block data that we accept from peers.
+	maxBlockSize = 16 * 1024
+	// time to wait for a message. peer must send keep-alive messages to keep connection alive.
+	readTimeout = 2 * time.Minute
 )
 
 type PeerReader struct {
 	conn              net.Conn
 	buf               *bufio.Reader
 	log               logger.Logger
+	pieceTimeout      time.Duration
 	messages          chan interface{}
 	fastExtension     bool
 	extensionProtocol bool
@@ -33,11 +32,12 @@ type PeerReader struct {
 	doneC             chan struct{}
 }
 
-func New(conn net.Conn, l logger.Logger, fastExtension, extensionProtocol bool) *PeerReader {
+func New(conn net.Conn, l logger.Logger, pieceTimeout time.Duration, fastExtension, extensionProtocol bool) *PeerReader {
 	return &PeerReader{
 		conn:              conn,
-		buf:               bufio.NewReaderSize(conn, 4+1+8+BlockSize),
+		buf:               bufio.NewReaderSize(conn, 4+1+8+maxBlockSize),
 		log:               l,
+		pieceTimeout:      pieceTimeout,
 		messages:          make(chan interface{}),
 		fastExtension:     fastExtension,
 		extensionProtocol: extensionProtocol,
@@ -82,7 +82,7 @@ func (p *PeerReader) Run() {
 
 	first := true
 	for {
-		err = p.conn.SetReadDeadline(time.Now().Add(ReadTimeout))
+		err = p.conn.SetReadDeadline(time.Now().Add(readTimeout))
 		if err != nil {
 			return
 		}
@@ -155,7 +155,7 @@ func (p *PeerReader) Run() {
 			}
 			p.log.Debugf("Received Request: %+v", rm)
 
-			if rm.Length > BlockSize {
+			if rm.Length > maxBlockSize {
 				err = errors.New("received a request with block size larger than allowed")
 				return
 			}
@@ -183,7 +183,7 @@ func (p *PeerReader) Run() {
 			var m, n int
 			b := make([]byte, length-8)
 			for {
-				err = p.conn.SetReadDeadline(time.Now().Add(PieceTimeout))
+				err = p.conn.SetReadDeadline(time.Now().Add(p.pieceTimeout))
 				if err != nil {
 					return
 				}

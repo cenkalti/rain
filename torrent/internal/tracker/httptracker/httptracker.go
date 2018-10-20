@@ -48,7 +48,7 @@ func New(u *url.URL) *HTTPTracker {
 	}
 }
 
-func (t *HTTPTracker) Announce(ctx context.Context, transfer tracker.Transfer, e tracker.Event) (*tracker.AnnounceResponse, error) {
+func (t *HTTPTracker) Announce(ctx context.Context, transfer tracker.Transfer, e tracker.Event, numWant int) (*tracker.AnnounceResponse, error) {
 	peerID := transfer.PeerID
 	infoHash := transfer.InfoHash
 	q := url.Values{}
@@ -60,7 +60,7 @@ func (t *HTTPTracker) Announce(ctx context.Context, transfer tracker.Transfer, e
 	q.Set("left", strconv.FormatInt(transfer.BytesLeft, 10))
 	q.Set("compact", "1")
 	q.Set("no_peer_id", "1")
-	q.Set("numwant", strconv.Itoa(tracker.NumWant))
+	q.Set("numwant", strconv.Itoa(numWant))
 	if e != tracker.EventNone {
 		q.Set("event", e.String())
 	}

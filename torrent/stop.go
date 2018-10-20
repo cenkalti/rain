@@ -77,7 +77,7 @@ func (t *Torrent) stop(err error) {
 			trackers = append(trackers, an.Tracker)
 		}
 	}
-	t.stoppedEventAnnouncer = announcer.NewStopAnnouncer(trackers, t.announcerFields(), t.announcersStoppedC, t.log)
+	t.stoppedEventAnnouncer = announcer.NewStopAnnouncer(trackers, t.announcerFields(), Config.Tracker.StoppedEventTimeout, t.announcersStoppedC, t.log)
 	go t.stoppedEventAnnouncer.Run()
 }
 

@@ -2,6 +2,7 @@ package peerconn
 
 import (
 	"net"
+	"time"
 
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent/internal/bitfield"
@@ -22,14 +23,14 @@ type Conn struct {
 	doneC         chan struct{}
 }
 
-func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, l logger.Logger, uploadedBytesCounterC chan int64) *Conn {
+func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, l logger.Logger, pieceTimeout time.Duration, uploadedBytesCounterC chan int64) *Conn {
 	fastExtension := extensions.Test(61)
 	extensionProtocol := extensions.Test(43)
 	return &Conn{
 		conn:          conn,
 		id:            id,
 		FastExtension: fastExtension,
-		reader:        peerreader.New(conn, l, fastExtension, extensionProtocol),
+		reader:        peerreader.New(conn, l, pieceTimeout, fastExtension, extensionProtocol),
 		writer:        peerwriter.New(conn, l, uploadedBytesCounterC),
 		log:           l,
 		closeC:        make(chan struct{}),

@@ -124,7 +124,7 @@ func (t *Torrent) run() {
 			t.addrList.Push(addrs, t.port)
 			t.dialAddresses()
 		case conn := <-t.incomingConnC:
-			if len(t.incomingHandshakers)+len(t.incomingPeers) >= maxPeerAccept {
+			if len(t.incomingHandshakers)+len(t.incomingPeers) >= Config.Download.MaxPeerAccept {
 				t.log.Debugln("peer limit reached, rejecting peer", conn.RemoteAddr().String())
 				conn.Close()
 				break
@@ -135,7 +135,7 @@ func (t *Torrent) run() {
 				conn.Close()
 				break
 			}
-			h := incominghandshaker.NewIncoming(conn, t.peerID, t.sKeyHash, t.infoHash, t.incomingHandshakerResultC, t.log, t.uploadByteCounterC)
+			h := incominghandshaker.NewIncoming(conn, t.peerID, t.sKeyHash, t.infoHash, t.incomingHandshakerResultC, t.log, Config.Peer.HandshakeTimeout, Config.Peer.PieceTimeout, t.uploadByteCounterC)
 			t.incomingHandshakers[conn.RemoteAddr().String()] = h
 			t.connectedPeerIPs[ip] = struct{}{}
 			go h.Run()
@@ -294,7 +294,7 @@ func (t *Torrent) dialAddresses() {
 	if t.completed {
 		return
 	}
-	for len(t.outgoingPeers)+len(t.outgoingHandshakers) < maxPeerDial {
+	for len(t.outgoingPeers)+len(t.outgoingHandshakers) < Config.Download.MaxPeerDial {
 		addr := t.addrList.Pop()
 		if addr == nil {
 			for _, an := range t.announcers {
@@ -306,7 +306,7 @@ func (t *Torrent) dialAddresses() {
 		if _, ok := t.connectedPeerIPs[ip]; ok {
 			continue
 		}
-		h := outgoinghandshaker.NewOutgoing(addr, t.peerID, t.infoHash, t.outgoingHandshakerResultC, t.log, t.uploadByteCounterC)
+		h := outgoinghandshaker.NewOutgoing(addr, Config.Peer.ConnectTimeout, Config.Peer.HandshakeTimeout, Config.Peer.PieceTimeout, t.peerID, t.infoHash, t.outgoingHandshakerResultC, t.log, t.uploadByteCounterC)
 		t.outgoingHandshakers[addr.String()] = h
 		t.connectedPeerIPs[ip] = struct{}{}
 		go h.Run()
