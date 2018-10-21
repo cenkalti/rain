@@ -11,11 +11,6 @@ type Verifier struct {
 	Bitfield *bitfield.Bitfield
 	Error    error
 
-	pieces []pieceio.Piece
-
-	progressC chan Progress
-	resultC   chan *Verifier
-
 	stopC chan struct{}
 	doneC chan struct{}
 }
@@ -25,14 +20,10 @@ type Progress struct {
 	OK      uint32
 }
 
-func New(pieces []pieceio.Piece, progressC chan Progress, resultC chan *Verifier) *Verifier {
+func New() *Verifier {
 	return &Verifier{
-		Bitfield:  bitfield.New(uint32(len(pieces))),
-		pieces:    pieces,
-		progressC: progressC,
-		resultC:   resultC,
-		stopC:     make(chan struct{}),
-		doneC:     make(chan struct{}),
+		stopC: make(chan struct{}),
+		doneC: make(chan struct{}),
 	}
 }
 
@@ -44,20 +35,21 @@ func (v *Verifier) Done() chan struct{} {
 	return v.doneC
 }
 
-func (v *Verifier) Run() {
+func (v *Verifier) Run(pieces []pieceio.Piece, progressC chan Progress, resultC chan *Verifier) {
 	defer close(v.doneC)
 
 	defer func() {
 		select {
-		case v.resultC <- v:
+		case resultC <- v:
 		case <-v.stopC:
 		}
 	}()
 
-	buf := make([]byte, v.pieces[0].Length)
+	v.Bitfield = bitfield.New(uint32(len(pieces)))
+	buf := make([]byte, pieces[0].Length)
 	hash := sha1.New() // nolint: gosec
 	var numOK uint32
-	for _, p := range v.pieces {
+	for _, p := range pieces {
 		buf = buf[:p.Length]
 		_, v.Error = p.Data.ReadAt(buf, 0)
 		if v.Error != nil {
@@ -69,7 +61,7 @@ func (v *Verifier) Run() {
 			numOK++
 		}
 		select {
-		case v.progressC <- Progress{Checked: p.Index + 1, OK: numOK}:
+		case progressC <- Progress{Checked: p.Index + 1, OK: numOK}:
 		case <-v.stopC:
 			return
 		}

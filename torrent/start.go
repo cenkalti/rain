@@ -47,13 +47,13 @@ func (t *Torrent) start() {
 }
 
 func (t *Torrent) startVerifier() {
-	t.verifier = verifier.New(t.data.Pieces, t.verifierProgressC, t.verifierResultC)
-	go t.verifier.Run()
+	t.verifier = verifier.New()
+	go t.verifier.Run(t.data.Pieces, t.verifierProgressC, t.verifierResultC)
 }
 
 func (t *Torrent) startAllocator() {
-	t.allocator = allocator.New(t.info, t.storage, t.allocatorProgressC, t.allocatorResultC)
-	go t.allocator.Run()
+	t.allocator = allocator.New()
+	go t.allocator.Run(t.info, t.storage, t.allocatorProgressC, t.allocatorResultC)
 }
 
 func (t *Torrent) startAnnouncers() {

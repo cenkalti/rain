@@ -13,12 +13,6 @@ type Allocator struct {
 	NeedHashCheck bool
 	Error         error
 
-	info    *metainfo.Info
-	storage storage.Storage
-
-	progressC chan Progress
-	resultC   chan *Allocator
-
 	closeC chan struct{}
 	doneC  chan struct{}
 }
@@ -27,14 +21,10 @@ type Progress struct {
 	AllocatedSize int64
 }
 
-func New(info *metainfo.Info, s storage.Storage, progressC chan Progress, resultC chan *Allocator) *Allocator {
+func New() *Allocator {
 	return &Allocator{
-		info:      info,
-		storage:   s,
-		progressC: progressC,
-		resultC:   resultC,
-		closeC:    make(chan struct{}),
-		doneC:     make(chan struct{}),
+		closeC: make(chan struct{}),
+		doneC:  make(chan struct{}),
 	}
 }
 
@@ -43,7 +33,7 @@ func (a *Allocator) Close() {
 	<-a.doneC
 }
 
-func (a *Allocator) Run() {
+func (a *Allocator) Run(info *metainfo.Info, sto storage.Storage, progressC chan Progress, resultC chan *Allocator) {
 	defer close(a.doneC)
 
 	var files []storage.File
@@ -55,17 +45,17 @@ func (a *Allocator) Run() {
 				}
 			}
 		}
-		a.Data = torrentdata.New(a.info, files)
+		a.Data = torrentdata.New(info, files)
 		select {
-		case a.resultC <- a:
+		case resultC <- a:
 		case <-a.closeC:
 		}
 	}()
 
 	// Single file in torrent
-	if !a.info.MultiFile {
+	if !info.MultiFile {
 		var f storage.File
-		f, a.NeedHashCheck, a.Error = a.storage.Open(a.info.Name, a.info.Length)
+		f, a.NeedHashCheck, a.Error = sto.Open(info.Name, info.Length)
 		if a.Error != nil {
 			return
 		}
@@ -74,12 +64,12 @@ func (a *Allocator) Run() {
 	}
 
 	// Multiple files in torrent grouped in a folder
-	files = make([]storage.File, len(a.info.Files))
-	for i, f := range a.info.Files {
-		parts := append([]string{a.info.Name}, f.Path...)
+	files = make([]storage.File, len(info.Files))
+	for i, f := range info.Files {
+		parts := append([]string{info.Name}, f.Path...)
 		path := filepath.Join(parts...)
 		var exists bool
-		files[i], exists, a.Error = a.storage.Open(path, f.Length)
+		files[i], exists, a.Error = sto.Open(path, f.Length)
 		if a.Error != nil {
 			return
 		}
