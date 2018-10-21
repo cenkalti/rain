@@ -98,6 +98,12 @@ type Stats struct {
 			Running int
 		}
 	}
+
+	Torrent struct {
+		Name        string
+		Private     bool
+		PieceLength uint32
+	}
 }
 
 func (t *Torrent) stats() Stats {
@@ -123,9 +129,15 @@ func (t *Torrent) stats() Stats {
 		stats.Bytes.Total = t.info.TotalLength
 		stats.Bytes.Complete = t.bytesComplete()
 		stats.Bytes.Incomplete = stats.Bytes.Total - stats.Bytes.Complete
+
+		stats.Torrent.Name = t.info.Name
+		stats.Torrent.Private = (t.info.Private == 1)
+		stats.Torrent.PieceLength = t.info.PieceLength
 	} else {
 		// Some trackers don't send any peer address if don't tell we have missing bytes.
 		stats.Bytes.Incomplete = math.MaxUint32
+
+		stats.Torrent.Name = t.name
 	}
 	if t.bitfield != nil {
 		stats.Pieces.Total = t.bitfield.Len()
