@@ -1,6 +1,7 @@
 package peerconn
 
 import (
+	"io"
 	"net"
 	"time"
 
@@ -9,7 +10,6 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/peerconn/peerreader"
 	"github.com/cenkalti/rain/torrent/internal/peerconn/peerwriter"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
-	"github.com/cenkalti/rain/torrent/internal/pieceio"
 )
 
 type Conn struct {
@@ -71,7 +71,7 @@ func (p *Conn) SendMessage(msg peerprotocol.Message) {
 	p.writer.SendMessage(msg)
 }
 
-func (p *Conn) SendPiece(msg peerprotocol.RequestMessage, pi *pieceio.Piece) {
+func (p *Conn) SendPiece(msg peerprotocol.RequestMessage, pi io.ReaderAt) {
 	p.writer.SendPiece(msg, pi)
 }
 

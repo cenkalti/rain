@@ -3,12 +3,12 @@ package peerwriter
 import (
 	"bytes"
 	"encoding/binary"
+	"io"
 	"net"
 	"time"
 
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
-	"github.com/cenkalti/rain/torrent/internal/pieceio"
 )
 
 const keepAlivePeriod = 2 * time.Minute
@@ -44,8 +44,8 @@ func (p *PeerWriter) SendMessage(msg peerprotocol.Message) {
 	}
 }
 
-func (p *PeerWriter) SendPiece(msg peerprotocol.RequestMessage, pi *pieceio.Piece) {
-	m := Piece{Piece: pi, Begin: msg.Begin, Length: msg.Length}
+func (p *PeerWriter) SendPiece(msg peerprotocol.RequestMessage, pi io.ReaderAt) {
+	m := Piece{Piece: pi, Index: msg.Index, Begin: msg.Begin, Length: msg.Length}
 	select {
 	case p.queueC <- m:
 	case <-p.doneC:

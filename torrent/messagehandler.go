@@ -139,7 +139,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 				pe.SendMessage(m)
 			}
 		} else {
-			pe.SendPiece(msg, pi)
+			pe.SendPiece(msg, pi.Data)
 		}
 	case peerprotocol.RejectMessage:
 		if t.bitfield == nil {
