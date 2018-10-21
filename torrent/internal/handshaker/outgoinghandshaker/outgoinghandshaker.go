@@ -47,7 +47,6 @@ func (h *OutgoingHandshaker) Run(dialTimeout, handshakeTimeout, readTimeout time
 	ourbf.Set(61) // Fast Extension (BEP 6)
 	ourbf.Set(43) // Extension Protocol (BEP 10)
 
-	// TODO separate dial and handshake
 	conn, cipher, peerExtensions, peerID, err := btconn.Dial(h.Addr, dialTimeout, handshakeTimeout, !encryptionDisableOutgoing, encryptionForceOutgoing, ourExtensions, infoHash, peerID, h.closeC)
 	if err != nil {
 		if err == io.EOF {
@@ -69,9 +68,9 @@ func (h *OutgoingHandshaker) Run(dialTimeout, handshakeTimeout, readTimeout time
 	log.Debugf("Connected to peer. (cipher=%s extensions=%x client=%q)", cipher, peerExtensions, peerID[:8])
 
 	peerbf := bitfield.NewBytes(peerExtensions[:], 64)
-	extensions := ourbf.And(peerbf)
+	peerbf.And(ourbf)
 
-	h.Peer = peerconn.New(conn, peerID, extensions, log, readTimeout, uploadedBytesCounterC)
+	h.Peer = peerconn.New(conn, peerID, peerbf, log, readTimeout, uploadedBytesCounterC)
 	select {
 	case resultC <- h:
 	case <-h.closeC:

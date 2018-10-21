@@ -72,7 +72,7 @@ func (h *IncomingHandshaker) Run(peerID [20]byte, getSKeyFunc func([20]byte) []b
 	log.Debugf("Connection accepted. (cipher=%s extensions=%x client=%q)", cipher, peerExtensions, peerID[:8])
 
 	peerbf := bitfield.NewBytes(peerExtensions[:], 64)
-	extensions := ourbf.And(peerbf)
+	peerbf.And(ourbf)
 
-	h.Peer = peerconn.New(conn, peerID, extensions, log, readTimeout, uploadedBytesCounterC)
+	h.Peer = peerconn.New(conn, peerID, peerbf, log, readTimeout, uploadedBytesCounterC)
 }
