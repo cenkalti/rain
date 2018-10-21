@@ -168,7 +168,7 @@ type Torrent struct {
 
 	verifier          *verifier.Verifier
 	verifierProgressC chan verifier.Progress
-	verifierResultC   chan verifier.Result
+	verifierResultC   chan *verifier.Verifier
 
 	bytesDownloaded int64
 	bytesUploaded   int64
@@ -358,7 +358,7 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		allocatorProgressC:        make(chan allocator.Progress),
 		allocatorResultC:          make(chan *allocator.Allocator),
 		verifierProgressC:         make(chan verifier.Progress),
-		verifierResultC:           make(chan verifier.Result),
+		verifierResultC:           make(chan *verifier.Verifier),
 		connectedPeerIPs:          make(map[string]struct{}),
 		announcersStoppedC:        make(chan struct{}),
 		uploadByteCounterC:        make(chan int64),

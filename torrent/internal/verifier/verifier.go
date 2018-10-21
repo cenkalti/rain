@@ -8,10 +8,13 @@ import (
 )
 
 type Verifier struct {
+	Bitfield *bitfield.Bitfield
+	Error    error
+
 	pieces []pieceio.Piece
 
 	progressC chan Progress
-	resultC   chan Result
+	resultC   chan *Verifier
 
 	stopC chan struct{}
 	doneC chan struct{}
@@ -22,13 +25,9 @@ type Progress struct {
 	OK      uint32
 }
 
-type Result struct {
-	Bitfield *bitfield.Bitfield
-	Error    error
-}
-
-func New(pieces []pieceio.Piece, progressC chan Progress, resultC chan Result) *Verifier {
+func New(pieces []pieceio.Piece, progressC chan Progress, resultC chan *Verifier) *Verifier {
 	return &Verifier{
+		Bitfield:  bitfield.New(uint32(len(pieces))),
 		pieces:    pieces,
 		progressC: progressC,
 		resultC:   resultC,
@@ -48,12 +47,9 @@ func (v *Verifier) Done() chan struct{} {
 func (v *Verifier) Run() {
 	defer close(v.doneC)
 
-	result := Result{
-		Bitfield: bitfield.New(uint32(len(v.pieces))),
-	}
 	defer func() {
 		select {
-		case v.resultC <- result:
+		case v.resultC <- v:
 		case <-v.stopC:
 		}
 	}()
@@ -63,13 +59,13 @@ func (v *Verifier) Run() {
 	var numOK uint32
 	for _, p := range v.pieces {
 		buf = buf[:p.Length]
-		_, result.Error = p.Data.ReadAt(buf, 0)
-		if result.Error != nil {
+		_, v.Error = p.Data.ReadAt(buf, 0)
+		if v.Error != nil {
 			return
 		}
 		ok := p.VerifyHash(buf, hash)
 		if ok {
-			result.Bitfield.Set(p.Index)
+			v.Bitfield.Set(p.Index)
 			numOK++
 		}
 		select {
