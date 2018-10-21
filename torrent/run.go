@@ -84,7 +84,7 @@ func (t *Torrent) run() {
 			tr := t.announcerFields()
 			// TODO set bytes uploaded/downloaded
 			req.Response <- announcer.Response{Transfer: tr}
-		case id := <-t.infoDownloaderDoneC:
+		case id := <-t.infoDownloaderResultC:
 			t.closeInfoDownloader(id)
 			if id.Error != nil {
 				id.Peer.Logger().Error(id.Error)
@@ -120,7 +120,7 @@ func (t *Torrent) run() {
 				}
 			}
 			t.startAllocator()
-		case pd := <-t.pieceDownloaderDoneC:
+		case pd := <-t.pieceDownloaderResultC:
 			t.log.Debugln("piece download completed. index:", pd.Piece.Index)
 			t.closePieceDownloader(pd)
 			if pd.Error != nil {
