@@ -12,35 +12,19 @@ import (
 )
 
 type IncomingHandshaker struct {
-	Peer  *peerconn.Conn
 	Conn  net.Conn
+	Peer  *peerconn.Conn
 	Error error
 
-	peerID                [20]byte
-	sKeyHash              [20]byte
-	infoHash              [20]byte
-	resultC               chan *IncomingHandshaker
-	timeout               time.Duration
-	readTimeout           time.Duration
-	uploadedBytesCounterC chan int64
-	closeC                chan struct{}
-	doneC                 chan struct{}
-	log                   logger.Logger
+	closeC chan struct{}
+	doneC  chan struct{}
 }
 
-func New(conn net.Conn, peerID, sKeyHash, infoHash [20]byte, resultC chan *IncomingHandshaker, l logger.Logger, timeout, readTimeout time.Duration, uploadedBytesCounterC chan int64) *IncomingHandshaker {
+func New(conn net.Conn) *IncomingHandshaker {
 	return &IncomingHandshaker{
-		Conn:                  conn,
-		peerID:                peerID,
-		sKeyHash:              sKeyHash,
-		infoHash:              infoHash,
-		resultC:               resultC,
-		timeout:               timeout,
-		readTimeout:           readTimeout,
-		uploadedBytesCounterC: uploadedBytesCounterC,
-		closeC:                make(chan struct{}),
-		doneC:                 make(chan struct{}),
-		log:                   l,
+		Conn:   conn,
+		closeC: make(chan struct{}),
+		doneC:  make(chan struct{}),
 	}
 }
 
@@ -49,11 +33,11 @@ func (h *IncomingHandshaker) Close() {
 	<-h.doneC
 }
 
-func (h *IncomingHandshaker) Run() {
+func (h *IncomingHandshaker) Run(peerID [20]byte, getSKeyFunc func([20]byte) []byte, checkInfoHashFunc func([20]byte) bool, resultC chan *IncomingHandshaker, l logger.Logger, timeout, readTimeout time.Duration, uploadedBytesCounterC chan int64) {
 	defer close(h.doneC)
 	defer func() {
 		select {
-		case h.resultC <- h:
+		case resultC <- h:
 		case <-h.closeC:
 			h.Conn.Close()
 		}
@@ -71,7 +55,7 @@ func (h *IncomingHandshaker) Run() {
 	ourbf.Set(43) // Extension Protocol (BEP 10)
 
 	conn, cipher, peerExtensions, peerID, _, err := btconn.Accept(
-		h.Conn, h.timeout, h.getSKey, encryptionForceIncoming, h.checkInfoHash, ourExtensions, h.peerID)
+		h.Conn, timeout, getSKeyFunc, encryptionForceIncoming, checkInfoHashFunc, ourExtensions, peerID)
 	if err != nil {
 		if err == io.EOF {
 			log.Debug("peer has closed the connection: EOF")
@@ -90,16 +74,5 @@ func (h *IncomingHandshaker) Run() {
 	peerbf := bitfield.NewBytes(peerExtensions[:], 64)
 	extensions := ourbf.And(peerbf)
 
-	h.Peer = peerconn.New(conn, peerID, extensions, log, h.readTimeout, h.uploadedBytesCounterC)
-}
-
-func (h *IncomingHandshaker) getSKey(sKeyHash [20]byte) []byte {
-	if sKeyHash == h.sKeyHash {
-		return h.infoHash[:]
-	}
-	return nil
-}
-
-func (h *IncomingHandshaker) checkInfoHash(infoHash [20]byte) bool {
-	return infoHash == h.infoHash
+	h.Peer = peerconn.New(conn, peerID, extensions, log, readTimeout, uploadedBytesCounterC)
 }

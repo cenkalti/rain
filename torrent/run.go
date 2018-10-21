@@ -76,10 +76,10 @@ func (t *Torrent) run() {
 				conn.Close()
 				break
 			}
-			h := incominghandshaker.New(conn, t.peerID, t.sKeyHash, t.infoHash, t.incomingHandshakerResultC, t.log, Config.Peer.HandshakeTimeout, Config.Peer.PieceTimeout, t.uploadByteCounterC)
+			h := incominghandshaker.New(conn)
 			t.incomingHandshakers[h] = struct{}{}
 			t.connectedPeerIPs[ip] = struct{}{}
-			go h.Run()
+			go h.Run(t.peerID, t.getSKey, t.checkInfoHash, t.incomingHandshakerResultC, t.log, Config.Peer.HandshakeTimeout, Config.Peer.PieceTimeout, t.uploadByteCounterC)
 		case req := <-t.announcerRequestC:
 			tr := t.announcerFields()
 			// TODO set bytes uploaded/downloaded
@@ -246,10 +246,10 @@ func (t *Torrent) dialAddresses() {
 		if _, ok := t.connectedPeerIPs[ip]; ok {
 			continue
 		}
-		h := outgoinghandshaker.New(addr, Config.Peer.ConnectTimeout, Config.Peer.HandshakeTimeout, Config.Peer.PieceTimeout, t.peerID, t.infoHash, t.outgoingHandshakerResultC, t.log, t.uploadByteCounterC)
+		h := outgoinghandshaker.New(addr)
 		t.outgoingHandshakers[h] = struct{}{}
 		t.connectedPeerIPs[ip] = struct{}{}
-		go h.Run()
+		go h.Run(Config.Peer.ConnectTimeout, Config.Peer.HandshakeTimeout, Config.Peer.PieceTimeout, t.peerID, t.infoHash, t.outgoingHandshakerResultC, t.log, t.uploadByteCounterC)
 	}
 }
 

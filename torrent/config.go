@@ -1,8 +1,6 @@
 package torrent
 
-import (
-	"time"
-)
+import "time"
 
 var Config struct {
 	Download struct {
