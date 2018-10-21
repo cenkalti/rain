@@ -17,19 +17,9 @@ type InfoDownloader struct {
 	Bytes []byte
 	Error error
 
-	queueLength    int
-	pieceTimeout   time.Duration
-	extID          uint8
-	totalSize      uint32
-	nextBlockIndex uint32
-	requested      map[uint32]struct{}
-	blocks         []block
-	pieceTimeoutC  <-chan time.Time
-	dataC          chan data
-	resultC        chan<- *InfoDownloader
-	snubbedC       chan<- *InfoDownloader
-	closeC         chan struct{}
-	doneC          chan struct{}
+	dataC  chan data
+	closeC chan struct{}
+	doneC  chan struct{}
 }
 
 type data struct {
@@ -42,34 +32,12 @@ type block struct {
 	data []byte
 }
 
-func New(pe *peer.Peer, queueLength int, pieceTimeout time.Duration, extID uint8, totalSize uint32, snubbedC chan *InfoDownloader, resultC chan *InfoDownloader) *InfoDownloader {
-	numBlocks := totalSize / blockSize
-	mod := totalSize % blockSize
-	if mod != 0 {
-		numBlocks++
-	}
-	blocks := make([]block, numBlocks)
-	for i := range blocks {
-		blocks[i] = block{
-			size: blockSize,
-		}
-	}
-	if mod != 0 && len(blocks) > 0 {
-		blocks[len(blocks)-1].size = mod
-	}
+func New(pe *peer.Peer) *InfoDownloader {
 	return &InfoDownloader{
-		queueLength:  queueLength,
-		pieceTimeout: pieceTimeout,
-		extID:        extID,
-		totalSize:    totalSize,
-		Peer:         pe,
-		blocks:       blocks,
-		requested:    make(map[uint32]struct{}),
-		dataC:        make(chan data),
-		snubbedC:     snubbedC,
-		resultC:      resultC,
-		closeC:       make(chan struct{}),
-		doneC:        make(chan struct{}),
+		Peer:   pe,
+		dataC:  make(chan data),
+		closeC: make(chan struct{}),
+		doneC:  make(chan struct{}),
 	}
 }
 
@@ -85,57 +53,77 @@ func (d *InfoDownloader) Download(index uint32, b []byte) {
 	}
 }
 
-func (d *InfoDownloader) requestBlocks() {
-	for ; d.nextBlockIndex < uint32(len(d.blocks)) && len(d.requested) < d.queueLength; d.nextBlockIndex++ {
-		msg := peerprotocol.ExtensionMessage{
-			ExtendedMessageID: d.extID,
-			Payload: peerprotocol.ExtensionMetadataMessage{
-				Type:  peerprotocol.ExtensionMetadataMessageTypeRequest,
-				Piece: d.nextBlockIndex,
-			},
-		}
-		d.Peer.SendMessage(msg)
-		d.requested[d.nextBlockIndex] = struct{}{}
-	}
-	if len(d.requested) > 0 {
-		d.pieceTimeoutC = time.After(d.pieceTimeout)
-	} else {
-		d.pieceTimeoutC = nil
-	}
-}
-
-func (d *InfoDownloader) Run() {
+func (d *InfoDownloader) Run(queueLength int, pieceTimeout time.Duration, snubbedC chan *InfoDownloader, resultC chan *InfoDownloader) {
 	defer close(d.doneC)
 	defer func() {
 		select {
-		case d.resultC <- d:
+		case resultC <- d:
 		case <-d.closeC:
 		}
 	}()
-	d.requestBlocks()
+
+	var (
+		blocks         = d.createBlocks()
+		requested      = make(map[uint32]struct{})
+		nextBlockIndex uint32
+		pieceTimeoutC  <-chan time.Time
+	)
+
+	requestBlocks := func() {
+		for ; nextBlockIndex < uint32(len(blocks)) && len(requested) < queueLength; nextBlockIndex++ {
+			msg := peerprotocol.ExtensionMessage{
+				ExtendedMessageID: d.Peer.ExtensionHandshake.M[peerprotocol.ExtensionMetadataKey],
+				Payload: peerprotocol.ExtensionMetadataMessage{
+					Type:  peerprotocol.ExtensionMetadataMessageTypeRequest,
+					Piece: nextBlockIndex,
+				},
+			}
+			d.Peer.SendMessage(msg)
+			requested[nextBlockIndex] = struct{}{}
+		}
+		if len(requested) > 0 {
+			pieceTimeoutC = time.After(pieceTimeout)
+		} else {
+			pieceTimeoutC = nil
+		}
+	}
+
+	allDone := func() bool {
+		return nextBlockIndex == uint32(len(blocks)) && len(requested) == 0
+	}
+
+	assembleBlocks := func() *bytes.Buffer {
+		buf := bytes.NewBuffer(make([]byte, 0, d.Peer.ExtensionHandshake.MetadataSize))
+		for i := range blocks {
+			buf.Write(blocks[i].data)
+		}
+		return buf
+	}
+
+	requestBlocks()
 	for {
 		select {
 		case msg := <-d.dataC:
-			if _, ok := d.requested[msg.Index]; !ok {
+			if _, ok := requested[msg.Index]; !ok {
 				d.Error = fmt.Errorf("peer sent unrequested index for metadata message: %q", msg.Index)
 				return
 			}
-			b := &d.blocks[msg.Index]
+			b := &blocks[msg.Index]
 			if uint32(len(msg.Data)) != b.size {
 				d.Error = fmt.Errorf("peer sent invalid size for metadata message: %q", len(msg.Data))
 				return
 			}
-			delete(d.requested, msg.Index)
+			delete(requested, msg.Index)
 			b.data = msg.Data
-			if d.allDone() {
-				d.Bytes = d.assembleBlocks().Bytes()
+			if allDone() {
+				d.Bytes = assembleBlocks().Bytes()
 				return
 			}
-			d.pieceTimeoutC = nil
-			d.requestBlocks()
-		case <-d.pieceTimeoutC:
+			pieceTimeoutC = nil
+			requestBlocks()
+		case <-pieceTimeoutC:
 			select {
-			case d.snubbedC <- d:
+			case snubbedC <- d:
 			case <-d.closeC:
 				return
 			}
@@ -145,14 +133,20 @@ func (d *InfoDownloader) Run() {
 	}
 }
 
-func (d *InfoDownloader) allDone() bool {
-	return d.nextBlockIndex == uint32(len(d.blocks)) && len(d.requested) == 0
-}
-
-func (d *InfoDownloader) assembleBlocks() *bytes.Buffer {
-	buf := bytes.NewBuffer(make([]byte, 0, d.totalSize))
-	for i := range d.blocks {
-		buf.Write(d.blocks[i].data)
+func (d *InfoDownloader) createBlocks() []block {
+	numBlocks := d.Peer.ExtensionHandshake.MetadataSize / blockSize
+	mod := d.Peer.ExtensionHandshake.MetadataSize % blockSize
+	if mod != 0 {
+		numBlocks++
 	}
-	return buf
+	blocks := make([]block, numBlocks)
+	for i := range blocks {
+		blocks[i] = block{
+			size: blockSize,
+		}
+	}
+	if mod != 0 && len(blocks) > 0 {
+		blocks[len(blocks)-1].size = mod
+	}
+	return blocks
 }

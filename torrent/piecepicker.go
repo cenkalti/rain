@@ -15,11 +15,17 @@ func (t *Torrent) nextInfoDownload() *infodownloader.InfoDownloader {
 		if _, ok := t.infoDownloaders[pe]; ok {
 			continue
 		}
-		extID, ok := pe.ExtensionHandshake.M[peerprotocol.ExtensionMetadataKey]
+		if pe.ExtensionHandshake == nil {
+			continue
+		}
+		if pe.ExtensionHandshake.MetadataSize == 0 {
+			continue
+		}
+		_, ok := pe.ExtensionHandshake.M[peerprotocol.ExtensionMetadataKey]
 		if !ok {
 			continue
 		}
-		return infodownloader.New(pe, Config.Download.RequestQueueLength, Config.Peer.PieceTimeout, extID, pe.ExtensionHandshake.MetadataSize, t.snubbedInfoDownloaderC, t.infoDownloaderResultC)
+		return infodownloader.New(pe)
 	}
 	return nil
 }
@@ -31,7 +37,7 @@ func (t *Torrent) nextPieceDownload() *piecedownloader.PieceDownloader {
 	}
 	pe.Snubbed = false
 	delete(t.peersSnubbed, pe)
-	return piecedownloader.New(pi.Piece, pe, Config.Download.RequestQueueLength, Config.Peer.PieceTimeout, t.snubbedPieceDownloaderC, t.pieceDownloaderResultC)
+	return piecedownloader.New(pi.Piece, pe)
 }
 
 func (t *Torrent) findPieceAndPeer() (*piece.Piece, *peer.Peer) {
