@@ -9,11 +9,15 @@ import (
 )
 
 type Allocator struct {
+	Data          *torrentdata.Data
+	NeedHashCheck bool
+	Error         error
+
 	info    *metainfo.Info
 	storage storage.Storage
 
 	progressC chan Progress
-	resultC   chan Result
+	resultC   chan *Allocator
 
 	closeC chan struct{}
 	doneC  chan struct{}
@@ -23,13 +27,7 @@ type Progress struct {
 	AllocatedSize int64
 }
 
-type Result struct {
-	Data          *torrentdata.Data
-	NeedHashCheck bool
-	Error         error
-}
-
-func New(info *metainfo.Info, s storage.Storage, progressC chan Progress, resultC chan Result) *Allocator {
+func New(info *metainfo.Info, s storage.Storage, progressC chan Progress, resultC chan *Allocator) *Allocator {
 	return &Allocator{
 		info:      info,
 		storage:   s,
@@ -48,19 +46,18 @@ func (a *Allocator) Close() {
 func (a *Allocator) Run() {
 	defer close(a.doneC)
 
-	var result Result
 	var files []storage.File
 	defer func() {
-		if result.Error != nil {
+		if a.Error != nil {
 			for _, f := range files {
 				if f != nil {
 					f.Close()
 				}
 			}
 		}
-		result.Data = torrentdata.New(a.info, files)
+		a.Data = torrentdata.New(a.info, files)
 		select {
-		case a.resultC <- result:
+		case a.resultC <- a:
 		case <-a.closeC:
 		}
 	}()
@@ -68,8 +65,8 @@ func (a *Allocator) Run() {
 	// Single file in torrent
 	if !a.info.MultiFile {
 		var f storage.File
-		f, result.NeedHashCheck, result.Error = a.storage.Open(a.info.Name, a.info.Length)
-		if result.Error != nil {
+		f, a.NeedHashCheck, a.Error = a.storage.Open(a.info.Name, a.info.Length)
+		if a.Error != nil {
 			return
 		}
 		files = []storage.File{f}
@@ -82,12 +79,12 @@ func (a *Allocator) Run() {
 		parts := append([]string{a.info.Name}, f.Path...)
 		path := filepath.Join(parts...)
 		var exists bool
-		files[i], exists, result.Error = a.storage.Open(path, f.Length)
-		if result.Error != nil {
+		files[i], exists, a.Error = a.storage.Open(path, f.Length)
+		if a.Error != nil {
 			return
 		}
 		if exists {
-			result.NeedHashCheck = true
+			a.NeedHashCheck = true
 		}
 	}
 }

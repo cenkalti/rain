@@ -164,7 +164,7 @@ type Torrent struct {
 
 	allocator          *allocator.Allocator
 	allocatorProgressC chan allocator.Progress
-	allocatorResultC   chan allocator.Result
+	allocatorResultC   chan *allocator.Allocator
 
 	verifier          *verifier.Verifier
 	verifierProgressC chan verifier.Progress
@@ -356,7 +356,7 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		outgoingHandshakerResultC: make(chan outgoinghandshaker.Result),
 		announcerRequestC:         make(chan *announcer.Request),
 		allocatorProgressC:        make(chan allocator.Progress),
-		allocatorResultC:          make(chan allocator.Result),
+		allocatorResultC:          make(chan *allocator.Allocator),
 		verifierProgressC:         make(chan verifier.Progress),
 		verifierResultC:           make(chan verifier.Result),
 		connectedPeerIPs:          make(map[string]struct{}),

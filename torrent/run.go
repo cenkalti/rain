@@ -8,7 +8,6 @@ import (
 	"net"
 
 	"github.com/cenkalti/rain/torrent/internal/announcer"
-	"github.com/cenkalti/rain/torrent/internal/bitfield"
 	"github.com/cenkalti/rain/torrent/internal/handshaker/incominghandshaker"
 	"github.com/cenkalti/rain/torrent/internal/handshaker/outgoinghandshaker"
 	"github.com/cenkalti/rain/torrent/internal/infodownloader"
@@ -16,7 +15,6 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/peer"
 	"github.com/cenkalti/rain/torrent/internal/peerconn"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
-	"github.com/cenkalti/rain/torrent/internal/piece"
 	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
 )
 
@@ -56,39 +54,8 @@ func (t *Torrent) run() {
 			t.bytesUploaded += n
 		case <-t.allocatorProgressC:
 			// TODO handle allocation progress
-		case res := <-t.allocatorResultC:
-			t.allocator = nil
-			if res.Error != nil {
-				t.stop(fmt.Errorf("file allocation error: %s", res.Error))
-				break
-			}
-			t.data = res.Data
-			t.pieces = make([]*piece.Piece, len(t.data.Pieces))
-			t.sortedPieces = make([]*piece.Piece, len(t.data.Pieces))
-			for i := range t.data.Pieces {
-				p := piece.New(&t.data.Pieces[i])
-				t.pieces[i] = p
-				t.sortedPieces[i] = p
-			}
-			if t.bitfield != nil {
-				t.checkCompletion()
-				t.processQueuedMessages()
-				t.startAcceptor()
-				t.startAnnouncers()
-				t.startPieceDownloaders()
-				t.startUnchokeTimers()
-				break
-			}
-			if !res.NeedHashCheck {
-				t.bitfield = bitfield.New(t.info.NumPieces)
-				t.processQueuedMessages()
-				t.startAcceptor()
-				t.startAnnouncers()
-				t.startPieceDownloaders()
-				t.startUnchokeTimers()
-				break
-			}
-			t.startVerifier()
+		case al := <-t.allocatorResultC:
+			t.handleAllocationDone(al)
 		case <-t.verifierProgressC:
 			// TODO handle verification progress
 		case res := <-t.verifierResultC:
