@@ -1,5 +1,5 @@
 language: go
-go: 1.10.x
+go: 1.11.1
 before_install:
 - go get github.com/golang/dep/cmd/dep
 install:
