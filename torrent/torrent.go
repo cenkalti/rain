@@ -138,12 +138,12 @@ type Torrent struct {
 	stoppedEventAnnouncer *announcer.StopAnnouncer
 
 	// List of peers in handshake state.
-	incomingHandshakers map[string]*incominghandshaker.IncomingHandshaker
-	outgoingHandshakers map[string]*outgoinghandshaker.OutgoingHandshaker
+	incomingHandshakers map[*incominghandshaker.IncomingHandshaker]struct{}
+	outgoingHandshakers map[*outgoinghandshaker.OutgoingHandshaker]struct{}
 
 	// Handshake results are sent to these channels by handshakers.
-	incomingHandshakerResultC chan incominghandshaker.Result
-	outgoingHandshakerResultC chan outgoinghandshaker.Result
+	incomingHandshakerResultC chan *incominghandshaker.IncomingHandshaker
+	outgoingHandshakerResultC chan *outgoinghandshaker.OutgoingHandshaker
 
 	// When metadata of the torrent downloaded completely, a message is sent to this channel.
 	infoDownloaderResultC chan *infodownloader.InfoDownloader
@@ -350,10 +350,10 @@ func newTorrent(spec *downloadSpec) (*Torrent, error) {
 		sKeyHash:                  mse.HashSKey(spec.infoHash[:]),
 		infoDownloaderResultC:     make(chan *infodownloader.InfoDownloader),
 		pieceDownloaderResultC:    make(chan *piecedownloader.PieceDownloader),
-		incomingHandshakers:       make(map[string]*incominghandshaker.IncomingHandshaker),
-		outgoingHandshakers:       make(map[string]*outgoinghandshaker.OutgoingHandshaker),
-		incomingHandshakerResultC: make(chan incominghandshaker.Result),
-		outgoingHandshakerResultC: make(chan outgoinghandshaker.Result),
+		incomingHandshakers:       make(map[*incominghandshaker.IncomingHandshaker]struct{}),
+		outgoingHandshakers:       make(map[*outgoinghandshaker.OutgoingHandshaker]struct{}),
+		incomingHandshakerResultC: make(chan *incominghandshaker.IncomingHandshaker),
+		outgoingHandshakerResultC: make(chan *outgoinghandshaker.OutgoingHandshaker),
 		announcerRequestC:         make(chan *announcer.Request),
 		allocatorProgressC:        make(chan allocator.Progress),
 		allocatorResultC:          make(chan *allocator.Allocator),

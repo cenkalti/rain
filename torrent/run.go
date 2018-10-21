@@ -76,8 +76,8 @@ func (t *Torrent) run() {
 				conn.Close()
 				break
 			}
-			h := incominghandshaker.NewIncoming(conn, t.peerID, t.sKeyHash, t.infoHash, t.incomingHandshakerResultC, t.log, Config.Peer.HandshakeTimeout, Config.Peer.PieceTimeout, t.uploadByteCounterC)
-			t.incomingHandshakers[conn.RemoteAddr().String()] = h
+			h := incominghandshaker.New(conn, t.peerID, t.sKeyHash, t.infoHash, t.incomingHandshakerResultC, t.log, Config.Peer.HandshakeTimeout, Config.Peer.PieceTimeout, t.uploadByteCounterC)
+			t.incomingHandshakers[h] = struct{}{}
 			t.connectedPeerIPs[ip] = struct{}{}
 			go h.Run()
 		case req := <-t.announcerRequestC:
@@ -171,22 +171,21 @@ func (t *Torrent) run() {
 			t.tickUnchoke()
 		case <-t.optimisticUnchokeTimerC:
 			t.tickOptimisticUnchoke()
-		case res := <-t.incomingHandshakerResultC:
-			delete(t.incomingHandshakers, res.Conn.RemoteAddr().String())
-			if res.Error != nil {
-				res.Conn.Close()
-				delete(t.connectedPeerIPs, res.Conn.RemoteAddr().(*net.TCPAddr).IP.String())
+		case ih := <-t.incomingHandshakerResultC:
+			delete(t.incomingHandshakers, ih)
+			if ih.Error != nil {
+				delete(t.connectedPeerIPs, ih.Conn.RemoteAddr().(*net.TCPAddr).IP.String())
 				break
 			}
-			t.startPeer(res.Peer, t.incomingPeers)
-		case res := <-t.outgoingHandshakerResultC:
-			delete(t.outgoingHandshakers, res.Addr.String())
-			if res.Error != nil {
-				delete(t.connectedPeerIPs, res.Addr.IP.String())
+			t.startPeer(ih.Peer, t.incomingPeers)
+		case oh := <-t.outgoingHandshakerResultC:
+			delete(t.outgoingHandshakers, oh)
+			if oh.Error != nil {
+				delete(t.connectedPeerIPs, oh.Addr.IP.String())
 				t.dialAddresses()
 				break
 			}
-			t.startPeer(res.Peer, t.outgoingPeers)
+			t.startPeer(oh.Peer, t.outgoingPeers)
 		case pe := <-t.peerDisconnectedC:
 			t.closePeer(pe)
 		case pm := <-t.messages:
@@ -247,8 +246,8 @@ func (t *Torrent) dialAddresses() {
 		if _, ok := t.connectedPeerIPs[ip]; ok {
 			continue
 		}
-		h := outgoinghandshaker.NewOutgoing(addr, Config.Peer.ConnectTimeout, Config.Peer.HandshakeTimeout, Config.Peer.PieceTimeout, t.peerID, t.infoHash, t.outgoingHandshakerResultC, t.log, t.uploadByteCounterC)
-		t.outgoingHandshakers[addr.String()] = h
+		h := outgoinghandshaker.New(addr, Config.Peer.ConnectTimeout, Config.Peer.HandshakeTimeout, Config.Peer.PieceTimeout, t.peerID, t.infoHash, t.outgoingHandshakerResultC, t.log, t.uploadByteCounterC)
+		t.outgoingHandshakers[h] = struct{}{}
 		t.connectedPeerIPs[ip] = struct{}{}
 		go h.Run()
 	}
@@ -334,10 +333,10 @@ func (t *Torrent) checkCompletion() {
 		t.log.Info("download completed")
 		t.completed = true
 		close(t.completeC)
-		for _, h := range t.outgoingHandshakers {
+		for h := range t.outgoingHandshakers {
 			h.Close()
 		}
-		t.outgoingHandshakers = make(map[string]*outgoinghandshaker.OutgoingHandshaker)
+		t.outgoingHandshakers = make(map[*outgoinghandshaker.OutgoingHandshaker]struct{})
 		for pe := range t.peers {
 			if !pe.PeerInterested {
 				t.closePeer(pe)

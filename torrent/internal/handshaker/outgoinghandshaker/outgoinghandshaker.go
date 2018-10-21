@@ -12,28 +12,25 @@ import (
 )
 
 type OutgoingHandshaker struct {
-	addr                  *net.TCPAddr
+	Addr  *net.TCPAddr
+	Peer  *peerconn.Conn
+	Error error
+
 	dialTimeout           time.Duration
 	handshakeTimeout      time.Duration
 	readTimeout           time.Duration
 	peerID                [20]byte
 	infoHash              [20]byte
-	resultC               chan Result
+	resultC               chan *OutgoingHandshaker
 	uploadedBytesCounterC chan int64
 	closeC                chan struct{}
 	doneC                 chan struct{}
 	log                   logger.Logger
 }
 
-type Result struct {
-	Peer  *peerconn.Conn
-	Addr  *net.TCPAddr
-	Error error
-}
-
-func NewOutgoing(addr *net.TCPAddr, dialTimeout, handshakeTimeout, readTimeout time.Duration, peerID, infoHash [20]byte, resultC chan Result, l logger.Logger, uploadedBytesCounterC chan int64) *OutgoingHandshaker {
+func New(addr *net.TCPAddr, dialTimeout, handshakeTimeout, readTimeout time.Duration, peerID, infoHash [20]byte, resultC chan *OutgoingHandshaker, l logger.Logger, uploadedBytesCounterC chan int64) *OutgoingHandshaker {
 	return &OutgoingHandshaker{
-		addr:                  addr,
+		Addr:                  addr,
 		dialTimeout:           dialTimeout,
 		handshakeTimeout:      handshakeTimeout,
 		readTimeout:           readTimeout,
@@ -54,7 +51,7 @@ func (h *OutgoingHandshaker) Close() {
 
 func (h *OutgoingHandshaker) Run() {
 	defer close(h.doneC)
-	log := logger.New("peer -> " + h.addr.String())
+	log := logger.New("peer -> " + h.Addr.String())
 
 	// TODO get this from config
 	encryptionDisableOutgoing := false
@@ -67,7 +64,7 @@ func (h *OutgoingHandshaker) Run() {
 	ourbf.Set(43) // Extension Protocol (BEP 10)
 
 	// TODO separate dial and handshake
-	conn, cipher, peerExtensions, peerID, err := btconn.Dial(h.addr, h.dialTimeout, h.handshakeTimeout, !encryptionDisableOutgoing, encryptionForceOutgoing, ourExtensions, h.infoHash, h.peerID, h.closeC)
+	conn, cipher, peerExtensions, peerID, err := btconn.Dial(h.Addr, h.dialTimeout, h.handshakeTimeout, !encryptionDisableOutgoing, encryptionForceOutgoing, ourExtensions, h.infoHash, h.peerID, h.closeC)
 	if err != nil {
 		if err == io.EOF {
 			log.Debug("peer has closed the connection: EOF")
@@ -78,8 +75,9 @@ func (h *OutgoingHandshaker) Run() {
 		} else {
 			log.Errorln("cannot complete outgoing handshake:", err)
 		}
+		h.Error = err
 		select {
-		case h.resultC <- Result{Addr: h.addr, Error: err}:
+		case h.resultC <- h:
 		case <-h.closeC:
 		}
 		return
@@ -89,9 +87,9 @@ func (h *OutgoingHandshaker) Run() {
 	peerbf := bitfield.NewBytes(peerExtensions[:], 64)
 	extensions := ourbf.And(peerbf)
 
-	p := peerconn.New(conn, peerID, extensions, log, h.readTimeout, h.uploadedBytesCounterC)
+	h.Peer = peerconn.New(conn, peerID, extensions, log, h.readTimeout, h.uploadedBytesCounterC)
 	select {
-	case h.resultC <- Result{Addr: h.addr, Peer: p}:
+	case h.resultC <- h:
 	case <-h.closeC:
 		conn.Close()
 	}
