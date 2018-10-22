@@ -80,7 +80,7 @@ func (t *Torrent) run() {
 			h := incominghandshaker.New(conn)
 			t.incomingHandshakers[h] = struct{}{}
 			t.connectedPeerIPs[ip] = struct{}{}
-			go h.Run(t.peerID, t.getSKey, t.checkInfoHash, t.incomingHandshakerResultC, Config.Peer.HandshakeTimeout, ourExtensions)
+			go h.Run(t.peerID, t.getSKey, t.checkInfoHash, t.incomingHandshakerResultC, Config.Peer.HandshakeTimeout, ourExtensions, Config.Peer.Encryption.ForceIncoming)
 		case req := <-t.announcerRequestC:
 			tr := t.announcerFields()
 			// TODO set bytes uploaded/downloaded
@@ -254,7 +254,7 @@ func (t *Torrent) dialAddresses() {
 		h := outgoinghandshaker.New(addr)
 		t.outgoingHandshakers[h] = struct{}{}
 		t.connectedPeerIPs[ip] = struct{}{}
-		go h.Run(Config.Peer.ConnectTimeout, Config.Peer.HandshakeTimeout, t.peerID, t.infoHash, t.outgoingHandshakerResultC, ourExtensions)
+		go h.Run(Config.Peer.ConnectTimeout, Config.Peer.HandshakeTimeout, t.peerID, t.infoHash, t.outgoingHandshakerResultC, ourExtensions, Config.Peer.Encryption.DisableOutgoing, Config.Peer.Encryption.ForceOutgoing)
 	}
 }
 

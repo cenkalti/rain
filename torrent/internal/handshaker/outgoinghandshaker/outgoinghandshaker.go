@@ -34,18 +34,14 @@ func (h *OutgoingHandshaker) Close() {
 	<-h.doneC
 }
 
-func (h *OutgoingHandshaker) Run(dialTimeout, handshakeTimeout time.Duration, peerID, infoHash [20]byte, resultC chan *OutgoingHandshaker, ourExtensions *bitfield.Bitfield) {
+func (h *OutgoingHandshaker) Run(dialTimeout, handshakeTimeout time.Duration, peerID, infoHash [20]byte, resultC chan *OutgoingHandshaker, ourExtensions *bitfield.Bitfield, disableOutgoingEncryption, forceOutgoingEncryption bool) {
 	defer close(h.doneC)
 	log := logger.New("peer -> " + h.Addr.String())
-
-	// TODO get this from config
-	encryptionDisableOutgoing := false
-	encryptionForceOutgoing := false
 
 	var ourExtensionsBytes [8]byte
 	copy(ourExtensionsBytes[:], ourExtensions.Bytes())
 
-	conn, cipher, peerExtensions, peerID, err := btconn.Dial(h.Addr, dialTimeout, handshakeTimeout, !encryptionDisableOutgoing, encryptionForceOutgoing, ourExtensionsBytes, infoHash, peerID, h.closeC)
+	conn, cipher, peerExtensions, peerID, err := btconn.Dial(h.Addr, dialTimeout, handshakeTimeout, !disableOutgoingEncryption, forceOutgoingEncryption, ourExtensionsBytes, infoHash, peerID, h.closeC)
 	if err != nil {
 		if err == io.EOF {
 			log.Debug("peer has closed the connection: EOF")

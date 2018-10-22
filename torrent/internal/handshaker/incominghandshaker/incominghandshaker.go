@@ -33,7 +33,7 @@ func (h *IncomingHandshaker) Close() {
 	<-h.doneC
 }
 
-func (h *IncomingHandshaker) Run(peerID [20]byte, getSKeyFunc func([20]byte) []byte, checkInfoHashFunc func([20]byte) bool, resultC chan *IncomingHandshaker, timeout time.Duration, ourExtensions *bitfield.Bitfield) {
+func (h *IncomingHandshaker) Run(peerID [20]byte, getSKeyFunc func([20]byte) []byte, checkInfoHashFunc func([20]byte) bool, resultC chan *IncomingHandshaker, timeout time.Duration, ourExtensions *bitfield.Bitfield, forceIncomingEncryption bool) {
 	defer close(h.doneC)
 	defer func() {
 		select {
@@ -45,14 +45,11 @@ func (h *IncomingHandshaker) Run(peerID [20]byte, getSKeyFunc func([20]byte) []b
 
 	log := logger.New("conn <- " + h.Conn.RemoteAddr().String())
 
-	// TODO get this from config
-	encryptionForceIncoming := false
-
 	var ourExtensionsBytes [8]byte
 	copy(ourExtensionsBytes[:], ourExtensions.Bytes())
 
 	conn, cipher, peerExtensions, peerID, _, err := btconn.Accept(
-		h.Conn, timeout, getSKeyFunc, encryptionForceIncoming, checkInfoHashFunc, ourExtensionsBytes, peerID)
+		h.Conn, timeout, getSKeyFunc, forceIncomingEncryption, checkInfoHashFunc, ourExtensionsBytes, peerID)
 	if err != nil {
 		if err == io.EOF {
 			log.Debug("peer has closed the connection: EOF")
