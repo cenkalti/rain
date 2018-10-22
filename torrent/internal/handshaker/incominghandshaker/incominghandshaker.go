@@ -8,13 +8,13 @@ import (
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent/internal/bitfield"
 	"github.com/cenkalti/rain/torrent/internal/btconn"
-	"github.com/cenkalti/rain/torrent/internal/peerconn"
 )
 
 type IncomingHandshaker struct {
-	Conn  net.Conn
-	Peer  *peerconn.Conn
-	Error error
+	Conn       net.Conn
+	PeerID     [20]byte
+	Extensions *bitfield.Bitfield
+	Error      error
 
 	closeC chan struct{}
 	doneC  chan struct{}
@@ -33,7 +33,7 @@ func (h *IncomingHandshaker) Close() {
 	<-h.doneC
 }
 
-func (h *IncomingHandshaker) Run(peerID [20]byte, getSKeyFunc func([20]byte) []byte, checkInfoHashFunc func([20]byte) bool, resultC chan *IncomingHandshaker, l logger.Logger, timeout, readTimeout time.Duration, uploadedBytesCounterC chan int64, ourExtensions *bitfield.Bitfield) {
+func (h *IncomingHandshaker) Run(peerID [20]byte, getSKeyFunc func([20]byte) []byte, checkInfoHashFunc func([20]byte) bool, resultC chan *IncomingHandshaker, timeout time.Duration, ourExtensions *bitfield.Bitfield) {
 	defer close(h.doneC)
 	defer func() {
 		select {
@@ -43,7 +43,7 @@ func (h *IncomingHandshaker) Run(peerID [20]byte, getSKeyFunc func([20]byte) []b
 		}
 	}()
 
-	log := logger.New("peer <- " + h.Conn.RemoteAddr().String())
+	log := logger.New("conn <- " + h.Conn.RemoteAddr().String())
 
 	// TODO get this from config
 	encryptionForceIncoming := false
@@ -71,5 +71,7 @@ func (h *IncomingHandshaker) Run(peerID [20]byte, getSKeyFunc func([20]byte) []b
 	peerbf := bitfield.NewBytes(peerExtensions[:], 64)
 	peerbf.And(ourExtensions)
 
-	h.Peer = peerconn.New(conn, peerID, peerbf, log, readTimeout, uploadedBytesCounterC)
+	h.Conn = conn
+	h.PeerID = peerID
+	h.Extensions = peerbf
 }

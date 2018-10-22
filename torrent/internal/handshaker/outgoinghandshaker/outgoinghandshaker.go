@@ -8,13 +8,14 @@ import (
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent/internal/bitfield"
 	"github.com/cenkalti/rain/torrent/internal/btconn"
-	"github.com/cenkalti/rain/torrent/internal/peerconn"
 )
 
 type OutgoingHandshaker struct {
-	Addr  *net.TCPAddr
-	Peer  *peerconn.Conn
-	Error error
+	Addr       *net.TCPAddr
+	Conn       net.Conn
+	PeerID     [20]byte
+	Extensions *bitfield.Bitfield
+	Error      error
 
 	closeC chan struct{}
 	doneC  chan struct{}
@@ -33,7 +34,7 @@ func (h *OutgoingHandshaker) Close() {
 	<-h.doneC
 }
 
-func (h *OutgoingHandshaker) Run(dialTimeout, handshakeTimeout, readTimeout time.Duration, peerID, infoHash [20]byte, resultC chan *OutgoingHandshaker, l logger.Logger, uploadedBytesCounterC chan int64, ourExtensions *bitfield.Bitfield) {
+func (h *OutgoingHandshaker) Run(dialTimeout, handshakeTimeout time.Duration, peerID, infoHash [20]byte, resultC chan *OutgoingHandshaker, ourExtensions *bitfield.Bitfield) {
 	defer close(h.doneC)
 	log := logger.New("peer -> " + h.Addr.String())
 
@@ -67,7 +68,10 @@ func (h *OutgoingHandshaker) Run(dialTimeout, handshakeTimeout, readTimeout time
 	peerbf := bitfield.NewBytes(peerExtensions[:], 64)
 	peerbf.And(ourExtensions)
 
-	h.Peer = peerconn.New(conn, peerID, peerbf, log, readTimeout, uploadedBytesCounterC)
+	h.Conn = conn
+	h.PeerID = peerID
+	h.Extensions = peerbf
+
 	select {
 	case resultC <- h:
 	case <-h.closeC:

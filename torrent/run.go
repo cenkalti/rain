@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent/internal/announcer"
 	"github.com/cenkalti/rain/torrent/internal/handshaker/incominghandshaker"
 	"github.com/cenkalti/rain/torrent/internal/handshaker/outgoinghandshaker"
@@ -79,7 +80,7 @@ func (t *Torrent) run() {
 			h := incominghandshaker.New(conn)
 			t.incomingHandshakers[h] = struct{}{}
 			t.connectedPeerIPs[ip] = struct{}{}
-			go h.Run(t.peerID, t.getSKey, t.checkInfoHash, t.incomingHandshakerResultC, t.log, Config.Peer.HandshakeTimeout, Config.Peer.PieceTimeout, t.uploadByteCounterC, ourExtensions)
+			go h.Run(t.peerID, t.getSKey, t.checkInfoHash, t.incomingHandshakerResultC, Config.Peer.HandshakeTimeout, ourExtensions)
 		case req := <-t.announcerRequestC:
 			tr := t.announcerFields()
 			// TODO set bytes uploaded/downloaded
@@ -177,7 +178,9 @@ func (t *Torrent) run() {
 				delete(t.connectedPeerIPs, ih.Conn.RemoteAddr().(*net.TCPAddr).IP.String())
 				break
 			}
-			t.startPeer(ih.Peer, t.incomingPeers)
+			log := logger.New("peer <- " + ih.Conn.RemoteAddr().String())
+			pe := peerconn.New(ih.Conn, ih.PeerID, ih.Extensions, log, Config.Peer.PieceTimeout, t.uploadByteCounterC)
+			t.startPeer(pe, t.incomingPeers)
 		case oh := <-t.outgoingHandshakerResultC:
 			delete(t.outgoingHandshakers, oh)
 			if oh.Error != nil {
@@ -185,7 +188,9 @@ func (t *Torrent) run() {
 				t.dialAddresses()
 				break
 			}
-			t.startPeer(oh.Peer, t.outgoingPeers)
+			log := logger.New("peer -> " + oh.Conn.RemoteAddr().String())
+			pe := peerconn.New(oh.Conn, oh.PeerID, oh.Extensions, log, Config.Peer.PieceTimeout, t.uploadByteCounterC)
+			t.startPeer(pe, t.outgoingPeers)
 		case pe := <-t.peerDisconnectedC:
 			t.closePeer(pe)
 		case pm := <-t.messages:
@@ -249,7 +254,7 @@ func (t *Torrent) dialAddresses() {
 		h := outgoinghandshaker.New(addr)
 		t.outgoingHandshakers[h] = struct{}{}
 		t.connectedPeerIPs[ip] = struct{}{}
-		go h.Run(Config.Peer.ConnectTimeout, Config.Peer.HandshakeTimeout, Config.Peer.PieceTimeout, t.peerID, t.infoHash, t.outgoingHandshakerResultC, t.log, t.uploadByteCounterC, ourExtensions)
+		go h.Run(Config.Peer.ConnectTimeout, Config.Peer.HandshakeTimeout, t.peerID, t.infoHash, t.outgoingHandshakerResultC, ourExtensions)
 	}
 }
 
