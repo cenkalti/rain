@@ -33,7 +33,7 @@ func (h *OutgoingHandshaker) Close() {
 	<-h.doneC
 }
 
-func (h *OutgoingHandshaker) Run(dialTimeout, handshakeTimeout, readTimeout time.Duration, peerID, infoHash [20]byte, resultC chan *OutgoingHandshaker, l logger.Logger, uploadedBytesCounterC chan int64) {
+func (h *OutgoingHandshaker) Run(dialTimeout, handshakeTimeout, readTimeout time.Duration, peerID, infoHash [20]byte, resultC chan *OutgoingHandshaker, l logger.Logger, uploadedBytesCounterC chan int64, ourExtensions *bitfield.Bitfield) {
 	defer close(h.doneC)
 	log := logger.New("peer -> " + h.Addr.String())
 
@@ -41,13 +41,10 @@ func (h *OutgoingHandshaker) Run(dialTimeout, handshakeTimeout, readTimeout time
 	encryptionDisableOutgoing := false
 	encryptionForceOutgoing := false
 
-	// TODO get supported extensions from common place
-	var ourExtensions [8]byte
-	ourbf := bitfield.NewBytes(ourExtensions[:], 64)
-	ourbf.Set(61) // Fast Extension (BEP 6)
-	ourbf.Set(43) // Extension Protocol (BEP 10)
+	var ourExtensionsBytes [8]byte
+	copy(ourExtensionsBytes[:], ourExtensions.Bytes())
 
-	conn, cipher, peerExtensions, peerID, err := btconn.Dial(h.Addr, dialTimeout, handshakeTimeout, !encryptionDisableOutgoing, encryptionForceOutgoing, ourExtensions, infoHash, peerID, h.closeC)
+	conn, cipher, peerExtensions, peerID, err := btconn.Dial(h.Addr, dialTimeout, handshakeTimeout, !encryptionDisableOutgoing, encryptionForceOutgoing, ourExtensionsBytes, infoHash, peerID, h.closeC)
 	if err != nil {
 		if err == io.EOF {
 			log.Debug("peer has closed the connection: EOF")
@@ -68,7 +65,7 @@ func (h *OutgoingHandshaker) Run(dialTimeout, handshakeTimeout, readTimeout time
 	log.Debugf("Connected to peer. (cipher=%s extensions=%x client=%q)", cipher, peerExtensions, peerID[:8])
 
 	peerbf := bitfield.NewBytes(peerExtensions[:], 64)
-	peerbf.And(ourbf)
+	peerbf.And(ourExtensions)
 
 	h.Peer = peerconn.New(conn, peerID, peerbf, log, readTimeout, uploadedBytesCounterC)
 	select {

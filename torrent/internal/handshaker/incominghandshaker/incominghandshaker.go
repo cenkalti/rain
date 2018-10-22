@@ -33,7 +33,7 @@ func (h *IncomingHandshaker) Close() {
 	<-h.doneC
 }
 
-func (h *IncomingHandshaker) Run(peerID [20]byte, getSKeyFunc func([20]byte) []byte, checkInfoHashFunc func([20]byte) bool, resultC chan *IncomingHandshaker, l logger.Logger, timeout, readTimeout time.Duration, uploadedBytesCounterC chan int64) {
+func (h *IncomingHandshaker) Run(peerID [20]byte, getSKeyFunc func([20]byte) []byte, checkInfoHashFunc func([20]byte) bool, resultC chan *IncomingHandshaker, l logger.Logger, timeout, readTimeout time.Duration, uploadedBytesCounterC chan int64, ourExtensions *bitfield.Bitfield) {
 	defer close(h.doneC)
 	defer func() {
 		select {
@@ -48,14 +48,11 @@ func (h *IncomingHandshaker) Run(peerID [20]byte, getSKeyFunc func([20]byte) []b
 	// TODO get this from config
 	encryptionForceIncoming := false
 
-	// TODO get supported extensions from common place
-	ourExtensions := [8]byte{}
-	ourbf := bitfield.NewBytes(ourExtensions[:], 64)
-	ourbf.Set(61) // Fast Extension (BEP 6)
-	ourbf.Set(43) // Extension Protocol (BEP 10)
+	var ourExtensionsBytes [8]byte
+	copy(ourExtensionsBytes[:], ourExtensions.Bytes())
 
 	conn, cipher, peerExtensions, peerID, _, err := btconn.Accept(
-		h.Conn, timeout, getSKeyFunc, encryptionForceIncoming, checkInfoHashFunc, ourExtensions, peerID)
+		h.Conn, timeout, getSKeyFunc, encryptionForceIncoming, checkInfoHashFunc, ourExtensionsBytes, peerID)
 	if err != nil {
 		if err == io.EOF {
 			log.Debug("peer has closed the connection: EOF")
@@ -72,7 +69,7 @@ func (h *IncomingHandshaker) Run(peerID [20]byte, getSKeyFunc func([20]byte) []b
 	log.Debugf("Connection accepted. (cipher=%s extensions=%x client=%q)", cipher, peerExtensions, peerID[:8])
 
 	peerbf := bitfield.NewBytes(peerExtensions[:], 64)
-	peerbf.And(ourbf)
+	peerbf.And(ourExtensions)
 
 	h.Peer = peerconn.New(conn, peerID, peerbf, log, readTimeout, uploadedBytesCounterC)
 }

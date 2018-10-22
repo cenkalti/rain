@@ -39,7 +39,15 @@ import (
 var (
 	// http://www.bittorrent.org/beps/bep_0020.html
 	peerIDPrefix = []byte("-RN" + clientversion.Version + "-")
+
+	// We send this in handshake tell supported extensions.
+	ourExtensions = bitfield.New(64)
 )
+
+func init() {
+	ourExtensions.Set(61) // Fast Extension (BEP 6)
+	ourExtensions.Set(43) // Extension Protocol (BEP 10)
+}
 
 // Torrent connects to peers and downloads files from swarm.
 type Torrent struct {
