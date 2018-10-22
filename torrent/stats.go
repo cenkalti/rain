@@ -13,9 +13,10 @@ type Stats struct {
 	Error error
 
 	Pieces struct {
-		Have    uint32
-		Missing uint32
-		Total   uint32
+		Have      uint32
+		Missing   uint32
+		Available uint32
+		Total     uint32
 	}
 
 	Bytes struct {
@@ -144,10 +145,21 @@ func (t *Torrent) stats() Stats {
 		stats.Pieces.Have = t.bitfield.Count()
 		stats.Pieces.Missing = stats.Pieces.Total - stats.Pieces.Have
 	}
+	stats.Pieces.Available = t.avaliablePieceCount()
 	stats.Bytes.Downloaded = t.bytesDownloaded
 	stats.Bytes.Uploaded = t.bytesUploaded
 	stats.Bytes.Wasted = t.bytesWasted
 	return stats
+}
+
+func (t *Torrent) avaliablePieceCount() uint32 {
+	var n uint32
+	for _, pi := range t.pieces {
+		if len(pi.HavingPeers) > 0 {
+			n++
+		}
+	}
+	return n
 }
 
 func (t *Torrent) bytesComplete() int64 {
