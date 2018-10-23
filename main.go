@@ -12,19 +12,19 @@ import (
 	"time"
 
 	"github.com/cenkalti/log"
-	"github.com/cenkalti/rain/client"
 	"github.com/cenkalti/rain/internal/clientversion"
 	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/rpcclient"
 	"github.com/cenkalti/rain/torrent"
 	"github.com/cenkalti/rain/torrent/resume/torrentresume"
 	"github.com/cenkalti/rain/torrent/storage/filestorage"
-	"github.com/mitchellh/go-homedir"
+	// "github.com/mitchellh/go-homedir"
 	"github.com/urfave/cli"
 )
 
 var (
-	cfg = client.NewConfig()
 	app = cli.NewApp()
+	clt *rpcclient.RPCClient
 )
 
 func main() {
@@ -108,17 +108,17 @@ func handleBeforeCommand(c *cli.Context) error {
 			log.Fatal("could not start CPU profile: ", err)
 		}
 	}
-	configPath := c.GlobalString("config")
-	if configPath != "" {
-		cp, err := homedir.Expand(configPath)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = cfg.LoadFile(cp)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
+	// configPath := c.GlobalString("config")
+	// if configPath != "" {
+	// 	cp, err := homedir.Expand(configPath)
+	// 	if err != nil {
+	// 		log.Fatal(err)
+	// 	}
+	// 	err = cfg.LoadFile(cp)
+	// 	if err != nil {
+	// 		log.Fatal(err)
+	// 	}
+	// }
 	logFile := c.GlobalString("logfile")
 	if logFile != "" {
 		f, err := os.Create(logFile)
@@ -208,7 +208,16 @@ func printStats(t *torrent.Torrent) {
 	}
 }
 
-func handleList(c *cli.Context) error {
-	// TODO implement handleList
+func handleBeforeClient(c *cli.Context) error {
+	clt = rpcclient.New(c.String("url"))
 	return nil
+}
+
+func handleList(c *cli.Context) error {
+	torrents, err := clt.ListTorrents()
+	if err != nil {
+		return err
+	}
+	enc := json.NewEncoder(os.Stdout)
+	return enc.Encode(torrents)
 }
