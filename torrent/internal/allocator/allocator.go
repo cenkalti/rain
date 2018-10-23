@@ -3,9 +3,9 @@ package allocator
 import (
 	"path/filepath"
 
-	"github.com/cenkalti/rain/storage"
 	"github.com/cenkalti/rain/torrent/internal/metainfo"
 	"github.com/cenkalti/rain/torrent/internal/torrentdata"
+	"github.com/cenkalti/rain/torrent/storage"
 )
 
 type Allocator struct {

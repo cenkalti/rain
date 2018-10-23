@@ -1,10 +1,10 @@
 package torrent
 
 import (
-	"github.com/cenkalti/rain/resume"
-	"github.com/cenkalti/rain/storage"
 	"github.com/cenkalti/rain/torrent/internal/bitfield"
 	"github.com/cenkalti/rain/torrent/internal/metainfo"
+	"github.com/cenkalti/rain/torrent/resume"
+	"github.com/cenkalti/rain/torrent/storage"
 )
 
 // downloadSpec contains parameters for Torrent constructor.

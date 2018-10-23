@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cenkalti/rain/storage"
+	"github.com/cenkalti/rain/torrent/storage"
 )
 
 const StorageType = "file"

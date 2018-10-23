@@ -5,9 +5,9 @@ import (
 	"hash"
 	"io"
 
-	"github.com/cenkalti/rain/storage"
 	"github.com/cenkalti/rain/torrent/internal/filesection"
 	"github.com/cenkalti/rain/torrent/internal/metainfo"
+	"github.com/cenkalti/rain/torrent/storage"
 )
 
 // Piece of a torrent.

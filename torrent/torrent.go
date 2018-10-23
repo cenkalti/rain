@@ -12,9 +12,6 @@ import (
 
 	"github.com/cenkalti/rain/internal/clientversion"
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/resume"
-	"github.com/cenkalti/rain/storage"
-	"github.com/cenkalti/rain/storage/filestorage"
 	"github.com/cenkalti/rain/torrent/internal/acceptor"
 	"github.com/cenkalti/rain/torrent/internal/addrlist"
 	"github.com/cenkalti/rain/torrent/internal/allocator"
@@ -34,6 +31,9 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/tracker/httptracker"
 	"github.com/cenkalti/rain/torrent/internal/tracker/udptracker"
 	"github.com/cenkalti/rain/torrent/internal/verifier"
+	"github.com/cenkalti/rain/torrent/resume"
+	"github.com/cenkalti/rain/torrent/storage"
+	"github.com/cenkalti/rain/torrent/storage/filestorage"
 )
 
 var (
