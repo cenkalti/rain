@@ -32,10 +32,13 @@ func New(path string) (*TorrentResume, error) {
 	if err != nil {
 		return nil, err
 	}
-	db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists([]byte(bucketName))
-		return err
+	err = db.Update(func(tx *bolt.Tx) error {
+		_, err2 := tx.CreateBucketIfNotExists(bucketName)
+		return err2
 	})
+	if err != nil {
+		return nil, err
+	}
 	return &TorrentResume{
 		db: db,
 	}, nil
