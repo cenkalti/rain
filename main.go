@@ -72,6 +72,24 @@ func main() {
 				},
 			},
 		},
+		{
+			Name:  "client",
+			Usage: "send request to RPC server",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "url",
+					Usage: "URL of RPC server",
+					Value: "http://localhost:7246",
+				},
+			},
+			Subcommands: []cli.Command{
+				{
+					Name:   "list",
+					Usage:  "list torrents",
+					Action: handleList,
+				},
+			},
+		},
 	}
 	err := app.Run(os.Args)
 	if err != nil {
@@ -188,4 +206,9 @@ func printStats(t *torrent.Torrent) {
 		}
 		fmt.Println(string(b))
 	}
+}
+
+func handleList(c *cli.Context) error {
+	// TODO implement handleList
+	return nil
 }
