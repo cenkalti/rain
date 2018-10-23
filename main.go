@@ -82,6 +82,7 @@ func main() {
 					Value: "http://localhost:7246",
 				},
 			},
+			Before: handleBeforeClient,
 			Subcommands: []cli.Command{
 				{
 					Name:   "list",
