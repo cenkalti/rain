@@ -12,9 +12,11 @@ import (
 	"time"
 
 	"github.com/cenkalti/log"
+	"github.com/cenkalti/rain/client"
 	"github.com/cenkalti/rain/internal/clientversion"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/rpcclient"
+	"github.com/cenkalti/rain/rpcserver"
 	"github.com/cenkalti/rain/torrent"
 	"github.com/cenkalti/rain/torrent/resume/torrentresume"
 	"github.com/cenkalti/rain/torrent/storage/filestorage"
@@ -90,6 +92,18 @@ func main() {
 					Action: handleList,
 				},
 			},
+		},
+		{
+			Name:  "server",
+			Usage: "run RPC server",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "addr",
+					Usage: "listen addr",
+					Value: "0.0.0.0:7246",
+				},
+			},
+			Action: handleServer,
 		},
 	}
 	err := app.Run(os.Args)
@@ -207,6 +221,14 @@ func printStats(t *torrent.Torrent) {
 		}
 		fmt.Println(string(b))
 	}
+}
+
+func handleServer(c *cli.Context) error {
+	clt, _ := client.New(nil)
+	addr := c.String("addr")
+	srv := rpcserver.New(clt, addr)
+	log.Infoln("RPC server is listening on", addr)
+	return srv.ListenAndServe()
 }
 
 func handleBeforeClient(c *cli.Context) error {
