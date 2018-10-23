@@ -12,8 +12,8 @@ import (
 
 	"github.com/cenkalti/log"
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/storage/filestorage"
 	"github.com/cenkalti/rain/torrent"
+	"github.com/cenkalti/rain/torrent/storage/filestorage"
 	"github.com/chihaya/chihaya/frontend/http"
 	"github.com/chihaya/chihaya/frontend/udp"
 	"github.com/chihaya/chihaya/middleware"
