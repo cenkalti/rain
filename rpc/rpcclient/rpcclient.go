@@ -3,8 +3,11 @@ package rpcclient
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+
+	"github.com/cenkalti/rain/rpc/rpctypes"
 )
 
 type RPCClient struct {
@@ -16,9 +19,9 @@ func New(url string) *RPCClient {
 	return &RPCClient{url: url}
 }
 
-func (c *RPCClient) ListTorrents() (ListTorrentsResponse, error) {
-	var resp ListTorrentsResponse
-	err := c.request(http.MethodGet, "/list-torrents", nil, &resp)
+func (c *RPCClient) ListTorrents() (rpctypes.ListTorrentsResponse, error) {
+	var resp rpctypes.ListTorrentsResponse
+	err := c.request(http.MethodGet, "/list", nil, &resp)
 	return resp, err
 }
 
@@ -43,14 +46,9 @@ func (c *RPCClient) request(method, path string, req, resp interface{}) error {
 	if err != nil {
 		return err
 	}
+	if httpResp.StatusCode != 200 {
+		return fmt.Errorf("rpc error (status=%d)", httpResp.StatusCode)
+	}
 	defer httpResp.Body.Close()
 	return json.NewDecoder(httpResp.Body).Decode(&resp)
-}
-
-type Torrent struct {
-	ID int
-}
-
-type ListTorrentsResponse struct {
-	Torrents map[uint64]Torrent
 }

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/cenkalti/rain/client"
+	"github.com/cenkalti/rain/rpc/rpctypes"
 )
 
 type Handler struct {
@@ -27,9 +28,15 @@ func NewHandler(c *client.Client) *Handler {
 }
 
 func (h *Handler) handleList(w http.ResponseWriter, r *http.Request) {
+	resp := rpctypes.ListTorrentsResponse{
+		Torrents: make(map[uint64]rpctypes.Torrent),
+	}
 	torrents := h.client.ListTorrents()
+	for _, t := range torrents {
+		resp.Torrents[t.ID] = rpctypes.Torrent{ID: t.ID}
+	}
 	enc := json.NewEncoder(w)
-	enc.Encode(torrents)
+	enc.Encode(resp)
 }
 
 func (h *Handler) handleAdd(w http.ResponseWriter, r *http.Request)    {}
@@ -37,13 +44,3 @@ func (h *Handler) handleRemove(w http.ResponseWriter, r *http.Request) {}
 func (h *Handler) handleStart(w http.ResponseWriter, r *http.Request)  {}
 func (h *Handler) handleStop(w http.ResponseWriter, r *http.Request)   {}
 func (h *Handler) handleStats(w http.ResponseWriter, r *http.Request)  {}
-
-type Torrent struct {
-	ID uint64
-}
-
-func NewTorrent(t *client.Torrent) *Torrent {
-	return &Torrent{
-		ID: t.ID,
-	}
-}
