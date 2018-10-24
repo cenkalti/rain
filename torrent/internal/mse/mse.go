@@ -107,7 +107,7 @@ func (s *Stream) Write(p []byte) (n int, err error) { return s.w.Write(p) }
 // cryptoProvide is a bitfield for specifying supported encryption methods.
 //
 // payload is initial payload that is going to be sent along with handshake.
-// It may be nil if you want to wait for the encryption negotation.
+// It may be nil if you want to wait for the encryption negotiation.
 func (s *Stream) HandshakeOutgoing(sKey []byte, cryptoProvide CryptoMethod, payload []byte) (selected CryptoMethod, err error) {
 
 	defer func() {
@@ -266,7 +266,7 @@ func (s *Stream) HandshakeOutgoing(sKey []byte, cryptoProvide CryptoMethod, payl
 // payloadIn is a buffer for writing initial payload that is coming along with the handshake from the initiator of the connection.
 // If initial payload does not fit into payloadIn, handshake returns io.ErrShortBuffer.
 //
-// lenPayloadIn is lenght of the data read into payloadIn.
+// lenPayloadIn is length of the data read into payloadIn.
 //
 // processPayloadIn is an optional function that processes incoming initial payload and generate outgoing initial payload.
 // If this function returns an error, handshake fails.

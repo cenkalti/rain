@@ -118,7 +118,7 @@ func Dial(
 				return
 			}
 		} else {
-			log.Debugf("Encryption handshake is successfull. Selected cipher: %d", cipher)
+			log.Debugf("Encryption handshake is successful. Selected cipher: %d", cipher)
 			conn = encConn
 			if forceEncryption && cipher == mse.PlainText {
 				err = errNotEncrypted

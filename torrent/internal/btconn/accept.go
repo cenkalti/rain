@@ -84,7 +84,7 @@ func Accept(
 				return out.Bytes(), err
 			})
 		if err == nil {
-			log.Debugf("Encryption handshake is successfull. Selected cipher: %d", cipher)
+			log.Debugf("Encryption handshake is successful. Selected cipher: %d", cipher)
 			conn = mseConn
 		}
 	}
