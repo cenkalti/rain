@@ -9,10 +9,15 @@ import (
 // Config for Client.
 type Config struct {
 	Database string
+	DataDir  string
+	// PortBegin, PortEnd int
 }
 
 var defaultConfig = Config{
 	Database: "rain.db",
+	DataDir:  "data",
+	// PortBegin: 50000,
+	// PortEnd:   60000,
 }
 
 // NewConfig returns a default Config.

@@ -52,5 +52,5 @@ type Torrent struct {
 }
 
 type ListTorrentsResponse struct {
-	Torrents []Torrent
+	Torrents map[uint64]Torrent
 }

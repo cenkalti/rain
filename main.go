@@ -180,7 +180,7 @@ func handleDownload(c *cli.Context) error {
 	}
 	defer t.Close()
 
-	res, err := torrentresume.New(t.Name() + "." + t.InfoHash() + ".resume")
+	res, err := torrentresume.New(t.Name()+"."+t.InfoHash()+".resume", []byte(t.InfoHash()))
 	if err != nil {
 		log.Fatal(err)
 	}

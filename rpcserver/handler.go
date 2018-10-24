@@ -39,7 +39,7 @@ func (h *Handler) handleStop(w http.ResponseWriter, r *http.Request)   {}
 func (h *Handler) handleStats(w http.ResponseWriter, r *http.Request)  {}
 
 type Torrent struct {
-	ID int
+	ID uint64
 }
 
 func NewTorrent(t *client.Torrent) *Torrent {
