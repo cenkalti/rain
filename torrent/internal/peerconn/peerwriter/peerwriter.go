@@ -110,8 +110,8 @@ func (p *PeerWriter) messageWriter() {
 				Length uint32
 				ID     peerprotocol.MessageID
 			}{
-				uint32(1 + len(payload)),
-				msg.ID(),
+				Length: uint32(1 + len(payload)),
+				ID:     msg.ID(),
 			}
 			_ = binary.Write(buf, binary.BigEndian, &header)
 			buf.Write(payload)
