@@ -195,7 +195,7 @@ func (p *PeerReader) Run() {
 							return
 						}
 						m += n
-						b = b[m:]
+						b = b[n:]
 						continue
 					}
 					return
