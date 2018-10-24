@@ -64,5 +64,5 @@ func (i *Info) GetFiles() []FileDict {
 	if i.MultiFile {
 		return i.Files
 	}
-	return []FileDict{FileDict{i.Length, []string{i.Name}}}
+	return []FileDict{{i.Length, []string{i.Name}}}
 }
