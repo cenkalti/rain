@@ -25,8 +25,10 @@ type Client struct {
 }
 
 type Torrent struct {
-	ID      uint64
-	torrent *torrent.Torrent
+	ID       uint64
+	Name     string
+	InfoHash string
+	torrent  *torrent.Torrent
 }
 
 // New returns a pointer to new Rain BitTorrent client.
@@ -116,7 +118,12 @@ func (c *Client) add(f func(port int, sto storage.Storage) (*torrent.Torrent, er
 	}
 	t.SetResume(res)
 
-	t2 := &Torrent{ID: id, torrent: t}
+	t2 := &Torrent{
+		ID:       id,
+		Name:     t.Name(),
+		InfoHash: t.InfoHash(),
+		torrent:  t,
+	}
 
 	c.m.Lock()
 	defer c.m.Unlock()

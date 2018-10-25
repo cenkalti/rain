@@ -49,7 +49,11 @@ func (h *handler) ListTorrents(args *rpctypes.ListTorrentsRequest, reply *rpctyp
 	reply.Torrents = make(map[uint64]rpctypes.Torrent)
 	torrents := h.client.ListTorrents()
 	for _, t := range torrents {
-		reply.Torrents[t.ID] = rpctypes.Torrent{ID: t.ID}
+		reply.Torrents[t.ID] = rpctypes.Torrent{
+			ID:       t.ID,
+			Name:     t.Name,
+			InfoHash: t.InfoHash,
+		}
 	}
 	return nil
 }
