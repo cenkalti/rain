@@ -13,22 +13,18 @@ import (
 
 type Server struct {
 	rpcServer *rpc.Server
-	addr      string
 }
 
-func NewServer(clt *client.Client, addr string) *Server {
+func NewServer(clt *client.Client) *Server {
 	h := &handler{client: clt}
 	srv := rpc.NewServer()
 	srv.RegisterName("Client", h)
 	srv.HandleHTTP(rpc.DefaultRPCPath, rpc.DefaultDebugPath)
-	return &Server{
-		rpcServer: srv,
-		addr:      addr,
-	}
+	return &Server{rpcServer: srv}
 }
 
-func (s *Server) ListenAndServe() error {
-	listener, err := net.Listen("tcp", s.addr)
+func (s *Server) ListenAndServe(addr string) error {
+	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
 	}

@@ -256,9 +256,9 @@ func printStats(t *torrent.Torrent) {
 func handleServer(c *cli.Context) error {
 	clt, _ := client.New(nil)
 	addr := c.String("addr")
-	srv := rainrpc.NewServer(clt, addr)
+	srv := rainrpc.NewServer(clt)
 	log.Infoln("RPC server is listening on", addr)
-	return srv.ListenAndServe()
+	return srv.ListenAndServe(addr)
 }
 
 func handleBeforeClient(c *cli.Context) error {
