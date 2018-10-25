@@ -17,6 +17,7 @@ import (
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/rpc/rpcclient"
 	"github.com/cenkalti/rain/rpc/rpcserver"
+	"github.com/cenkalti/rain/rpc/rpctypes"
 	"github.com/cenkalti/rain/torrent"
 	"github.com/cenkalti/rain/torrent/resume/torrentresume"
 	"github.com/cenkalti/rain/torrent/storage/filestorage"
@@ -81,7 +82,7 @@ func main() {
 				cli.StringFlag{
 					Name:  "url",
 					Usage: "URL of RPC server",
-					Value: "http://localhost:7246",
+					Value: "localhost:7246",
 				},
 			},
 			Before: handleBeforeClient,
@@ -90,6 +91,11 @@ func main() {
 					Name:   "list",
 					Usage:  "list torrents",
 					Action: handleList,
+				},
+				{
+					Name:   "add",
+					Usage:  "add torrent or magnet",
+					Action: handleAdd,
 				},
 			},
 		},
@@ -232,15 +238,38 @@ func handleServer(c *cli.Context) error {
 }
 
 func handleBeforeClient(c *cli.Context) error {
-	clt = rpcclient.New(c.String("url"))
-	return nil
+	var err error
+	clt, err = rpcclient.New(c.String("url"))
+	return err
 }
 
 func handleList(c *cli.Context) error {
-	torrents, err := clt.ListTorrents()
+	resp, err := clt.ListTorrents()
 	if err != nil {
 		return err
 	}
 	enc := json.NewEncoder(os.Stdout)
-	return enc.Encode(torrents)
+	return enc.Encode(resp)
+}
+
+func handleAdd(c *cli.Context) error {
+	var resp *rpctypes.AddTorrentResponse
+	var err error
+	arg := c.Args().Get(0)
+	if strings.HasPrefix(arg, "magnet:") {
+		resp, err = clt.AddMagnet(arg)
+	} else {
+		var f *os.File
+		f, err = os.Open(arg) // nolint: gosec
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		resp, err = clt.AddTorrent(f)
+	}
+	if err != nil {
+		return err
+	}
+	enc := json.NewEncoder(os.Stdout)
+	return enc.Encode(resp)
 }

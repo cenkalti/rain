@@ -4,10 +4,12 @@ import (
 	"io"
 	"path/filepath"
 	"strconv"
+	"sync"
 
 	"github.com/cenkalti/rain/client/resumedb"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent"
+	"github.com/cenkalti/rain/torrent/storage"
 	"github.com/cenkalti/rain/torrent/storage/filestorage"
 	"go.etcd.io/bbolt"
 )
@@ -19,6 +21,12 @@ type Client struct {
 	db       *bolt.DB
 	log      logger.Logger
 	torrents map[uint64]*Torrent
+	m        sync.RWMutex
+}
+
+type Torrent struct {
+	ID      uint64
+	torrent *torrent.Torrent
 }
 
 // New returns a pointer to new Rain BitTorrent client.
@@ -37,6 +45,7 @@ func New(c *Config) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	// TODO load existing torrents on startup
 	return &Client{
 		config:   c,
 		db:       db,
@@ -46,6 +55,8 @@ func New(c *Config) (*Client, error) {
 }
 
 func (c *Client) Close() error {
+	c.m.Lock()
+	defer c.m.Unlock()
 	for _, t := range c.torrents {
 		t.torrent.Close()
 	}
@@ -54,10 +65,24 @@ func (c *Client) Close() error {
 }
 
 func (c *Client) ListTorrents() map[uint64]*Torrent {
+	c.m.RLock()
+	defer c.m.RUnlock()
 	return c.torrents
 }
 
 func (c *Client) AddTorrent(r io.Reader) (*Torrent, error) {
+	return c.add(func(port int, sto storage.Storage) (*torrent.Torrent, error) {
+		return torrent.New(r, port, sto)
+	})
+}
+
+func (c *Client) AddMagnet(link string) (*Torrent, error) {
+	return c.add(func(port int, sto storage.Storage) (*torrent.Torrent, error) {
+		return torrent.NewMagnet(link, port, sto)
+	})
+}
+
+func (c *Client) add(f func(port int, sto storage.Storage) (*torrent.Torrent, error)) (*Torrent, error) {
 	var id uint64
 	err := c.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(mainBucket)
@@ -68,19 +93,19 @@ func (c *Client) AddTorrent(r io.Reader) (*Torrent, error) {
 		return nil, err
 	}
 
-	dest := filepath.Join(c.config.DataDir, strconv.FormatUint(id, 64))
+	dest := filepath.Join(c.config.DataDir, strconv.FormatUint(id, 10))
 	sto, err := filestorage.New(dest)
 	if err != nil {
 		return nil, err
 	}
 
 	// TODO get port from config
-	t, err := torrent.New(r, 6881, sto)
+	t, err := f(6881, sto)
 	if err != nil {
 		return nil, err
 	}
 
-	subBucket := strconv.FormatUint(id, 64)
+	subBucket := strconv.FormatUint(id, 10)
 	if err != nil {
 		return nil, err
 	}
@@ -91,10 +116,21 @@ func (c *Client) AddTorrent(r io.Reader) (*Torrent, error) {
 	}
 	t.SetResume(res)
 
-	return &Torrent{ID: id, torrent: t}, nil
+	t2 := &Torrent{ID: id, torrent: t}
+
+	c.m.Lock()
+	defer c.m.Unlock()
+	c.torrents[id] = t2
+	return t2, nil
 }
 
-type Torrent struct {
-	ID      uint64
-	torrent *torrent.Torrent
+func (c *Client) Remove(id uint64) {
+	c.m.Lock()
+	defer c.m.Unlock()
+	t, ok := c.torrents[id]
+	if !ok {
+		return
+	}
+	delete(c.torrents, id)
+	t.torrent.Close()
 }

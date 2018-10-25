@@ -1,54 +1,45 @@
 package rpcclient
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
+	"encoding/base64"
 	"io"
-	"net/http"
+	"io/ioutil"
+	"net/rpc"
+	"net/rpc/jsonrpc"
 
 	"github.com/cenkalti/rain/rpc/rpctypes"
 )
 
 type RPCClient struct {
-	url    string
-	client http.Client
+	client *rpc.Client
 }
 
-func New(url string) *RPCClient {
-	return &RPCClient{url: url}
+func New(addr string) (*RPCClient, error) {
+	clt, err := jsonrpc.Dial("tcp", addr)
+	return &RPCClient{client: clt}, err
 }
 
-func (c *RPCClient) ListTorrents() (rpctypes.ListTorrentsResponse, error) {
-	var resp rpctypes.ListTorrentsResponse
-	err := c.request(http.MethodGet, "/list", nil, &resp)
-	return resp, err
+func (c *RPCClient) Close() error {
+	return c.client.Close()
 }
 
-func (c *RPCClient) endpoint(path string) string {
-	return c.url + path
+func (c *RPCClient) ListTorrents() (*rpctypes.ListTorrentsResponse, error) {
+	var reply rpctypes.ListTorrentsResponse
+	return &reply, c.client.Call("Client.ListTorrents", nil, &reply)
 }
 
-func (c *RPCClient) request(method, path string, req, resp interface{}) error {
-	var body io.Reader
-	if req != nil {
-		b, err := json.Marshal(&req)
-		if err != nil {
-			return err
-		}
-		body = bytes.NewReader(b)
-	}
-	httpReq, err := http.NewRequest(method, c.endpoint(path), body)
+func (c *RPCClient) AddTorrent(f io.Reader) (*rpctypes.AddTorrentResponse, error) {
+	b, err := ioutil.ReadAll(f)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	httpResp, err := c.client.Do(httpReq)
-	if err != nil {
-		return err
-	}
-	if httpResp.StatusCode != 200 {
-		return fmt.Errorf("rpc error (status=%d)", httpResp.StatusCode)
-	}
-	defer httpResp.Body.Close()
-	return json.NewDecoder(httpResp.Body).Decode(&resp)
+	args := rpctypes.AddTorrentRequest{Torrent: base64.StdEncoding.EncodeToString(b)}
+	var reply rpctypes.AddTorrentResponse
+	return &reply, c.client.Call("Client.AddTorrent", args, &reply)
+}
+
+func (c *RPCClient) AddMagnet(magnet string) (*rpctypes.AddTorrentResponse, error) {
+	args := rpctypes.AddMagnetRequest{Magnet: magnet}
+	var reply rpctypes.AddTorrentResponse
+	return &reply, c.client.Call("Client.AddMagnet", args, &reply)
 }
