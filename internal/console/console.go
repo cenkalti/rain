@@ -25,9 +25,18 @@ func (c *Console) Run() error {
 	// Set GUI managers and key bindings
 	// ...
 
+	err = g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit)
+	if err != nil {
+		return err
+	}
+
 	err = g.MainLoop()
 	if err == gocui.ErrQuit {
 		err = nil
 	}
 	return err
+}
+
+func quit(g *gocui.Gui, v *gocui.View) error {
+	return gocui.ErrQuit
 }
