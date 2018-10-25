@@ -24,13 +24,6 @@ type Client struct {
 	m        sync.RWMutex
 }
 
-type Torrent struct {
-	ID       uint64
-	Name     string
-	InfoHash string
-	torrent  *torrent.Torrent
-}
-
 // New returns a pointer to new Rain BitTorrent client.
 func New(c *Config) (*Client, error) {
 	if c == nil {

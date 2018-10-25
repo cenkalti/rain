@@ -2,14 +2,6 @@
 
 
 [[projects]]
-  digest = "1:9f3b30d9f8e0d7040f729b82dcbc8f0dead820a133b3147ce355fc451f32d761"
-  name = "github.com/BurntSushi/toml"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "3012a1dbe2e4bd1391d42b32f0577cb7bbc7f005"
-  version = "v0.3.1"
-
-[[projects]]
   digest = "1:d867dfa6751c8d7a435821ad3b736310c2ed68945d05b50fb9d23aee0540c8cc"
   name = "github.com/Sirupsen/logrus"
   packages = ["."]
@@ -69,6 +61,14 @@
   version = "v1.1.1"
 
 [[projects]]
+  digest = "1:865079840386857c809b72ce300be7580cb50d3d3129ce11bf9aa6ca2bc1934a"
+  name = "github.com/fatih/color"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "5b77d2a35fb0ede96d138fc9a99f5c9b6aef11b4"
+  version = "v1.7.0"
+
+[[projects]]
   digest = "1:97df918963298c287643883209a2c3f642e6593379f97ab400c2a2e219ab647d"
   name = "github.com/golang/protobuf"
   packages = ["proto"]
@@ -93,12 +93,28 @@
   revision = "3d5d8f294aa03d8e98859feac328afbdf1ae0703"
 
 [[projects]]
+  branch = "master"
+  digest = "1:6727359c2ab1efe714cc87acb36be6cf15a3aae078d8ae736a17fec787dab307"
+  name = "github.com/hokaccha/go-prettyjson"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "f579f869bbfea48a61fbea09207cadd1aaeceb83"
+
+[[projects]]
   digest = "1:ccfa094742ce1c97fd3f6481e1bf98f3d9862510eee2bc0eb56e2745396bd330"
   name = "github.com/julienschmidt/httprouter"
   packages = ["."]
   pruneopts = "UT"
   revision = "8c199fb6259ffc1af525cc3ad52ee60ba8359669"
   version = "v1.1"
+
+[[projects]]
+  digest = "1:c658e84ad3916da105a761660dcaeb01e63416c8ec7bc62256a9b411a05fcd67"
+  name = "github.com/mattn/go-colorable"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "167de6bfdfba052fa6b2d3664c8f5272e23c9072"
+  version = "v0.0.9"
 
 [[projects]]
   digest = "1:d4d17353dbd05cb52a2a52b7fe1771883b682806f68db442b436294926bbfafb"
@@ -123,14 +139,6 @@
   packages = ["."]
   pruneopts = "UT"
   revision = "ad98a36ba0da87206e3378c556abbfeaeaa98668"
-
-[[projects]]
-  branch = "master"
-  digest = "1:c7354463195544b1ab3c1f1fadb41430947f5d28dfbf2cdbd38268c5717a5a03"
-  name = "github.com/mitchellh/go-homedir"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "58046073cbffe2f25d425fe1331102f55cf719de"
 
 [[projects]]
   digest = "1:0028cb19b2e4c3112225cd871870f2d9cf49b9b4276531f03438a88e94be86fe"
@@ -247,7 +255,6 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/BurntSushi/toml",
     "github.com/cenkalti/backoff",
     "github.com/cenkalti/log",
     "github.com/chihaya/chihaya/frontend/http",
@@ -256,7 +263,7 @@
     "github.com/chihaya/chihaya/storage",
     "github.com/chihaya/chihaya/storage/memory",
     "github.com/hashicorp/go-multierror",
-    "github.com/mitchellh/go-homedir",
+    "github.com/hokaccha/go-prettyjson",
     "github.com/urfave/cli",
     "github.com/zeebo/bencode",
     "go.etcd.io/bbolt",

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -23,6 +22,7 @@ import (
 	"github.com/cenkalti/rain/torrent/resume/torrentresume"
 	"github.com/cenkalti/rain/torrent/storage/filestorage"
 	// "github.com/mitchellh/go-homedir"
+	"github.com/hokaccha/go-prettyjson"
 	"github.com/urfave/cli"
 )
 
@@ -232,7 +232,7 @@ func handleDownload(c *cli.Context) error {
 
 func printStats(t *torrent.Torrent) {
 	for range time.Tick(1000 * time.Millisecond) {
-		b, err2 := json.MarshalIndent(t.Stats(), "", "  ")
+		b, err2 := prettyjson.Marshal(t.Stats())
 		if err2 != nil {
 			log.Fatal(err2)
 		}
@@ -259,8 +259,12 @@ func handleList(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	enc := json.NewEncoder(os.Stdout)
-	return enc.Encode(resp)
+	b, err := prettyjson.Marshal(resp)
+	if err != nil {
+		return err
+	}
+	_, err = os.Stdout.Write(b)
+	return err
 }
 
 func handleAdd(c *cli.Context) error {
@@ -281,8 +285,12 @@ func handleAdd(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	enc := json.NewEncoder(os.Stdout)
-	return enc.Encode(resp)
+	b, err := prettyjson.Marshal(resp)
+	if err != nil {
+		return err
+	}
+	_, err = os.Stdout.Write(b)
+	return err
 }
 
 func handleRemove(c *cli.Context) error {
@@ -303,6 +311,10 @@ func handleStats(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	enc := json.NewEncoder(os.Stdout)
-	return enc.Encode(resp)
+	b, err := prettyjson.Marshal(resp)
+	if err != nil {
+		return err
+	}
+	_, err = os.Stdout.Write(b)
+	return err
 }
