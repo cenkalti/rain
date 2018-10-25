@@ -282,24 +282,28 @@ func handleList(c *cli.Context) error {
 }
 
 func handleAdd(c *cli.Context) error {
-	var resp *rainrpc.AddTorrentResponse
+	var b []byte
 	var err error
 	arg := c.Args().Get(0)
 	if strings.HasPrefix(arg, "magnet:") {
-		resp, err = clt.AddMagnet(arg)
+		resp, err := clt.AddMagnet(arg)
+		if err != nil {
+			return err
+		}
+		b, err = prettyjson.Marshal(resp)
 	} else {
 		var f *os.File
 		f, err = os.Open(arg) // nolint: gosec
 		if err != nil {
 			return err
 		}
-		resp, err = clt.AddTorrent(f)
+		resp, err := clt.AddTorrent(f)
 		_ = f.Close()
+		if err != nil {
+			return err
+		}
+		b, err = prettyjson.Marshal(resp)
 	}
-	if err != nil {
-		return err
-	}
-	b, err := prettyjson.Marshal(resp)
 	if err != nil {
 		return err
 	}
