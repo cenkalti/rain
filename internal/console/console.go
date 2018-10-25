@@ -18,17 +18,15 @@ func New(clt *rainrpc.Client) *Console {
 func (c *Console) Run() error {
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	if err != nil {
-		// handle error
+		return err
 	}
 	defer g.Close()
 
-	// Set GUI managers and key bindings
-	// ...
+	m := new(Manager)
+	g.SetManager(m)
 
-	err = g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit)
-	if err != nil {
-		return err
-	}
+	g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit)
+	g.SetKeybinding("", 'q', gocui.ModNone, quit)
 
 	err = g.MainLoop()
 	if err == gocui.ErrQuit {
