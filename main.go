@@ -108,6 +108,16 @@ func main() {
 					Usage:  "get stats of torrent",
 					Action: handleStats,
 				},
+				{
+					Name:   "start",
+					Usage:  "start torrent",
+					Action: handleStart,
+				},
+				{
+					Name:   "stop",
+					Usage:  "stop",
+					Action: handleStop,
+				},
 			},
 		},
 		{
@@ -263,8 +273,9 @@ func handleList(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	_, err = os.Stdout.Write(b)
-	return err
+	os.Stdout.Write(b)
+	os.Stdout.WriteString("\n")
+	return nil
 }
 
 func handleAdd(c *cli.Context) error {
@@ -289,8 +300,9 @@ func handleAdd(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	_, err = os.Stdout.Write(b)
-	return err
+	os.Stdout.Write(b)
+	os.Stdout.WriteString("\n")
+	return nil
 }
 
 func handleRemove(c *cli.Context) error {
@@ -315,6 +327,25 @@ func handleStats(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	_, err = os.Stdout.Write(b)
+	os.Stdout.Write(b)
+	os.Stdout.WriteString("\n")
+	return nil
+}
+
+func handleStart(c *cli.Context) error {
+	id, err := strconv.ParseUint(c.Args().Get(0), 10, 64)
+	if err != nil {
+		return err
+	}
+	_, err = clt.StartTorrent(id)
+	return err
+}
+
+func handleStop(c *cli.Context) error {
+	id, err := strconv.ParseUint(c.Args().Get(0), 10, 64)
+	if err != nil {
+		return err
+	}
+	_, err = clt.StopTorrent(id)
 	return err
 }

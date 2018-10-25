@@ -55,3 +55,15 @@ func (c *RPCClient) GetTorrentStats(id uint64) (*rpctypes.GetTorrentStatsRespons
 	var reply rpctypes.GetTorrentStatsResponse
 	return &reply, c.client.Call("Client.GetTorrentStats", args, &reply)
 }
+
+func (c *RPCClient) StartTorrent(id uint64) (*rpctypes.StartTorrentResponse, error) {
+	args := rpctypes.StartTorrentRequest{ID: id}
+	var reply rpctypes.StartTorrentResponse
+	return &reply, c.client.Call("Client.StartTorrent", args, &reply)
+}
+
+func (c *RPCClient) StopTorrent(id uint64) (*rpctypes.StopTorrentResponse, error) {
+	args := rpctypes.StopTorrentRequest{ID: id}
+	var reply rpctypes.StopTorrentResponse
+	return &reply, c.client.Call("Client.StopTorrent", args, &reply)
+}

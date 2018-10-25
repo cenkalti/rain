@@ -14,3 +14,11 @@ type Torrent struct {
 func (t *Torrent) Stats() torrent.Stats {
 	return t.torrent.Stats()
 }
+
+func (t *Torrent) Start() {
+	t.torrent.Start()
+}
+
+func (t *Torrent) Stop() {
+	t.torrent.Stop()
+}

@@ -13,7 +13,7 @@ type Torrent struct {
 type ListTorrentsRequest struct{}
 
 type ListTorrentsResponse struct {
-	Torrents map[uint64]Torrent
+	Torrents []Torrent
 }
 
 type AddTorrentRequest struct {
@@ -40,4 +40,18 @@ type GetTorrentStatsRequest struct {
 
 type GetTorrentStatsResponse struct {
 	Stats torrent.Stats
+}
+
+type StartTorrentRequest struct {
+	ID uint64
+}
+
+type StartTorrentResponse struct {
+}
+
+type StopTorrentRequest struct {
+	ID uint64
+}
+
+type StopTorrentResponse struct {
 }

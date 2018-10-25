@@ -47,14 +47,14 @@ type handler struct {
 }
 
 func (h *handler) ListTorrents(args *rpctypes.ListTorrentsRequest, reply *rpctypes.ListTorrentsResponse) error {
-	reply.Torrents = make(map[uint64]rpctypes.Torrent)
 	torrents := h.client.ListTorrents()
+	reply.Torrents = make([]rpctypes.Torrent, 0, len(torrents))
 	for _, t := range torrents {
-		reply.Torrents[t.ID] = rpctypes.Torrent{
+		reply.Torrents = append(reply.Torrents, rpctypes.Torrent{
 			ID:       t.ID,
 			Name:     t.Name,
 			InfoHash: t.InfoHash,
-		}
+		})
 	}
 	return nil
 }
@@ -65,7 +65,11 @@ func (h *handler) AddTorrent(args *rpctypes.AddTorrentRequest, reply *rpctypes.A
 	if err != nil {
 		return err
 	}
-	reply.Torrent = rpctypes.Torrent{ID: t.ID}
+	reply.Torrent = rpctypes.Torrent{
+		ID:       t.ID,
+		Name:     t.Name,
+		InfoHash: t.InfoHash,
+	}
 	return nil
 }
 
@@ -74,7 +78,11 @@ func (h *handler) AddMagnet(args *rpctypes.AddMagnetRequest, reply *rpctypes.Add
 	if err != nil {
 		return err
 	}
-	reply.Torrent = rpctypes.Torrent{ID: t.ID}
+	reply.Torrent = rpctypes.Torrent{
+		ID:       t.ID,
+		Name:     t.Name,
+		InfoHash: t.InfoHash,
+	}
 	return nil
 }
 
@@ -92,6 +100,20 @@ func (h *handler) GetTorrentStats(args *rpctypes.GetTorrentStatsRequest, reply *
 	return nil
 }
 
-// func (h *handler) handleStart(w http.ResponseWriter, r *http.Request) {}
-// func (h *handler) handleStop(w http.ResponseWriter, r *http.Request)  {}
-// func (h *handler) handleStats(w http.ResponseWriter, r *http.Request) {}
+func (h *handler) StartTorrent(args *rpctypes.StartTorrentRequest, reply *rpctypes.StartTorrentResponse) error {
+	t := h.client.GetTorrent(args.ID)
+	if t == nil {
+		return errors.New("torrent not found")
+	}
+	t.Start()
+	return nil
+}
+
+func (h *handler) StopTorrent(args *rpctypes.StopTorrentRequest, reply *rpctypes.StopTorrentResponse) error {
+	t := h.client.GetTorrent(args.ID)
+	if t == nil {
+		return errors.New("torrent not found")
+	}
+	t.Stop()
+	return nil
+}
