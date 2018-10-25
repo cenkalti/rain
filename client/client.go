@@ -66,10 +66,14 @@ func (c *Client) Close() error {
 	return c.db.Close()
 }
 
-func (c *Client) ListTorrents() map[uint64]*Torrent {
+func (c *Client) ListTorrents() []*Torrent {
 	c.m.RLock()
 	defer c.m.RUnlock()
-	return c.torrents
+	torrents := make([]*Torrent, 0, len(c.torrents))
+	for _, t := range c.torrents {
+		torrents = append(torrents, t)
+	}
+	return torrents
 }
 
 func (c *Client) AddTorrent(r io.Reader) (*Torrent, error) {
@@ -131,7 +135,13 @@ func (c *Client) add(f func(port int, sto storage.Storage) (*torrent.Torrent, er
 	return t2, nil
 }
 
-func (c *Client) Remove(id uint64) {
+func (c *Client) GetTorrent(id uint64) *Torrent {
+	c.m.RLock()
+	defer c.m.RUnlock()
+	return c.torrents[id]
+}
+
+func (c *Client) RemoveTorrent(id uint64) {
 	c.m.Lock()
 	defer c.m.Unlock()
 	t, ok := c.torrents[id]

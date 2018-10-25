@@ -78,7 +78,7 @@ func (h *handler) AddMagnet(args *rpctypes.AddMagnetRequest, reply *rpctypes.Add
 }
 
 func (h *handler) RemoveTorrent(args *rpctypes.RemoveTorrentRequest, reply *rpctypes.RemoveTorrentResponse) error {
-	h.client.Remove(args.ID)
+	h.client.RemoveTorrent(args.ID)
 	return nil
 }
 

@@ -43,3 +43,9 @@ func (c *RPCClient) AddMagnet(magnet string) (*rpctypes.AddTorrentResponse, erro
 	var reply rpctypes.AddTorrentResponse
 	return &reply, c.client.Call("Client.AddMagnet", args, &reply)
 }
+
+func (c *RPCClient) RemoveTorrent(id uint64) (*rpctypes.RemoveTorrentResponse, error) {
+	args := rpctypes.RemoveTorrentRequest{ID: id}
+	var reply rpctypes.RemoveTorrentResponse
+	return &reply, c.client.Call("Client.RemoveTorrent", args, &reply)
+}

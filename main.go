@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime/pprof"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -96,6 +97,11 @@ func main() {
 					Name:   "add",
 					Usage:  "add torrent or magnet",
 					Action: handleAdd,
+				},
+				{
+					Name:   "remove",
+					Usage:  "remove torrent",
+					Action: handleRemove,
 				},
 			},
 		},
@@ -272,4 +278,13 @@ func handleAdd(c *cli.Context) error {
 	}
 	enc := json.NewEncoder(os.Stdout)
 	return enc.Encode(resp)
+}
+
+func handleRemove(c *cli.Context) error {
+	id, err := strconv.ParseUint(c.Args().Get(0), 10, 64)
+	if err != nil {
+		return err
+	}
+	_, err = clt.RemoveTorrent(id)
+	return err
 }
