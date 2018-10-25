@@ -273,8 +273,8 @@ func handleList(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	os.Stdout.Write(b)
-	os.Stdout.WriteString("\n")
+	_, _ = os.Stdout.Write(b)
+	_, _ = os.Stdout.WriteString("\n")
 	return nil
 }
 
@@ -300,8 +300,8 @@ func handleAdd(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	os.Stdout.Write(b)
-	os.Stdout.WriteString("\n")
+	_, _ = os.Stdout.Write(b)
+	_, _ = os.Stdout.WriteString("\n")
 	return nil
 }
 
@@ -327,8 +327,8 @@ func handleStats(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	os.Stdout.Write(b)
-	os.Stdout.WriteString("\n")
+	_, _ = os.Stdout.Write(b)
+	_, _ = os.Stdout.WriteString("\n")
 	return nil
 }
 
