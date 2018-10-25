@@ -10,7 +10,8 @@ type Torrent struct {
 	InfoHash string
 }
 
-type ListTorrentsRequest struct{}
+type ListTorrentsRequest struct {
+}
 
 type ListTorrentsResponse struct {
 	Torrents []Torrent
@@ -20,11 +21,15 @@ type AddTorrentRequest struct {
 	Torrent string
 }
 
+type AddTorrentResponse struct {
+	Torrent Torrent
+}
+
 type AddMagnetRequest struct {
 	Magnet string
 }
 
-type AddTorrentResponse struct {
+type AddMagnetResponse struct {
 	Torrent Torrent
 }
 
@@ -32,7 +37,8 @@ type RemoveTorrentRequest struct {
 	ID uint64
 }
 
-type RemoveTorrentResponse struct{}
+type RemoveTorrentResponse struct {
+}
 
 type GetTorrentStatsRequest struct {
 	ID uint64

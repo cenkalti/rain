@@ -60,7 +60,7 @@ func (h *handler) AddTorrent(args *AddTorrentRequest, reply *AddTorrentResponse)
 	return nil
 }
 
-func (h *handler) AddMagnet(args *AddMagnetRequest, reply *AddTorrentResponse) error {
+func (h *handler) AddMagnet(args *AddMagnetRequest, reply *AddMagnetResponse) error {
 	t, err := h.client.AddMagnet(args.Magnet)
 	if err != nil {
 		return err

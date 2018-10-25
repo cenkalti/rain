@@ -36,9 +36,9 @@ func (c *Client) AddTorrent(f io.Reader) (*AddTorrentResponse, error) {
 	return &reply, c.client.Call("Client.AddTorrent", args, &reply)
 }
 
-func (c *Client) AddMagnet(magnet string) (*AddTorrentResponse, error) {
+func (c *Client) AddMagnet(magnet string) (*AddMagnetResponse, error) {
 	args := AddMagnetRequest{Magnet: magnet}
-	var reply AddTorrentResponse
+	var reply AddMagnetResponse
 	return &reply, c.client.Call("Client.AddMagnet", args, &reply)
 }
 
