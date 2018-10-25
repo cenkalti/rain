@@ -1,4 +1,4 @@
-package rpctypes
+package rainrpc
 
 import (
 	"github.com/cenkalti/rain/torrent"

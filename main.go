@@ -16,9 +16,7 @@ import (
 	"github.com/cenkalti/rain/internal/clientversion"
 	"github.com/cenkalti/rain/internal/console"
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/rpc/rpcclient"
-	"github.com/cenkalti/rain/rpc/rpcserver"
-	"github.com/cenkalti/rain/rpc/rpctypes"
+	"github.com/cenkalti/rain/rainrpc"
 	"github.com/cenkalti/rain/torrent"
 	"github.com/cenkalti/rain/torrent/resume/torrentresume"
 	"github.com/cenkalti/rain/torrent/storage/filestorage"
@@ -28,7 +26,7 @@ import (
 
 var (
 	app = cli.NewApp()
-	clt *rpcclient.RPCClient
+	clt *rainrpc.Client
 )
 
 func main() {
@@ -258,14 +256,14 @@ func printStats(t *torrent.Torrent) {
 func handleServer(c *cli.Context) error {
 	clt, _ := client.New(nil)
 	addr := c.String("addr")
-	srv := rpcserver.New(clt, addr)
+	srv := rainrpc.NewServer(clt, addr)
 	log.Infoln("RPC server is listening on", addr)
 	return srv.ListenAndServe()
 }
 
 func handleBeforeClient(c *cli.Context) error {
 	var err error
-	clt, err = rpcclient.New(c.String("url"))
+	clt, err = rainrpc.NewClient(c.String("url"))
 	return err
 }
 
@@ -284,7 +282,7 @@ func handleList(c *cli.Context) error {
 }
 
 func handleAdd(c *cli.Context) error {
-	var resp *rpctypes.AddTorrentResponse
+	var resp *rainrpc.AddTorrentResponse
 	var err error
 	arg := c.Args().Get(0)
 	if strings.HasPrefix(arg, "magnet:") {

@@ -1,15 +1,15 @@
 package console
 
 import (
-	"github.com/cenkalti/rain/rpc/rpcclient"
+	"github.com/cenkalti/rain/rainrpc"
 	"github.com/jroimartin/gocui"
 )
 
 type Console struct {
-	client *rpcclient.RPCClient
+	client *rainrpc.Client
 }
 
-func New(clt *rpcclient.RPCClient) *Console {
+func New(clt *rainrpc.Client) *Console {
 	return &Console{
 		client: clt,
 	}

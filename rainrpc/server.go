@@ -1,4 +1,4 @@
-package rpcserver
+package rainrpc
 
 import (
 	"encoding/base64"
@@ -9,26 +9,25 @@ import (
 	"strings"
 
 	"github.com/cenkalti/rain/client"
-	"github.com/cenkalti/rain/rpc/rpctypes"
 )
 
-type RPCServer struct {
+type Server struct {
 	rpcServer *rpc.Server
 	addr      string
 }
 
-func New(clt *client.Client, addr string) *RPCServer {
+func NewServer(clt *client.Client, addr string) *Server {
 	h := &handler{client: clt}
 	srv := rpc.NewServer()
 	srv.RegisterName("Client", h)
 	srv.HandleHTTP(rpc.DefaultRPCPath, rpc.DefaultDebugPath)
-	return &RPCServer{
+	return &Server{
 		rpcServer: srv,
 		addr:      addr,
 	}
 }
 
-func (s *RPCServer) ListenAndServe() error {
+func (s *Server) ListenAndServe() error {
 	listener, err := net.Listen("tcp", s.addr)
 	if err != nil {
 		return err
@@ -46,16 +45,16 @@ type handler struct {
 	client *client.Client
 }
 
-func (h *handler) ListTorrents(args *rpctypes.ListTorrentsRequest, reply *rpctypes.ListTorrentsResponse) error {
+func (h *handler) ListTorrents(args *ListTorrentsRequest, reply *ListTorrentsResponse) error {
 	torrents := h.client.ListTorrents()
-	reply.Torrents = make([]rpctypes.Torrent, 0, len(torrents))
+	reply.Torrents = make([]Torrent, 0, len(torrents))
 	for _, t := range torrents {
 		reply.Torrents = append(reply.Torrents, newTorrent(t))
 	}
 	return nil
 }
 
-func (h *handler) AddTorrent(args *rpctypes.AddTorrentRequest, reply *rpctypes.AddTorrentResponse) error {
+func (h *handler) AddTorrent(args *AddTorrentRequest, reply *AddTorrentResponse) error {
 	r := base64.NewDecoder(base64.StdEncoding, strings.NewReader(args.Torrent))
 	t, err := h.client.AddTorrent(r)
 	if err != nil {
@@ -65,7 +64,7 @@ func (h *handler) AddTorrent(args *rpctypes.AddTorrentRequest, reply *rpctypes.A
 	return nil
 }
 
-func (h *handler) AddMagnet(args *rpctypes.AddMagnetRequest, reply *rpctypes.AddTorrentResponse) error {
+func (h *handler) AddMagnet(args *AddMagnetRequest, reply *AddTorrentResponse) error {
 	t, err := h.client.AddMagnet(args.Magnet)
 	if err != nil {
 		return err
@@ -74,20 +73,20 @@ func (h *handler) AddMagnet(args *rpctypes.AddMagnetRequest, reply *rpctypes.Add
 	return nil
 }
 
-func newTorrent(t *client.Torrent) rpctypes.Torrent {
-	return rpctypes.Torrent{
+func newTorrent(t *client.Torrent) Torrent {
+	return Torrent{
 		ID:       t.ID,
 		Name:     t.Name(),
 		InfoHash: t.InfoHash(),
 	}
 }
 
-func (h *handler) RemoveTorrent(args *rpctypes.RemoveTorrentRequest, reply *rpctypes.RemoveTorrentResponse) error {
+func (h *handler) RemoveTorrent(args *RemoveTorrentRequest, reply *RemoveTorrentResponse) error {
 	h.client.RemoveTorrent(args.ID)
 	return nil
 }
 
-func (h *handler) GetTorrentStats(args *rpctypes.GetTorrentStatsRequest, reply *rpctypes.GetTorrentStatsResponse) error {
+func (h *handler) GetTorrentStats(args *GetTorrentStatsRequest, reply *GetTorrentStatsResponse) error {
 	t := h.client.GetTorrent(args.ID)
 	if t == nil {
 		return errors.New("torrent not found")
@@ -96,7 +95,7 @@ func (h *handler) GetTorrentStats(args *rpctypes.GetTorrentStatsRequest, reply *
 	return nil
 }
 
-func (h *handler) StartTorrent(args *rpctypes.StartTorrentRequest, reply *rpctypes.StartTorrentResponse) error {
+func (h *handler) StartTorrent(args *StartTorrentRequest, reply *StartTorrentResponse) error {
 	t := h.client.GetTorrent(args.ID)
 	if t == nil {
 		return errors.New("torrent not found")
@@ -105,7 +104,7 @@ func (h *handler) StartTorrent(args *rpctypes.StartTorrentRequest, reply *rpctyp
 	return nil
 }
 
-func (h *handler) StopTorrent(args *rpctypes.StopTorrentRequest, reply *rpctypes.StopTorrentResponse) error {
+func (h *handler) StopTorrent(args *StopTorrentRequest, reply *StopTorrentResponse) error {
 	t := h.client.GetTorrent(args.ID)
 	if t == nil {
 		return errors.New("torrent not found")
