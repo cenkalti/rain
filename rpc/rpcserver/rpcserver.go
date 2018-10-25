@@ -50,11 +50,7 @@ func (h *handler) ListTorrents(args *rpctypes.ListTorrentsRequest, reply *rpctyp
 	torrents := h.client.ListTorrents()
 	reply.Torrents = make([]rpctypes.Torrent, 0, len(torrents))
 	for _, t := range torrents {
-		reply.Torrents = append(reply.Torrents, rpctypes.Torrent{
-			ID:       t.ID,
-			Name:     t.Name,
-			InfoHash: t.InfoHash,
-		})
+		reply.Torrents = append(reply.Torrents, newTorrent(t))
 	}
 	return nil
 }
@@ -65,11 +61,7 @@ func (h *handler) AddTorrent(args *rpctypes.AddTorrentRequest, reply *rpctypes.A
 	if err != nil {
 		return err
 	}
-	reply.Torrent = rpctypes.Torrent{
-		ID:       t.ID,
-		Name:     t.Name,
-		InfoHash: t.InfoHash,
-	}
+	reply.Torrent = newTorrent(t)
 	return nil
 }
 
@@ -78,12 +70,16 @@ func (h *handler) AddMagnet(args *rpctypes.AddMagnetRequest, reply *rpctypes.Add
 	if err != nil {
 		return err
 	}
-	reply.Torrent = rpctypes.Torrent{
-		ID:       t.ID,
-		Name:     t.Name,
-		InfoHash: t.InfoHash,
-	}
+	reply.Torrent = newTorrent(t)
 	return nil
+}
+
+func newTorrent(t *client.Torrent) rpctypes.Torrent {
+	return rpctypes.Torrent{
+		ID:       t.ID,
+		Name:     t.Name(),
+		InfoHash: t.InfoHash(),
+	}
 }
 
 func (h *handler) RemoveTorrent(args *rpctypes.RemoveTorrentRequest, reply *rpctypes.RemoveTorrentResponse) error {

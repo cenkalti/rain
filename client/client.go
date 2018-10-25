@@ -53,7 +53,7 @@ func (c *Client) Close() error {
 	c.m.Lock()
 	defer c.m.Unlock()
 	for _, t := range c.torrents {
-		t.torrent.Close()
+		t.Close()
 	}
 	c.torrents = nil
 	return c.db.Close()
@@ -116,10 +116,8 @@ func (c *Client) add(f func(port int, sto storage.Storage) (*torrent.Torrent, er
 	t.SetResume(res)
 
 	t2 := &Torrent{
-		ID:       id,
-		Name:     t.Name(),
-		InfoHash: t.InfoHash(),
-		torrent:  t,
+		ID:      id,
+		Torrent: t,
 	}
 
 	c.m.Lock()
@@ -142,5 +140,5 @@ func (c *Client) RemoveTorrent(id uint64) {
 		return
 	}
 	delete(c.torrents, id)
-	t.torrent.Close()
+	t.Close()
 }
