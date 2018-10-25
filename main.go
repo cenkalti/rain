@@ -14,6 +14,7 @@ import (
 	"github.com/cenkalti/log"
 	"github.com/cenkalti/rain/client"
 	"github.com/cenkalti/rain/internal/clientversion"
+	"github.com/cenkalti/rain/internal/console"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/rpc/rpcclient"
 	"github.com/cenkalti/rain/rpc/rpcserver"
@@ -21,7 +22,6 @@ import (
 	"github.com/cenkalti/rain/torrent"
 	"github.com/cenkalti/rain/torrent/resume/torrentresume"
 	"github.com/cenkalti/rain/torrent/storage/filestorage"
-	// "github.com/mitchellh/go-homedir"
 	"github.com/hokaccha/go-prettyjson"
 	"github.com/urfave/cli"
 )
@@ -117,6 +117,11 @@ func main() {
 					Name:   "stop",
 					Usage:  "stop",
 					Action: handleStop,
+				},
+				{
+					Name:   "console",
+					Usage:  "show client console",
+					Action: handleConsole,
 				},
 			},
 		},
@@ -348,4 +353,9 @@ func handleStop(c *cli.Context) error {
 	}
 	_, err = clt.StopTorrent(id)
 	return err
+}
+
+func handleConsole(c *cli.Context) error {
+	con := console.New(clt)
+	return con.Run()
 }
