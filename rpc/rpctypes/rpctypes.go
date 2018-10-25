@@ -1,5 +1,9 @@
 package rpctypes
 
+import (
+	"github.com/cenkalti/rain/torrent"
+)
+
 type Torrent struct {
 	ID       uint64
 	Name     string
@@ -29,3 +33,11 @@ type RemoveTorrentRequest struct {
 }
 
 type RemoveTorrentResponse struct{}
+
+type GetTorrentStatsRequest struct {
+	ID uint64
+}
+
+type GetTorrentStatsResponse struct {
+	Stats torrent.Stats
+}

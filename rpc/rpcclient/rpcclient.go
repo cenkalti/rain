@@ -49,3 +49,9 @@ func (c *RPCClient) RemoveTorrent(id uint64) (*rpctypes.RemoveTorrentResponse, e
 	var reply rpctypes.RemoveTorrentResponse
 	return &reply, c.client.Call("Client.RemoveTorrent", args, &reply)
 }
+
+func (c *RPCClient) GetTorrentStats(id uint64) (*rpctypes.GetTorrentStatsResponse, error) {
+	args := rpctypes.GetTorrentStatsRequest{ID: id}
+	var reply rpctypes.GetTorrentStatsResponse
+	return &reply, c.client.Call("Client.GetTorrentStats", args, &reply)
+}

@@ -2,6 +2,7 @@ package rpcserver
 
 import (
 	"encoding/base64"
+	"errors"
 	"net"
 	"net/rpc"
 	"net/rpc/jsonrpc"
@@ -79,6 +80,15 @@ func (h *handler) AddMagnet(args *rpctypes.AddMagnetRequest, reply *rpctypes.Add
 
 func (h *handler) RemoveTorrent(args *rpctypes.RemoveTorrentRequest, reply *rpctypes.RemoveTorrentResponse) error {
 	h.client.RemoveTorrent(args.ID)
+	return nil
+}
+
+func (h *handler) GetTorrentStats(args *rpctypes.GetTorrentStatsRequest, reply *rpctypes.GetTorrentStatsResponse) error {
+	t := h.client.GetTorrent(args.ID)
+	if t == nil {
+		return errors.New("torrent not found")
+	}
+	reply.Stats = t.Stats()
 	return nil
 }
 

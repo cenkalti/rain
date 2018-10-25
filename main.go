@@ -103,6 +103,11 @@ func main() {
 					Usage:  "remove torrent",
 					Action: handleRemove,
 				},
+				{
+					Name:   "stats",
+					Usage:  "get stats of torrent",
+					Action: handleStats,
+				},
 			},
 		},
 		{
@@ -287,4 +292,17 @@ func handleRemove(c *cli.Context) error {
 	}
 	_, err = clt.RemoveTorrent(id)
 	return err
+}
+
+func handleStats(c *cli.Context) error {
+	id, err := strconv.ParseUint(c.Args().Get(0), 10, 64)
+	if err != nil {
+		return err
+	}
+	resp, err := clt.GetTorrentStats(id)
+	if err != nil {
+		return err
+	}
+	enc := json.NewEncoder(os.Stdout)
+	return enc.Encode(resp)
 }

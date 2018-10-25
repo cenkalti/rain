@@ -1,42 +1,16 @@
 package torrent
 
-import (
-	"strconv"
-)
-
-type Status int
+type Status string
 
 const (
-	Stopped Status = iota
-	DownloadingMetadata
-	Allocating
-	Verifying
-	Downloading
-	Seeding
-	Stopping
+	Stopped             Status = "Stopped"
+	DownloadingMetadata        = "Downloading Metadata"
+	Allocating                 = "Allocating"
+	Verifying                  = "Verifying"
+	Downloading                = "Downloading"
+	Seeding                    = "Seeding"
+	Stopping                   = "Stopping"
 )
-
-var statusStrings = map[Status]string{
-	0: "Stopped",
-	1: "Downloading Metadata",
-	2: "Allocating",
-	3: "Verifying",
-	4: "Downloading",
-	5: "Seeding",
-	6: "Stopping",
-}
-
-func (m Status) String() string {
-	s, ok := statusStrings[m]
-	if !ok {
-		return strconv.FormatInt(int64(m), 10)
-	}
-	return s
-}
-
-func (m Status) MarshalText() ([]byte, error) {
-	return []byte(m.String()), nil
-}
 
 func (t *Torrent) status() Status {
 	if t.errC == nil {
