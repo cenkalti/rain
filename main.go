@@ -264,8 +264,8 @@ func handleAdd(c *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		defer f.Close()
 		resp, err = clt.AddTorrent(f)
+		_ = f.Close()
 	}
 	if err != nil {
 		return err
