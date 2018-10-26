@@ -1,14 +1,14 @@
 builds:
-- env:
-  - CGO_ENABLED=0
-- ldflags:
-  - -s -w -X github.com/cenkalti/rain/torrent/internal/clientversion.Version={{.Version}}
-- goos:
-  - linux
-  - darwin
-  - windows
-- goarch:
-  - amd64
+  - env:
+    - CGO_ENABLED=0
+    ldflags:
+    - -s -w -X github.com/cenkalti/rain/torrent/internal/clientversion.Version={{.Version}}
+    goos:
+    - linux
+    - darwin
+    - windows
+    goarch:
+    - amd64
 archive:
   replacements:
     darwin: Darwin
