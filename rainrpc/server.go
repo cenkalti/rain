@@ -42,6 +42,7 @@ type handler struct {
 }
 
 func (h *handler) ListTorrents(args *ListTorrentsRequest, reply *ListTorrentsResponse) error {
+	// TODO return torrent list sorted by id
 	torrents := h.client.ListTorrents()
 	reply.Torrents = make([]Torrent, 0, len(torrents))
 	for _, t := range torrents {
