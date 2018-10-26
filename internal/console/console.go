@@ -126,24 +126,22 @@ func (c *Console) drawStats(g *gocui.Gui) error {
 }
 
 func (c *Console) updateLoop(g *gocui.Gui) {
+	c.updateTorrents(g)
+	c.updateStats(g)
+
 	ticker := time.NewTicker(time.Second)
-	c.doUpdate(g)
 	for {
 		select {
 		case <-ticker.C:
-			c.doUpdate(g)
+			c.updateTorrents(g)
+			c.updateStats(g)
 		case <-c.updateStatsC:
-			c.doUpdateStats(g)
+			c.updateStats(g)
 		}
 	}
 }
 
-func (c *Console) doUpdate(g *gocui.Gui) {
-	c.doUpdateTorrents(g)
-	c.doUpdateStats(g)
-}
-
-func (c *Console) doUpdateTorrents(g *gocui.Gui) {
+func (c *Console) updateTorrents(g *gocui.Gui) {
 	resp, err := c.client.ListTorrents()
 
 	sort.Slice(resp.Torrents, func(i, j int) bool { return resp.Torrents[i].ID < resp.Torrents[j].ID })
@@ -161,7 +159,7 @@ func (c *Console) doUpdateTorrents(g *gocui.Gui) {
 	g.Update(c.drawTorrents)
 }
 
-func (c *Console) doUpdateStats(g *gocui.Gui) {
+func (c *Console) updateStats(g *gocui.Gui) {
 	c.m.Lock()
 	selectedID := c.selectedID
 	c.m.Unlock()
