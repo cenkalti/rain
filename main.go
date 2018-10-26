@@ -214,6 +214,8 @@ func handleDownload(c *cli.Context) error {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer res.Close()
+
 	err = t.SetResume(res)
 	if err != nil {
 		log.Fatal(err)
