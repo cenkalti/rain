@@ -1,4 +1,4 @@
-package torrentresume
+package boltdbresume
 
 import (
 	"github.com/cenkalti/rain/client/resumedb"

@@ -18,7 +18,7 @@ import (
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/rainrpc"
 	"github.com/cenkalti/rain/torrent"
-	"github.com/cenkalti/rain/torrent/resume/torrentresume"
+	"github.com/cenkalti/rain/torrent/resume/boltdbresume"
 	"github.com/cenkalti/rain/torrent/storage/filestorage"
 	"github.com/hokaccha/go-prettyjson"
 	"github.com/urfave/cli"
@@ -210,7 +210,7 @@ func handleDownload(c *cli.Context) error {
 	}
 	defer t.Close()
 
-	res, err := torrentresume.New(t.Name()+"."+t.InfoHash()+".resume", []byte(t.InfoHash()))
+	res, err := boltdbresume.New(t.Name()+"."+t.InfoHash()+".resume", []byte(t.InfoHash()))
 	if err != nil {
 		log.Fatal(err)
 	}
