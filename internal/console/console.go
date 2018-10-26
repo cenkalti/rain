@@ -45,6 +45,8 @@ func (c *Console) Run() error {
 	g.SetKeybinding("torrents", 'j', gocui.ModNone, c.cursorDown)
 	g.SetKeybinding("torrents", 'k', gocui.ModNone, c.cursorUp)
 	g.SetKeybinding("torrents", 'R', gocui.ModNone, c.removeTorrent)
+	g.SetKeybinding("torrents", 's', gocui.ModNone, c.startTorrent)
+	g.SetKeybinding("torrents", 'S', gocui.ModNone, c.stopTorrent)
 
 	go c.updateLoop(g)
 
@@ -241,4 +243,22 @@ func (c *Console) setSelectedID(id uint64) {
 		default:
 		}
 	}
+}
+
+func (c *Console) startTorrent(g *gocui.Gui, v *gocui.View) error {
+	c.m.Lock()
+	id := c.selectedID
+	c.m.Unlock()
+
+	_, err := c.client.StartTorrent(id)
+	return err
+}
+
+func (c *Console) stopTorrent(g *gocui.Gui, v *gocui.View) error {
+	c.m.Lock()
+	id := c.selectedID
+	c.m.Unlock()
+
+	_, err := c.client.StopTorrent(id)
+	return err
 }
