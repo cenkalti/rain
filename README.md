@@ -15,8 +15,8 @@ Features
 - [x] [Message stream encryption](http://wiki.vuze.com/w/Message_Stream_Encryption)
 - [x] Fast resuming
 - [x] Custom storage
-- [ ] CLI
-- [ ] RPC server
+- [x] CLI
+- [x] RPC server
 - [ ] Webseed
 - [ ] IP blocklist
 
