@@ -41,6 +41,7 @@ func (c *Console) Run() error {
 	g.SetKeybinding("", 'q', gocui.ModNone, quit)
 	g.SetKeybinding("torrents", 'j', gocui.ModNone, c.cursorDown)
 	g.SetKeybinding("torrents", 'k', gocui.ModNone, c.cursorUp)
+	g.SetKeybinding("torrents", 'R', gocui.ModNone, c.removeTorrent)
 
 	go c.updateLoop(g)
 
@@ -150,7 +151,7 @@ func (c *Console) cursorDown(g *gocui.Gui, v *gocui.View) error {
 
 	cx, cy := v.Cursor()
 	ox, oy := v.Origin()
-	if cy+oy == len(c.torrents)-1 {
+	if cy+oy >= len(c.torrents)-1 {
 		return nil
 	}
 	if err := v.SetCursor(cx, cy+1); err != nil {
@@ -168,7 +169,7 @@ func (c *Console) cursorUp(g *gocui.Gui, v *gocui.View) error {
 
 	cx, cy := v.Cursor()
 	ox, oy := v.Origin()
-	if cy+oy == 0 {
+	if cy+oy <= 0 {
 		return nil
 	}
 	if err := v.SetCursor(cx, cy-1); err != nil && oy > 0 {
@@ -178,4 +179,13 @@ func (c *Console) cursorUp(g *gocui.Gui, v *gocui.View) error {
 	}
 	c.selectedID = c.torrents[cy+oy-1].ID
 	return nil
+}
+
+func (c *Console) removeTorrent(g *gocui.Gui, v *gocui.View) error {
+	c.m.Lock()
+	id := c.selectedID
+	c.m.Unlock()
+
+	_, err := c.client.RemoveTorrent(id)
+	return err
 }
