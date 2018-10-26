@@ -2,6 +2,7 @@ package console
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -114,6 +115,8 @@ func (c *Console) updateLoop(g *gocui.Gui) {
 
 func (c *Console) doUpdate(g *gocui.Gui) {
 	resp, err := c.client.ListTorrents()
+
+	sort.Slice(resp.Torrents, func(i, j int) bool { return resp.Torrents[i].ID < resp.Torrents[j].ID })
 
 	c.m.Lock()
 	c.torrents = resp.Torrents
