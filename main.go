@@ -214,7 +214,7 @@ func handleDownload(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	defer res.Close()
+	defer func() { _ = res.Close() }()
 
 	err = t.SetResume(res)
 	if err != nil {
@@ -238,7 +238,7 @@ func handleDownload(c *cli.Context) error {
 		return nil
 	})
 
-	g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	_ = g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		t.Stop()
 		return nil
 	})
@@ -266,7 +266,7 @@ func handleDownload(c *cli.Context) error {
 					return err2
 				}
 				v.Clear()
-				fmt.Fprintln(v, string(b))
+				_, _ = fmt.Fprintln(v, string(b))
 				return nil
 			})
 		}
@@ -284,6 +284,9 @@ func handleDownload(c *cli.Context) error {
 				continue
 			}
 		case err = <-errC:
+			if err != nil {
+				err = res.Close()
+			}
 			return err
 		}
 	}
