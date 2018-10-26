@@ -31,7 +31,7 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/tracker/httptracker"
 	"github.com/cenkalti/rain/torrent/internal/tracker/udptracker"
 	"github.com/cenkalti/rain/torrent/internal/verifier"
-	"github.com/cenkalti/rain/torrent/resume"
+	"github.com/cenkalti/rain/torrent/resumer"
 	"github.com/cenkalti/rain/torrent/storage"
 	"github.com/cenkalti/rain/torrent/storage/filestorage"
 )
@@ -227,7 +227,7 @@ func NewMagnet(link string, port int, sto storage.Storage) (*Torrent, error) {
 }
 
 // NewResume returns a new torrent by loading all info from a resume.DB.
-func NewResume(res resume.DB) (*Torrent, error) {
+func NewResume(res resumer.Resumer) (*Torrent, error) {
 	spec, err := res.Read()
 	if err != nil {
 		return nil, err
@@ -252,7 +252,7 @@ func (t *Torrent) InfoHash() string {
 
 // SetResume adds resume capability to the torrent.
 // It must be called before Start() is called.
-func (t *Torrent) SetResume(res resume.DB) error {
+func (t *Torrent) SetResume(res resumer.Resumer) error {
 	spec, err := res.Read()
 	if err != nil {
 		return err
@@ -273,7 +273,7 @@ func (t *Torrent) SetResume(res resume.DB) error {
 	return nil
 }
 
-func loadResumeSpec(spec *resume.Spec, res resume.DB) (*Torrent, error) {
+func loadResumeSpec(spec *resumer.Spec, res resumer.Resumer) (*Torrent, error) {
 	var err error
 	dspec := &downloadSpec{
 		port:     spec.Port,
@@ -305,8 +305,8 @@ func loadResumeSpec(spec *resume.Spec, res resume.DB) (*Torrent, error) {
 	return newTorrent(dspec)
 }
 
-func (t *Torrent) writeResume(res resume.DB) error {
-	rspec := &resume.Spec{
+func (t *Torrent) writeResume(res resumer.Resumer) error {
+	rspec := &resumer.Spec{
 		InfoHash:    t.infoHash[:],
 		Port:        t.port,
 		Name:        t.name,

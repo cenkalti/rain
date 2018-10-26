@@ -1,10 +1,10 @@
-package resumedb
+package boltdbresumer
 
 import (
 	"encoding/json"
 	"strconv"
 
-	"github.com/cenkalti/rain/torrent/resume"
+	"github.com/cenkalti/rain/torrent/resumer"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -19,14 +19,14 @@ var (
 	bitfieldKey    = []byte("bitfield")
 )
 
-type ResumeImpl struct {
+type Resumer struct {
 	db                    *bolt.DB
 	mainBucket, subBucket []byte
 }
 
-var _ resume.DB = (*ResumeImpl)(nil)
+var _ resumer.Resumer = (*Resumer)(nil)
 
-func New(db *bolt.DB, mainBucket, subBucket []byte) (*ResumeImpl, error) {
+func New(db *bolt.DB, mainBucket, subBucket []byte) (*Resumer, error) {
 	err := db.Update(func(tx *bolt.Tx) error {
 		_, err2 := tx.CreateBucketIfNotExists(mainBucket)
 		return err2
@@ -34,14 +34,14 @@ func New(db *bolt.DB, mainBucket, subBucket []byte) (*ResumeImpl, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ResumeImpl{
+	return &Resumer{
 		db:         db,
 		mainBucket: mainBucket,
 		subBucket:  subBucket,
 	}, nil
 }
 
-func (r *ResumeImpl) Write(spec *resume.Spec) error {
+func (r *Resumer) Write(spec *resumer.Spec) error {
 	port := strconv.Itoa(spec.Port)
 	trackers, err := json.Marshal(spec.Trackers)
 	if err != nil {
@@ -68,22 +68,22 @@ func (r *ResumeImpl) Write(spec *resume.Spec) error {
 	})
 }
 
-func (r *ResumeImpl) WriteInfo(value []byte) error {
+func (r *Resumer) WriteInfo(value []byte) error {
 	return r.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(r.mainBucket).Bucket(r.subBucket)
 		return b.Put(infoKey, value)
 	})
 }
 
-func (r *ResumeImpl) WriteBitfield(value []byte) error {
+func (r *Resumer) WriteBitfield(value []byte) error {
 	return r.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(r.mainBucket).Bucket(r.subBucket)
 		return b.Put(bitfieldKey, value)
 	})
 }
 
-func (r *ResumeImpl) Read() (*resume.Spec, error) {
-	var spec *resume.Spec
+func (r *Resumer) Read() (*resumer.Spec, error) {
+	var spec *resumer.Spec
 	err := r.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(r.mainBucket).Bucket(r.subBucket)
 		if b == nil {
@@ -95,7 +95,7 @@ func (r *ResumeImpl) Read() (*resume.Spec, error) {
 			return nil
 		}
 
-		spec = new(resume.Spec)
+		spec = new(resumer.Spec)
 		spec.InfoHash = make([]byte, len(value))
 		copy(spec.InfoHash, value)
 

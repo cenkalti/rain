@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/cenkalti/rain/client/resumedb"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent"
+	"github.com/cenkalti/rain/torrent/resumer/boltdbresumer"
 	"github.com/cenkalti/rain/torrent/storage"
 	"github.com/cenkalti/rain/torrent/storage/filestorage"
 	"go.etcd.io/bbolt"
@@ -109,7 +109,7 @@ func (c *Client) add(f func(port int, sto storage.Storage) (*torrent.Torrent, er
 		return nil, err
 	}
 
-	res, err := resumedb.New(c.db, mainBucket, []byte(subBucket))
+	res, err := boltdbresumer.New(c.db, mainBucket, []byte(subBucket))
 	if err != nil {
 		return nil, err
 	}

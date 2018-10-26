@@ -3,7 +3,7 @@ package torrent
 import (
 	"github.com/cenkalti/rain/torrent/internal/bitfield"
 	"github.com/cenkalti/rain/torrent/internal/metainfo"
-	"github.com/cenkalti/rain/torrent/resume"
+	"github.com/cenkalti/rain/torrent/resumer"
 	"github.com/cenkalti/rain/torrent/storage"
 )
 
@@ -20,7 +20,7 @@ type downloadSpec struct {
 	// TCP Port to listen for peer connections.
 	port int
 	// Optional DB implementation to save resume state of the torrent.
-	resume resume.DB
+	resume resumer.Resumer
 	// Contains info about files in torrent. This can be nil at start for magnet downloads.
 	info *metainfo.Info
 	// Bitfield for pieces we have. It is created after we got info.

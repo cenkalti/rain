@@ -1,7 +1,7 @@
-package resume
+package resumer
 
-// DB provides operations to save and load resume info for a Torrent.
-type DB interface {
+// Resumer provides operations to save and load resume info for a Torrent.
+type Resumer interface {
 	Read() (*Spec, error)
 	Write(spec *Spec) error
 	WriteInfo([]byte) error

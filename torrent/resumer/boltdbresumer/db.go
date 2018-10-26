@@ -1,21 +1,20 @@
-package boltdbresume
+package boltdbresumer
 
 import (
-	"github.com/cenkalti/rain/client/resumedb"
-	"github.com/cenkalti/rain/torrent/resume"
+	"github.com/cenkalti/rain/torrent/resumer"
 	bolt "go.etcd.io/bbolt"
 )
 
 var bucketName = []byte("resume")
 
-type TorrentResume struct {
+type DB struct {
 	db *bolt.DB
-	resume.DB
+	resumer.Resumer
 }
 
-var _ resume.DB = (*TorrentResume)(nil)
+var _ resumer.Resumer = (*DB)(nil)
 
-func New(path string, infoHash []byte) (*TorrentResume, error) {
+func Open(path string, infoHash []byte) (*DB, error) {
 	db, err := bolt.Open(path, 0600, nil)
 	if err != nil {
 		return nil, err
@@ -27,16 +26,16 @@ func New(path string, infoHash []byte) (*TorrentResume, error) {
 	if err != nil {
 		return nil, err
 	}
-	rdb, err := resumedb.New(db, bucketName, infoHash)
+	rdb, err := New(db, bucketName, infoHash)
 	if err != nil {
 		return nil, err
 	}
-	return &TorrentResume{
-		db: db,
-		DB: rdb,
+	return &DB{
+		db:      db,
+		Resumer: rdb,
 	}, nil
 }
 
-func (r *TorrentResume) Close() error {
+func (r *DB) Close() error {
 	return r.db.Close()
 }
