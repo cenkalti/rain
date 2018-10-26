@@ -13,11 +13,11 @@ Features
 - [x] [Multiple trackers](http://bittorrent.org/beps/bep_0012.html)
 - [x] [UDP trackers](http://bittorrent.org/beps/bep_0015.html)
 - [x] [Message stream encryption](http://wiki.vuze.com/w/Message_Stream_Encryption)
+- [ ] [WebSeed](http://bittorrent.org/beps/bep_0019.html)
 - [x] Fast resuming
 - [x] Custom storage
 - [x] CLI
 - [x] RPC server
-- [ ] Webseed
 - [ ] IP blocklist
 
 Installing
