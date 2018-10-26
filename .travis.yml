@@ -11,7 +11,7 @@ before_script:
 - gometalinter --config=gometalinter.json
 - go get golang.org/x/tools/cmd/cover
 - go get github.com/mattn/goveralls
-script: goveralls -v -race -package ./...
+script: goveralls -race -package ./...
 deploy:
 - provider: script
   skip_cleanup: true
