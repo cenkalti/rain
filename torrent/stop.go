@@ -65,9 +65,6 @@ func (t *Torrent) stop(err error) {
 	// TODO reset t.incomingHandshakers struct
 
 	// Stop periodical announcers first.
-	t.log.Debugln("stopping announcers")
-	t.stopPeriodicalAnnouncers()
-
 	// Then start another announcer to announce Stopped event to the trackers.
 	// The torrent enters "Stopping" state.
 	// This announcer times out in 5 seconds. After it's done the torrent is in "Stopped" status.
@@ -78,6 +75,9 @@ func (t *Torrent) stop(err error) {
 		}
 	}
 	t.stoppedEventAnnouncer = announcer.NewStopAnnouncer(trackers, t.announcerFields(), Config.Tracker.StoppedEventTimeout, t.announcersStoppedC, t.log)
+
+	t.log.Debugln("stopping announcers")
+	t.stopPeriodicalAnnouncers()
 	go t.stoppedEventAnnouncer.Run()
 }
 
