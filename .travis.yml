@@ -12,3 +12,10 @@ before_script:
 - go get golang.org/x/tools/cmd/cover
 - go get github.com/mattn/goveralls
 script: goveralls -v -race -package ./...
+deploy:
+- provider: script
+  skip_cleanup: true
+  script: curl -sL https://git.io/goreleaser | bash
+  on:
+    tags: true
+    condition: $TRAVIS_OS_NAME = linux
