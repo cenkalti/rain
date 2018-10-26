@@ -1,4 +1,4 @@
-package console
+package jsonutil
 
 import (
 	"bytes"
@@ -17,7 +17,7 @@ func init() {
 	formatter.Newline = ""
 }
 
-func marshalJSONcompact(v interface{}) ([]byte, error) {
+func MarshalCompactPretty(v interface{}) ([]byte, error) {
 	var buf bytes.Buffer
 	m := structs.Map(v)
 	names := structs.Names(v)

@@ -4,23 +4,23 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/signal"
 	"runtime/pprof"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/cenkalti/log"
 	"github.com/cenkalti/rain/client"
 	"github.com/cenkalti/rain/internal/clientversion"
 	"github.com/cenkalti/rain/internal/console"
+	"github.com/cenkalti/rain/internal/jsonutil"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/rainrpc"
 	"github.com/cenkalti/rain/torrent"
 	"github.com/cenkalti/rain/torrent/resumer/boltdbresumer"
 	"github.com/cenkalti/rain/torrent/storage/filestorage"
 	"github.com/hokaccha/go-prettyjson"
+	"github.com/jroimartin/gocui"
 	"github.com/urfave/cli"
 )
 
@@ -192,7 +192,7 @@ func handleDownload(c *cli.Context) error {
 	}
 	sto, err := filestorage.New(c.String("dest"))
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	var t *torrent.Torrent
 	if strings.HasPrefix(path, "magnet:") {
@@ -200,33 +200,79 @@ func handleDownload(c *cli.Context) error {
 	} else {
 		f, err2 := os.Open(path) // nolint: gosec
 		if err2 != nil {
-			log.Fatal(err2)
+			return err
 		}
 		t, err = torrent.New(f, c.Int("port"), sto)
 		_ = f.Close()
 	}
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer t.Close()
 
 	res, err := boltdbresumer.Open(t.Name()+"."+t.InfoHash()+".resume", []byte(t.InfoHash()))
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer res.Close()
 
 	err = t.SetResume(res)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
-	go printStats(t)
+	g, err := gocui.NewGui(gocui.OutputNormal)
+	if err != nil {
+		return err
+	}
+	defer g.Close()
+
+	g.SetManagerFunc(func(g *gocui.Gui) error {
+		x, y := g.Size()
+		if v, err2 := g.SetView("stats", 0, 0, x-1, y-1); err != nil {
+			if err2 != gocui.ErrUnknownView {
+				return err2
+			}
+			v.Wrap = true
+		}
+		return nil
+	})
+
+	g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		t.Stop()
+		return nil
+	})
+
+	go func() {
+		err = g.MainLoop()
+		if err == gocui.ErrQuit {
+			err = nil
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	go func() {
+		for range time.Tick(100 * time.Millisecond) {
+			s := t.Stats()
+			b, err2 := jsonutil.MarshalCompactPretty(s)
+			if err2 != nil {
+				log.Fatal(err2)
+			}
+			g.Update(func(g *gocui.Gui) error {
+				v, err2 := g.View("stats")
+				if err2 != nil {
+					return err2
+				}
+				v.Clear()
+				fmt.Fprintln(v, string(b))
+				return nil
+			})
+		}
+	}()
+
 	t.Start()
-
-	sigC := make(chan os.Signal, 1)
-	signal.Notify(sigC, syscall.SIGINT, syscall.SIGTERM)
-
 	completeC := t.NotifyComplete()
 	errC := t.NotifyError()
 	for {
@@ -237,21 +283,9 @@ func handleDownload(c *cli.Context) error {
 				t.Stop()
 				continue
 			}
-		case <-sigC:
-			t.Stop()
 		case err = <-errC:
 			return err
 		}
-	}
-}
-
-func printStats(t *torrent.Torrent) {
-	for range time.Tick(1000 * time.Millisecond) {
-		b, err2 := prettyjson.Marshal(t.Stats())
-		if err2 != nil {
-			log.Fatal(err2)
-		}
-		fmt.Println(string(b))
 	}
 }
 

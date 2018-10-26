@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cenkalti/rain/internal/jsonutil"
 	"github.com/cenkalti/rain/rainrpc"
 	"github.com/cenkalti/rain/torrent"
 	"github.com/jroimartin/gocui"
@@ -114,7 +115,7 @@ func (c *Console) drawStats(g *gocui.Gui) error {
 		if c.errStats != nil {
 			fmt.Fprintln(v, "error:", c.errStats)
 		} else {
-			b, err := marshalJSONcompact(c.stats)
+			b, err := jsonutil.MarshalCompactPretty(c.stats)
 			if err != nil {
 				fmt.Fprintln(v, "error:", c.errStats)
 			} else {
