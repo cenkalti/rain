@@ -69,6 +69,14 @@
   version = "v1.7.0"
 
 [[projects]]
+  digest = "1:af43bdaaf86655a2343f113e9b293bbc16b12099eaeb223982bbe4d4c22ba14d"
+  name = "github.com/fatih/structs"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "4966fc68f5b7593aafa6cbbba2d65ec6e1416047"
+  version = "v1.1.0"
+
+[[projects]]
   digest = "1:97df918963298c287643883209a2c3f642e6593379f97ab400c2a2e219ab647d"
   name = "github.com/golang/protobuf"
   packages = ["proto"]
@@ -286,6 +294,7 @@
     "github.com/chihaya/chihaya/middleware",
     "github.com/chihaya/chihaya/storage",
     "github.com/chihaya/chihaya/storage/memory",
+    "github.com/fatih/structs",
     "github.com/hashicorp/go-multierror",
     "github.com/hokaccha/go-prettyjson",
     "github.com/jroimartin/gocui",

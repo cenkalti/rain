@@ -9,7 +9,6 @@ import (
 
 	"github.com/cenkalti/rain/rainrpc"
 	"github.com/cenkalti/rain/torrent"
-	"github.com/hokaccha/go-prettyjson"
 	"github.com/jroimartin/gocui"
 )
 
@@ -115,10 +114,7 @@ func (c *Console) drawStats(g *gocui.Gui) error {
 		if c.errStats != nil {
 			fmt.Fprintln(v, "error:", c.errStats)
 		} else {
-			f := prettyjson.NewFormatter()
-			f.Indent = 0
-			f.Newline = ""
-			b, err := f.Marshal(c.stats)
+			b, err := marshalJSONcompact(c.stats)
 			if err != nil {
 				fmt.Fprintln(v, "error:", c.errStats)
 			} else {
