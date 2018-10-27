@@ -103,15 +103,6 @@ func (s *Stream) Write(p []byte) (n int, err error) { return s.w.Write(p) }
 // payload is initial payload that is going to be sent along with handshake.
 // It may be nil if you want to wait for the encryption negotiation.
 func (s *Stream) HandshakeOutgoing(sKey []byte, cryptoProvide CryptoMethod, payload []byte) (selected CryptoMethod, err error) {
-
-	defer func() {
-		if err != nil {
-			if c, ok := s.raw.(io.Closer); ok {
-				_ = c.Close()
-			}
-		}
-	}()
-
 	if cryptoProvide == 0 {
 		err = errors.New("no crypto methods are provided")
 		return
@@ -247,14 +238,6 @@ func (s *Stream) HandshakeIncoming(
 	payloadIn []byte,
 	lenPayloadIn *uint16,
 	processPayloadIn func() (payloadOut []byte, err error)) (err error) {
-
-	defer func() {
-		if err != nil {
-			if c, ok := s.raw.(io.Closer); ok {
-				_ = c.Close()
-			}
-		}
-	}()
 
 	writeBuf := bytes.NewBuffer(make([]byte, 0, 96+512))
 
