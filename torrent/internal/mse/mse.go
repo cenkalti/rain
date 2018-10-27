@@ -100,14 +100,13 @@ func (s *Stream) Write(p []byte) (n int, err error) { return s.w.Write(p) }
 //
 // cryptoProvide is a bitfield for specifying supported encryption methods.
 //
-// payload is initial payload that is going to be sent along with handshake.
-// It may be nil if you want to wait for the encryption negotiation.
-func (s *Stream) HandshakeOutgoing(sKey []byte, cryptoProvide CryptoMethod, payload []byte) (selected CryptoMethod, err error) {
+// initialPayload is going to be sent along with handshake. It may be nil if you want to wait for the encryption negotiation.
+func (s *Stream) HandshakeOutgoing(sKey []byte, cryptoProvide CryptoMethod, initialPayload []byte) (selected CryptoMethod, err error) {
 	if cryptoProvide == 0 {
 		err = errors.New("no crypto methods are provided")
 		return
 	}
-	if len(payload) > math.MaxUint16 {
+	if len(initialPayload) > math.MaxUint16 {
 		err = errors.New("initial payload is too big")
 		return
 	}
@@ -162,8 +161,8 @@ func (s *Stream) HandshakeOutgoing(sKey []byte, cryptoProvide CryptoMethod, payl
 	_ = binary.Write(writeBuf, binary.BigEndian, cryptoProvide)
 	_ = binary.Write(writeBuf, binary.BigEndian, uint16(len(padC)))
 	writeBuf.Write(padC)
-	_ = binary.Write(writeBuf, binary.BigEndian, uint16(len(payload)))
-	writeBuf.Write(payload)
+	_ = binary.Write(writeBuf, binary.BigEndian, uint16(len(initialPayload)))
+	writeBuf.Write(initialPayload)
 	encBytes := writeBuf.Bytes()[40:]
 	s.w.S.XORKeyStream(encBytes, encBytes) // RC4
 	debugln("--- out: writing Step 3")

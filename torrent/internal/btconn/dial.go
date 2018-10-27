@@ -55,13 +55,15 @@ func Dial(
 		}
 	}(conn)
 
-	if err = conn.SetDeadline(time.Now().Add(handshakeTimeout)); err != nil {
-		return
-	}
-
+	// Write first part of BitTorrent handshake to a buffer because we will use it in both encrypted and unencrypted handshake.
 	out := bytes.NewBuffer(make([]byte, 0, 68))
 	err = writeHandshake(out, ih, ourID, ourExtensions)
 	if err != nil {
+		return
+	}
+
+	// Handshake must be completed in allowed duration.
+	if err = conn.SetDeadline(time.Now().Add(handshakeTimeout)); err != nil {
 		return
 	}
 
@@ -89,9 +91,9 @@ func Dial(
 				err = errNotEncrypted
 				return
 			}
-			// Close current connection
+
+			// Close current connection and try again without encryption
 			conn.Close()
-			// Connect again and try w/o encryption
 			log.Debug("Connecting again without encryption...")
 			conn, err = dialer.DialContext(ctx, addr.Network(), addr.String())
 			if err != nil {
@@ -110,6 +112,7 @@ func Dial(
 				case <-done:
 				}
 			}(conn)
+
 			// Send BT handshake
 			if err = conn.SetDeadline(time.Now().Add(handshakeTimeout)); err != nil {
 				return
@@ -120,10 +123,6 @@ func Dial(
 		} else {
 			log.Debugf("Encryption handshake is successful. Selected cipher: %d", cipher)
 			conn = encConn
-			if forceEncryption && cipher == mse.PlainText {
-				err = errNotEncrypted
-				return
-			}
 		}
 	} else {
 		// Send BT handshake
