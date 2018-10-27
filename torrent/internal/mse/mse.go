@@ -31,12 +31,7 @@ import (
 	"io/ioutil"
 	"math"
 	"math/big"
-	"net"
-	"time"
 )
-
-// TODO use handshake deadline, set from outside
-const connDeadline = 10 * time.Second
 
 const enableDebug = false
 
@@ -91,7 +86,6 @@ type Stream struct {
 // NewStream returns a new Stream. You must call HandshakeIncoming or
 // HandshakeOutgoing methods before using Read/Write methods.
 // If any error happens during the handshake underlying io.ReadWriter will be closed if it implements io.Closer.
-// If underlying io.ReadWriter implements net.Conn interface, read and write deadlines will be reset after the handshake, so if you are setting deadlines do it after the handshake.
 func NewStream(rw io.ReadWriter) *Stream { return &Stream{raw: rw} }
 
 // Read from underlying io.ReadWriter, decrypt bytes and put into p.
@@ -100,7 +94,7 @@ func (s *Stream) Read(p []byte) (n int, err error) { return s.r.Read(p) }
 // Encrypt bytes in p and write into underlying io.ReadWriter.
 func (s *Stream) Write(p []byte) (n int, err error) { return s.w.Write(p) }
 
-// HandshakeOutgoing initiates MSE handshake for outgoing connection.
+// HandshakeOutgoing initiates MSE handshake for outgoing stream.
 //
 // sKey is stream identifier key. Same key must be used at the other side of the stream, otherwise handshake fails.
 //
@@ -135,11 +129,6 @@ func (s *Stream) HandshakeOutgoing(sKey []byte, cryptoProvide CryptoMethod, payl
 	}
 
 	// Step 1 | A->B: Diffie Hellman Ya, PadA
-	if conn, ok := s.raw.(net.Conn); ok {
-		if err = conn.SetWriteDeadline(time.Now().Add(connDeadline)); err != nil {
-			return
-		}
-	}
 	writeBuf.Write(bytesWithPad(Ya))
 	padA, err := padRandom()
 	if err != nil {
@@ -154,11 +143,6 @@ func (s *Stream) HandshakeOutgoing(sKey []byte, cryptoProvide CryptoMethod, payl
 	debugln("--- out: done")
 
 	// Step 2 | B->A: Diffie Hellman Yb, PadB
-	if conn, ok := s.raw.(net.Conn); ok {
-		if err = conn.SetReadDeadline(time.Now().Add(connDeadline)); err != nil {
-			return
-		}
-	}
 	b := make([]byte, 96+512)
 	debugln("--- out: reading PubkeyB")
 	firstRead, err := io.ReadAtLeast(s.raw, b, 96)
@@ -176,11 +160,6 @@ func (s *Stream) HandshakeOutgoing(sKey []byte, cryptoProvide CryptoMethod, payl
 	}
 
 	// Step 3 | A->B: HASH('req1', S), HASH('req2', SKEY) xor HASH('req3', S), ENCRYPT(VC, crypto_provide, len(PadC), PadC, len(IA)), ENCRYPT(IA)
-	if conn, ok := s.raw.(net.Conn); ok {
-		if err = conn.SetWriteDeadline(time.Now().Add(connDeadline)); err != nil {
-			return
-		}
-	}
 	hashS, hashSKey := hashes(S, sKey)
 	padC, err := padZero()
 	if err != nil {
@@ -204,11 +183,6 @@ func (s *Stream) HandshakeOutgoing(sKey []byte, cryptoProvide CryptoMethod, payl
 	debugln("--- out: done")
 
 	// Step 4 | B->A: ENCRYPT(VC, crypto_select, len(padD), padD), ENCRYPT2(Payload Stream)
-	if conn, ok := s.raw.(net.Conn); ok {
-		if err = conn.SetReadDeadline(time.Now().Add(connDeadline)); err != nil {
-			return
-		}
-	}
 	vcEnc := make([]byte, 8)
 	s.r.S.XORKeyStream(vcEnc, vc)
 	err = s.readSync(vcEnc, 616-firstRead)
@@ -247,14 +221,11 @@ func (s *Stream) HandshakeOutgoing(sKey []byte, cryptoProvide CryptoMethod, payl
 	s.updateCipher(selected)
 
 	debugln("--- out: end handshake")
-	if conn, ok := s.raw.(net.Conn); ok {
-		err = conn.SetDeadline(time.Time{})
-	}
 	return
 	// Step 5 | A->B: ENCRYPT2(Payload Stream)
 }
 
-// HandshakeIncoming initiates MSE handshake for incoming connection.
+// HandshakeIncoming initiates MSE handshake for incoming stream.
 //
 // getSKey must return the correct stream identifier for given sKeyHash.
 // sKeyHash can be calculated with mse.HashSKey function.
@@ -263,7 +234,7 @@ func (s *Stream) HandshakeOutgoing(sKey []byte, cryptoProvide CryptoMethod, payl
 // cryptoSelect is a function that takes provided methods as a bitfield and returns the selected crypto method.
 // Function may return zero value that means none of the provided methods are selected and handshake fails.
 //
-// payloadIn is a buffer for writing initial payload that is coming along with the handshake from the initiator of the connection.
+// payloadIn is a buffer for writing initial payload that is coming along with the handshake from the initiator of the handshake.
 // If initial payload does not fit into payloadIn, handshake returns io.ErrShortBuffer.
 //
 // lenPayloadIn is length of the data read into payloadIn.
@@ -293,11 +264,6 @@ func (s *Stream) HandshakeIncoming(
 	}
 
 	// Step 1 | A->B: Diffie Hellman Ya, PadA
-	if conn, ok := s.raw.(net.Conn); ok {
-		if err = conn.SetReadDeadline(time.Now().Add(connDeadline)); err != nil {
-			return
-		}
-	}
 	b := make([]byte, 96+512)
 	debugln("--- in: read PubkeyA")
 	firstRead, err := io.ReadAtLeast(s.raw, b, 96)
@@ -311,11 +277,6 @@ func (s *Stream) HandshakeIncoming(
 	S := Ya.Exp(Ya, Xb, p)
 
 	// Step 2 | B->A: Diffie Hellman Yb, PadB
-	if conn, ok := s.raw.(net.Conn); ok {
-		if err = conn.SetWriteDeadline(time.Now().Add(connDeadline)); err != nil {
-			return
-		}
-	}
 	writeBuf.Write(bytesWithPad(Yb))
 	padB, err := padRandom()
 	if err != nil {
@@ -330,11 +291,6 @@ func (s *Stream) HandshakeIncoming(
 	debugln("--- in: done")
 
 	// Step 3 | A->B: HASH('req1', S), HASH('req2', SKEY) xor HASH('req3', S), ENCRYPT(VC, crypto_provide, len(PadC), PadC, len(IA)), ENCRYPT(IA)
-	if conn, ok := s.raw.(net.Conn); ok {
-		if err = conn.SetReadDeadline(time.Now().Add(connDeadline)); err != nil {
-			return
-		}
-	}
 	req1 := hashInt("req1", S)
 	err = s.readSync(req1, 628-firstRead)
 	if err != nil {
@@ -420,11 +376,6 @@ func (s *Stream) HandshakeIncoming(
 	}
 
 	// Step 4 | B->A: ENCRYPT(VC, crypto_select, len(padD), padD), ENCRYPT2(Payload Stream)
-	if conn, ok := s.raw.(net.Conn); ok {
-		if err = conn.SetWriteDeadline(time.Now().Add(connDeadline)); err != nil {
-			return
-		}
-	}
 	debugln("--- in: begin step 4")
 	writeBuf.Write(vc)
 	_ = binary.Write(writeBuf, binary.BigEndian, selected)
@@ -450,9 +401,6 @@ func (s *Stream) HandshakeIncoming(
 	debugln("--- in: done")
 
 	debugln("--- in: end handshake")
-	if conn, ok := s.raw.(net.Conn); ok {
-		err = conn.SetDeadline(time.Time{})
-	}
 	return
 	// Step 5 | A->B: ENCRYPT2(Payload Stream)
 }
