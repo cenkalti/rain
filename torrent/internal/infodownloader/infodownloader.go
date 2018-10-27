@@ -67,6 +67,7 @@ func (d *InfoDownloader) Run(queueLength int, pieceTimeout time.Duration, snubbe
 		requested      = make(map[uint32]struct{})
 		nextBlockIndex uint32
 		pieceTimeoutC  <-chan time.Time
+		sendSnubbedC   chan *InfoDownloader
 	)
 
 	requestBlocks := func() {
@@ -122,11 +123,9 @@ func (d *InfoDownloader) Run(queueLength int, pieceTimeout time.Duration, snubbe
 			pieceTimeoutC = nil
 			requestBlocks()
 		case <-pieceTimeoutC:
-			select {
-			case snubbedC <- d:
-			case <-d.closeC:
-				return
-			}
+			sendSnubbedC = snubbedC
+		case sendSnubbedC <- d:
+			sendSnubbedC = nil
 		case <-d.closeC:
 			return
 		}

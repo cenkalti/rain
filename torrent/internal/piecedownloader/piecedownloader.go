@@ -103,6 +103,7 @@ func (d *PieceDownloader) Run(queueLength int, pieceTimeout time.Duration, snubb
 		done               = make(map[uint32]struct{})
 		pieceWriterResultC = make(chan error)
 		pieceTimeoutC      <-chan time.Time
+		sendSnubbedC       chan *PieceDownloader
 	)
 
 	requestBlocks := func() {
@@ -170,11 +171,9 @@ func (d *PieceDownloader) Run(queueLength int, pieceTimeout time.Duration, snubb
 		case <-d.unchokeC:
 			requestBlocks()
 		case <-pieceTimeoutC:
-			select {
-			case snubbedC <- d:
-			case <-d.closeC:
-				return
-			}
+			sendSnubbedC = snubbedC
+		case sendSnubbedC <- d:
+			sendSnubbedC = nil
 		case <-d.closeC:
 			return
 		}
