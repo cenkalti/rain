@@ -3,6 +3,8 @@ package main
 import (
 	"errors"
 	"fmt"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"runtime/pprof"
 	"strconv"
@@ -40,6 +42,10 @@ func main() {
 		cli.StringFlag{
 			Name:  "cpuprofile",
 			Usage: "write cpu profile to `FILE`",
+		},
+		cli.StringFlag{
+			Name:  "pprof",
+			Usage: "run pprof server on `ADDR`",
 		},
 		cli.BoolFlag{
 			Name:  "debug, d",
@@ -152,6 +158,12 @@ func handleBeforeCommand(c *cli.Context) error {
 		if err := pprof.StartCPUProfile(f); err != nil {
 			log.Fatal("could not start CPU profile: ", err)
 		}
+	}
+	pprofFlag := c.GlobalString("pprof")
+	if pprofFlag != "" {
+		go func() {
+			log.Notice(http.ListenAndServe(pprofFlag, nil))
+		}()
 	}
 	// configPath := c.GlobalString("config")
 	// if configPath != "" {
