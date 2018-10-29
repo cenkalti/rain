@@ -115,6 +115,8 @@ func (c *Client) add(f func(port int, sto storage.Storage) (*torrent.Torrent, er
 	}
 	t.SetResume(res)
 
+	t.Start()
+
 	t2 := &Torrent{
 		ID:      id,
 		Torrent: t,
