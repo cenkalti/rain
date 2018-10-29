@@ -25,25 +25,22 @@ func Accept(
 		panic("forceEncryption && getSKey == nil")
 	}
 
-	isEncrypted := false
-	hasIncomingPayload := false
-
 	if err = conn.SetDeadline(time.Now().Add(handshakeTimeout)); err != nil {
 		return
 	}
+
+	isEncrypted := false
 
 	// Try to do unencrypted handshake first.
 	// If protocol string is not valid, try to do encrypted handshake.
 	// rwConn returns the read bytes again that is read by handshake.Read1.
 	var buf bytes.Buffer
 	var reader = io.TeeReader(conn, &buf)
-	peerExtensions, infoHash, err = readHandshake1(reader)
-	conn = &rwConn{readWriter{io.MultiReader(&buf, conn), conn}, conn}
 
+	peerExtensions, infoHash, err = readHandshake1(reader)
 	if err == errInvalidProtocol && getSKey != nil {
+		conn = &rwConn{readWriter{io.MultiReader(&buf, conn), conn}, conn}
 		mseConn := mse.WrapConn(conn)
-		payloadIn := make([]byte, 68)
-		var lenPayloadIn uint16
 		err = mseConn.HandshakeIncoming(
 			getSKey,
 			func(provided mse.CryptoMethod) (selected mse.CryptoMethod) {
@@ -55,38 +52,13 @@ func Accept(
 				}
 				cipher = selected
 				return
-			},
-			payloadIn,
-			&lenPayloadIn,
-			func() (payloadOut []byte, err error) {
-				if lenPayloadIn < 68 {
-					// We won't send outgoing initial payload because
-					// other side did not send initial payload.
-					// We will continue and do encryption negotiation but
-					// will do BT handshake after encryption negotiation.
-					return nil, nil
-				}
-				hasIncomingPayload = true
-				r := bytes.NewReader(payloadIn[:lenPayloadIn])
-				peerExtensions, infoHash, err = readHandshake1(r)
-				if err != nil {
-					return nil, err
-				}
-				if !hasInfoHash(infoHash) {
-					return nil, errInvalidInfoHash
-				}
-				peerID, err = readHandshake2(r)
-				if err != nil {
-					return nil, err
-				}
-				out := bytes.NewBuffer(make([]byte, 0, 68))
-				err = writeHandshake(out, infoHash, ourID, ourExtensions)
-				return out.Bytes(), err
 			})
-		if err == nil {
-			log.Debugf("Encryption handshake is successful. Selected cipher: %d", cipher)
-			conn = mseConn
+		if err != nil {
+			return
 		}
+		log.Debugf("Encryption handshake is successful. Selected cipher: %s", cipher)
+		conn = mseConn
+		peerExtensions, infoHash, err = readHandshake1(conn)
 	}
 	if err != nil {
 		return
@@ -97,30 +69,22 @@ func Accept(
 		return
 	}
 
-	if !hasIncomingPayload {
-		peerExtensions, infoHash, err = readHandshake1(conn)
-		if err != nil {
-			return
-		}
-		if !hasInfoHash(infoHash) {
-			err = errInvalidInfoHash
-			return
-		}
-		err = writeHandshake(conn, infoHash, ourID, ourExtensions)
-		if err != nil {
-			return
-		}
-		peerID, err = readHandshake2(conn)
-		if err != nil {
-			return
-		}
+	if !hasInfoHash(infoHash) {
+		err = errInvalidInfoHash
+		return
 	}
-
+	err = writeHandshake(conn, infoHash, ourID, ourExtensions)
+	if err != nil {
+		return
+	}
+	peerID, err = readHandshake2(conn)
+	if err != nil {
+		return
+	}
 	if peerID == ourID {
 		err = ErrOwnConnection
 		return
 	}
-
 	encConn = conn
 	return
 }

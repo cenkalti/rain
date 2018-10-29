@@ -3,7 +3,6 @@ package mse_test
 import (
 	"bytes"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"testing"
@@ -57,7 +56,6 @@ func TestStream(t *testing.T) {
 	payloadB := []byte("payloadB")
 	payloadARead := make([]byte, 8)
 	payloadBRead := make([]byte, 8)
-	var n uint16
 
 	done := make(chan struct{})
 	var gerr error
@@ -85,13 +83,18 @@ func TestStream(t *testing.T) {
 			}
 			return
 		},
-		payloadARead, &n,
-		func() ([]byte, error) {
-			if !bytes.Equal(payloadARead[:n], payloadA) {
-				return nil, errors.New("invalid payload A")
-			}
-			return payloadB, nil
-		})
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = io.ReadFull(b, payloadARead)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(payloadARead, payloadA) {
+		t.Fatal("invalid payload A")
+	}
+	_, err = b.Write(payloadB)
 	if err != nil {
 		t.Fatal(err)
 	}

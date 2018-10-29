@@ -85,7 +85,7 @@ func Dial(
 				return
 			default:
 			}
-			log.Debugln("Encrytpion handshake has failed: ", err)
+			log.Debugln("Encrytpion handshake has failed:", err)
 			if forceEncryption {
 				log.Debug("Will not try again because ougoing encryption is forced.")
 				err = errNotEncrypted
@@ -121,7 +121,7 @@ func Dial(
 				return
 			}
 		} else {
-			log.Debugf("Encryption handshake is successful. Selected cipher: %d", cipher)
+			log.Debugf("Encryption handshake is successful. Selected cipher: %s", cipher)
 			conn = encConn
 		}
 	} else {

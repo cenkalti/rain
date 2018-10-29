@@ -8,11 +8,6 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/mse"
 )
 
-var addr = &net.TCPAddr{
-	IP:   net.IPv4(127, 0, 0, 1),
-	Port: 5000,
-}
-
 var (
 	ext1     = [8]byte{0x0A}
 	ext2     = [8]byte{0x0B}
@@ -23,16 +18,17 @@ var (
 )
 
 func TestUnencrypted(t *testing.T) {
-	l, err := net.ListenTCP("tcp", addr)
+	l, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.IPv4(0, 0, 0, 0), Port: 0})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer l.Close()
+	port := l.Addr().(*net.TCPAddr).Port
 	done := make(chan struct{})
 	var gerr error
 	go func() {
 		defer close(done)
-		conn, cipher, ext, id, err2 := Dial(addr, time.Second, time.Second, false, false, ext1, infoHash, id1, nil)
+		conn, cipher, ext, id, err2 := Dial(&net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: port}, 10*time.Second, 10*time.Second, false, false, ext1, infoHash, id1, nil)
 		if err2 != nil {
 			gerr = err2
 			return
@@ -54,7 +50,7 @@ func TestUnencrypted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, cipher, ext, id, ih, err := Accept(conn, time.Second, nil, false, func(ih [20]byte) bool { return ih == infoHash }, ext2, id2)
+	_, cipher, ext, id, ih, err := Accept(conn, 10*time.Second, nil, false, func(ih [20]byte) bool { return ih == infoHash }, ext2, id2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,16 +73,17 @@ func TestUnencrypted(t *testing.T) {
 }
 
 func TestEncrypted(t *testing.T) {
-	l, err := net.ListenTCP("tcp", addr)
+	l, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.IPv4(0, 0, 0, 0), Port: 0})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer l.Close()
+	port := l.Addr().(*net.TCPAddr).Port
 	done := make(chan struct{})
 	var gerr error
 	go func() {
 		defer close(done)
-		conn, cipher, ext, id, err2 := Dial(addr, time.Second, time.Second, true, false, ext1, infoHash, id1, nil)
+		conn, cipher, ext, id, err2 := Dial(&net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: port}, 10*time.Second, 10*time.Second, true, false, ext1, infoHash, id1, nil)
 		if err2 != nil {
 			gerr = err2
 			return
@@ -125,7 +122,7 @@ func TestEncrypted(t *testing.T) {
 	}
 	encConn, cipher, ext, id, ih, err := Accept(
 		conn,
-		time.Second,
+		10*time.Second,
 		func(h [20]byte) (sKey []byte) {
 			if h == sKeyHash {
 				return infoHash[:]
@@ -136,6 +133,8 @@ func TestEncrypted(t *testing.T) {
 		func(ih [20]byte) bool { return ih == infoHash },
 		ext2, id2)
 	if err != nil {
+		conn.Close()
+		<-done
 		t.Fatal(err)
 	}
 	if cipher != mse.RC4 {

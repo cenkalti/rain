@@ -81,6 +81,7 @@ type Stream struct {
 	raw io.ReadWriter
 	r   *cipher.StreamReader
 	w   *cipher.StreamWriter
+	r2  io.Reader
 }
 
 // NewStream returns a new Stream. You must call HandshakeIncoming or
@@ -89,7 +90,7 @@ type Stream struct {
 func NewStream(rw io.ReadWriter) *Stream { return &Stream{raw: rw} }
 
 // Read from underlying io.ReadWriter, decrypt bytes and put into p.
-func (s *Stream) Read(p []byte) (n int, err error) { return s.r.Read(p) }
+func (s *Stream) Read(p []byte) (n int, err error) { return s.r2.Read(p) }
 
 // Encrypt bytes in p and write into underlying io.ReadWriter.
 func (s *Stream) Write(p []byte) (n int, err error) { return s.w.Write(p) }
@@ -209,6 +210,7 @@ func (s *Stream) HandshakeOutgoing(sKey []byte, cryptoProvide CryptoMethod, init
 		return
 	}
 	s.updateCipher(selected)
+	s.r2 = s.r
 
 	debugln("--- out: end handshake")
 	return
@@ -233,10 +235,7 @@ func (s *Stream) HandshakeOutgoing(sKey []byte, cryptoProvide CryptoMethod, init
 // If this function returns an error, handshake fails.
 func (s *Stream) HandshakeIncoming(
 	getSKey func(sKeyHash [20]byte) (sKey []byte),
-	cryptoSelect func(provided CryptoMethod) (selected CryptoMethod),
-	payloadIn []byte,
-	lenPayloadIn *uint16,
-	processPayloadIn func() (payloadOut []byte, err error)) (err error) {
+	cryptoSelect func(provided CryptoMethod) (selected CryptoMethod)) (err error) {
 
 	writeBuf := bytes.NewBuffer(make([]byte, 0, 96+512))
 
@@ -343,16 +342,8 @@ func (s *Stream) HandshakeIncoming(
 	if err != nil {
 		return
 	}
-	if len(payloadIn) < int(lenIA) {
-		err = io.ErrShortBuffer
-		return
-	}
-	n, err := io.ReadFull(s.r, payloadIn[:int(lenIA)])
-	if err != nil {
-		return
-	}
-	*lenPayloadIn = uint16(n)
-	payloadOut, err := processPayloadIn()
+	IA := bytes.NewBuffer(make([]byte, 0, lenIA))
+	_, err = io.CopyN(IA, s.r, int64(lenIA))
 	if err != nil {
 		return
 	}
@@ -367,27 +358,21 @@ func (s *Stream) HandshakeIncoming(
 	}
 	_ = binary.Write(writeBuf, binary.BigEndian, uint16(len(padD)))
 	writeBuf.Write(padD)
-	enc2Start := writeBuf.Len()
-	debugf("--- in: enc2Start: %#v\n", enc2Start)
-	writeBuf.Write(payloadOut)
-	enc1Bytes := writeBuf.Bytes()[:enc2Start]
-	enc2Bytes := writeBuf.Bytes()[enc2Start:]
-	s.w.S.XORKeyStream(enc1Bytes, enc1Bytes) // RC4
-	s.updateCipher(selected)
-	s.w.S.XORKeyStream(enc2Bytes, enc2Bytes) // selected cipher
+
 	debugln("--- in: writing step 4")
-	_, err = writeBuf.WriteTo(s.raw)
+	_, err = writeBuf.WriteTo(s.w)
 	if err != nil {
 		return
 	}
+
+	s.updateCipher(selected)
+	s.r2 = io.MultiReader(IA, s.r)
 	debugln("--- in: done")
 
 	debugln("--- in: end handshake")
 	return
 	// Step 5 | A->B: ENCRYPT2(Payload Stream)
 }
-
-var discard = make([]byte, 1024)
 
 func (s *Stream) initRC4(encKey, decKey string, S *big.Int, sKey []byte) error {
 	cipherEnc, err := rc4.NewCipher(rc4Key(encKey, S, sKey))
@@ -398,6 +383,8 @@ func (s *Stream) initRC4(encKey, decKey string, S *big.Int, sKey []byte) error {
 	if err != nil {
 		return err
 	}
+	var buf [1024]byte
+	discard := buf[:]
 	cipherEnc.XORKeyStream(discard, discard)
 	cipherDec.XORKeyStream(discard, discard)
 	s.w = &cipher.StreamWriter{S: cipherEnc, W: s.raw}
