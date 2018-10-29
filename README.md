@@ -4,6 +4,7 @@ rain
 BitTorrent client and library in Go.
 
 [![Build Status](https://travis-ci.org/cenkalti/rain.svg?branch=master)](https://travis-ci.org/cenkalti/rain)
+[![Coverage Status](https://coveralls.io/repos/github/cenkalti/rain/badge.svg?branch=master)](https://coveralls.io/github/cenkalti/rain?branch=master)
 [![GoDoc](https://godoc.org/github.com/cenkalti/rain?status.svg)](https://godoc.org/github.com/cenkalti/rain)
 [![GitHub Release](https://img.shields.io/github/release/cenkalti/rain.svg)](https://github.com/cenkalti/rain/releases)
 
