@@ -26,9 +26,17 @@ Features
 Installing
 ----------
 
+Get the latest binary from [releases page](https://github.com/cenkalti/rain/releases) or install development version:
+
 `go get github.com/cenkalti/rain`
 
 Usage
 -----
 
+To download a single torrent:
+
 `rain download <torrent file or magnet link>`
+
+or see other options:
+
+`rain help`
