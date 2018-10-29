@@ -81,8 +81,8 @@ func main() {
 			},
 		},
 		{
-			Name:  "client",
-			Usage: "send request to RPC server",
+			Name:  "rpc",
+			Usage: "send rpc request to client",
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "url",
@@ -130,8 +130,8 @@ func main() {
 			},
 		},
 		{
-			Name:  "server",
-			Usage: "run RPC server",
+			Name:  "client",
+			Usage: "run torrent client",
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "addr",
