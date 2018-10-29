@@ -96,6 +96,12 @@ func (p *PeerWriter) messageWriter() {
 	keepAliveTicker := time.NewTicker(keepAlivePeriod / 2)
 	defer keepAliveTicker.Stop()
 	for {
+		err := p.conn.SetWriteDeadline(time.Time{})
+		if err != nil {
+			p.log.Error(err)
+			p.conn.Close()
+			return
+		}
 		select {
 		case msg := <-p.writeC:
 			p.log.Debugf("writing message of type: %q", msg.ID())
