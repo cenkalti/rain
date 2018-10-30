@@ -11,8 +11,8 @@ type Verifier struct {
 	Bitfield *bitfield.Bitfield
 	Error    error
 
-	stopC chan struct{}
-	doneC chan struct{}
+	closeC chan struct{}
+	doneC  chan struct{}
 }
 
 type Progress struct {
@@ -22,17 +22,14 @@ type Progress struct {
 
 func New() *Verifier {
 	return &Verifier{
-		stopC: make(chan struct{}),
-		doneC: make(chan struct{}),
+		closeC: make(chan struct{}),
+		doneC:  make(chan struct{}),
 	}
 }
 
-func (v *Verifier) Stop() {
-	close(v.stopC)
-}
-
-func (v *Verifier) Done() chan struct{} {
-	return v.doneC
+func (v *Verifier) Close() {
+	close(v.closeC)
+	<-v.doneC
 }
 
 func (v *Verifier) Run(pieces []pieceio.Piece, progressC chan Progress, resultC chan *Verifier) {
@@ -41,7 +38,7 @@ func (v *Verifier) Run(pieces []pieceio.Piece, progressC chan Progress, resultC 
 	defer func() {
 		select {
 		case resultC <- v:
-		case <-v.stopC:
+		case <-v.closeC:
 		}
 	}()
 
@@ -62,7 +59,7 @@ func (v *Verifier) Run(pieces []pieceio.Piece, progressC chan Progress, resultC 
 		}
 		select {
 		case progressC <- Progress{Checked: p.Index + 1, OK: numOK}:
-		case <-v.stopC:
+		case <-v.closeC:
 			return
 		}
 		hash.Reset()

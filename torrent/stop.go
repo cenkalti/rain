@@ -46,9 +46,7 @@ func (t *Torrent) stop(err error) {
 	// Data must be closed before closing Verifier.
 	t.log.Debugln("stopping verifier")
 	if t.verifier != nil {
-		// TODO add close method to Verifier
-		t.verifier.Stop()
-		<-t.verifier.Done()
+		t.verifier.Close()
 		t.verifier = nil
 	}
 
