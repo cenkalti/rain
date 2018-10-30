@@ -97,7 +97,7 @@ func (h *handler) AddMagnet(args *AddMagnetRequest, reply *AddMagnetResponse) er
 
 func newTorrent(t *client.Torrent) Torrent {
 	return Torrent{
-		ID:       t.ID,
+		ID:       t.ID(),
 		Name:     t.Name(),
 		InfoHash: t.InfoHash(),
 	}

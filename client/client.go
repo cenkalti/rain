@@ -2,6 +2,7 @@
 package client
 
 import (
+	"bytes"
 	"io"
 	"os"
 	"path/filepath"
@@ -46,27 +47,79 @@ func New(cfg Config) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	l := logger.New("client")
+	var ids []uint64
 	err = db.Update(func(tx *bolt.Tx) error {
-		_, err2 := tx.CreateBucketIfNotExists(mainBucket)
-		return err2
+		b, err2 := tx.CreateBucketIfNotExists(mainBucket)
+		if err2 != nil {
+			return err2
+		}
+		return b.ForEach(func(k, _ []byte) error {
+			id, err3 := strconv.ParseUint(string(k), 10, 64)
+			if err3 != nil {
+				l.Error(err3)
+				return nil
+			}
+			ids = append(ids, id)
+			return nil
+		})
 	})
 	if err != nil {
 		return nil, err
 	}
-	// TODO load existing torrents on startup
-	return &Client{
+	c := &Client{
 		config:   cfg,
 		db:       db,
-		log:      logger.New("client"),
+		log:      l,
 		torrents: make(map[uint64]*Torrent),
-	}, nil
+	}
+	return c, c.loadExistingTorrents(ids)
+}
+
+func (c *Client) loadExistingTorrents(ids []uint64) error {
+	var started []*Torrent
+	for _, id := range ids {
+		res, err := boltdbresumer.New(c.db, mainBucket, []byte(strconv.FormatUint(id, 10)))
+		if err != nil {
+			c.log.Error(err)
+			continue
+		}
+		t, err := torrent.NewResume(res, c.config.Torrent)
+		if err != nil {
+			c.log.Error(err)
+			continue
+		}
+		t2 := &Torrent{
+			client:  c,
+			torrent: t,
+			id:      id,
+		}
+		c.torrents[id] = t2
+		c.log.Infof("loaded existing torrent: #%d %s", id, t.Name())
+		subBucket := strconv.FormatUint(id, 10)
+		err = c.db.View(func(tx *bolt.Tx) error {
+			b := tx.Bucket(mainBucket).Bucket([]byte(subBucket))
+			val := b.Get([]byte("started"))
+			if bytes.Equal(val, []byte("1")) {
+				started = append(started, t2)
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+	for _, t := range started {
+		t.Start()
+	}
+	return nil
 }
 
 func (c *Client) Close() error {
 	c.m.Lock()
 	defer c.m.Unlock()
 	for _, t := range c.torrents {
-		t.Close()
+		t.torrent.Close()
 	}
 	c.torrents = nil
 	return c.db.Close()
@@ -118,21 +171,28 @@ func (c *Client) add(f func(port int, sto storage.Storage) (*torrent.Torrent, er
 	}
 
 	subBucket := strconv.FormatUint(id, 10)
-	if err != nil {
-		return nil, err
-	}
 
 	res, err := boltdbresumer.New(c.db, mainBucket, []byte(subBucket))
 	if err != nil {
 		return nil, err
 	}
-	t.SetResume(res)
-
+	err = t.SetResume(res)
+	if err != nil {
+		return nil, err
+	}
+	err = c.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(mainBucket).Bucket([]byte(subBucket))
+		return b.Put([]byte("started"), []byte("1"))
+	})
+	if err != nil {
+		return nil, err
+	}
 	t.Start()
 
 	t2 := &Torrent{
-		ID:      id,
-		Torrent: t,
+		client:  c,
+		torrent: t,
+		id:      id,
 	}
 
 	c.m.Lock()
@@ -147,13 +207,17 @@ func (c *Client) GetTorrent(id uint64) *Torrent {
 	return c.torrents[id]
 }
 
-func (c *Client) RemoveTorrent(id uint64) {
+func (c *Client) RemoveTorrent(id uint64) error {
 	c.m.Lock()
 	defer c.m.Unlock()
 	t, ok := c.torrents[id]
 	if !ok {
-		return
+		return nil
 	}
 	delete(c.torrents, id)
-	t.Close()
+	t.torrent.Close()
+	subBucket := strconv.FormatUint(id, 10)
+	return c.db.Update(func(tx *bolt.Tx) error {
+		return tx.Bucket(mainBucket).DeleteBucket([]byte(subBucket))
+	})
 }
