@@ -8,7 +8,6 @@ import (
 
 type Piece struct {
 	*pieceio.Piece
-	// TODO Piece has no state. Move these maps into downloader.
 	HavingPeers      map[*peer.Peer]struct{}
 	AllowedFastPeers map[*peer.Peer]struct{}
 	RequestedPeers   map[*peer.Peer]*piecedownloader.PieceDownloader
