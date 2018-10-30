@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cenkalti/log"
+	clog "github.com/cenkalti/log"
 	"github.com/cenkalti/rain/client"
 	"github.com/cenkalti/rain/internal/clientversion"
 	"github.com/cenkalti/rain/internal/console"
@@ -30,6 +30,7 @@ import (
 var (
 	app = cli.NewApp()
 	clt *rainrpc.Client
+	log = logger.New("rain")
 )
 
 func main() {
@@ -100,7 +101,7 @@ func main() {
 				cli.StringFlag{
 					Name:  "url",
 					Usage: "URL of RPC server",
-					Value: "localhost:7246",
+					Value: "localhost:" + strconv.Itoa(rainrpc.DefaultServerConfig.Port),
 				},
 			},
 			Before: handleBeforeRPC,
@@ -172,10 +173,10 @@ func handleBeforeCommand(c *cli.Context) error {
 		if err != nil {
 			log.Fatal("could not create log file: ", err)
 		}
-		logger.SetHandler(log.NewFileHandler(f))
+		logger.SetHandler(clog.NewFileHandler(f))
 	}
 	if c.GlobalBool("debug") {
-		logger.SetLevel(log.DEBUG)
+		logger.SetLevel(clog.DEBUG)
 	}
 	return nil
 }
@@ -295,7 +296,7 @@ func handleDownload(c *cli.Context) error {
 }
 
 func handleClient(c *cli.Context) error {
-	cfg := client.NewConfig()
+	cfg := DefaultConfig
 
 	configPath := c.String("config")
 	if configPath != "" {
@@ -313,11 +314,12 @@ func handleClient(c *cli.Context) error {
 		}
 	}
 
-	clt, _ := client.New(cfg)
-	addr := c.String("addr")
-	srv := rainrpc.NewServer(clt)
-	log.Infoln("RPC server is listening on", addr)
-	return srv.ListenAndServe(addr)
+	clt, err := client.New(cfg.Client)
+	if err != nil {
+		return err
+	}
+	srv := rainrpc.NewServer(clt, cfg.RPCServer)
+	return srv.ListenAndServe()
 }
 
 func handleBeforeRPC(c *cli.Context) error {

@@ -6,24 +6,44 @@ import (
 	"net"
 	"net/rpc"
 	"net/rpc/jsonrpc"
+	"strconv"
 	"strings"
 
 	"github.com/cenkalti/rain/client"
+	"github.com/cenkalti/rain/internal/logger"
 )
 
 type Server struct {
+	config    ServerConfig
 	rpcServer *rpc.Server
+	log       logger.Logger
 }
 
-func NewServer(clt *client.Client) *Server {
+type ServerConfig struct {
+	Host string
+	Port int
+}
+
+var DefaultServerConfig = ServerConfig{
+	Host: "127.0.0.1",
+	Port: 7246,
+}
+
+func NewServer(clt *client.Client, cfg ServerConfig) *Server {
 	h := &handler{client: clt}
 	srv := rpc.NewServer()
 	srv.RegisterName("Client", h)
 	srv.HandleHTTP(rpc.DefaultRPCPath, rpc.DefaultDebugPath)
-	return &Server{rpcServer: srv}
+	return &Server{
+		config:    cfg,
+		rpcServer: srv,
+		log:       logger.New("rpc server"),
+	}
 }
 
-func (s *Server) ListenAndServe(addr string) error {
+func (s *Server) ListenAndServe() error {
+	addr := net.JoinHostPort(s.config.Host, strconv.Itoa(s.config.Port))
+	s.log.Infoln("RPC server is listening on", addr)
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err

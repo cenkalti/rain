@@ -19,7 +19,7 @@ import (
 var mainBucket = []byte("rain")
 
 type Client struct {
-	config   *Config
+	config   Config
 	db       *bolt.DB
 	log      logger.Logger
 	torrents map[uint64]*Torrent
@@ -27,20 +27,17 @@ type Client struct {
 }
 
 // New returns a pointer to new Rain BitTorrent client.
-func New(c *Config) (*Client, error) {
-	if c == nil {
-		c = NewConfig()
-	}
+func New(cfg Config) (*Client, error) {
 	var err error
-	c.Database, err = homedir.Expand(c.Database)
+	cfg.Database, err = homedir.Expand(cfg.Database)
 	if err != nil {
 		return nil, err
 	}
-	c.DataDir, err = homedir.Expand(c.DataDir)
+	cfg.DataDir, err = homedir.Expand(cfg.DataDir)
 	if err != nil {
 		return nil, err
 	}
-	db, err := bolt.Open(c.Database, 0666, nil)
+	db, err := bolt.Open(cfg.Database, 0666, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +50,7 @@ func New(c *Config) (*Client, error) {
 	}
 	// TODO load existing torrents on startup
 	return &Client{
-		config:   c,
+		config:   cfg,
 		db:       db,
 		log:      logger.New("client"),
 		torrents: make(map[uint64]*Torrent),
