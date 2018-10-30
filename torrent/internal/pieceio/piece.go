@@ -90,7 +90,6 @@ func NewPieces(info *metainfo.Info, osFiles []storage.File) []Piece {
 	return pieces
 }
 
-// VerifyHash TODO remove method
 func (p *Piece) VerifyHash(buf []byte, h hash.Hash) bool {
 	if uint32(len(buf)) != p.Length {
 		return false
