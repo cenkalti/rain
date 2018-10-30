@@ -1,8 +1,8 @@
 package boltdbresumer
 
 import (
+	"github.com/boltdb/bolt"
 	"github.com/cenkalti/rain/torrent/resumer"
-	bolt "go.etcd.io/bbolt"
 )
 
 var bucketName = []byte("resume")

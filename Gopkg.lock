@@ -18,12 +18,36 @@
   revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
 
 [[projects]]
+  digest = "1:0f98f59e9a2f4070d66f0c9c39561f68fcd1dc837b22a852d28d0003aebd1b1e"
+  name = "github.com/boltdb/bolt"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "2f1ce7a837dcb8da3ec595b1dac9d0632f0f99e8"
+  version = "v1.3.1"
+
+[[projects]]
+  branch = "master"
+  digest = "1:27abf5c7334df5822b3e757328e3e960139e8a003c987cf7b0df38b6d21d6be6"
+  name = "github.com/br0xen/termbox-util"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "de1d4c83380ebcfec0be0943384867902498036d"
+
+[[projects]]
   branch = "master"
   digest = "1:c7c97afc7fc4235c8d3c9f95609183a541f9af3127214d677d0feda0a004eaaa"
   name = "github.com/cenkalti/backoff"
   packages = ["."]
   pruneopts = "UT"
   revision = "b7325b0f3f1097c6546ea5e83c4a23267e58ad71"
+
+[[projects]]
+  branch = "master"
+  digest = "1:a030f6a4ba294e42e3c3a47e2688b38f85da75865a5fa08e850505ac98c0c7a5"
+  name = "github.com/cenkalti/boltbrowser"
+  packages = ["boltbrowser"]
+  pruneopts = "UT"
+  revision = "780ebf07b5e67c3394adff7b2ea9be01e24ac902"
 
 [[projects]]
   branch = "master"
@@ -257,14 +281,6 @@
   revision = "d522839ac797fc43269dae6a04a1f8be475a915d"
 
 [[projects]]
-  digest = "1:c28625428387b63dd7154eb857f51e700465cfbf7c06f619e71f2da33cefe47e"
-  name = "go.etcd.io/bbolt"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "583e8937c61f1af6513608ccc75c97b6abdf4ff9"
-  version = "v1.3.0"
-
-[[projects]]
   branch = "master"
   digest = "1:3f3a05ae0b95893d90b9b3b5afdb79a9b3d96e4e36e099d841ae602e4aca0da8"
   name = "golang.org/x/crypto"
@@ -295,7 +311,9 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/boltdb/bolt",
     "github.com/cenkalti/backoff",
+    "github.com/cenkalti/boltbrowser/boltbrowser",
     "github.com/cenkalti/log",
     "github.com/chihaya/chihaya/frontend/http",
     "github.com/chihaya/chihaya/frontend/udp",
@@ -309,7 +327,6 @@
     "github.com/mitchellh/go-homedir",
     "github.com/urfave/cli",
     "github.com/zeebo/bencode",
-    "go.etcd.io/bbolt",
     "gopkg.in/yaml.v2",
   ]
   solver-name = "gps-cdcl"

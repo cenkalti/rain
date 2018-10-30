@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/boltdb/bolt"
+	"github.com/cenkalti/boltbrowser/boltbrowser"
 	clog "github.com/cenkalti/log"
 	"github.com/cenkalti/rain/internal/clientversion"
 	"github.com/cenkalti/rain/internal/console"
@@ -144,11 +146,25 @@ func main() {
 				},
 			},
 		},
+		{
+			Name:   "boltbrowser",
+			Hidden: true,
+			Action: handleBoltBrowser,
+		},
 	}
 	err := app.Run(os.Args)
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func handleBoltBrowser(c *cli.Context) error {
+	db, err := bolt.Open(c.Args().Get(0), 0600, nil)
+	if err != nil {
+		return err
+	}
+	boltbrowser.Browse(db, false)
+	return db.Close()
 }
 
 func handleBeforeCommand(c *cli.Context) error {

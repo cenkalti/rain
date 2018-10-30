@@ -8,16 +8,16 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/boltdb/bolt"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent"
 	"github.com/cenkalti/rain/torrent/resumer/boltdbresumer"
 	"github.com/cenkalti/rain/torrent/storage"
 	"github.com/cenkalti/rain/torrent/storage/filestorage"
 	"github.com/mitchellh/go-homedir"
-	"go.etcd.io/bbolt"
 )
 
-var mainBucket = []byte("rain")
+var mainBucket = []byte("torrents")
 
 type Client struct {
 	config   Config
