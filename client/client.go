@@ -12,6 +12,7 @@ import (
 	"github.com/cenkalti/rain/torrent/resumer/boltdbresumer"
 	"github.com/cenkalti/rain/torrent/storage"
 	"github.com/cenkalti/rain/torrent/storage/filestorage"
+	"github.com/mitchellh/go-homedir"
 	"go.etcd.io/bbolt"
 )
 
@@ -29,6 +30,15 @@ type Client struct {
 func New(c *Config) (*Client, error) {
 	if c == nil {
 		c = NewConfig()
+	}
+	var err error
+	c.Database, err = homedir.Expand(c.Database)
+	if err != nil {
+		return nil, err
+	}
+	c.DataDir, err = homedir.Expand(c.DataDir)
+	if err != nil {
+		return nil, err
 	}
 	db, err := bolt.Open(c.Database, 0666, nil)
 	if err != nil {

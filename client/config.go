@@ -8,21 +8,23 @@ import (
 
 // Config for Client.
 type Config struct {
+	// Database file to save resume data.
 	Database string
-	DataDir  string
+	// DataDir is where files are downloaded.
+	DataDir string
 	// PortBegin, PortEnd int
 }
 
-var defaultConfig = Config{
-	Database: "rain.db",
-	DataDir:  "data",
+var DefaultConfig = Config{
+	Database: "~/.rain/resume.db",
+	DataDir:  "~/rain-downloads",
 	// PortBegin: 50000,
 	// PortEnd:   60000,
 }
 
-// NewConfig returns a default Config.
+// NewConfig returns new Config that is initialized with values from DefaultConfig.
 func NewConfig() *Config {
-	c := defaultConfig
+	c := DefaultConfig
 	return &c
 }
 
