@@ -165,6 +165,14 @@
   revision = "ad98a36ba0da87206e3378c556abbfeaeaa98668"
 
 [[projects]]
+  digest = "1:78bbb1ba5b7c3f2ed0ea1eab57bdd3859aec7e177811563edc41198a760b06af"
+  name = "github.com/mitchellh/go-homedir"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "ae18d6b8b3205b561c79e8e5f69bff09736185f4"
+  version = "v1.0.0"
+
+[[projects]]
   branch = "master"
   digest = "1:f335d800550786b6f51ddaedb9d1107a7a72f4a2195e5b039dd7c0e103e119bc"
   name = "github.com/nsf/termbox-go"
@@ -298,6 +306,7 @@
     "github.com/hashicorp/go-multierror",
     "github.com/hokaccha/go-prettyjson",
     "github.com/jroimartin/gocui",
+    "github.com/mitchellh/go-homedir",
     "github.com/urfave/cli",
     "github.com/zeebo/bencode",
     "go.etcd.io/bbolt",

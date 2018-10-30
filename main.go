@@ -23,6 +23,7 @@ import (
 	"github.com/cenkalti/rain/torrent/storage/filestorage"
 	"github.com/hokaccha/go-prettyjson"
 	"github.com/jroimartin/gocui"
+	"github.com/mitchellh/go-homedir"
 	"github.com/urfave/cli"
 )
 
@@ -81,6 +82,18 @@ func main() {
 			},
 		},
 		{
+			Name:  "client",
+			Usage: "run torrent client",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "config",
+					Usage: "path to the config file",
+					Value: "~/.rain/config.yaml",
+				},
+			},
+			Action: handleClient,
+		},
+		{
 			Name:  "rpc",
 			Usage: "send rpc request to client",
 			Flags: []cli.Flag{
@@ -90,7 +103,7 @@ func main() {
 					Value: "localhost:7246",
 				},
 			},
-			Before: handleBeforeClient,
+			Before: handleBeforeRPC,
 			Subcommands: []cli.Command{
 				{
 					Name:   "list",
@@ -129,18 +142,6 @@ func main() {
 				},
 			},
 		},
-		{
-			Name:  "client",
-			Usage: "run torrent client",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "addr",
-					Usage: "listen addr",
-					Value: "0.0.0.0:7246",
-				},
-			},
-			Action: handleServer,
-		},
 	}
 	err := app.Run(os.Args)
 	if err != nil {
@@ -165,17 +166,6 @@ func handleBeforeCommand(c *cli.Context) error {
 			log.Notice(http.ListenAndServe(pprofFlag, nil))
 		}()
 	}
-	// configPath := c.GlobalString("config")
-	// if configPath != "" {
-	// 	cp, err := homedir.Expand(configPath)
-	// 	if err != nil {
-	// 		log.Fatal(err)
-	// 	}
-	// 	err = cfg.LoadFile(cp)
-	// 	if err != nil {
-	// 		log.Fatal(err)
-	// 	}
-	// }
 	logFile := c.GlobalString("logfile")
 	if logFile != "" {
 		f, err := os.Create(logFile)
@@ -304,15 +294,33 @@ func handleDownload(c *cli.Context) error {
 	}
 }
 
-func handleServer(c *cli.Context) error {
-	clt, _ := client.New(nil)
+func handleClient(c *cli.Context) error {
+	cfg := client.NewConfig()
+
+	configPath := c.String("config")
+	if configPath != "" {
+		cp, err := homedir.Expand(configPath)
+		if err != nil {
+			return err
+		}
+		err = cfg.LoadFile(cp)
+		if os.IsNotExist(err) {
+			log.Noticef("config file not found at %q, using default config", cp)
+		} else if err != nil {
+			return err
+		} else {
+			log.Infoln("config loaded from:", cp)
+		}
+	}
+
+	clt, _ := client.New(cfg)
 	addr := c.String("addr")
 	srv := rainrpc.NewServer(clt)
 	log.Infoln("RPC server is listening on", addr)
 	return srv.ListenAndServe(addr)
 }
 
-func handleBeforeClient(c *cli.Context) error {
+func handleBeforeRPC(c *cli.Context) error {
 	var err error
 	clt, err = rainrpc.NewClient(c.String("url"))
 	return err
