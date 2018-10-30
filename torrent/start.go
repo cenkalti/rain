@@ -61,7 +61,7 @@ func (t *Torrent) startAnnouncers() {
 		return
 	}
 	for _, tr := range t.trackersInstances {
-		an := announcer.New(tr, Config.Tracker.NumWant, Config.Tracker.MinAnnounceInterval, t.announcerRequestC, t.completeC, t.addrsFromTrackers, t.log)
+		an := announcer.New(tr, t.config.TrackerNumWant, t.config.MinAnnounceInterval, t.announcerRequestC, t.completeC, t.addrsFromTrackers, t.log)
 		t.announcers = append(t.announcers, an)
 		go an.Run()
 	}
@@ -97,14 +97,14 @@ func (t *Torrent) startInfoDownloaders() {
 	if t.info != nil {
 		return
 	}
-	for len(t.infoDownloaders)-len(t.infoDownloadersSnubbed) < Config.Download.ParallelMetadataDownloads {
+	for len(t.infoDownloaders)-len(t.infoDownloadersSnubbed) < t.config.ParallelMetadataDownloads {
 		id := t.nextInfoDownload()
 		if id == nil {
 			break
 		}
 		t.log.Debugln("downloading info from", id.Peer.String())
 		t.infoDownloaders[id.Peer] = id
-		go id.Run(Config.Download.RequestQueueLength, Config.Peer.PieceTimeout, t.snubbedInfoDownloaderC, t.infoDownloaderResultC)
+		go id.Run(t.config.RequestQueueLength, t.config.PieceTimeout, t.snubbedInfoDownloaderC, t.infoDownloaderResultC)
 	}
 }
 
@@ -112,7 +112,7 @@ func (t *Torrent) startPieceDownloaders() {
 	if t.bitfield == nil {
 		return
 	}
-	for len(t.pieceDownloaders)-len(t.pieceDownloadersChoked)-len(t.pieceDownloadersSnubbed) < Config.Download.ParallelPieceDownloads {
+	for len(t.pieceDownloaders)-len(t.pieceDownloadersChoked)-len(t.pieceDownloadersSnubbed) < t.config.ParallelPieceDownloads {
 		pd := t.nextPieceDownload()
 		if pd == nil {
 			break
@@ -123,6 +123,6 @@ func (t *Torrent) startPieceDownloaders() {
 		}
 		t.pieceDownloaders[pd.Peer] = pd
 		t.pieces[pd.Piece.Index].RequestedPeers[pd.Peer] = pd
-		go pd.Run(Config.Download.RequestQueueLength, Config.Peer.PieceTimeout, t.snubbedPieceDownloaderC, t.pieceDownloaderResultC)
+		go pd.Run(t.config.RequestQueueLength, t.config.PieceTimeout, t.snubbedPieceDownloaderC, t.pieceDownloaderResultC)
 	}
 }

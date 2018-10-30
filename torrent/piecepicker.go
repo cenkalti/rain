@@ -77,7 +77,7 @@ func (t *Torrent) selectAllowedFastPiece(skipSnubbed, noDuplicate bool) (*piece.
 		}
 		if noDuplicate && len(pi.RequestedPeers) > 0 {
 			continue
-		} else if pi.RunningDownloads() >= Config.Download.EndgameParallelDownloadsPerPiece {
+		} else if pi.RunningDownloads() >= t.config.EndgameParallelDownloadsPerPiece {
 			continue
 		}
 		for pe := range pi.HavingPeers {
@@ -103,7 +103,7 @@ func (t *Torrent) selectUnchokedPeer(skipSnubbed, noDuplicate bool) (*piece.Piec
 		}
 		if noDuplicate && len(pi.RequestedPeers) > 0 {
 			continue
-		} else if pi.RunningDownloads() >= Config.Download.EndgameParallelDownloadsPerPiece {
+		} else if pi.RunningDownloads() >= t.config.EndgameParallelDownloadsPerPiece {
 			continue
 		}
 		for pe := range pi.HavingPeers {

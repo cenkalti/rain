@@ -3,6 +3,7 @@ package client
 
 import (
 	"io"
+	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
@@ -37,7 +38,11 @@ func New(cfg Config) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	db, err := bolt.Open(cfg.Database, 0666, nil)
+	err = os.MkdirAll(filepath.Dir(cfg.Database), 0750)
+	if err != nil {
+		return nil, err
+	}
+	db, err := bolt.Open(cfg.Database, 0640, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -79,13 +84,13 @@ func (c *Client) ListTorrents() []*Torrent {
 
 func (c *Client) AddTorrent(r io.Reader) (*Torrent, error) {
 	return c.add(func(port int, sto storage.Storage) (*torrent.Torrent, error) {
-		return torrent.New(r, port, sto)
+		return torrent.New(r, port, sto, c.config.Torrent)
 	})
 }
 
 func (c *Client) AddMagnet(link string) (*Torrent, error) {
 	return c.add(func(port int, sto storage.Storage) (*torrent.Torrent, error) {
-		return torrent.NewMagnet(link, port, sto)
+		return torrent.NewMagnet(link, port, sto, c.config.Torrent)
 	})
 }
 

@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -12,7 +13,6 @@ import (
 	"time"
 
 	clog "github.com/cenkalti/log"
-	"github.com/cenkalti/rain/client"
 	"github.com/cenkalti/rain/internal/clientversion"
 	"github.com/cenkalti/rain/internal/console"
 	"github.com/cenkalti/rain/internal/jsonutil"
@@ -25,6 +25,7 @@ import (
 	"github.com/jroimartin/gocui"
 	"github.com/mitchellh/go-homedir"
 	"github.com/urfave/cli"
+	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -193,19 +194,20 @@ func handleDownload(c *cli.Context) error {
 	if path == "" {
 		return errors.New("first argument must be a torrent file or magnet link")
 	}
+
 	sto, err := filestorage.New(c.String("dest"))
 	if err != nil {
 		return err
 	}
 	var t *torrent.Torrent
 	if strings.HasPrefix(path, "magnet:") {
-		t, err = torrent.NewMagnet(path, c.Int("port"), sto)
+		t, err = torrent.NewMagnet(path, c.Int("port"), sto, torrent.DefaultConfig)
 	} else {
 		f, err2 := os.Open(path) // nolint: gosec
 		if err2 != nil {
 			return err
 		}
-		t, err = torrent.New(f, c.Int("port"), sto)
+		t, err = torrent.New(f, c.Int("port"), sto, torrent.DefaultConfig)
 		_ = f.Close()
 	}
 	if err != nil {
@@ -296,7 +298,7 @@ func handleDownload(c *cli.Context) error {
 }
 
 func handleClient(c *cli.Context) error {
-	cfg := DefaultConfig
+	cfg := rainrpc.DefaultServerConfig
 
 	configPath := c.String("config")
 	if configPath != "" {
@@ -304,21 +306,24 @@ func handleClient(c *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		err = cfg.LoadFile(cp)
+		b, err := ioutil.ReadFile(cp) // nolint: gosec
 		if os.IsNotExist(err) {
 			log.Noticef("config file not found at %q, using default config", cp)
 		} else if err != nil {
 			return err
 		} else {
+			err = yaml.Unmarshal(b, &cfg)
+			if err != nil {
+				return err
+			}
 			log.Infoln("config loaded from:", cp)
 		}
 	}
 
-	clt, err := client.New(cfg.Client)
+	srv, err := rainrpc.NewServer(cfg)
 	if err != nil {
 		return err
 	}
-	srv := rainrpc.NewServer(clt, cfg.RPCServer)
 	return srv.ListenAndServe()
 }
 

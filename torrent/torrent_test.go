@@ -54,14 +54,14 @@ func TestDownloadTorrent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t1, err := torrent.New(f, 6881, newFileStorage(t, torrentDataDir))
+	t1, err := torrent.New(f, 6881, newFileStorage(t, torrentDataDir), torrent.DefaultConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer t1.Close()
 
 	f.Seek(0, io.SeekStart)
-	t2, err := torrent.New(f, 6882, newFileStorage(t, where))
+	t2, err := torrent.New(f, 6882, newFileStorage(t, where), torrent.DefaultConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +155,7 @@ func TestDownloadMagnet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t1, err := torrent.New(f, 6881, newFileStorage(t, torrentDataDir))
+	t1, err := torrent.New(f, 6881, newFileStorage(t, torrentDataDir), torrent.DefaultConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,7 +163,7 @@ func TestDownloadMagnet(t *testing.T) {
 
 	f.Seek(0, io.SeekStart)
 	magnetLink := "magnet:?xt=urn:btih:0a8e2e8c9371a91e9047ed189ceffbc460803262&dn=10mb&tr=http%3A%2F%2F127.0.0.1%3A5000%2Fannounce"
-	t2, err := torrent.NewMagnet(magnetLink, 6882, newFileStorage(t, where))
+	t2, err := torrent.NewMagnet(magnetLink, 6882, newFileStorage(t, where), torrent.DefaultConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,14 +207,14 @@ func TestDownloadTorrentUDP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t1, err := torrent.New(f, 6881, newFileStorage(t, torrentDataDir))
+	t1, err := torrent.New(f, 6881, newFileStorage(t, torrentDataDir), torrent.DefaultConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer t1.Close()
 
 	f.Seek(0, io.SeekStart)
-	t2, err := torrent.New(f, 6882, newFileStorage(t, where))
+	t2, err := torrent.New(f, 6882, newFileStorage(t, where), torrent.DefaultConfig)
 	if err != nil {
 		t.Fatal(err)
 	}

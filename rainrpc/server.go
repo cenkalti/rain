@@ -20,16 +20,22 @@ type Server struct {
 }
 
 type ServerConfig struct {
-	Host string
-	Port int
+	Host   string
+	Port   int
+	Client client.Config
 }
 
 var DefaultServerConfig = ServerConfig{
-	Host: "127.0.0.1",
-	Port: 7246,
+	Host:   "127.0.0.1",
+	Port:   7246,
+	Client: client.DefaultConfig,
 }
 
-func NewServer(clt *client.Client, cfg ServerConfig) *Server {
+func NewServer(cfg ServerConfig) (*Server, error) {
+	clt, err := client.New(cfg.Client)
+	if err != nil {
+		return nil, err
+	}
 	h := &handler{client: clt}
 	srv := rpc.NewServer()
 	srv.RegisterName("Client", h)
@@ -38,7 +44,7 @@ func NewServer(clt *client.Client, cfg ServerConfig) *Server {
 		config:    cfg,
 		rpcServer: srv,
 		log:       logger.New("rpc server"),
-	}
+	}, nil
 }
 
 func (s *Server) ListenAndServe() error {

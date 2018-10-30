@@ -52,6 +52,7 @@ func init() {
 // Torrent connects to peers and downloads files from swarm.
 type Torrent struct {
 	*downloadSpec
+	config Config
 
 	// Unique peer ID is generated per downloader.
 	peerID [20]byte
@@ -194,7 +195,7 @@ type Torrent struct {
 }
 
 // New returns a new torrent by reading a torrent metainfo file.
-func New(r io.Reader, port int, sto storage.Storage) (*Torrent, error) {
+func New(r io.Reader, port int, sto storage.Storage, cfg Config) (*Torrent, error) {
 	m, err := metainfo.New(r)
 	if err != nil {
 		return nil, err
@@ -207,11 +208,11 @@ func New(r io.Reader, port int, sto storage.Storage) (*Torrent, error) {
 		storage:  sto,
 		info:     m.Info,
 	}
-	return newTorrent(spec)
+	return newTorrent(spec, cfg)
 }
 
 // NewMagnet returns a new torrent by parsing a magnet link.
-func NewMagnet(link string, port int, sto storage.Storage) (*Torrent, error) {
+func NewMagnet(link string, port int, sto storage.Storage, cfg Config) (*Torrent, error) {
 	m, err := magnet.New(link)
 	if err != nil {
 		return nil, err
@@ -223,11 +224,11 @@ func NewMagnet(link string, port int, sto storage.Storage) (*Torrent, error) {
 		port:     port,
 		storage:  sto,
 	}
-	return newTorrent(spec)
+	return newTorrent(spec, cfg)
 }
 
 // NewResume returns a new torrent by loading all info from a resume.DB.
-func NewResume(res resumer.Resumer) (*Torrent, error) {
+func NewResume(res resumer.Resumer, cfg Config) (*Torrent, error) {
 	spec, err := res.Read()
 	if err != nil {
 		return nil, err
@@ -235,7 +236,7 @@ func NewResume(res resumer.Resumer) (*Torrent, error) {
 	if spec == nil {
 		return nil, errors.New("no resume info")
 	}
-	return loadResumeSpec(spec, res)
+	return loadResumeSpec(spec, res, cfg)
 }
 
 // Name of the torrent.
@@ -260,7 +261,7 @@ func (t *Torrent) SetResume(res resumer.Resumer) error {
 	if spec == nil {
 		return t.writeResume(res)
 	}
-	t2, err := loadResumeSpec(spec, res)
+	t2, err := loadResumeSpec(spec, res, t.config)
 	if err != nil {
 		return err
 	}
@@ -273,7 +274,7 @@ func (t *Torrent) SetResume(res resumer.Resumer) error {
 	return nil
 }
 
-func loadResumeSpec(spec *resumer.Spec, res resumer.Resumer) (*Torrent, error) {
+func loadResumeSpec(spec *resumer.Spec, res resumer.Resumer, cfg Config) (*Torrent, error) {
 	var err error
 	dspec := &downloadSpec{
 		port:     spec.Port,
@@ -302,7 +303,7 @@ func loadResumeSpec(spec *resumer.Spec, res resumer.Resumer) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newTorrent(dspec)
+	return newTorrent(dspec, cfg)
 }
 
 func (t *Torrent) writeResume(res resumer.Resumer) error {
@@ -323,13 +324,14 @@ func (t *Torrent) writeResume(res resumer.Resumer) error {
 	return res.Write(rspec)
 }
 
-func newTorrent(spec *downloadSpec) (*Torrent, error) {
+func newTorrent(spec *downloadSpec, cfg Config) (*Torrent, error) {
 	logName := spec.name
 	if len(logName) > 8 {
 		logName = logName[:8]
 	}
 	d := &Torrent{
 		downloadSpec:              spec,
+		config:                    cfg,
 		log:                       logger.New("download " + logName),
 		peerDisconnectedC:         make(chan *peer.Peer),
 		messages:                  make(chan peer.Message),
