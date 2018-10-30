@@ -1,3 +1,4 @@
+// Package rainrpc provides a RPC server and client implementation for torrent client.
 package rainrpc
 
 import (

@@ -1,3 +1,4 @@
+// Package client provides a torrent client implementation that is capable of downlaoding multiple torrents in parallel.
 package client
 
 import (

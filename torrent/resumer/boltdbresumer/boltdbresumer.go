@@ -1,3 +1,4 @@
+// Package boltdbresumer provides a Resumer implementation that uses a Bolt database file as storage.
 package boltdbresumer
 
 import (

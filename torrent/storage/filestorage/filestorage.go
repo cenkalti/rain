@@ -1,3 +1,4 @@
+// Package filestorage implements Storage interface that uses files on disk as storage.
 package filestorage
 
 import (

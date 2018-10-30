@@ -1,3 +1,4 @@
+// Package storage contains an interface for reading and writing files in a torrent.
 package storage
 
 import "io"
