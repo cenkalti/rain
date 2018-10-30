@@ -317,6 +317,11 @@ func handleServer(c *cli.Context) error {
 				return err
 			}
 			log.Infoln("config loaded from:", cp)
+			b, err = yaml.Marshal(&cfg)
+			if err != nil {
+				return err
+			}
+			log.Debug("\n" + string(b))
 		}
 	}
 
