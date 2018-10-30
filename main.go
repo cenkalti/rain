@@ -84,8 +84,8 @@ func main() {
 			},
 		},
 		{
-			Name:  "client",
-			Usage: "run torrent client",
+			Name:  "server",
+			Usage: "run rpc server and torrent client",
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "config",
@@ -93,11 +93,11 @@ func main() {
 					Value: "~/.rain/config.yaml",
 				},
 			},
-			Action: handleClient,
+			Action: handleServer,
 		},
 		{
-			Name:  "rpc",
-			Usage: "send rpc request to client",
+			Name:  "client",
+			Usage: "send rpc request to server",
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "url",
@@ -105,7 +105,7 @@ func main() {
 					Value: "localhost:" + strconv.Itoa(rainrpc.DefaultServerConfig.Port),
 				},
 			},
-			Before: handleBeforeRPC,
+			Before: handleBeforeClient,
 			Subcommands: []cli.Command{
 				{
 					Name:   "list",
@@ -297,7 +297,7 @@ func handleDownload(c *cli.Context) error {
 	}
 }
 
-func handleClient(c *cli.Context) error {
+func handleServer(c *cli.Context) error {
 	cfg := rainrpc.DefaultServerConfig
 
 	configPath := c.String("config")
@@ -327,7 +327,7 @@ func handleClient(c *cli.Context) error {
 	return srv.ListenAndServe()
 }
 
-func handleBeforeRPC(c *cli.Context) error {
+func handleBeforeClient(c *cli.Context) error {
 	var err error
 	clt, err = rainrpc.NewClient(c.String("url"))
 	return err
