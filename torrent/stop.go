@@ -2,6 +2,8 @@ package torrent
 
 import (
 	"github.com/cenkalti/rain/torrent/internal/announcer"
+	"github.com/cenkalti/rain/torrent/internal/handshaker/incominghandshaker"
+	"github.com/cenkalti/rain/torrent/internal/handshaker/outgoinghandshaker"
 	"github.com/cenkalti/rain/torrent/internal/tracker"
 )
 
@@ -50,21 +52,15 @@ func (t *Torrent) stop(err error) {
 		t.verifier = nil
 	}
 
-	t.log.Debugln("closing outgoing handshakers")
-	for oh := range t.outgoingHandshakers {
-		oh.Close()
-	}
-	// TODO reset t.outgoingHandshakers struct
+	t.log.Debugln("stopping outgoing handshakers")
+	t.stopOutgoingHandshakers()
 
-	t.log.Debugln("closing incoming handshakers")
-	for ih := range t.incomingHandshakers {
-		ih.Close()
-	}
-	// TODO reset t.incomingHandshakers struct
+	t.log.Debugln("stopping incoming handshakers")
+	t.stopIncomingHandshakers()
 
 	// Stop periodical announcers first.
 	t.log.Debugln("stopping announcers")
-	announcers := t.announcers
+	announcers := t.announcers // keep a reference to the list before nilling in order to start StopAnnouncer
 	t.stopPeriodicalAnnouncers()
 
 	// Then start another announcer to announce Stopped event to the trackers.
@@ -76,9 +72,26 @@ func (t *Torrent) stop(err error) {
 			trackers = append(trackers, an.Tracker)
 		}
 	}
+	if t.stoppedEventAnnouncer != nil {
+		panic("stopped event announcer exists")
+	}
 	t.stoppedEventAnnouncer = announcer.NewStopAnnouncer(trackers, t.announcerFields(), t.config.TrackerStopTimeout, t.announcersStoppedC, t.log)
 
 	go t.stoppedEventAnnouncer.Run()
+}
+
+func (t *Torrent) stopOutgoingHandshakers() {
+	for oh := range t.outgoingHandshakers {
+		oh.Close()
+	}
+	t.outgoingHandshakers = make(map[*outgoinghandshaker.OutgoingHandshaker]struct{})
+}
+
+func (t *Torrent) stopIncomingHandshakers() {
+	for ih := range t.incomingHandshakers {
+		ih.Close()
+	}
+	t.incomingHandshakers = make(map[*incominghandshaker.IncomingHandshaker]struct{})
 }
 
 func (t *Torrent) closeData() {

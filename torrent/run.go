@@ -22,10 +22,15 @@ import (
 var errClosed = errors.New("torrent is closed")
 
 func (t *Torrent) close() {
+	// Stop if running.
 	t.stop(errClosed)
+
+	// Maybe we are in "Stopping" state. Close "stopped" event announcer.
 	if t.stoppedEventAnnouncer != nil {
 		t.stoppedEventAnnouncer.Close()
 	}
+
+	// Close open tracker connections.
 	for _, tr := range t.trackersInstances {
 		tr.Close()
 	}

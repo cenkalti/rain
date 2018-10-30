@@ -47,11 +47,17 @@ func (t *Torrent) start() {
 }
 
 func (t *Torrent) startVerifier() {
+	if t.verifier != nil {
+		panic("verifier exists")
+	}
 	t.verifier = verifier.New()
 	go t.verifier.Run(t.data.Pieces, t.verifierProgressC, t.verifierResultC)
 }
 
 func (t *Torrent) startAllocator() {
+	if t.allocator != nil {
+		panic("allocator exists")
+	}
 	t.allocator = allocator.New()
 	go t.allocator.Run(t.info, t.storage, t.allocatorProgressC, t.allocatorResultC)
 }
