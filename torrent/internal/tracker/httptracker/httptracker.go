@@ -54,7 +54,7 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 	numWant := req.NumWant
 	peerID := transfer.PeerID
 	infoHash := transfer.InfoHash
-	q := url.Values{}
+	q := t.url.Query()
 	q.Set("info_hash", string(infoHash[:]))
 	q.Set("peer_id", string(peerID[:]))
 	q.Set("port", strconv.FormatUint(uint64(transfer.Port), 10))
