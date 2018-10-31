@@ -125,7 +125,7 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 	var peers []*net.TCPAddr
 	if len(response.Peers) > 0 {
 		if response.Peers[0] == 'l' {
-			peers, err = t.parsePeersDictionary(response.Peers)
+			peers, err = parsePeersDictionary(response.Peers)
 		} else {
 			var b []byte
 			err = bencode.DecodeBytes(response.Peers, &b)
@@ -158,7 +158,7 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 	}, nil
 }
 
-func (t *HTTPTracker) parsePeersDictionary(b bencode.RawMessage) ([]*net.TCPAddr, error) {
+func parsePeersDictionary(b bencode.RawMessage) ([]*net.TCPAddr, error) {
 	var peers []struct {
 		IP   string `bencode:"ip"`
 		Port uint16 `bencode:"port"`
