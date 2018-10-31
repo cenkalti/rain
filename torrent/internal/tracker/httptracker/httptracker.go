@@ -16,9 +16,6 @@ import (
 	"github.com/zeebo/bencode"
 )
 
-// TODO get tracker timeout values from config
-var httpTimeout = 30 * time.Second
-
 type HTTPTracker struct {
 	url       *url.URL
 	log       logger.Logger
@@ -29,24 +26,15 @@ type HTTPTracker struct {
 
 var _ tracker.Tracker = (*HTTPTracker)(nil)
 
-func New(u *url.URL, t *http.Transport) *HTTPTracker {
+func New(u *url.URL, timeout time.Duration, t *http.Transport) *HTTPTracker {
 	return &HTTPTracker{
 		url:       u,
 		log:       logger.New("tracker " + u.String()),
 		transport: t,
 		http: &http.Client{
-			Timeout:   httpTimeout,
+			Timeout:   timeout,
 			Transport: t,
 		},
-	}
-}
-
-func NewTransport() *http.Transport {
-	return &http.Transport{
-		Dial: (&net.Dialer{
-			Timeout: httpTimeout,
-		}).Dial,
-		TLSHandshakeTimeout: httpTimeout,
 	}
 }
 

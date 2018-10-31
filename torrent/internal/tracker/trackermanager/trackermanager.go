@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
+	"time"
 
 	"github.com/cenkalti/rain/torrent/internal/tracker"
 	"github.com/cenkalti/rain/torrent/internal/tracker/httptracker"
@@ -34,7 +35,7 @@ func New() *TrackerManager {
 	}
 }
 
-func (m *TrackerManager) Get(s string) (tracker.Tracker, error) {
+func (m *TrackerManager) Get(s string, httpTimeout time.Duration) (tracker.Tracker, error) {
 	u, err := url.Parse(s)
 	if err != nil {
 		return nil, err
@@ -45,11 +46,11 @@ func (m *TrackerManager) Get(s string) (tracker.Tracker, error) {
 	case "http", "https":
 		t := m.httpTransports[u.Host]
 		if t == nil {
-			t = httptracker.NewTransport()
+			t = new(http.Transport)
 			m.httpTransports[u.Host] = t
 		}
 		m.httpHostCount[u.Host]++
-		tr := httptracker.New(u, t)
+		tr := httptracker.New(u, httpTimeout, t)
 		m.httpHosts[tr] = u.Host
 		return tr, nil
 	case "udp":

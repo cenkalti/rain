@@ -39,13 +39,9 @@ type Config struct {
 	// When the client needs new peer addresses to connect, it ask to the tracker.
 	// To prevent spamming the tracker an interval is set to wait before the next announce.
 	MinAnnounceInterval time.Duration
-	// TCP connect timeout
-	HTTPTrackerConnectTimeout time.Duration
-	// Time to wait for establishing a HTTP connection.
-	HTTPTrackerTLSHandshakeTimeout time.Duration
 	// Total time to wait for response to be read.
 	// This includes ConnectTimeout and TLSHandshakeTimeout.
-	HTTPTrackerClientTimeout time.Duration
+	HTTPTrackerTimeout time.Duration
 }
 
 var DefaultConfig = Config{
@@ -62,7 +58,5 @@ var DefaultConfig = Config{
 	TrackerNumWant:                   100,
 	TrackerStopTimeout:               5 * time.Second,
 	MinAnnounceInterval:              time.Minute,
-	HTTPTrackerConnectTimeout:        5 * time.Second,
-	HTTPTrackerTLSHandshakeTimeout:   10 * time.Second,
-	HTTPTrackerClientTimeout:         30 * time.Second,
+	HTTPTrackerTimeout:               10 * time.Second,
 }

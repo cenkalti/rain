@@ -376,7 +376,7 @@ func newTorrent(spec *downloadSpec, cfg Config) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
-	d.trackersInstances, err = parseTrackers(d.trackers, d.log)
+	d.trackersInstances, err = parseTrackers(d.trackers, d.log, cfg.HTTPTrackerTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -384,10 +384,10 @@ func newTorrent(spec *downloadSpec, cfg Config) (*Torrent, error) {
 	return d, nil
 }
 
-func parseTrackers(trackers []string, log logger.Logger) ([]tracker.Tracker, error) {
+func parseTrackers(trackers []string, log logger.Logger, httpTimeout time.Duration) ([]tracker.Tracker, error) {
 	var ret []tracker.Tracker
 	for _, s := range trackers {
-		t, err := trackermanager.DefaultTrackerManager.Get(s)
+		t, err := trackermanager.DefaultTrackerManager.Get(s, httpTimeout)
 		if err != nil {
 			log.Warningln("cannot parse tracker url:", err)
 			continue
