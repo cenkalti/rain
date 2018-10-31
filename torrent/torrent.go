@@ -7,7 +7,6 @@ import (
 	"io"
 	"math/rand"
 	"net"
-	"net/url"
 	"time"
 
 	"github.com/cenkalti/rain/internal/clientversion"
@@ -28,8 +27,7 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
 	"github.com/cenkalti/rain/torrent/internal/torrentdata"
 	"github.com/cenkalti/rain/torrent/internal/tracker"
-	"github.com/cenkalti/rain/torrent/internal/tracker/httptracker"
-	"github.com/cenkalti/rain/torrent/internal/tracker/udptracker"
+	"github.com/cenkalti/rain/torrent/internal/tracker/trackermanager"
 	"github.com/cenkalti/rain/torrent/internal/verifier"
 	"github.com/cenkalti/rain/torrent/resumer"
 	"github.com/cenkalti/rain/torrent/storage"
@@ -389,19 +387,12 @@ func newTorrent(spec *downloadSpec, cfg Config) (*Torrent, error) {
 func parseTrackers(trackers []string, log logger.Logger) ([]tracker.Tracker, error) {
 	var ret []tracker.Tracker
 	for _, s := range trackers {
-		u, err := url.Parse(s)
+		t, err := trackermanager.DefaultTrackerManager.Get(s)
 		if err != nil {
 			log.Warningln("cannot parse tracker url:", err)
 			continue
 		}
-		switch u.Scheme {
-		case "http", "https":
-			ret = append(ret, httptracker.New(u))
-		case "udp":
-			ret = append(ret, udptracker.New(u))
-		default:
-			log.Warningln("unsupported tracker scheme: %s", u.Scheme)
-		}
+		ret = append(ret, t)
 	}
 	if len(ret) == 0 {
 		return nil, errors.New("no tracker found")

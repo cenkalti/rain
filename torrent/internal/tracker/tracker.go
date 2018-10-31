@@ -18,8 +18,6 @@ type Tracker interface {
 	// Announce should also be called on specific events.
 	// TODO specify numwant as 0 for stopped and completed event
 	Announce(ctx context.Context, req AnnounceRequest) (*AnnounceResponse, error)
-	// Close open connections to the tracker.
-	Close()
 }
 
 type AnnounceRequest struct {

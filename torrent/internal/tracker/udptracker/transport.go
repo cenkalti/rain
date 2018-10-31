@@ -42,37 +42,10 @@ func NewTransport(host string) *Transport {
 }
 
 func (t *Transport) Do(ctx context.Context, trx *transaction) ([]byte, error) {
-	t.dialMutex.Lock()
-	if !t.connected {
-		err := t.dial(ctx)
-		if err != nil {
-			t.dialMutex.Unlock()
-			return nil, err
-		}
-		t.connected = true
+	err := t.maybeDial(ctx)
+	if err != nil {
+		return nil, err
 	}
-	t.dialMutex.Unlock()
-
-	// request := &announceRequest{
-	// 	InfoHash:   transfer.InfoHash,
-	// 	PeerID:     transfer.PeerID,
-	// 	Downloaded: transfer.BytesDownloaded,
-	// 	Left:       transfer.BytesLeft,
-	// 	Uploaded:   transfer.BytesUploaded,
-	// 	Event:      e,
-	// 	Key:        rand.Uint32(),
-	// 	NumWant:    int32(numWant),
-	// 	Port:       uint16(transfer.Port),
-	// }
-	// request.SetAction(actionAnnounce)
-
-	// request2 := &transferAnnounceRequest{
-	// 	announceRequest: &req,
-	// 	urlData:         urlData,
-	// }
-	// trx := newTransaction(request2)
-
-	// t.request may block, that's why we pass cancel as argument.
 	f := func(trx *transaction) {
 		select {
 		case t.writeC <- trx:
@@ -80,30 +53,20 @@ func (t *Transport) Do(ctx context.Context, trx *transaction) ([]byte, error) {
 		}
 	}
 	return t.retryTransaction(ctx, f, trx)
-	// if err == context.Canceled {
-	// 	return nil, err
-	// }
-	// if err != nil {
-	// 	if err, ok := err.(tracker.Error); ok {
-	// 		return nil, err
-	// 		// return &tracker.AnnounceResponse{Error: err}, nil
-	// 	}
-	// 	return nil, err
-	// }
+}
 
-	// response, peers, err := t.parseAnnounceResponse(reply)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// t.log.Debugf("Announce response: %#v", response)
-	// return response, nil
-
-	// return &tracker.AnnounceResponse{
-	// 	Interval: time.Duration(response.Interval) * time.Second,
-	// 	Leechers: response.Leechers,
-	// 	Seeders:  response.Seeders,
-	// 	Peers:    peers,
-	// }, nil
+func (t *Transport) maybeDial(ctx context.Context) error {
+	t.dialMutex.Lock()
+	defer t.dialMutex.Unlock()
+	if t.connected {
+		return nil
+	}
+	err := t.dial(ctx)
+	if err != nil {
+		return err
+	}
+	t.connected = true
+	return nil
 }
 
 // Close the tracker connection.

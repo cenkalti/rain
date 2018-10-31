@@ -25,11 +25,11 @@ type UDPTracker struct {
 
 var _ tracker.Tracker = (*UDPTracker)(nil)
 
-func New(u *url.URL) *UDPTracker {
+func New(u *url.URL, t *Transport) *UDPTracker {
 	return &UDPTracker{
 		url:       u,
 		log:       logger.New("tracker " + u.String()),
-		transport: NewTransport(u.Host),
+		transport: t,
 	}
 }
 
@@ -79,11 +79,6 @@ func (t *UDPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest) 
 		Seeders:  response.Seeders,
 		Peers:    peers,
 	}, nil
-}
-
-// Close the tracker connection.
-func (t *UDPTracker) Close() {
-	t.transport.Close()
 }
 
 func (t *UDPTracker) parseAnnounceResponse(data []byte) (*udpAnnounceResponse, []*net.TCPAddr, error) {

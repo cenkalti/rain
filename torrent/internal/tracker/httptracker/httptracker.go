@@ -29,43 +29,40 @@ type HTTPTracker struct {
 
 var _ tracker.Tracker = (*HTTPTracker)(nil)
 
-func New(u *url.URL) *HTTPTracker {
-	transport := &http.Transport{
-		Dial: (&net.Dialer{
-			Timeout: httpTimeout,
-		}).Dial,
-		TLSHandshakeTimeout: httpTimeout,
-		DisableKeepAlives:   true,
-	}
+func New(u *url.URL, t *http.Transport) *HTTPTracker {
 	return &HTTPTracker{
 		url:       u,
 		log:       logger.New("tracker " + u.String()),
-		transport: transport,
+		transport: t,
 		http: &http.Client{
 			Timeout:   httpTimeout,
-			Transport: transport,
+			Transport: t,
 		},
 	}
 }
 
+func NewTransport() *http.Transport {
+	return &http.Transport{
+		Dial: (&net.Dialer{
+			Timeout: httpTimeout,
+		}).Dial,
+		TLSHandshakeTimeout: httpTimeout,
+	}
+}
+
 func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest) (*tracker.AnnounceResponse, error) {
-	transfer := req.Transfer
-	e := req.Event
-	numWant := req.NumWant
-	peerID := transfer.PeerID
-	infoHash := transfer.InfoHash
 	q := t.url.Query()
-	q.Set("info_hash", string(infoHash[:]))
-	q.Set("peer_id", string(peerID[:]))
-	q.Set("port", strconv.FormatUint(uint64(transfer.Port), 10))
-	q.Set("uploaded", strconv.FormatInt(transfer.BytesUploaded, 10))
-	q.Set("downloaded", strconv.FormatInt(transfer.BytesDownloaded, 10))
-	q.Set("left", strconv.FormatInt(transfer.BytesLeft, 10))
+	q.Set("info_hash", string(req.Transfer.InfoHash[:]))
+	q.Set("peer_id", string(req.Transfer.PeerID[:]))
+	q.Set("port", strconv.FormatUint(uint64(req.Transfer.Port), 10))
+	q.Set("uploaded", strconv.FormatInt(req.Transfer.BytesUploaded, 10))
+	q.Set("downloaded", strconv.FormatInt(req.Transfer.BytesDownloaded, 10))
+	q.Set("left", strconv.FormatInt(req.Transfer.BytesLeft, 10))
 	q.Set("compact", "1")
 	q.Set("no_peer_id", "1")
-	q.Set("numwant", strconv.Itoa(numWant))
-	if e != tracker.EventNone {
-		q.Set("event", e.String())
+	q.Set("numwant", strconv.Itoa(req.NumWant))
+	if req.Event != tracker.EventNone {
+		q.Set("event", req.Event.String())
 	}
 	if t.trackerID != "" {
 		q.Set("trackerid", t.trackerID)
@@ -174,8 +171,4 @@ func parsePeersDictionary(b bencode.RawMessage) ([]*net.TCPAddr, error) {
 		addrs[i] = pe
 	}
 	return addrs, err
-}
-
-func (t *HTTPTracker) Close() {
-	t.transport.CloseIdleConnections()
 }
