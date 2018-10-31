@@ -76,7 +76,7 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 	t.log.Debugf("making request to: %q", u.String())
 
 	httpReq := &http.Request{
-		Method:     "GET",
+		Method:     http.MethodGet,
 		URL:        u,
 		Proto:      "HTTP/1.1",
 		ProtoMajor: 1,
@@ -86,7 +86,7 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 	}
 	httpReq = httpReq.WithContext(ctx)
 
-	do := func() ([]byte, error) {
+	doReq := func() ([]byte, error) {
 		resp, err := t.http.Do(httpReq)
 		if err != nil {
 			return nil, err
@@ -99,7 +99,7 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 		return ioutil.ReadAll(resp.Body)
 	}
 
-	body, err := do()
+	body, err := doReq()
 	if uerr, ok := err.(*url.Error); ok && uerr.Err == context.Canceled {
 		return nil, context.Canceled
 	}
