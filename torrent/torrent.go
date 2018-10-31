@@ -332,7 +332,7 @@ func newTorrent(spec *downloadSpec, cfg Config) (*Torrent, error) {
 	d := &Torrent{
 		downloadSpec:              spec,
 		config:                    cfg,
-		log:                       logger.New("download " + logName),
+		log:                       logger.New("torrent " + logName),
 		peerDisconnectedC:         make(chan *peer.Peer),
 		messages:                  make(chan peer.Message),
 		peers:                     make(map[*peer.Peer]struct{}),
