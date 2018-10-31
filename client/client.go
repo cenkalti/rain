@@ -3,11 +3,13 @@ package client
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/boltdb/bolt"
 	"github.com/cenkalti/rain/internal/logger"
@@ -43,8 +45,10 @@ func New(cfg Config) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	db, err := bolt.Open(cfg.Database, 0640, nil)
-	if err != nil {
+	db, err := bolt.Open(cfg.Database, 0640, &bolt.Options{Timeout: time.Second})
+	if err == bolt.ErrTimeout {
+		return nil, errors.New("resume database is locked by another process")
+	} else if err != nil {
 		return nil, err
 	}
 	l := logger.New("client")
