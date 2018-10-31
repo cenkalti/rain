@@ -59,7 +59,7 @@ func (m *TrackerManager) Get(s string) (tracker.Tracker, error) {
 			m.udpTransports[u.Host] = t
 		}
 		m.udpHostCount[u.Host]++
-		tr := udptracker.New(u, t)
+		tr := udptracker.New(u.RequestURI(), t)
 		m.udpHosts[tr] = u.Host
 		return tr, nil
 	default:

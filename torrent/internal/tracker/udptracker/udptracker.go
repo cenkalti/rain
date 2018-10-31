@@ -10,7 +10,6 @@ import (
 	"errors"
 	"math/rand"
 	"net"
-	"net/url"
 	"time"
 
 	"github.com/cenkalti/rain/internal/logger"
@@ -18,17 +17,17 @@ import (
 )
 
 type UDPTracker struct {
-	url       *url.URL
+	urlData   string
 	log       logger.Logger
 	transport *Transport
 }
 
 var _ tracker.Tracker = (*UDPTracker)(nil)
 
-func New(u *url.URL, t *Transport) *UDPTracker {
+func New(urlData string, t *Transport) *UDPTracker {
 	return &UDPTracker{
-		url:       u,
-		log:       logger.New("tracker " + u.String()),
+		urlData:   urlData,
+		log:       logger.New("tracker " + t.host),
 		transport: t,
 	}
 }
@@ -49,7 +48,7 @@ func (t *UDPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest) 
 
 	request2 := &transferAnnounceRequest{
 		announceRequest: request,
-		urlData:         t.url.RequestURI(),
+		urlData:         t.urlData,
 	}
 	trx := newTransaction(request2)
 
