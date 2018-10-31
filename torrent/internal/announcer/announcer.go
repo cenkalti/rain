@@ -130,7 +130,12 @@ func (a *Announcer) announce(ctx context.Context, e tracker.Event) {
 }
 
 func callAnnounce(ctx context.Context, trk tracker.Tracker, t tracker.Transfer, e tracker.Event, numWant int, l logger.Logger) (*tracker.AnnounceResponse, error) {
-	r, err := trk.Announce(ctx, t, e, numWant)
+	req := tracker.AnnounceRequest{
+		Transfer: t,
+		Event:    e,
+		NumWant:  numWant,
+	}
+	resp, err := trk.Announce(ctx, req)
 	if err == context.Canceled {
 		return nil, err
 	}
@@ -141,7 +146,7 @@ func callAnnounce(ctx context.Context, trk tracker.Tracker, t tracker.Transfer, 
 			l.Errorln("announce error:", err)
 		}
 	}
-	return r, err
+	return resp, err
 }
 
 type StopAnnouncer struct {

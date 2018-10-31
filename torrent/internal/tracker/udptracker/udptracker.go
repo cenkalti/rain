@@ -33,7 +33,10 @@ func New(u *url.URL) *UDPTracker {
 	}
 }
 
-func (t *UDPTracker) Announce(ctx context.Context, transfer tracker.Transfer, e tracker.Event, numWant int) (*tracker.AnnounceResponse, error) {
+func (t *UDPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest) (*tracker.AnnounceResponse, error) {
+	transfer := req.Transfer
+	e := req.Event
+	numWant := req.NumWant
 	request := &announceRequest{
 		InfoHash:   transfer.InfoHash,
 		PeerID:     transfer.PeerID,

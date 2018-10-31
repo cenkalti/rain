@@ -48,7 +48,10 @@ func New(u *url.URL) *HTTPTracker {
 	}
 }
 
-func (t *HTTPTracker) Announce(ctx context.Context, transfer tracker.Transfer, e tracker.Event, numWant int) (*tracker.AnnounceResponse, error) {
+func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest) (*tracker.AnnounceResponse, error) {
+	transfer := req.Transfer
+	e := req.Event
+	numWant := req.NumWant
 	peerID := transfer.PeerID
 	infoHash := transfer.InfoHash
 	q := url.Values{}
@@ -72,7 +75,7 @@ func (t *HTTPTracker) Announce(ctx context.Context, transfer tracker.Transfer, e
 	u.RawQuery = q.Encode()
 	t.log.Debugf("making request to: %q", u.String())
 
-	req := &http.Request{
+	httpReq := &http.Request{
 		Method:     "GET",
 		URL:        u,
 		Proto:      "HTTP/1.1",
@@ -81,10 +84,10 @@ func (t *HTTPTracker) Announce(ctx context.Context, transfer tracker.Transfer, e
 		Header:     make(http.Header),
 		Host:       u.Host,
 	}
-	req = req.WithContext(ctx)
+	httpReq = httpReq.WithContext(ctx)
 
 	do := func() ([]byte, error) {
-		resp, err := t.http.Do(req)
+		resp, err := t.http.Do(httpReq)
 		if err != nil {
 			return nil, err
 		}
