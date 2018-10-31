@@ -10,7 +10,7 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/tracker"
 )
 
-type Announcer struct {
+type PeriodicalAnnouncer struct {
 	Tracker      tracker.Tracker
 	numWant      int
 	minInterval  time.Duration
@@ -32,11 +32,11 @@ type Request struct {
 }
 
 type Response struct {
-	Transfer tracker.Transfer
+	Torrent tracker.Torrent
 }
 
-func New(trk tracker.Tracker, numWant int, minInterval time.Duration, requests chan *Request, completedC chan struct{}, newPeers chan []*net.TCPAddr, l logger.Logger) *Announcer {
-	return &Announcer{
+func NewPeriodicalAnnouncer(trk tracker.Tracker, numWant int, minInterval time.Duration, requests chan *Request, completedC chan struct{}, newPeers chan []*net.TCPAddr, l logger.Logger) *PeriodicalAnnouncer {
+	return &PeriodicalAnnouncer{
 		Tracker:     trk,
 		numWant:     numWant,
 		minInterval: minInterval,
@@ -58,19 +58,19 @@ func New(trk tracker.Tracker, numWant int, minInterval time.Duration, requests c
 	}
 }
 
-func (a *Announcer) Close() {
+func (a *PeriodicalAnnouncer) Close() {
 	close(a.closeC)
 	<-a.doneC
 }
 
-func (a *Announcer) Trigger() {
+func (a *PeriodicalAnnouncer) Trigger() {
 	select {
 	case a.triggerC <- struct{}{}:
 	default:
 	}
 }
 
-func (a *Announcer) Run() {
+func (a *PeriodicalAnnouncer) Run() {
 	defer close(a.doneC)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -98,7 +98,7 @@ func (a *Announcer) Run() {
 	}
 }
 
-func (a *Announcer) announce(ctx context.Context, e tracker.Event) {
+func (a *PeriodicalAnnouncer) announce(ctx context.Context, e tracker.Event) {
 	req := &Request{
 		Response: make(chan Response),
 	}
@@ -114,7 +114,7 @@ func (a *Announcer) announce(ctx context.Context, e tracker.Event) {
 		return
 	}
 	a.lastAnnounce = time.Now()
-	r, err := callAnnounce(ctx, a.Tracker, resp.Transfer, e, a.numWant, a.log)
+	r, err := callAnnounce(ctx, a.Tracker, resp.Torrent, e, a.numWant, a.log)
 	if err != nil {
 		a.nextAnnounce = a.backoff.NextBackOff()
 		return
@@ -129,11 +129,11 @@ func (a *Announcer) announce(ctx context.Context, e tracker.Event) {
 	}
 }
 
-func callAnnounce(ctx context.Context, trk tracker.Tracker, t tracker.Transfer, e tracker.Event, numWant int, l logger.Logger) (*tracker.AnnounceResponse, error) {
+func callAnnounce(ctx context.Context, trk tracker.Tracker, t tracker.Torrent, e tracker.Event, numWant int, l logger.Logger) (*tracker.AnnounceResponse, error) {
 	req := tracker.AnnounceRequest{
-		Transfer: t,
-		Event:    e,
-		NumWant:  numWant,
+		Torrent: t,
+		Event:   e,
+		NumWant: numWant,
 	}
 	resp, err := trk.Announce(ctx, req)
 	if err == context.Canceled {
@@ -153,18 +153,18 @@ type StopAnnouncer struct {
 	log      logger.Logger
 	timeout  time.Duration
 	trackers []tracker.Tracker
-	transfer tracker.Transfer
+	torrent  tracker.Torrent
 	resultC  chan struct{}
 	closeC   chan struct{}
 	doneC    chan struct{}
 }
 
-func NewStopAnnouncer(trackers []tracker.Tracker, tra tracker.Transfer, timeout time.Duration, resultC chan struct{}, l logger.Logger) *StopAnnouncer {
+func NewStopAnnouncer(trackers []tracker.Tracker, tra tracker.Torrent, timeout time.Duration, resultC chan struct{}, l logger.Logger) *StopAnnouncer {
 	return &StopAnnouncer{
 		log:      l,
 		timeout:  timeout,
 		trackers: trackers,
-		transfer: tra,
+		torrent:  tra,
 		resultC:  resultC,
 		closeC:   make(chan struct{}),
 		doneC:    make(chan struct{}),
@@ -188,7 +188,7 @@ func (a *StopAnnouncer) Run() {
 	doneC := make(chan struct{})
 	for _, trk := range a.trackers {
 		go func(trk tracker.Tracker) {
-			callAnnounce(ctx, trk, a.transfer, tracker.EventStopped, 0, a.log)
+			callAnnounce(ctx, trk, a.torrent, tracker.EventStopped, 0, a.log)
 			doneC <- struct{}{}
 		}(trk)
 	}

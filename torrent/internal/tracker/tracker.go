@@ -21,9 +21,9 @@ type Tracker interface {
 }
 
 type AnnounceRequest struct {
-	Transfer Transfer
-	Event    Event
-	NumWant  int
+	Torrent Torrent
+	Event   Event
+	NumWant int
 }
 
 type AnnounceResponse struct {

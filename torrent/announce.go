@@ -6,8 +6,8 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/tracker"
 )
 
-func (t *Torrent) announcerFields() tracker.Transfer {
-	tr := tracker.Transfer{
+func (t *Torrent) announcerFields() tracker.Torrent {
+	tr := tracker.Torrent{
 		InfoHash: t.infoHash,
 		PeerID:   t.peerID,
 		Port:     t.port,

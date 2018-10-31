@@ -138,7 +138,7 @@ type Torrent struct {
 	trackersInstances []tracker.Tracker
 
 	// Announces the status of torrent to trackers to get peer addresses periodically.
-	announcers []*announcer.Announcer
+	announcers []*announcer.PeriodicalAnnouncer
 
 	// This announcer announces Stopped event to the trackers after
 	// all periodical trackers are closed.

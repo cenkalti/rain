@@ -52,12 +52,12 @@ func NewTransport() *http.Transport {
 
 func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest) (*tracker.AnnounceResponse, error) {
 	q := t.url.Query()
-	q.Set("info_hash", string(req.Transfer.InfoHash[:]))
-	q.Set("peer_id", string(req.Transfer.PeerID[:]))
-	q.Set("port", strconv.FormatUint(uint64(req.Transfer.Port), 10))
-	q.Set("uploaded", strconv.FormatInt(req.Transfer.BytesUploaded, 10))
-	q.Set("downloaded", strconv.FormatInt(req.Transfer.BytesDownloaded, 10))
-	q.Set("left", strconv.FormatInt(req.Transfer.BytesLeft, 10))
+	q.Set("info_hash", string(req.Torrent.InfoHash[:]))
+	q.Set("peer_id", string(req.Torrent.PeerID[:]))
+	q.Set("port", strconv.FormatUint(uint64(req.Torrent.Port), 10))
+	q.Set("uploaded", strconv.FormatInt(req.Torrent.BytesUploaded, 10))
+	q.Set("downloaded", strconv.FormatInt(req.Torrent.BytesDownloaded, 10))
+	q.Set("left", strconv.FormatInt(req.Torrent.BytesLeft, 10))
 	q.Set("compact", "1")
 	q.Set("no_peer_id", "1")
 	q.Set("numwant", strconv.Itoa(req.NumWant))

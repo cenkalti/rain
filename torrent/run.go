@@ -92,7 +92,7 @@ func (t *Torrent) run() {
 		case req := <-t.announcerRequestC:
 			tr := t.announcerFields()
 			// TODO set bytes uploaded/downloaded
-			req.Response <- announcer.Response{Transfer: tr}
+			req.Response <- announcer.Response{Torrent: tr}
 		case id := <-t.infoDownloaderResultC:
 			t.closeInfoDownloader(id)
 			if id.Error != nil {

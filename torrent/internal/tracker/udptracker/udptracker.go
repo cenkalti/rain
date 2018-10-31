@@ -34,19 +34,16 @@ func New(u *url.URL, t *Transport) *UDPTracker {
 }
 
 func (t *UDPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest) (*tracker.AnnounceResponse, error) {
-	transfer := req.Transfer
-	e := req.Event
-	numWant := req.NumWant
 	request := &announceRequest{
-		InfoHash:   transfer.InfoHash,
-		PeerID:     transfer.PeerID,
-		Downloaded: transfer.BytesDownloaded,
-		Left:       transfer.BytesLeft,
-		Uploaded:   transfer.BytesUploaded,
-		Event:      e,
+		InfoHash:   req.Torrent.InfoHash,
+		PeerID:     req.Torrent.PeerID,
+		Downloaded: req.Torrent.BytesDownloaded,
+		Left:       req.Torrent.BytesLeft,
+		Uploaded:   req.Torrent.BytesUploaded,
+		Event:      req.Event,
 		Key:        rand.Uint32(),
-		NumWant:    int32(numWant),
-		Port:       uint16(transfer.Port),
+		NumWant:    int32(req.NumWant),
+		Port:       uint16(req.Torrent.Port),
 	}
 	request.SetAction(actionAnnounce)
 

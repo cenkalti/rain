@@ -1,6 +1,6 @@
 package tracker
 
-type Transfer struct {
+type Torrent struct {
 	BytesUploaded   int64
 	BytesDownloaded int64
 	BytesLeft       int64
