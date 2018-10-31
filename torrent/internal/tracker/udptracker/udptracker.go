@@ -82,8 +82,8 @@ func (t *UDPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest) 
 }
 
 // Close the tracker connection.
-func (t *UDPTracker) Close() error {
-	return t.transport.Close()
+func (t *UDPTracker) Close() {
+	t.transport.Close()
 }
 
 func (t *UDPTracker) parseAnnounceResponse(data []byte) (*udpAnnounceResponse, []*net.TCPAddr, error) {

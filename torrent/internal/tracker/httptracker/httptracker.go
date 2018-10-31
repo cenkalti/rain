@@ -176,7 +176,6 @@ func (t *HTTPTracker) parsePeersDictionary(b bencode.RawMessage) ([]*net.TCPAddr
 	return addrs, err
 }
 
-func (t *HTTPTracker) Close() error {
+func (t *HTTPTracker) Close() {
 	t.transport.CloseIdleConnections()
-	return nil
 }

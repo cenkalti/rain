@@ -16,10 +16,10 @@ type Tracker interface {
 	// Announce transfer to the tracker.
 	// Announce should be called periodically with the interval returned in AnnounceResponse.
 	// Announce should also be called on specific events.
-	// TODO specify numwant in announce interface and give 0 for stopped and completed event
+	// TODO specify numwant as 0 for stopped and completed event
 	Announce(ctx context.Context, req AnnounceRequest) (*AnnounceResponse, error)
 	// Close open connections to the tracker.
-	Close() error
+	Close()
 }
 
 type AnnounceRequest struct {
