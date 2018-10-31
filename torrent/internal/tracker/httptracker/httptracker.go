@@ -11,10 +11,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/zeebo/bencode"
-
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent/internal/tracker"
+	"github.com/zeebo/bencode"
 )
 
 var httpTimeout = 30 * time.Second
