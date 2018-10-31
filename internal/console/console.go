@@ -14,20 +14,22 @@ import (
 )
 
 type Console struct {
-	client       *rainrpc.Client
-	torrents     []rainrpc.Torrent
-	errTorrents  error
-	selectedID   uint64
-	stats        torrent.Stats
-	errStats     error
-	m            sync.Mutex
-	updateStatsC chan struct{}
+	client          *rainrpc.Client
+	torrents        []rainrpc.Torrent
+	errTorrents     error
+	selectedID      uint64
+	stats           torrent.Stats
+	errStats        error
+	m               sync.Mutex
+	updateTorrentsC chan struct{}
+	updateStatsC    chan struct{}
 }
 
 func New(clt *rainrpc.Client) *Console {
 	return &Console{
-		client:       clt,
-		updateStatsC: make(chan struct{}),
+		client:          clt,
+		updateTorrentsC: make(chan struct{}),
+		updateStatsC:    make(chan struct{}),
 	}
 }
 
@@ -93,6 +95,12 @@ func (c *Console) drawTorrents(g *gocui.Gui) error {
 			for _, t := range c.torrents {
 				fmt.Fprintf(v, "%5d %s %s\n", t.ID, t.InfoHash, t.Name)
 			}
+			_, cy := v.Cursor()
+			_, oy := v.Origin()
+			selectedRow := cy + oy
+			if selectedRow < len(c.torrents) {
+				c.setSelectedID(c.torrents[selectedRow].ID)
+			}
 		}
 	}
 	return nil
@@ -136,6 +144,8 @@ func (c *Console) updateLoop(g *gocui.Gui) {
 		case <-ticker.C:
 			c.updateTorrents(g)
 			c.updateStats(g)
+		case <-c.updateTorrentsC:
+			c.updateTorrents(g)
 		case <-c.updateStatsC:
 			c.updateStats(g)
 		}
@@ -226,7 +236,14 @@ func (c *Console) removeTorrent(g *gocui.Gui, v *gocui.View) error {
 	c.m.Unlock()
 
 	_, err := c.client.RemoveTorrent(id)
-	return err
+	if err != nil {
+		return err
+	}
+	select {
+	case c.updateTorrentsC <- struct{}{}:
+	default:
+	}
+	return nil
 }
 
 func (c *Console) setSelectedID(id uint64) {
