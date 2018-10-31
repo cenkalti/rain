@@ -16,6 +16,7 @@ import (
 	"github.com/zeebo/bencode"
 )
 
+// TODO get tracker timeout values from config
 var httpTimeout = 30 * time.Second
 
 type HTTPTracker struct {
