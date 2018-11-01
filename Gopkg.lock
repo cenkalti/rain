@@ -254,6 +254,14 @@
   revision = "418d78d0b9a7b7de3a6bbc8a23def624cc977bb2"
 
 [[projects]]
+  digest = "1:40ae3588fe4ca3083a4425247b4e23e21759b6336c43a24b4158ab176456e2cc"
+  name = "github.com/shiyanhui/dht"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "29e5102b5d2a1f788237bfbb10bc09797f201c2c"
+  version = "v0.1"
+
+[[projects]]
   digest = "1:c40d65817cdd41fac9aa7af8bed56927bb2d6d47e4fea566a74880f5c2b1c41e"
   name = "github.com/stretchr/testify"
   packages = [
@@ -325,6 +333,7 @@
     "github.com/hokaccha/go-prettyjson",
     "github.com/jroimartin/gocui",
     "github.com/mitchellh/go-homedir",
+    "github.com/shiyanhui/dht",
     "github.com/urfave/cli",
     "github.com/zeebo/bencode",
     "gopkg.in/yaml.v2",

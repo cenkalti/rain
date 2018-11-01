@@ -53,3 +53,7 @@
 [[constraint]]
   branch = "master"
   name = "github.com/cenkalti/boltbrowser"
+
+[[constraint]]
+  name = "github.com/shiyanhui/dht"
+  version = "0.1.0"

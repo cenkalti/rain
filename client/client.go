@@ -18,14 +18,17 @@ import (
 	"github.com/cenkalti/rain/torrent/storage"
 	"github.com/cenkalti/rain/torrent/storage/filestorage"
 	"github.com/mitchellh/go-homedir"
+	"github.com/shiyanhui/dht"
 )
 
 var mainBucket = []byte("torrents")
 
 type Client struct {
-	config   Config
-	db       *bolt.DB
-	log      logger.Logger
+	config Config
+	db     *bolt.DB
+	log    logger.Logger
+	dht    *dht.DHT
+
 	m        sync.RWMutex
 	torrents map[uint64]*Torrent
 
