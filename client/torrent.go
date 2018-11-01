@@ -9,6 +9,7 @@ import (
 
 type Torrent struct {
 	id      uint64
+	port    uint16
 	client  *Client
 	torrent *torrent.Torrent
 }
@@ -27,6 +28,10 @@ func (t *Torrent) InfoHash() string {
 
 func (t *Torrent) Stats() torrent.Stats {
 	return t.torrent.Stats()
+}
+
+func (t *Torrent) Port() uint16 {
+	return t.port
 }
 
 func (t *Torrent) Start() error {
