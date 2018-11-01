@@ -226,15 +226,19 @@ func NewMagnet(link string, port int, sto storage.Storage, cfg Config) (*Torrent
 }
 
 // NewResume returns a new torrent by loading all info from a resume.DB.
-func NewResume(res resumer.Resumer, cfg Config) (*Torrent, error) {
+func NewResume(res resumer.Resumer, cfg Config) (*Torrent, *resumer.Spec, error) {
 	spec, err := res.Read()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if spec == nil {
-		return nil, errors.New("no resume info")
+		return nil, nil, errors.New("no resume info")
 	}
-	return loadResumeSpec(spec, res, cfg)
+	t, err := loadResumeSpec(spec, res, cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	return t, spec, nil
 }
 
 // Name of the torrent.
@@ -251,25 +255,26 @@ func (t *Torrent) InfoHash() string {
 
 // SetResume adds resume capability to the torrent.
 // It must be called before Start() is called.
-func (t *Torrent) SetResume(res resumer.Resumer) error {
+// TODO Refactor SetResume
+func (t *Torrent) SetResume(res resumer.Resumer) (*resumer.Spec, error) {
 	spec, err := res.Read()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if spec == nil {
 		return t.writeResume(res)
 	}
 	t2, err := loadResumeSpec(spec, res, t.config)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if t.InfoHash() != t2.InfoHash() {
 		t2.Close()
-		return errors.New("invalid resume file (info hashes does not match)")
+		return nil, errors.New("invalid resume file (info hashes does not match)")
 	}
 	t.Close()
 	*t = *t2
-	return nil
+	return spec, nil
 }
 
 func loadResumeSpec(spec *resumer.Spec, res resumer.Resumer, cfg Config) (*Torrent, error) {
@@ -304,7 +309,7 @@ func loadResumeSpec(spec *resumer.Spec, res resumer.Resumer, cfg Config) (*Torre
 	return newTorrent(dspec, cfg)
 }
 
-func (t *Torrent) writeResume(res resumer.Resumer) error {
+func (t *Torrent) writeResume(res resumer.Resumer) (*resumer.Spec, error) {
 	rspec := &resumer.Spec{
 		InfoHash:    t.infoHash[:],
 		Port:        t.port,
@@ -319,7 +324,7 @@ func (t *Torrent) writeResume(res resumer.Resumer) error {
 	if t.bitfield != nil {
 		rspec.Bitfield = t.bitfield.Bytes()
 	}
-	return res.Write(rspec)
+	return rspec, res.Write(rspec)
 }
 
 func newTorrent(spec *downloadSpec, cfg Config) (*Torrent, error) {

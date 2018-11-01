@@ -93,7 +93,7 @@ func (c *Console) drawTorrents(g *gocui.Gui) error {
 			c.selectedID = 0
 		} else {
 			for _, t := range c.torrents {
-				fmt.Fprintf(v, "%5d %s %s\n", t.ID, t.InfoHash, t.Name)
+				fmt.Fprintf(v, "%5d %s %5d %s\n", t.ID, t.InfoHash, t.Port, t.Name)
 			}
 			_, cy := v.Cursor()
 			_, oy := v.Origin()

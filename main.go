@@ -237,7 +237,7 @@ func handleDownload(c *cli.Context) error {
 	}
 	defer func() { _ = res.Close() }()
 
-	err = t.SetResume(res)
+	_, err = t.SetResume(res)
 	if err != nil {
 		return err
 	}
