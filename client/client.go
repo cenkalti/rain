@@ -26,12 +26,18 @@ type Client struct {
 	config   Config
 	db       *bolt.DB
 	log      logger.Logger
-	torrents map[uint64]*Torrent
 	m        sync.RWMutex
+	torrents map[uint64]*Torrent
+
+	mPorts         sync.Mutex
+	availablePorts map[uint16]struct{}
 }
 
 // New returns a pointer to new Rain BitTorrent client.
 func New(cfg Config) (*Client, error) {
+	if cfg.PortBegin >= cfg.PortEnd {
+		return nil, errors.New("invalid port range")
+	}
 	var err error
 	cfg.Database, err = homedir.Expand(cfg.Database)
 	if err != nil {
@@ -71,11 +77,16 @@ func New(cfg Config) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	ports := make(map[uint16]struct{})
+	for p := cfg.PortBegin; p < cfg.PortEnd; p++ {
+		ports[p] = struct{}{}
+	}
 	c := &Client{
-		config:   cfg,
-		db:       db,
-		log:      l,
-		torrents: make(map[uint64]*Torrent),
+		config:         cfg,
+		db:             db,
+		log:            l,
+		torrents:       make(map[uint64]*Torrent),
+		availablePorts: ports,
 	}
 	return c, c.loadExistingTorrents(ids)
 }

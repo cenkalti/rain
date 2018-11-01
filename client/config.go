@@ -8,14 +8,16 @@ type Config struct {
 	Database string
 	// DataDir is where files are downloaded.
 	DataDir string
-	// PortBegin, PortEnd int
+	// New torrents will be listened at selected port in this range.
+	PortBegin, PortEnd uint16
+
 	Torrent torrent.Config
 }
 
 var DefaultConfig = Config{
-	Database: "~/.rain/resume.db",
-	DataDir:  "~/rain-downloads",
-	// PortBegin: 50000,
-	// PortEnd:   60000,
-	Torrent: torrent.DefaultConfig,
+	Database:  "~/.rain/resume.db",
+	DataDir:   "~/rain-downloads",
+	PortBegin: 50000,
+	PortEnd:   60000,
+	Torrent:   torrent.DefaultConfig,
 }
