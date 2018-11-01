@@ -15,14 +15,14 @@ Features
 - [x] [Magnet links](http://bittorrent.org/beps/bep_0009.html)
 - [x] [Multiple trackers](http://bittorrent.org/beps/bep_0012.html)
 - [x] [UDP trackers](http://bittorrent.org/beps/bep_0015.html)
-- [x] [Message stream encryption](http://wiki.vuze.com/w/Message_Stream_Encryption)
+- [ ] [DHT protocol](http://bittorrent.org/beps/bep_0005.html)
 - [ ] [WebSeed](http://bittorrent.org/beps/bep_0019.html)
+- [x] [Message stream encryption](http://wiki.vuze.com/w/Message_Stream_Encryption)
 - [x] Fast resuming
 - [x] Custom storage
 - [x] CLI
 - [x] RPC server
 - [ ] IP blocklist
-- [ ] DHT
 - [ ] uTP
 - [ ] PEX
 
