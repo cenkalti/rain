@@ -100,6 +100,7 @@ func newTorrent(t *client.Torrent) Torrent {
 		ID:       t.ID(),
 		Name:     t.Name(),
 		InfoHash: t.InfoHash(),
+		Port:     t.Port(),
 	}
 }
 

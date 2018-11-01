@@ -9,6 +9,7 @@ type Torrent struct {
 	ID       uint64
 	Name     string
 	InfoHash string
+	Port     uint16
 }
 
 type ListTorrentsRequest struct {
