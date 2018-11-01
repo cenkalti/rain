@@ -22,6 +22,9 @@ Features
 - [x] CLI
 - [x] RPC server
 - [ ] IP blocklist
+- [ ] DHT
+- [ ] uTP
+- [ ] PEX
 
 Installing
 ----------
