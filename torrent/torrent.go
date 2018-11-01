@@ -1,4 +1,4 @@
-// Package torrent provides a torrent client implementation for downlaoding a single torrent.
+// Package torrent provides a BitTorrent client implementation for downlaoding a single torrent.
 package torrent
 
 import (
