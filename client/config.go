@@ -10,14 +10,20 @@ type Config struct {
 	DataDir string
 	// New torrents will be listened at selected port in this range.
 	PortBegin, PortEnd uint16
+	// DHT node will listen on this IP.
+	DHTAddress string
+	// DHT node will listen on this UDP port.
+	DHTPort uint16
 
 	Torrent torrent.Config
 }
 
 var DefaultConfig = Config{
-	Database:  "~/.rain/resume.db",
-	DataDir:   "~/rain-downloads",
-	PortBegin: 50000,
-	PortEnd:   60000,
-	Torrent:   torrent.DefaultConfig,
+	Database:   "~/.rain/resume.db",
+	DataDir:    "~/rain-downloads",
+	PortBegin:  50000,
+	PortEnd:    60000,
+	DHTAddress: "0.0.0.0",
+	DHTPort:    7246,
+	Torrent:    torrent.DefaultConfig,
 }

@@ -60,6 +60,11 @@ func New(cfg Config) (*Client, error) {
 	} else if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if err != nil {
+			db.Close()
+		}
+	}()
 	l := logger.New("client")
 	var ids []uint64
 	err = db.Update(func(tx *bolt.Tx) error {
@@ -80,6 +85,17 @@ func New(cfg Config) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	dhtConfig := dht.NewConfig()
+	dhtConfig.Address = cfg.DHTAddress
+	dhtConfig.Port = int(cfg.DHTPort)
+	dhtNode, err := dht.New(dhtConfig)
+	if err != nil {
+		return nil, err
+	}
+	err = dhtNode.Start()
+	if err != nil {
+		return nil, err
+	}
 	ports := make(map[uint16]struct{})
 	for p := cfg.PortBegin; p < cfg.PortEnd; p++ {
 		ports[p] = struct{}{}
@@ -90,8 +106,13 @@ func New(cfg Config) (*Client, error) {
 		log:            l,
 		torrents:       make(map[uint64]*Torrent),
 		availablePorts: ports,
+		dht:            dhtNode,
 	}
-	return c, c.loadExistingTorrents(ids)
+	err = c.loadExistingTorrents(ids)
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
 }
 
 func (c *Client) loadExistingTorrents(ids []uint64) error {
@@ -146,12 +167,15 @@ func (c *Client) hasStarted(id uint64) (bool, error) {
 }
 
 func (c *Client) Close() error {
+	c.dht.Stop()
+
 	c.m.Lock()
-	defer c.m.Unlock()
 	for _, t := range c.torrents {
 		t.torrent.Close()
 	}
 	c.torrents = nil
+	c.m.Unlock()
+
 	return c.db.Close()
 }
 
