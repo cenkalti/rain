@@ -1,5 +1,9 @@
 package torrent
 
+import (
+	"net"
+)
+
 // Start downloading.
 // After all files are downloaded, seeding continues until the torrent is stopped.
 func (t *Torrent) Start() {
@@ -68,4 +72,11 @@ func (t *Torrent) Stats() Stats {
 	case <-t.closeC:
 	}
 	return stats
+}
+
+func (t *Torrent) AddPeers(peers []*net.TCPAddr) {
+	select {
+	case t.addPeersC <- peers:
+	case <-t.doneC:
+	}
 }

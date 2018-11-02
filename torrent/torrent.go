@@ -189,6 +189,8 @@ type Torrent struct {
 
 	uploadByteCounterC chan int64
 
+	addPeersC chan []*net.TCPAddr
+
 	log logger.Logger
 }
 
@@ -375,6 +377,7 @@ func newTorrent(spec *downloadSpec, cfg Config) (*Torrent, error) {
 		connectedPeerIPs:          make(map[string]struct{}),
 		announcersStoppedC:        make(chan struct{}),
 		uploadByteCounterC:        make(chan int64),
+		addPeersC:                 make(chan []*net.TCPAddr),
 	}
 	copy(d.peerID[:], peerIDPrefix)
 	_, err := rand.Read(d.peerID[len(peerIDPrefix):]) // nolint: gosec

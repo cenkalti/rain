@@ -73,6 +73,12 @@ func (t *Torrent) run() {
 				t.addrList.Push(addrs, t.port)
 				t.dialAddresses()
 			}
+		case addrs := <-t.addPeersC:
+			// TODO refactor handle new peer addrs
+			if !t.completed {
+				t.addrList.Push(addrs, t.port)
+				t.dialAddresses()
+			}
 		case conn := <-t.incomingConnC:
 			if len(t.incomingHandshakers)+len(t.incomingPeers) >= t.config.MaxPeerAccept {
 				t.log.Debugln("peer limit reached, rejecting peer", conn.RemoteAddr().String())
