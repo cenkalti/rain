@@ -2,6 +2,7 @@ package metainfo
 
 import (
 	"crypto/sha1" // nolint: gosec
+	"errors"
 
 	"github.com/zeebo/bencode"
 )
@@ -36,9 +37,9 @@ func NewInfo(b []byte) (*Info, error) {
 	if err := bencode.DecodeBytes(b, &i); err != nil {
 		return nil, err
 	}
-	hash := sha1.New() // nolint: gosec
-	hash.Write(b)      // nolint: gosec
-	copy(i.Hash[:], hash.Sum(nil))
+	if uint32(len(i.Pieces))%sha1.Size != 0 {
+		return nil, errors.New("invalid piece data")
+	}
 	i.NumPieces = uint32(len(i.Pieces)) / sha1.Size
 	i.MultiFile = len(i.Files) != 0
 	if !i.MultiFile {
@@ -48,6 +49,11 @@ func NewInfo(b []byte) (*Info, error) {
 			i.TotalLength += f.Length
 		}
 	}
+	totalPieceDataLength := int64(i.PieceLength) * int64(i.NumPieces)
+	delta := totalPieceDataLength - i.TotalLength
+	if delta >= int64(i.PieceLength) || delta < 0 {
+		return nil, errors.New("invalid piece data")
+	}
 	i.PieceHashes = make([][]byte, i.NumPieces)
 	for idx := uint32(0); idx < i.NumPieces; idx++ {
 		begin := idx * sha1.Size
@@ -56,6 +62,9 @@ func NewInfo(b []byte) (*Info, error) {
 	}
 	i.InfoSize = uint32(len(b))
 	i.Bytes = b
+	hash := sha1.New() // nolint: gosec
+	hash.Write(b)      // nolint: gosec
+	copy(i.Hash[:], hash.Sum(nil))
 	return &i, nil
 }
 
