@@ -18,7 +18,7 @@ import (
 	"github.com/cenkalti/rain/torrent/storage"
 	"github.com/cenkalti/rain/torrent/storage/filestorage"
 	"github.com/mitchellh/go-homedir"
-	"github.com/shiyanhui/dht"
+	"github.com/nictuku/dht"
 )
 
 var mainBucket = []byte("torrents")

@@ -101,6 +101,22 @@
   version = "v1.1.0"
 
 [[projects]]
+  branch = "master"
+  digest = "1:1ba1d79f2810270045c328ae5d674321db34e3aae468eb4233883b473c5c0467"
+  name = "github.com/golang/glog"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "23def4e6c14b4da8ac2ed8007337bc5eb5007998"
+
+[[projects]]
+  branch = "master"
+  digest = "1:3fb07f8e222402962fa190eb060608b34eddfb64562a18e2167df2de0ece85d8"
+  name = "github.com/golang/groupcache"
+  packages = ["lru"]
+  pruneopts = "UT"
+  revision = "c65c006176ff7ff98bb916961c7abbc6b0afc0aa"
+
+[[projects]]
   digest = "1:97df918963298c287643883209a2c3f642e6593379f97ab400c2a2e219ab647d"
   name = "github.com/golang/protobuf"
   packages = ["proto"]
@@ -131,6 +147,14 @@
   packages = ["."]
   pruneopts = "UT"
   revision = "f579f869bbfea48a61fbea09207cadd1aaeceb83"
+
+[[projects]]
+  branch = "master"
+  digest = "1:b74f3474445b620c20b8699e36e39bbb8ec9110b595ea28f8e0a75a39c62ab2b"
+  name = "github.com/jackpal/bencode-go"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "227668e840fa94fd54b85018c733f73e73e06879"
 
 [[projects]]
   digest = "1:114ecad51af93a73ae6781fd0d0bc28e52b433c852b84ab4b4c109c15e6c6b6d"
@@ -198,6 +222,22 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:486ba23c51fd9be6c2de8bc887d1ca6de719da8a2b91ae9f79c6722b499ddb3a"
+  name = "github.com/nictuku/dht"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "1ee36977cf42c55f947fc46ec77f5857c71bbe6c"
+
+[[projects]]
+  branch = "master"
+  digest = "1:d6de459c94b005e4b829552de4fcec44712d0c2274b3b99332099415ac9057ae"
+  name = "github.com/nictuku/nettools"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "8867a2107ad3a0998e2d36c67ed2115d9a399df8"
+
+[[projects]]
+  branch = "master"
   digest = "1:f335d800550786b6f51ddaedb9d1107a7a72f4a2195e5b039dd7c0e103e119bc"
   name = "github.com/nsf/termbox-go"
   packages = ["."]
@@ -254,14 +294,6 @@
   revision = "418d78d0b9a7b7de3a6bbc8a23def624cc977bb2"
 
 [[projects]]
-  digest = "1:40ae3588fe4ca3083a4425247b4e23e21759b6336c43a24b4158ab176456e2cc"
-  name = "github.com/shiyanhui/dht"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "29e5102b5d2a1f788237bfbb10bc09797f201c2c"
-  version = "v0.1"
-
-[[projects]]
   digest = "1:c40d65817cdd41fac9aa7af8bed56927bb2d6d47e4fea566a74880f5c2b1c41e"
   name = "github.com/stretchr/testify"
   packages = [
@@ -279,6 +311,14 @@
   pruneopts = "UT"
   revision = "cfb38830724cc34fedffe9a2a29fb54fa9169cd1"
   version = "v1.20.0"
+
+[[projects]]
+  digest = "1:2800e38e329af5e4cd63fc25f5d6bd7793de6c3ebb0ccec56f6927080b1af3ce"
+  name = "github.com/youtube/vitess"
+  packages = ["go/cache"]
+  pruneopts = "UT"
+  revision = "66e84fadcc1a7e956e7ffcebcaaba0b04132ca1f"
+  version = "v2.2"
 
 [[projects]]
   branch = "master"
@@ -333,7 +373,7 @@
     "github.com/hokaccha/go-prettyjson",
     "github.com/jroimartin/gocui",
     "github.com/mitchellh/go-homedir",
-    "github.com/shiyanhui/dht",
+    "github.com/nictuku/dht",
     "github.com/urfave/cli",
     "github.com/zeebo/bencode",
     "gopkg.in/yaml.v2",
