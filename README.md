@@ -18,13 +18,13 @@ Features
 - [ ] [DHT protocol](http://bittorrent.org/beps/bep_0005.html)
 - [ ] [WebSeed](http://bittorrent.org/beps/bep_0019.html)
 - [x] [Message stream encryption](http://wiki.vuze.com/w/Message_Stream_Encryption)
+- [ ] [uTP](http://bittorrent.org/beps/bep_0029.html)
+- [ ] [PEX](http://bittorrent.org/beps/bep_0011.html)
 - [x] Fast resuming
 - [x] Custom storage
 - [x] CLI
 - [x] RPC server
 - [ ] IP blocklist
-- [ ] uTP
-- [ ] PEX
 
 Installing
 ----------
