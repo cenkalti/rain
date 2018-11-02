@@ -44,6 +44,7 @@ func (t *Torrent) Start() error {
 		return err
 	}
 	t.torrent.Start()
+	t.client.dht.PeersRequest(string(t.torrent.InfoHashBytes()), true)
 	return nil
 }
 

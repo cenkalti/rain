@@ -255,6 +255,13 @@ func (t *Torrent) InfoHash() string {
 	return hex.EncodeToString(t.infoHash[:])
 }
 
+// InfoHashBytes return info hash as 20 bytes.
+func (t *Torrent) InfoHashBytes() []byte {
+	b := make([]byte, 20)
+	copy(b, t.infoHash[:])
+	return b
+}
+
 // SetResume adds resume capability to the torrent.
 // It must be called before Start() is called.
 // TODO Refactor SetResume

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"net"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -28,9 +29,11 @@ type Client struct {
 	db     *bolt.DB
 	log    logger.Logger
 	dht    *dht.DHT
+	closeC chan struct{}
 
-	m        sync.RWMutex
-	torrents map[uint64]*Torrent
+	m                  sync.RWMutex
+	torrents           map[uint64]*Torrent
+	torrentsByInfoHash map[dht.InfoHash]*Torrent
 
 	mPorts         sync.Mutex
 	availablePorts map[uint16]struct{}
@@ -101,18 +104,55 @@ func New(cfg Config) (*Client, error) {
 		ports[p] = struct{}{}
 	}
 	c := &Client{
-		config:         cfg,
-		db:             db,
-		log:            l,
-		torrents:       make(map[uint64]*Torrent),
-		availablePorts: ports,
-		dht:            dhtNode,
+		config:             cfg,
+		db:                 db,
+		log:                l,
+		torrents:           make(map[uint64]*Torrent),
+		torrentsByInfoHash: make(map[dht.InfoHash]*Torrent),
+		availablePorts:     ports,
+		dht:                dhtNode,
+		closeC:             make(chan struct{}),
 	}
 	err = c.loadExistingTorrents(ids)
 	if err != nil {
 		return nil, err
 	}
+	go c.processDHTResults()
 	return c, nil
+}
+
+func (c *Client) processDHTResults() {
+	for {
+		select {
+		case res := <-c.dht.PeersRequestResults:
+			for ih, peers := range res {
+				t, ok := c.torrentsByInfoHash[ih]
+				if !ok {
+					continue
+				}
+				addrs := parseDHTPeers(peers)
+				t.torrent.AddPeers(addrs)
+			}
+		case <-c.closeC:
+			return
+		}
+	}
+}
+
+func parseDHTPeers(peers []string) []*net.TCPAddr {
+	var addrs []*net.TCPAddr
+	for _, peer := range peers {
+		if len(peer) != 6 {
+			// only IPv4 is supported for now
+			continue
+		}
+		addr := &net.TCPAddr{
+			IP:   net.IP(peer[:4]),
+			Port: int((uint16(peer[4]) << 8) | uint16(peer[5])),
+		}
+		addrs = append(addrs, addr)
+	}
+	return addrs
 }
 
 func (c *Client) loadExistingTorrents(ids []uint64) error {
@@ -141,6 +181,7 @@ func (c *Client) loadExistingTorrents(ids []uint64) error {
 			port:    uint16(spec.Port),
 		}
 		c.torrents[id] = t2
+		c.torrentsByInfoHash[dht.InfoHash(t.InfoHashBytes())] = t2
 		c.log.Infof("loaded existing torrent: #%d %s", id, t.Name())
 		if hasStarted {
 			started = append(started, t2)
@@ -239,7 +280,6 @@ func (c *Client) add(f func(port int, sto storage.Storage) (*torrent.Torrent, er
 	}()
 
 	subBucket := strconv.FormatUint(id, 10)
-
 	res, err := boltdbresumer.New(c.db, mainBucket, []byte(subBucket))
 	if err != nil {
 		return nil, err
@@ -248,14 +288,6 @@ func (c *Client) add(f func(port int, sto storage.Storage) (*torrent.Torrent, er
 	if err != nil {
 		return nil, err
 	}
-	err = c.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(mainBucket).Bucket([]byte(subBucket))
-		return b.Put([]byte("started"), []byte("1"))
-	})
-	if err != nil {
-		return nil, err
-	}
-	t.Start()
 
 	t2 := &Torrent{
 		client:  c,
@@ -263,10 +295,15 @@ func (c *Client) add(f func(port int, sto storage.Storage) (*torrent.Torrent, er
 		id:      id,
 		port:    port,
 	}
+	err = t2.Start()
+	if err != nil {
+		return nil, err
+	}
 
 	c.m.Lock()
 	defer c.m.Unlock()
 	c.torrents[id] = t2
+	c.torrentsByInfoHash[dht.InfoHash(t.InfoHashBytes())] = t2
 	return t2, nil
 }
 
@@ -301,6 +338,7 @@ func (c *Client) RemoveTorrent(id uint64) error {
 	}
 	t.torrent.Close()
 	delete(c.torrents, id)
+	delete(c.torrentsByInfoHash, dht.InfoHash(t.torrent.InfoHashBytes()))
 	c.releasePort(t.port)
 	subBucket := strconv.FormatUint(id, 10)
 	return c.db.Update(func(tx *bolt.Tx) error {
