@@ -209,7 +209,7 @@ func (c *Console) cursorDown(g *gocui.Gui, v *gocui.View) error {
 		}
 	}
 	row := cy + oy + 1
-	if row >= 0 || row < len(c.torrents) {
+	if row >= 0 && row < len(c.torrents) {
 		c.setSelectedID(c.torrents[row].ID)
 	}
 	return nil
@@ -230,7 +230,7 @@ func (c *Console) cursorUp(g *gocui.Gui, v *gocui.View) error {
 		}
 	}
 	row := cy + oy - 1
-	if row >= 0 || row < len(c.torrents) {
+	if row >= 0 && row < len(c.torrents) {
 		c.setSelectedID(c.torrents[row].ID)
 	}
 	return nil
