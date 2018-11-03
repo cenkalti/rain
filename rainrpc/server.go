@@ -57,7 +57,8 @@ func (s *Server) ListenAndServe() error {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			return err
+			s.log.Errorln("accept error:", err)
+			continue
 		}
 		go s.rpcServer.ServeCodec(jsonrpc.NewServerCodec(conn))
 	}
