@@ -6,8 +6,8 @@ import "math"
 type Stats struct {
 	// Status of the torrent.
 	Status Status
-	// Contains the error if torrent is stopped unexpectedly.
-	Error  error
+	// Contains the error message if torrent is stopped unexpectedly.
+	Error  *string
 	Pieces struct {
 		Have      uint32
 		Missing   uint32
@@ -83,7 +83,12 @@ type Stats struct {
 func (t *Torrent) stats() Stats {
 	var s Stats
 	s.Status = t.status()
-	s.Error = t.lastError
+	if t.lastError != nil {
+		errStr := t.lastError.Error()
+		s.Error = &errStr
+	} else {
+		s.Error = nil
+	}
 	s.Peers.Ready = t.addrList.Len()
 	s.Peers.Handshake.Incoming = len(t.incomingHandshakers)
 	s.Peers.Handshake.Outgoing = len(t.outgoingHandshakers)
