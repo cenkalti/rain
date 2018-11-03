@@ -125,6 +125,12 @@ func (t *Torrent) run() {
 				t.stop(err)
 				break
 			}
+			if t.info.Private == 1 {
+				err = errors.New("private torrent from magnet")
+				t.log.Error(err)
+				t.stop(err)
+				break
+			}
 			if t.resume != nil {
 				err = t.resume.WriteInfo(t.info.Bytes)
 				if err != nil {
