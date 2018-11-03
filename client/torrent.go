@@ -5,6 +5,7 @@ import (
 
 	"github.com/boltdb/bolt"
 	"github.com/cenkalti/rain/torrent"
+	"github.com/nictuku/dht"
 )
 
 type Torrent struct {
@@ -44,7 +45,9 @@ func (t *Torrent) Start() error {
 		return err
 	}
 	t.torrent.Start()
-	t.client.dht.PeersRequest(string(t.torrent.InfoHashBytes()), true)
+	t.client.mPeerRequests.Lock()
+	t.client.dhtPeerRequests[dht.InfoHash(t.torrent.InfoHashBytes())] = struct{}{}
+	t.client.mPeerRequests.Unlock()
 	return nil
 }
 
