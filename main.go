@@ -1,8 +1,6 @@
 package main
 
 import (
-	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof"
@@ -10,21 +8,15 @@ import (
 	"runtime/pprof"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/boltdb/bolt"
 	"github.com/cenkalti/boltbrowser/boltbrowser"
 	clog "github.com/cenkalti/log"
 	"github.com/cenkalti/rain/internal/clientversion"
 	"github.com/cenkalti/rain/internal/console"
-	"github.com/cenkalti/rain/internal/jsonutil"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/rainrpc"
-	"github.com/cenkalti/rain/torrent"
-	"github.com/cenkalti/rain/torrent/resumer/boltdbresumer"
-	"github.com/cenkalti/rain/torrent/storage/filestorage"
 	"github.com/hokaccha/go-prettyjson"
-	"github.com/jroimartin/gocui"
 	"github.com/mitchellh/go-homedir"
 	"github.com/urfave/cli"
 	"gopkg.in/yaml.v2"
@@ -64,27 +56,6 @@ func main() {
 	app.Before = handleBeforeCommand
 	app.After = handleAfterCommand
 	app.Commands = []cli.Command{
-		{
-			Name:      "download",
-			Usage:     "download torrent or magnet",
-			ArgsUsage: "[torrent path or magnet link]",
-			Action:    handleDownload,
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "dest",
-					Usage: "save files under `DIR`",
-					Value: ".",
-				},
-				cli.IntFlag{
-					Name:  "port",
-					Usage: "peer listen port",
-				},
-				cli.BoolFlag{
-					Name:  "seed",
-					Usage: "continue seeding after download finishes",
-				},
-			},
-		},
 		{
 			Name:  "server",
 			Usage: "run rpc server and torrent client",
@@ -203,114 +174,6 @@ func handleAfterCommand(c *cli.Context) error {
 		pprof.StopCPUProfile()
 	}
 	return nil
-}
-
-func handleDownload(c *cli.Context) error {
-	path := c.Args().Get(0)
-	if path == "" {
-		return errors.New("first argument must be a torrent file or magnet link")
-	}
-
-	sto, err := filestorage.New(c.String("dest"))
-	if err != nil {
-		return err
-	}
-	var t *torrent.Torrent
-	if strings.HasPrefix(path, "magnet:") {
-		t, err = torrent.NewMagnet(path, c.Int("port"), sto, torrent.DefaultConfig)
-	} else {
-		f, err2 := os.Open(path) // nolint: gosec
-		if err2 != nil {
-			return err
-		}
-		t, err = torrent.New(f, c.Int("port"), sto, torrent.DefaultConfig)
-		_ = f.Close()
-	}
-	if err != nil {
-		return err
-	}
-	defer t.Close()
-
-	res, err := boltdbresumer.Open(t.Name()+"."+t.InfoHash()+".resume", []byte(t.InfoHash()))
-	if err != nil {
-		return err
-	}
-	defer func() { _ = res.Close() }()
-
-	_, err = t.SetResume(res)
-	if err != nil {
-		return err
-	}
-
-	g, err := gocui.NewGui(gocui.OutputNormal)
-	if err != nil {
-		return err
-	}
-	defer g.Close()
-
-	g.SetManagerFunc(func(g *gocui.Gui) error {
-		x, y := g.Size()
-		if v, err2 := g.SetView("stats", 0, 0, x-1, y-1); err != nil {
-			if err2 != gocui.ErrUnknownView {
-				return err2
-			}
-			v.Wrap = true
-		}
-		return nil
-	})
-
-	_ = g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		t.Stop()
-		return nil
-	})
-
-	go func() {
-		err = g.MainLoop()
-		if err == gocui.ErrQuit {
-			err = nil
-		}
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	go func() {
-		for range time.Tick(100 * time.Millisecond) {
-			s := t.Stats()
-			b, err2 := jsonutil.MarshalCompactPretty(s)
-			if err2 != nil {
-				log.Fatal(err2)
-			}
-			g.Update(func(g *gocui.Gui) error {
-				v, err2 := g.View("stats")
-				if err2 != nil {
-					return err2
-				}
-				v.Clear()
-				_, _ = fmt.Fprintln(v, string(b))
-				return nil
-			})
-		}
-	}()
-
-	t.Start()
-	completeC := t.NotifyComplete()
-	errC := t.NotifyError()
-	for {
-		select {
-		case <-completeC:
-			completeC = nil
-			if !c.Bool("seed") {
-				t.Stop()
-				continue
-			}
-		case err = <-errC:
-			if err != nil {
-				err = res.Close()
-			}
-			return err
-		}
-	}
 }
 
 func handleServer(c *cli.Context) error {
