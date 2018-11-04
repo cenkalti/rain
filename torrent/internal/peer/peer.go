@@ -15,6 +15,7 @@ type Peer struct {
 	PeerChoking                  bool
 	PeerInterested               bool
 	BytesDownlaodedInChokePeriod int64
+	BytesUploadedInChokePeriod   int64
 	OptimisticUnchoked           bool
 
 	// Snubbed means peer is sending pieces too slow.
@@ -70,12 +71,4 @@ func (p *Peer) Run() {
 	case <-p.closeC:
 		return
 	}
-}
-
-type ByDownloadRate []*Peer
-
-func (a ByDownloadRate) Len() int      { return len(a) }
-func (a ByDownloadRate) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-func (a ByDownloadRate) Less(i, j int) bool {
-	return a[i].BytesDownlaodedInChokePeriod > a[j].BytesDownlaodedInChokePeriod
 }

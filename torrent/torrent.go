@@ -89,8 +89,8 @@ type Torrent struct {
 	infoDownloaders        map[*peer.Peer]*infodownloader.InfoDownloader
 	infoDownloadersSnubbed map[*peer.Peer]*infodownloader.InfoDownloader
 
-	// A peer is optimistically unchoked regardless of their download rate.
-	optimisticUnchokedPeer *peer.Peer
+	// Some peers are optimistically unchoked regardless of their download rate.
+	optimisticUnchokedPeers []*peer.Peer
 
 	// This channel is closed once all pieces are downloaded and verified.
 	completeC chan struct{}
@@ -358,6 +358,7 @@ func newTorrent(spec *downloadSpec, cfg Config) (*Torrent, error) {
 		snubbedInfoDownloaderC:    make(chan *infodownloader.InfoDownloader),
 		infoDownloaders:           make(map[*peer.Peer]*infodownloader.InfoDownloader),
 		infoDownloadersSnubbed:    make(map[*peer.Peer]*infodownloader.InfoDownloader),
+		optimisticUnchokedPeers:   make([]*peer.Peer, 0, cfg.OptimisticUnchokedPeers),
 		completeC:                 make(chan struct{}),
 		closeC:                    make(chan struct{}),
 		doneC:                     make(chan struct{}),

@@ -3,6 +3,10 @@ package torrent
 import "time"
 
 type Config struct {
+	// Number of unchoked peers.
+	UnchokedPeers int
+	// Number of optimistic unchoked peers.
+	OptimisticUnchokedPeers int
 	// Max number of blocks requested from a peer but not received yet
 	RequestQueueLength int
 	// Time to wait for a requested block to be received before marking peer as snubbed

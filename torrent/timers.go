@@ -10,24 +10,32 @@ import (
 func (t *Torrent) tickUnchoke() {
 	peers := make([]*peer.Peer, 0, len(t.peers))
 	for pe := range t.peers {
-		if !pe.OptimisticUnchoked {
+		if pe.PeerInterested && !pe.OptimisticUnchoked {
 			peers = append(peers, pe)
 		}
 	}
-	sort.Sort(peer.ByDownloadRate(peers))
+	if t.completed {
+		sort.Slice(peers, func(i, j int) bool {
+			return peers[i].BytesUploadedInChokePeriod > peers[j].BytesUploadedInChokePeriod
+		})
+	} else {
+		sort.Slice(peers, func(i, j int) bool {
+			return peers[i].BytesDownlaodedInChokePeriod > peers[j].BytesDownlaodedInChokePeriod
+		})
+	}
 	for pe := range t.peers {
 		pe.BytesDownlaodedInChokePeriod = 0
+		pe.BytesUploadedInChokePeriod = 0
 	}
-	unchokedPeers := make(map[*peer.Peer]struct{}, 3)
-	for i, pe := range peers {
-		if i == 3 {
-			break
-		}
-		t.unchokePeer(pe)
-		unchokedPeers[pe] = struct{}{}
-	}
-	for pe := range t.peers {
-		if _, ok := unchokedPeers[pe]; !ok {
+	var unchoked int
+	for _, pe := range peers {
+		if unchoked < t.config.UnchokedPeers {
+			t.unchokePeer(pe)
+			unchoked++
+			// Set optimistic flag false, so optimistic timer don't choke this peer
+			// because we have selected it based it's good download rate.
+			pe.OptimisticUnchoked = false
+		} else {
 			t.chokePeer(pe)
 		}
 	}
@@ -36,20 +44,26 @@ func (t *Torrent) tickUnchoke() {
 func (t *Torrent) tickOptimisticUnchoke() {
 	peers := make([]*peer.Peer, 0, len(t.peers))
 	for pe := range t.peers {
-		if !pe.OptimisticUnchoked && pe.AmChoking {
+		if pe.PeerInterested && !pe.OptimisticUnchoked && pe.AmChoking {
 			peers = append(peers, pe)
 		}
 	}
-	if t.optimisticUnchokedPeer != nil {
-		t.optimisticUnchokedPeer.OptimisticUnchoked = false
-		t.chokePeer(t.optimisticUnchokedPeer)
+
+	// Choke previously optimistic unchoked peers.
+	for _, pe := range t.optimisticUnchokedPeers {
+		if pe.OptimisticUnchoked {
+			t.chokePeer(pe)
+		}
 	}
-	if len(peers) == 0 {
-		t.optimisticUnchokedPeer = nil
-		return
+	t.optimisticUnchokedPeers = t.optimisticUnchokedPeers[:0]
+
+	for i := 0; i < t.config.OptimisticUnchokedPeers; i++ {
+		if len(peers) == 0 {
+			break
+		}
+		pe := peers[rand.Intn(len(peers))]
+		pe.OptimisticUnchoked = true
+		t.unchokePeer(pe)
+		t.optimisticUnchokedPeers = append(t.optimisticUnchokedPeers, pe)
 	}
-	pe := peers[rand.Intn(len(peers))]
-	pe.OptimisticUnchoked = true
-	t.unchokePeer(pe)
-	t.optimisticUnchokedPeer = pe
 }
