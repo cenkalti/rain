@@ -58,8 +58,6 @@ func (t *Torrent) run() {
 			cmd.errCC <- t.errC
 		case req := <-t.statsCommandC:
 			req.Response <- t.stats()
-		case n := <-t.uploadByteCounterC:
-			t.bytesUploaded += n
 		case <-t.allocatorProgressC:
 			// TODO handle allocation progress
 		case al := <-t.allocatorResultC:
@@ -199,7 +197,7 @@ func (t *Torrent) run() {
 				break
 			}
 			log := logger.New("peer <- " + ih.Conn.RemoteAddr().String())
-			pe := peerconn.New(ih.Conn, ih.PeerID, ih.Extensions, log, t.config.PieceTimeout, t.uploadByteCounterC)
+			pe := peerconn.New(ih.Conn, ih.PeerID, ih.Extensions, log, t.config.PieceTimeout)
 			t.startPeer(pe, t.incomingPeers)
 		case oh := <-t.outgoingHandshakerResultC:
 			delete(t.outgoingHandshakers, oh)
@@ -209,7 +207,7 @@ func (t *Torrent) run() {
 				break
 			}
 			log := logger.New("peer -> " + oh.Conn.RemoteAddr().String())
-			pe := peerconn.New(oh.Conn, oh.PeerID, oh.Extensions, log, t.config.PieceTimeout, t.uploadByteCounterC)
+			pe := peerconn.New(oh.Conn, oh.PeerID, oh.Extensions, log, t.config.PieceTimeout)
 			t.startPeer(pe, t.outgoingPeers)
 		case pe := <-t.peerDisconnectedC:
 			t.closePeer(pe)

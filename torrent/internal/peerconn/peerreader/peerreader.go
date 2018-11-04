@@ -60,7 +60,6 @@ func (p *PeerReader) Done() chan struct{} {
 
 func (p *PeerReader) Run() {
 	defer close(p.doneC)
-	defer close(p.messages)
 
 	var err error
 	defer func() {

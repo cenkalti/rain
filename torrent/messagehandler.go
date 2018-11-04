@@ -6,6 +6,7 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/bitfield"
 	"github.com/cenkalti/rain/torrent/internal/peer"
 	"github.com/cenkalti/rain/torrent/internal/peerconn/peerreader"
+	"github.com/cenkalti/rain/torrent/internal/peerconn/peerwriter"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
 )
 
@@ -169,6 +170,9 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			break
 		}
 		pd.Reject(block)
+	case peerwriter.BlockUploaded:
+		t.bytesUploaded += int64(msg.Length)
+		pe.BytesUploadedInChokePeriod += int64(msg.Length)
 	// TODO make it value type
 	case *peerprotocol.ExtensionHandshakeMessage:
 		pe.Logger().Debugln("extension handshake received:", msg)

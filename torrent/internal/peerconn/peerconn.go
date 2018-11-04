@@ -18,12 +18,13 @@ type Conn struct {
 	FastExtension bool
 	reader        *peerreader.PeerReader
 	writer        *peerwriter.PeerWriter
+	messages      chan interface{}
 	log           logger.Logger
 	closeC        chan struct{}
 	doneC         chan struct{}
 }
 
-func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, l logger.Logger, pieceTimeout time.Duration, uploadedBytesCounterC chan int64) *Conn {
+func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, l logger.Logger, pieceTimeout time.Duration) *Conn {
 	fastExtension := extensions.Test(61)
 	extensionProtocol := extensions.Test(43)
 	return &Conn{
@@ -31,7 +32,8 @@ func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, l logger.Log
 		id:            id,
 		FastExtension: fastExtension,
 		reader:        peerreader.New(conn, l, pieceTimeout, fastExtension, extensionProtocol),
-		writer:        peerwriter.New(conn, l, uploadedBytesCounterC),
+		writer:        peerwriter.New(conn, l),
+		messages:      make(chan interface{}),
 		log:           l,
 		closeC:        make(chan struct{}),
 		doneC:         make(chan struct{}),
@@ -64,7 +66,7 @@ func (p *Conn) Logger() logger.Logger {
 }
 
 func (p *Conn) Messages() <-chan interface{} {
-	return p.reader.Messages()
+	return p.messages
 }
 
 func (p *Conn) SendMessage(msg peerprotocol.Message) {
@@ -78,23 +80,34 @@ func (p *Conn) SendPiece(msg peerprotocol.RequestMessage, pi io.ReaderAt) {
 // Run reads and processes incoming messages after handshake.
 func (p *Conn) Run() {
 	defer close(p.doneC)
+	defer close(p.messages)
 
 	p.log.Debugln("Communicating peer", p.conn.RemoteAddr())
 
 	go p.reader.Run()
-	go p.writer.Run()
+	defer func() { <-p.reader.Done() }()
 
-	select {
-	case <-p.closeC:
-		p.reader.Stop()
-		p.writer.Stop()
-	case <-p.reader.Done():
-		p.writer.Stop()
-	case <-p.writer.Done():
-		p.reader.Stop()
+	go p.writer.Run()
+	defer func() { <-p.writer.Done() }()
+
+	defer p.conn.Close()
+	for {
+		select {
+		case msg := <-p.reader.Messages():
+			p.messages <- msg
+		case msg := <-p.writer.Messages():
+			p.messages <- msg
+		case <-p.closeC:
+			p.reader.Stop()
+			p.writer.Stop()
+			return
+		case <-p.reader.Done():
+			p.writer.Stop()
+			return
+		case <-p.writer.Done():
+			p.reader.Stop()
+			return
+		}
 	}
 
-	p.conn.Close()
-	<-p.reader.Done()
-	<-p.writer.Done()
 }

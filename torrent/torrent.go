@@ -187,8 +187,6 @@ type Torrent struct {
 	// A signal sent to run() loop when announcers are stopped.
 	announcersStoppedC chan struct{}
 
-	uploadByteCounterC chan int64
-
 	addPeersC chan []*net.TCPAddr
 
 	log logger.Logger
@@ -384,7 +382,6 @@ func newTorrent(spec *downloadSpec, cfg Config) (*Torrent, error) {
 		verifierResultC:           make(chan *verifier.Verifier),
 		connectedPeerIPs:          make(map[string]struct{}),
 		announcersStoppedC:        make(chan struct{}),
-		uploadByteCounterC:        make(chan int64),
 		addPeersC:                 make(chan []*net.TCPAddr),
 	}
 	copy(d.peerID[:], peerIDPrefix)
