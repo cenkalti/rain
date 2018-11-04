@@ -253,6 +253,14 @@
   version = "v1.0.0"
 
 [[projects]]
+  digest = "1:a8a633510a8566261a472b01fb6e722d1e9307b3e620e7a2d3aeb8857dfeaff7"
+  name = "github.com/powerman/rpc-codec"
+  packages = ["jsonrpc2"]
+  pruneopts = "UT"
+  revision = "3e1ab3b635b7b0d5f771028cd45aa9a827fd9f31"
+  version = "v1.0.0"
+
+[[projects]]
   digest = "1:b6221ec0f8903b556e127c449e7106b63e6867170c2d10a7c058623d086f2081"
   name = "github.com/prometheus/client_golang"
   packages = ["prometheus"]
@@ -374,6 +382,7 @@
     "github.com/jroimartin/gocui",
     "github.com/mitchellh/go-homedir",
     "github.com/nictuku/dht",
+    "github.com/powerman/rpc-codec/jsonrpc2",
     "github.com/urfave/cli",
     "github.com/zeebo/bencode",
     "gopkg.in/yaml.v2",

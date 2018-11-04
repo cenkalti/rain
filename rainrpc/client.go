@@ -4,17 +4,16 @@ import (
 	"encoding/base64"
 	"io"
 	"io/ioutil"
-	"net/rpc"
-	"net/rpc/jsonrpc"
+
+	"github.com/powerman/rpc-codec/jsonrpc2"
 )
 
 type Client struct {
-	client *rpc.Client
+	client *jsonrpc2.Client
 }
 
-func NewClient(addr string) (*Client, error) {
-	clt, err := jsonrpc.Dial("tcp", addr)
-	return &Client{client: clt}, err
+func NewClient(addr string) *Client {
+	return &Client{client: jsonrpc2.NewHTTPClient(addr)}
 }
 
 func (c *Client) Close() error {

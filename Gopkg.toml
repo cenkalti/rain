@@ -57,3 +57,7 @@
 [[constraint]]
   branch = "master"
   name = "github.com/nictuku/dht"
+
+[[constraint]]
+  name = "github.com/powerman/rpc-codec"
+  version = "1.0.0"

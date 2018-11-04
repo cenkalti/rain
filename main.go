@@ -104,7 +104,7 @@ func main() {
 				cli.StringFlag{
 					Name:  "url",
 					Usage: "URL of RPC server",
-					Value: "localhost:" + strconv.Itoa(rainrpc.DefaultServerConfig.Port),
+					Value: "http://127.0.0.1:" + strconv.Itoa(rainrpc.DefaultServerConfig.Port),
 				},
 			},
 			Before: handleBeforeClient,
@@ -349,9 +349,8 @@ func handleServer(c *cli.Context) error {
 }
 
 func handleBeforeClient(c *cli.Context) error {
-	var err error
-	clt, err = rainrpc.NewClient(c.String("url"))
-	return err
+	clt = rainrpc.NewClient(c.String("url"))
+	return nil
 }
 
 func handleList(c *cli.Context) error {

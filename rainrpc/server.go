@@ -4,13 +4,14 @@ import (
 	"encoding/base64"
 	"errors"
 	"net"
+	"net/http"
 	"net/rpc"
-	"net/rpc/jsonrpc"
 	"strconv"
 	"strings"
 
 	"github.com/cenkalti/rain/client"
 	"github.com/cenkalti/rain/internal/logger"
+	"github.com/powerman/rpc-codec/jsonrpc2"
 )
 
 type Server struct {
@@ -39,7 +40,6 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 	h := &handler{client: clt}
 	srv := rpc.NewServer()
 	srv.RegisterName("Client", h)
-	srv.HandleHTTP(rpc.DefaultRPCPath, rpc.DefaultDebugPath)
 	return &Server{
 		config:    cfg,
 		rpcServer: srv,
@@ -54,14 +54,8 @@ func (s *Server) ListenAndServe() error {
 	if err != nil {
 		return err
 	}
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			s.log.Errorln("accept error:", err)
-			continue
-		}
-		go s.rpcServer.ServeCodec(jsonrpc.NewServerCodec(conn))
-	}
+	defer listener.Close()
+	return http.Serve(listener, jsonrpc2.HTTPHandler(s.rpcServer))
 }
 
 type handler struct {
