@@ -94,9 +94,15 @@ func (p *Conn) Run() {
 	for {
 		select {
 		case msg := <-p.reader.Messages():
-			p.messages <- msg
+			select {
+			case p.messages <- msg:
+			case <-p.closeC:
+			}
 		case msg := <-p.writer.Messages():
-			p.messages <- msg
+			select {
+			case p.messages <- msg:
+			case <-p.closeC:
+			}
 		case <-p.closeC:
 			p.reader.Stop()
 			p.writer.Stop()
