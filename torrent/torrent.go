@@ -243,11 +243,12 @@ func NewResume(res resumer.Resumer, cfg Config) (*Torrent, *resumer.Spec, error)
 
 // Name of the torrent.
 // For magnet downloads name can change after metadata is downloaded but this method still returns the initial name.
+// Use Stats() method to get name in info dictionary.
 func (t *Torrent) Name() string {
 	return t.name
 }
 
-// InfoHash string encoded in hex.
+// InfoHash string encoded in hex as 40 charachters.
 // InfoHash is a unique value that identifies the files in torrent.
 func (t *Torrent) InfoHash() string {
 	return hex.EncodeToString(t.infoHash[:])
