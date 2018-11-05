@@ -46,6 +46,9 @@ type Config struct {
 	// Total time to wait for response to be read.
 	// This includes ConnectTimeout and TLSHandshakeTimeout.
 	HTTPTrackerTimeout time.Duration
+	// DHT announce interval
+	DHTAnnounceInterval    time.Duration
+	MinDHTAnnounceInterval time.Duration
 }
 
 var DefaultConfig = Config{
@@ -63,4 +66,6 @@ var DefaultConfig = Config{
 	TrackerStopTimeout:               5 * time.Second,
 	MinAnnounceInterval:              time.Minute,
 	HTTPTrackerTimeout:               10 * time.Second,
+	DHTAnnounceInterval:              30 * time.Minute,
+	MinDHTAnnounceInterval:           time.Minute,
 }

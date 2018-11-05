@@ -106,6 +106,10 @@ func (t *Torrent) stopPeriodicalAnnouncers() {
 		an.Close()
 	}
 	t.announcers = nil
+	if t.dhtAnnouncer != nil {
+		t.dhtAnnouncer.Close()
+		t.dhtAnnouncer = nil
+	}
 }
 
 func (t *Torrent) stopAcceptor() {

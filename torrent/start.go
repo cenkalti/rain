@@ -71,6 +71,10 @@ func (t *Torrent) startAnnouncers() {
 		t.announcers = append(t.announcers, an)
 		go an.Run()
 	}
+	if t.dhtNode != nil && t.dhtAnnouncer == nil {
+		t.dhtAnnouncer = announcer.NewDHTAnnouncer()
+		go t.dhtAnnouncer.Run(t.dhtNode, t.config.DHTAnnounceInterval, t.config.MinDHTAnnounceInterval, t.addPeersC, t.log)
+	}
 }
 
 func (t *Torrent) startAcceptor() {

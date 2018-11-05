@@ -11,6 +11,7 @@ import (
 
 	"github.com/cenkalti/rain/internal/clientversion"
 	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/torrent/dht"
 	"github.com/cenkalti/rain/torrent/internal/acceptor"
 	"github.com/cenkalti/rain/torrent/internal/addrlist"
 	"github.com/cenkalti/rain/torrent/internal/allocator"
@@ -146,6 +147,10 @@ type Torrent struct {
 	// This announcer announces Stopped event to the trackers after
 	// all periodical trackers are closed.
 	stoppedEventAnnouncer *announcer.StopAnnouncer
+
+	// If not nil, torrent is announced to DHT periodically.
+	dhtNode      dht.DHT
+	dhtAnnouncer *announcer.DHTAnnouncer
 
 	// List of peers in handshake state.
 	incomingHandshakers map[*incominghandshaker.IncomingHandshaker]struct{}
@@ -287,6 +292,10 @@ func (t *Torrent) SetResume(res resumer.Resumer) (*resumer.Spec, error) {
 	t.Close()
 	*t = *t2
 	return spec, nil
+}
+
+func (t *Torrent) SetDHT(node dht.DHT) {
+	t.dhtNode = node
 }
 
 func loadResumeSpec(spec *resumer.Spec, res resumer.Resumer, cfg Config) (*Torrent, error) {
