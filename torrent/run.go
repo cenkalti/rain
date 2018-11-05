@@ -260,9 +260,7 @@ func (t *Torrent) dialAddresses() {
 	for len(t.outgoingPeers)+len(t.outgoingHandshakers) < t.config.MaxPeerDial {
 		addr := t.addrList.Pop()
 		if addr == nil {
-			for _, an := range t.announcers {
-				an.Trigger()
-			}
+			t.needMorePeers()
 			break
 		}
 		ip := addr.IP.String()
@@ -274,6 +272,13 @@ func (t *Torrent) dialAddresses() {
 		t.connectedPeerIPs[ip] = struct{}{}
 		go h.Run(t.config.PeerConnectTimeout, t.config.PeerHandshakeTimeout, t.peerID, t.infoHash, t.outgoingHandshakerResultC, ourExtensions, t.config.DisableOutgoingEncryption, t.config.ForceOutgoingEncryption)
 	}
+}
+
+func (t *Torrent) needMorePeers() {
+	for _, an := range t.announcers {
+		an.Trigger()
+	}
+	// TODO announce to DHT when need more peers
 }
 
 // Process messages received while we don't have metadata yet.
