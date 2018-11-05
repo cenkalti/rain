@@ -269,7 +269,14 @@ func (c *Console) startTorrent(g *gocui.Gui, v *gocui.View) error {
 	c.m.Unlock()
 
 	_, err := c.client.StartTorrent(id)
-	return err
+	if err != nil {
+		return err
+	}
+	select {
+	case c.updateStatsC <- struct{}{}:
+	default:
+	}
+	return nil
 }
 
 func (c *Console) stopTorrent(g *gocui.Gui, v *gocui.View) error {
@@ -278,5 +285,12 @@ func (c *Console) stopTorrent(g *gocui.Gui, v *gocui.View) error {
 	c.m.Unlock()
 
 	_, err := c.client.StopTorrent(id)
-	return err
+	if err != nil {
+		return err
+	}
+	select {
+	case c.updateStatsC <- struct{}{}:
+	default:
+	}
+	return nil
 }
