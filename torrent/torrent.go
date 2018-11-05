@@ -71,7 +71,9 @@ type Torrent struct {
 	messages chan peer.Message
 
 	// We keep connected peers in this map after they complete handshake phase.
-	peers         map[*peer.Peer]struct{}
+	peers map[*peer.Peer]struct{}
+
+	// Also keep a reference to incoming and outgoing peers seperately to count them quickly.
 	incomingPeers map[*peer.Peer]struct{}
 	outgoingPeers map[*peer.Peer]struct{}
 	peersSnubbed  map[*peer.Peer]struct{}
@@ -115,6 +117,7 @@ type Torrent struct {
 	startCommandC       chan struct{}           // Start()
 	stopCommandC        chan struct{}           // Stop()
 	notifyErrorCommandC chan notifyErrorCommand // NotifyError()
+	addPeersC           chan []*net.TCPAddr     // AddPeers()
 
 	// Trackers send announce responses to this channel.
 	addrsFromTrackers chan []*net.TCPAddr
@@ -169,14 +172,17 @@ type Torrent struct {
 	optimisticUnchokeTimer  *time.Ticker
 	optimisticUnchokeTimerC <-chan time.Time
 
+	// A worker that opens and allocates files on the disk.
 	allocator          *allocator.Allocator
 	allocatorProgressC chan allocator.Progress
 	allocatorResultC   chan *allocator.Allocator
 
+	// A worker that does hash check of files on the disk.
 	verifier          *verifier.Verifier
 	verifierProgressC chan verifier.Progress
 	verifierResultC   chan *verifier.Verifier
 
+	// Byte stats
 	bytesDownloaded int64
 	bytesUploaded   int64
 	bytesWasted     int64
@@ -186,8 +192,6 @@ type Torrent struct {
 
 	// A signal sent to run() loop when announcers are stopped.
 	announcersStoppedC chan struct{}
-
-	addPeersC chan []*net.TCPAddr
 
 	log logger.Logger
 }
