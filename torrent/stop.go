@@ -34,6 +34,9 @@ func (t *Torrent) stop(err error) {
 	t.log.Debugln("stopping unchoke timers")
 	t.stopUnchokeTimers()
 
+	t.log.Debugln("stopping pex timer")
+	t.stopPEXTimer()
+
 	// Closing data is necessary to cancel ongoing IO operations on files.
 	t.log.Debugln("closing open files")
 	t.closeData()
@@ -135,6 +138,14 @@ func (t *Torrent) stopUnchokeTimers() {
 		t.optimisticUnchokeTimer.Stop()
 		t.optimisticUnchokeTimer = nil
 		t.optimisticUnchokeTimerC = nil
+	}
+}
+
+func (t *Torrent) stopPEXTimer() {
+	if t.pexTicker != nil {
+		t.pexTicker.Stop()
+		t.pexTickerC = nil
+		t.pexList.Clear()
 	}
 }
 

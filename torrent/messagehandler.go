@@ -223,7 +223,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			}
 		}
 	case *peerprotocol.ExtensionPEXMessage:
-		addrs, err := tracker.ParsePeersBinary([]byte(msg.Added), t.log)
+		addrs, err := tracker.DecodePeersCompact([]byte(msg.Added))
 		if err != nil {
 			t.log.Error(err)
 			break

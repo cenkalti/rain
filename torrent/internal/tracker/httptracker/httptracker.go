@@ -117,7 +117,7 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 			if err != nil {
 				return nil, err
 			}
-			peers, err = tracker.ParsePeersBinary(b, t.log)
+			peers, err = tracker.DecodePeersCompact(b)
 		}
 	}
 	if err != nil {

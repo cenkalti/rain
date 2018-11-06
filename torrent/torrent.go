@@ -24,6 +24,7 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/metainfo"
 	"github.com/cenkalti/rain/torrent/internal/mse"
 	"github.com/cenkalti/rain/torrent/internal/peer"
+	"github.com/cenkalti/rain/torrent/internal/pexlist"
 	"github.com/cenkalti/rain/torrent/internal/piece"
 	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
 	"github.com/cenkalti/rain/torrent/internal/torrentdata"
@@ -125,6 +126,11 @@ type Torrent struct {
 
 	// Keeps a list of peer addresses to connect.
 	addrList *addrlist.AddrList
+
+	// Contains added and dropped peers.
+	pexList    *pexlist.PEXList
+	pexTicker  *time.Ticker
+	pexTickerC <-chan time.Time
 
 	// New raw connections created by OutgoingHandshaker are sent to here.
 	incomingConnC chan net.Conn
@@ -382,6 +388,7 @@ func newTorrent(spec *downloadSpec, cfg Config) (*Torrent, error) {
 		notifyErrorCommandC:       make(chan notifyErrorCommand),
 		addrsFromTrackers:         make(chan []*net.TCPAddr),
 		addrList:                  addrlist.New(),
+		pexList:                   pexlist.New(),
 		peerIDs:                   make(map[[20]byte]struct{}),
 		incomingConnC:             make(chan net.Conn),
 		sKeyHash:                  mse.HashSKey(spec.infoHash[:]),

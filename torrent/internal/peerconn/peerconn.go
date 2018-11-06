@@ -44,6 +44,10 @@ func (p *Conn) ID() [20]byte {
 	return p.id
 }
 
+func (p *Conn) Addr() *net.TCPAddr {
+	return p.conn.RemoteAddr().(*net.TCPAddr)
+}
+
 func (p *Conn) IP() string {
 	return p.conn.RemoteAddr().(*net.TCPAddr).IP.String()
 }

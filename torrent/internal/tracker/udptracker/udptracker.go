@@ -87,7 +87,7 @@ func (t *UDPTracker) parseAnnounceResponse(data []byte) (*udpAnnounceResponse, [
 	if response.Action != actionAnnounce {
 		return nil, nil, errors.New("invalid action")
 	}
-	peers, err := tracker.ParsePeersBinary(data[binary.Size(response):], t.log)
+	peers, err := tracker.DecodePeersCompact(data[binary.Size(response):])
 	if err != nil {
 		return nil, nil, err
 	}

@@ -72,6 +72,19 @@ func (t *Torrent) run() {
 			t.handleNewPeers(addrs, "manual")
 		case addrs := <-t.dhtPeersC:
 			t.handleNewPeers(addrs, "dht")
+		case <-t.pexTickerC:
+			added, dropped := t.pexList.Flush()
+			extPEXMsg := peerprotocol.ExtensionPEXMessage{
+				Added:   added,
+				Dropped: dropped,
+			}
+			msg := peerprotocol.ExtensionMessage{
+				ExtendedMessageID: peerprotocol.ExtensionPEXID,
+				Payload:           extPEXMsg,
+			}
+			for pe := range t.peers {
+				pe.SendMessage(msg)
+			}
 		case conn := <-t.incomingConnC:
 			if len(t.incomingHandshakers)+len(t.incomingPeers) >= t.config.MaxPeerAccept {
 				t.log.Debugln("peer limit reached, rejecting peer", conn.RemoteAddr().String())
@@ -231,6 +244,7 @@ func (t *Torrent) closePeer(pe *peer.Peer) {
 		delete(t.pieces[i].AllowedFastPeers, pe)
 		delete(t.pieces[i].RequestedPeers, pe)
 	}
+	t.pexList.Drop(pe.Addr())
 	t.dialAddresses()
 }
 
@@ -313,6 +327,8 @@ func (t *Torrent) startPeer(p *peerconn.Conn, peers map[*peer.Peer]struct{}) {
 	if len(t.peers) <= 4 {
 		t.unchokePeer(pe)
 	}
+
+	t.pexList.Add(p.Addr())
 }
 
 func (t *Torrent) sendFirstMessage(p *peer.Peer) {

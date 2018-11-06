@@ -45,6 +45,7 @@ func (t *Torrent) handleVerificationDone(ve *verifier.Verifier) {
 	t.processQueuedMessages()
 	t.startAcceptor()
 	t.startAnnouncers()
+	t.startPEXTimer()
 	t.startPieceDownloaders()
 	t.startUnchokeTimers()
 }
