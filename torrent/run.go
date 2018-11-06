@@ -249,6 +249,7 @@ func (t *Torrent) closeInfoDownloader(id *infodownloader.InfoDownloader) {
 }
 
 func (t *Torrent) handleNewPeers(addrs []*net.TCPAddr, source string) {
+	t.log.Debugf("received %d peers from %s", len(addrs), source)
 	if !t.completed {
 		t.addrList.Push(addrs, t.port)
 		t.dialAddresses()
