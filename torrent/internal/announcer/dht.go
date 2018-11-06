@@ -1,11 +1,9 @@
 package announcer
 
 import (
-	"net"
 	"time"
 
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/torrent/dht"
 )
 
 type DHTAnnouncer struct {
@@ -35,37 +33,28 @@ func (a *DHTAnnouncer) Trigger() {
 	}
 }
 
-func (a *DHTAnnouncer) Run(node dht.DHT, interval, minInterval time.Duration, newPeers chan []*net.TCPAddr, l logger.Logger) {
+func (a *DHTAnnouncer) Run(announceFunc func(), interval, minInterval time.Duration, l logger.Logger) {
 	defer close(a.doneC)
-
-	peersC := node.Peers()
-	var sendPeersC chan []*net.TCPAddr
-	var peers []*net.TCPAddr
 
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
-	a.announce(node)
+	a.announce(announceFunc)
 	for {
 		select {
 		case <-ticker.C:
-			a.announce(node)
+			a.announce(announceFunc)
 		case <-a.triggerC:
 			if time.Since(a.lastAnnounce) > minInterval {
-				a.announce(node)
+				a.announce(announceFunc)
 			}
-		case peers = <-peersC:
-			sendPeersC = newPeers
-		case sendPeersC <- peers:
-			sendPeersC = nil
-			peers = nil
 		case <-a.closeC:
 			return
 		}
 	}
 }
 
-func (a *DHTAnnouncer) announce(node dht.DHT) {
-	node.Announce()
+func (a *DHTAnnouncer) announce(announceFunc func()) {
+	announceFunc()
 	a.lastAnnounce = time.Now()
 }

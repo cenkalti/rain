@@ -140,7 +140,10 @@ func (c *Client) processDHTResults() {
 				}
 				addrs := parseDHTPeers(peers)
 				for _, t := range torrents {
-					t.torrent.AddPeers(addrs)
+					select {
+					case t.dhtAnnouncer.peersC <- addrs:
+					case <-t.removed:
+					}
 				}
 			}
 		case <-c.closeC:
@@ -203,12 +206,16 @@ func (c *Client) loadExistingTorrents(ids []uint64) error {
 			continue
 		}
 		delete(c.availablePorts, uint16(spec.Port))
+
 		t2 := &Torrent{
 			client:  c,
 			torrent: t,
 			id:      id,
 			port:    uint16(spec.Port),
+			removed: make(chan struct{}),
 		}
+		t2.setDHTNode()
+
 		c.torrents[id] = t2
 		ih := dht.InfoHash(t.InfoHashBytes())
 		c.torrentsByInfoHash[ih] = append(c.torrentsByInfoHash[ih], t2)
@@ -324,7 +331,10 @@ func (c *Client) add(f func(port int, sto storage.Storage) (*torrent.Torrent, er
 		torrent: t,
 		id:      id,
 		port:    port,
+		removed: make(chan struct{}),
 	}
+	t2.setDHTNode()
+
 	err = t2.Start()
 	if err != nil {
 		return nil, err
@@ -367,6 +377,7 @@ func (c *Client) RemoveTorrent(id uint64) error {
 	if !ok {
 		return nil
 	}
+	close(t.removed)
 	t.torrent.Close()
 	delete(c.torrents, id)
 	delete(c.torrentsByInfoHash, dht.InfoHash(t.torrent.InfoHashBytes()))

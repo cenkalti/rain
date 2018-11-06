@@ -151,6 +151,7 @@ type Torrent struct {
 	// If not nil, torrent is announced to DHT periodically.
 	dhtNode      dht.DHT
 	dhtAnnouncer *announcer.DHTAnnouncer
+	dhtPeersC    chan []*net.TCPAddr
 
 	// List of peers in handshake state.
 	incomingHandshakers map[*incominghandshaker.IncomingHandshaker]struct{}
@@ -296,6 +297,7 @@ func (t *Torrent) SetResume(res resumer.Resumer) (*resumer.Spec, error) {
 
 func (t *Torrent) SetDHT(node dht.DHT) {
 	t.dhtNode = node
+	t.dhtPeersC = node.Peers()
 }
 
 func loadResumeSpec(spec *resumer.Spec, res resumer.Resumer, cfg Config) (*Torrent, error) {

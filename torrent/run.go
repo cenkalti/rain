@@ -67,16 +67,11 @@ func (t *Torrent) run() {
 		case ve := <-t.verifierResultC:
 			t.handleVerificationDone(ve)
 		case addrs := <-t.addrsFromTrackers:
-			if !t.completed {
-				t.addrList.Push(addrs, t.port)
-				t.dialAddresses()
-			}
+			t.handleNewPeers(addrs, "tracker")
 		case addrs := <-t.addPeersC:
-			// TODO refactor handle new peer addrs
-			if !t.completed {
-				t.addrList.Push(addrs, t.port)
-				t.dialAddresses()
-			}
+			t.handleNewPeers(addrs, "manual")
+		case addrs := <-t.dhtPeersC:
+			t.handleNewPeers(addrs, "dht")
 		case conn := <-t.incomingConnC:
 			if len(t.incomingHandshakers)+len(t.incomingPeers) >= t.config.MaxPeerAccept {
 				t.log.Debugln("peer limit reached, rejecting peer", conn.RemoteAddr().String())
@@ -251,6 +246,13 @@ func (t *Torrent) closeInfoDownloader(id *infodownloader.InfoDownloader) {
 	id.Close()
 	delete(t.infoDownloaders, id.Peer)
 	delete(t.infoDownloadersSnubbed, id.Peer)
+}
+
+func (t *Torrent) handleNewPeers(addrs []*net.TCPAddr, source string) {
+	if !t.completed {
+		t.addrList.Push(addrs, t.port)
+		t.dialAddresses()
+	}
 }
 
 func (t *Torrent) dialAddresses() {

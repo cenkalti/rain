@@ -9,10 +9,12 @@ import (
 )
 
 type Torrent struct {
-	id      uint64
-	port    uint16
-	client  *Client
-	torrent *torrent.Torrent
+	id           uint64
+	port         uint16
+	dhtAnnouncer *dhtAnnouncer
+	client       *Client
+	torrent      *torrent.Torrent
+	removed      chan struct{}
 }
 
 func (t *Torrent) ID() uint64 {
@@ -64,4 +66,11 @@ func (t *Torrent) Stop() error {
 	}
 	t.torrent.Stop()
 	return nil
+}
+
+func (t *Torrent) setDHTNode() {
+	if !t.torrent.Stats().Private {
+		t.dhtAnnouncer = newDHTAnnouncer(t.client.dht, t.torrent.InfoHashBytes())
+		t.torrent.SetDHT(t.dhtAnnouncer)
+	}
 }
