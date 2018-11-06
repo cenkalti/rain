@@ -1,7 +1,6 @@
 package torrent
 
 import (
-	"bytes"
 	"fmt"
 
 	"github.com/cenkalti/rain/torrent/internal/bitfield"
@@ -224,8 +223,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			}
 		}
 	case *peerprotocol.ExtensionPEXMessage:
-		r := bytes.NewReader([]byte(msg.Added))
-		addrs, err := tracker.ParsePeersBinary(r, t.log)
+		addrs, err := tracker.ParsePeersBinary([]byte(msg.Added), t.log)
 		if err != nil {
 			t.log.Error(err)
 			break

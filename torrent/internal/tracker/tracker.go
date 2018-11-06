@@ -36,16 +36,14 @@ type AnnounceResponse struct {
 }
 
 // ParsePeersBinary parses compact representation of peer list.
-func ParsePeersBinary(r *bytes.Reader, l logger.Logger) ([]*net.TCPAddr, error) {
-	l.Debugf("len(rest): %#v", r.Len())
-	if r.Len()%6 != 0 {
-		b := make([]byte, r.Len())
-		_, _ = r.Read(b)
+func ParsePeersBinary(b []byte, l logger.Logger) ([]*net.TCPAddr, error) {
+	l.Debugf("len(rest): %#v", len(b))
+	if len(b)%6 != 0 {
 		l.Debugf("Peers: %q", b)
 		return nil, errors.New("invalid peer list")
 	}
-
-	count := r.Len() / 6
+	r := bytes.NewReader(b)
+	count := len(b) / 6
 	l.Debugf("count of peers: %#v", count)
 	peers := make([]*net.TCPAddr, count)
 	for i := 0; i < count; i++ {
@@ -53,7 +51,8 @@ func ParsePeersBinary(r *bytes.Reader, l logger.Logger) ([]*net.TCPAddr, error) 
 			IP   [net.IPv4len]byte
 			Port uint16
 		}
-		if err := binary.Read(r, binary.BigEndian, &peer); err != nil {
+		err := binary.Read(r, binary.BigEndian, &peer)
+		if err != nil {
 			return nil, err
 		}
 		peers[i] = &net.TCPAddr{IP: peer.IP[:], Port: int(peer.Port)}

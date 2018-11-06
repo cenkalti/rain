@@ -79,21 +79,17 @@ func (t *UDPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest) 
 
 func (t *UDPTracker) parseAnnounceResponse(data []byte) (*udpAnnounceResponse, []*net.TCPAddr, error) {
 	var response udpAnnounceResponse
-	reader := bytes.NewReader(data)
-	err := binary.Read(reader, binary.BigEndian, &response)
+	err := binary.Read(bytes.NewReader(data), binary.BigEndian, &response)
 	if err != nil {
 		return nil, nil, err
 	}
 	t.log.Debugf("annouceResponse: %#v", response)
-
 	if response.Action != actionAnnounce {
 		return nil, nil, errors.New("invalid action")
 	}
-
-	peers, err := tracker.ParsePeersBinary(reader, t.log)
+	peers, err := tracker.ParsePeersBinary(data[binary.Size(response):], t.log)
 	if err != nil {
 		return nil, nil, err
 	}
-
 	return &response, peers, nil
 }
