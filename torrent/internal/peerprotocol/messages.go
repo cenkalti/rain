@@ -105,6 +105,7 @@ func NewExtensionMessage(payloadLength uint32) ExtensionMessage {
 const (
 	ExtensionHandshakeID = iota
 	ExtensionMetadataID
+	ExtensionPEXID
 )
 
 func (m ExtensionMessage) ID() MessageID { return Extension }
@@ -140,6 +141,8 @@ func (m *ExtensionMessage) UnmarshalBinary(data []byte) error {
 		m.Payload = new(ExtensionHandshakeMessage)
 	case ExtensionMetadataID:
 		m.Payload = new(ExtensionMetadataMessage)
+	case ExtensionPEXID:
+		m.Payload = new(ExtensionPEXMessage)
 	default:
 		return fmt.Errorf("peer sent invalid extension message id: %d", m.ExtendedMessageID)
 	}
@@ -166,10 +169,18 @@ type ExtensionMetadataMessage struct {
 	Data      []byte `bencode:"-"`
 }
 
+type ExtensionPEXMessage struct {
+	Added    string `bencode:"added"`
+	Added6   string `bencode:"added6"`
+	Dropped  string `bencode:"dropped"`
+	Dropped6 string `bencode:"dropped6"`
+}
+
 func NewExtensionHandshake() ExtensionHandshakeMessage {
 	return ExtensionHandshakeMessage{
 		M: map[string]uint8{
 			ExtensionMetadataKey: ExtensionMetadataID,
+			ExtensionPEXKey:      ExtensionPEXID,
 		},
 	}
 }
@@ -180,4 +191,7 @@ const (
 	ExtensionMetadataMessageTypeReject
 )
 
-const ExtensionMetadataKey = "ut_metadata"
+const (
+	ExtensionMetadataKey = "ut_metadata"
+	ExtensionPEXKey      = "ut_pex"
+)

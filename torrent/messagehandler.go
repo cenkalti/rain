@@ -1,6 +1,7 @@
 package torrent
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/cenkalti/rain/torrent/internal/bitfield"
@@ -8,6 +9,7 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/peerconn/peerreader"
 	"github.com/cenkalti/rain/torrent/internal/peerconn/peerwriter"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
+	"github.com/cenkalti/rain/torrent/internal/tracker"
 )
 
 func (t *Torrent) handlePeerMessage(pm peer.Message) {
@@ -221,6 +223,14 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 				t.startInfoDownloaders()
 			}
 		}
+	case *peerprotocol.ExtensionPEXMessage:
+		r := bytes.NewReader([]byte(msg.Added))
+		addrs, err := tracker.ParsePeersBinary(r, t.log)
+		if err != nil {
+			t.log.Error(err)
+			break
+		}
+		t.handleNewPeers(addrs, "pex")
 	default:
 		panic(fmt.Sprintf("unhandled peer message type: %T", msg))
 	}

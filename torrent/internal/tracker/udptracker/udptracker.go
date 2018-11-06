@@ -78,14 +78,9 @@ func (t *UDPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest) 
 }
 
 func (t *UDPTracker) parseAnnounceResponse(data []byte) (*udpAnnounceResponse, []*net.TCPAddr, error) {
-	response := new(udpAnnounceResponse)
-	if len(data) < binary.Size(response) {
-		return nil, nil, errors.New("response is too small")
-	}
-
+	var response udpAnnounceResponse
 	reader := bytes.NewReader(data)
-
-	err := binary.Read(reader, binary.BigEndian, response)
+	err := binary.Read(reader, binary.BigEndian, &response)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -100,5 +95,5 @@ func (t *UDPTracker) parseAnnounceResponse(data []byte) (*udpAnnounceResponse, [
 		return nil, nil, err
 	}
 
-	return response, peers, nil
+	return &response, peers, nil
 }
