@@ -207,18 +207,7 @@ func (c *Client) loadExistingTorrents(ids []uint64) error {
 		}
 		delete(c.availablePorts, uint16(spec.Port))
 
-		t2 := &Torrent{
-			client:  c,
-			torrent: t,
-			id:      id,
-			port:    uint16(spec.Port),
-			removed: make(chan struct{}),
-		}
-		t2.setDHTNode()
-
-		c.torrents[id] = t2
-		ih := dht.InfoHash(t.InfoHashBytes())
-		c.torrentsByInfoHash[ih] = append(c.torrentsByInfoHash[ih], t2)
+		t2 := c.newTorrent(t, id, uint16(spec.Port))
 		c.log.Infof("loaded existing torrent: #%d %s", id, t.Name())
 		if hasStarted {
 			started = append(started, t2)
@@ -326,6 +315,12 @@ func (c *Client) add(f func(port int, sto storage.Storage) (*torrent.Torrent, er
 		return nil, err
 	}
 
+	t2 := c.newTorrent(t, id, port)
+
+	return t2, t2.Start()
+}
+
+func (c *Client) newTorrent(t *torrent.Torrent, id uint64, port uint16) *Torrent {
 	t2 := &Torrent{
 		client:  c,
 		torrent: t,
@@ -335,17 +330,12 @@ func (c *Client) add(f func(port int, sto storage.Storage) (*torrent.Torrent, er
 	}
 	t2.setDHTNode()
 
-	err = t2.Start()
-	if err != nil {
-		return nil, err
-	}
-
 	c.m.Lock()
 	defer c.m.Unlock()
 	c.torrents[id] = t2
 	ih := dht.InfoHash(t.InfoHashBytes())
 	c.torrentsByInfoHash[ih] = append(c.torrentsByInfoHash[ih], t2)
-	return t2, nil
+	return t2
 }
 
 func (c *Client) getPort() (uint16, error) {
