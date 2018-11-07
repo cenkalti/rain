@@ -12,12 +12,14 @@ const (
 	// The same applies to dropped entries.
 	maxPeers = 50
 	// TODO PEX send recent seen list if not enough peers
+	// BEP 11: For filling underpopulated lists
 	maxRecent = 25
 )
 
 type PEXList struct {
 	added   map[tracker.CompactPeer]struct{}
 	dropped map[tracker.CompactPeer]struct{}
+	flushed bool
 }
 
 func New() *PEXList {
@@ -39,8 +41,11 @@ func (l *PEXList) Drop(addr *net.TCPAddr) {
 	delete(l.added, peer)
 }
 
-func (l *PEXList) Flush(limit bool) (added, dropped string) {
-	return l.flush(l.added, limit), l.flush(l.dropped, limit)
+func (l *PEXList) Flush() (added, dropped string) {
+	added = l.flush(l.added, l.flushed)
+	dropped = l.flush(l.dropped, l.flushed)
+	l.flushed = true
+	return
 }
 
 func (l *PEXList) flush(m map[tracker.CompactPeer]struct{}, limit bool) string {
