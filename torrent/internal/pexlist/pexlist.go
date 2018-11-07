@@ -8,7 +8,9 @@ import (
 )
 
 const (
-	maxPeers  = 50
+	// TODO limit max PEX peers at 50
+	maxPeers = 50
+	// TODO PEX send recent seen list if not enough peers
 	maxRecent = 25
 )
 

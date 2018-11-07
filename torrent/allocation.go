@@ -34,7 +34,6 @@ func (t *Torrent) handleAllocationDone(al *allocator.Allocator) {
 		t.processQueuedMessages()
 		t.startAcceptor()
 		t.startAnnouncers()
-		t.startPEXTimer()
 		t.startPieceDownloaders()
 		t.startUnchokeTimers()
 		return
@@ -46,7 +45,6 @@ func (t *Torrent) handleAllocationDone(al *allocator.Allocator) {
 		t.processQueuedMessages()
 		t.startAcceptor()
 		t.startAnnouncers()
-		t.startPEXTimer()
 		t.startPieceDownloaders()
 		t.startUnchokeTimers()
 		return

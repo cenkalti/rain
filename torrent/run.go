@@ -72,19 +72,6 @@ func (t *Torrent) run() {
 			t.handleNewPeers(addrs, "manual")
 		case addrs := <-t.dhtPeersC:
 			t.handleNewPeers(addrs, "dht")
-		case <-t.pexTickerC:
-			added, dropped := t.pexList.Flush()
-			extPEXMsg := peerprotocol.ExtensionPEXMessage{
-				Added:   added,
-				Dropped: dropped,
-			}
-			msg := peerprotocol.ExtensionMessage{
-				ExtendedMessageID: peerprotocol.ExtensionIDPEX,
-				Payload:           extPEXMsg,
-			}
-			for pe := range t.peers {
-				pe.SendMessage(msg)
-			}
 		case conn := <-t.incomingConnC:
 			if len(t.incomingHandshakers)+len(t.incomingPeers) >= t.config.MaxPeerAccept {
 				t.log.Debugln("peer limit reached, rejecting peer", conn.RemoteAddr().String())
@@ -244,7 +231,7 @@ func (t *Torrent) closePeer(pe *peer.Peer) {
 		delete(t.pieces[i].AllowedFastPeers, pe)
 		delete(t.pieces[i].RequestedPeers, pe)
 	}
-	t.pexList.Drop(pe.Addr())
+	t.pexDropPeer(pe.Addr())
 	t.dialAddresses()
 }
 
@@ -309,26 +296,37 @@ func (t *Torrent) processQueuedMessages() {
 }
 
 func (t *Torrent) startPeer(p *peerconn.Conn, peers map[*peer.Peer]struct{}) {
-	t.pexList.Add(p.Addr())
-	defer t.pexList.Drop(p.Addr())
-
+	t.pexAddPeer(p.Addr())
 	_, ok := t.peerIDs[p.ID()]
 	if ok {
 		p.Logger().Errorln("peer with same id already connected:", p.ID())
 		p.CloseConn()
+		t.pexDropPeer(p.Addr())
 		t.dialAddresses()
 		return
 	}
 	t.peerIDs[p.ID()] = struct{}{}
 
-	pe := peer.New(p, t.messages, t.peerDisconnectedC)
+	pe := peer.New(p, t.peers)
 	t.peers[pe] = struct{}{}
 	peers[pe] = struct{}{}
-	go pe.Run()
+	go pe.Run(t.messages, t.peerDisconnectedC)
 
 	t.sendFirstMessage(pe)
 	if len(t.peers) <= 4 {
 		t.unchokePeer(pe)
+	}
+}
+
+func (t *Torrent) pexAddPeer(addr *net.TCPAddr) {
+	for pe := range t.peers {
+		pe.PEXAdd(addr)
+	}
+}
+
+func (t *Torrent) pexDropPeer(addr *net.TCPAddr) {
+	for pe := range t.peers {
+		pe.PEXDrop(addr)
 	}
 }
 

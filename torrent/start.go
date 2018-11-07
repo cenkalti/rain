@@ -31,7 +31,6 @@ func (t *Torrent) start() {
 			if t.bitfield != nil {
 				t.startAcceptor()
 				t.startAnnouncers()
-				t.startPEXTimer()
 				t.startPieceDownloaders()
 				t.startUnchokeTimers()
 			} else {
@@ -43,7 +42,6 @@ func (t *Torrent) start() {
 	} else {
 		t.startAcceptor()
 		t.startAnnouncers()
-		t.startPEXTimer()
 		t.startInfoDownloaders()
 	}
 }
@@ -102,13 +100,6 @@ func (t *Torrent) startUnchokeTimers() {
 	if t.optimisticUnchokeTimer == nil {
 		t.optimisticUnchokeTimer = time.NewTicker(30 * time.Second)
 		t.optimisticUnchokeTimerC = t.optimisticUnchokeTimer.C
-	}
-}
-
-func (t *Torrent) startPEXTimer() {
-	if t.pexTicker == nil {
-		t.pexTicker = time.NewTicker(time.Minute)
-		t.pexTickerC = t.pexTicker.C
 	}
 }
 

@@ -179,6 +179,9 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		pe.Logger().Debugln("extension handshake received:", msg)
 		pe.ExtensionHandshake = msg
 		t.startInfoDownloaders()
+		if _, ok := msg.M[peerprotocol.ExtensionKeyPEX]; ok {
+			pe.PEXStart()
+		}
 	// TODO make it value type
 	case *peerprotocol.ExtensionMetadataMessage:
 		switch msg.Type {
