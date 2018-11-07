@@ -42,7 +42,7 @@ func (l *PEXList) Flush() (added, dropped string) {
 
 func (l *PEXList) flush(m map[tracker.CompactPeer]struct{}) string {
 	var s strings.Builder
-	s.Grow(len(l.added) * 6)
+	s.Grow(len(m) * 6)
 	for p := range m {
 		b, err := p.MarshalBinary()
 		if err != nil {
