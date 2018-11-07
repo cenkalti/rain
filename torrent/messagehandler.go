@@ -16,7 +16,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 	switch msg := pm.Message.(type) {
 	case peerprotocol.HaveMessage:
 		// Save have messages for processesing later received while we don't have info yet.
-		if t.bitfield == nil {
+		if t.data == nil || t.bitfield == nil {
 			pe.Messages = append(pe.Messages, msg)
 			break
 		}
@@ -32,7 +32,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		t.startPieceDownloaders()
 	case peerprotocol.BitfieldMessage:
 		// Save bitfield messages while we don't have info yet.
-		if t.bitfield == nil {
+		if t.data == nil || t.bitfield == nil {
 			pe.Messages = append(pe.Messages, msg)
 			break
 		}
@@ -52,7 +52,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		t.updateInterestedState(pe)
 		t.startPieceDownloaders()
 	case peerprotocol.HaveAllMessage:
-		if t.bitfield == nil {
+		if t.data == nil || t.bitfield == nil {
 			pe.Messages = append(pe.Messages, msg)
 			break
 		}
@@ -63,7 +63,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		t.startPieceDownloaders()
 	case peerprotocol.HaveNoneMessage: // TODO handle?
 	case peerprotocol.AllowedFastMessage:
-		if t.bitfield == nil {
+		if t.data == nil || t.bitfield == nil {
 			pe.Messages = append(pe.Messages, msg)
 			break
 		}
@@ -94,7 +94,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 	case peerprotocol.NotInterestedMessage:
 		// TODO handle not intereseted messages
 	case peerreader.Piece:
-		if t.bitfield == nil {
+		if t.data == nil || t.bitfield == nil {
 			pe.Logger().Error("piece received but we don't have info")
 			t.closePeer(pe)
 			break
@@ -119,7 +119,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			t.bytesWasted += int64(len(msg.Data))
 		}
 	case peerprotocol.RequestMessage:
-		if t.bitfield == nil {
+		if t.data == nil || t.bitfield == nil {
 			pe.Logger().Error("request received but we don't have info")
 			t.closePeer(pe)
 			break
@@ -144,7 +144,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			pe.SendPiece(msg, pi.Data)
 		}
 	case peerprotocol.RejectMessage:
-		if t.bitfield == nil {
+		if t.data == nil || t.bitfield == nil {
 			pe.Logger().Error("reject received but we don't have info")
 			t.closePeer(pe)
 			break
@@ -238,7 +238,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 }
 
 func (t *Torrent) updateInterestedState(pe *peer.Peer) {
-	if t.info == nil {
+	if t.data == nil || t.bitfield == nil {
 		return
 	}
 	interested := false
