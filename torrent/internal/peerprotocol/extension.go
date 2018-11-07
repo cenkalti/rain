@@ -9,6 +9,23 @@ import (
 	"github.com/zeebo/bencode"
 )
 
+const (
+	ExtensionIDHandshake = iota
+	ExtensionIDMetadata
+	ExtensionIDPEX
+)
+
+const (
+	ExtensionKeyMetadata = "ut_metadata"
+	ExtensionKeyPEX      = "ut_pex"
+)
+
+const (
+	ExtensionMetadataMessageTypeRequest = iota
+	ExtensionMetadataMessageTypeData
+	ExtensionMetadataMessageTypeReject
+)
+
 type ExtensionMessage struct {
 	ExtendedMessageID uint8
 	Payload           interface{}
@@ -20,12 +37,6 @@ func NewExtensionMessage(payloadLength uint32) ExtensionMessage {
 		payloadLength: payloadLength,
 	}
 }
-
-const (
-	ExtensionHandshakeID = iota
-	ExtensionMetadataID
-	ExtensionPEXID
-)
 
 func (m ExtensionMessage) ID() MessageID { return Extension }
 
@@ -56,11 +67,11 @@ func (m *ExtensionMessage) UnmarshalBinary(data []byte) error {
 		return err
 	}
 	switch m.ExtendedMessageID {
-	case ExtensionHandshakeID:
+	case ExtensionIDHandshake:
 		m.Payload = new(ExtensionHandshakeMessage)
-	case ExtensionMetadataID:
+	case ExtensionIDMetadata:
 		m.Payload = new(ExtensionMetadataMessage)
-	case ExtensionPEXID:
+	case ExtensionIDPEX:
 		m.Payload = new(ExtensionPEXMessage)
 	default:
 		return fmt.Errorf("peer sent invalid extension message id: %d", m.ExtendedMessageID)
@@ -81,6 +92,16 @@ type ExtensionHandshakeMessage struct {
 	MetadataSize uint32           `bencode:"metadata_size,omitempty"`
 }
 
+func NewExtensionHandshake(metadataSize uint32) ExtensionHandshakeMessage {
+	return ExtensionHandshakeMessage{
+		M: map[string]uint8{
+			ExtensionKeyMetadata: ExtensionIDMetadata,
+			ExtensionKeyPEX:      ExtensionIDPEX,
+		},
+		MetadataSize: metadataSize,
+	}
+}
+
 type ExtensionMetadataMessage struct {
 	Type      uint32 `bencode:"msg_type"`
 	Piece     uint32 `bencode:"piece"`
@@ -94,23 +115,3 @@ type ExtensionPEXMessage struct {
 	Dropped  string `bencode:"dropped"`
 	Dropped6 string `bencode:"dropped6"`
 }
-
-func NewExtensionHandshake() ExtensionHandshakeMessage {
-	return ExtensionHandshakeMessage{
-		M: map[string]uint8{
-			ExtensionMetadataKey: ExtensionMetadataID,
-			ExtensionPEXKey:      ExtensionPEXID,
-		},
-	}
-}
-
-const (
-	ExtensionMetadataMessageTypeRequest = iota
-	ExtensionMetadataMessageTypeData
-	ExtensionMetadataMessageTypeReject
-)
-
-const (
-	ExtensionMetadataKey = "ut_metadata"
-	ExtensionPEXKey      = "ut_pex"
-)

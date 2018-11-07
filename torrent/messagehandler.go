@@ -187,7 +187,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 				// TODO send reject
 				break
 			}
-			extMsgID, ok := pe.ExtensionHandshake.M[peerprotocol.ExtensionMetadataKey]
+			extMsgID, ok := pe.ExtensionHandshake.M[peerprotocol.ExtensionKeyMetadata]
 			if !ok {
 				// TODO send reject
 			}

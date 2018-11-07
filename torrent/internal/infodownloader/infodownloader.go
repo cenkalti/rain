@@ -73,7 +73,7 @@ func (d *InfoDownloader) Run(queueLength int, pieceTimeout time.Duration, snubbe
 	requestBlocks := func() {
 		for ; nextBlockIndex < uint32(len(blocks)) && len(requested) < queueLength; nextBlockIndex++ {
 			msg := peerprotocol.ExtensionMessage{
-				ExtendedMessageID: d.Peer.ExtensionHandshake.M[peerprotocol.ExtensionMetadataKey],
+				ExtendedMessageID: d.Peer.ExtensionHandshake.M[peerprotocol.ExtensionKeyMetadata],
 				Payload: peerprotocol.ExtensionMetadataMessage{
 					Type:  peerprotocol.ExtensionMetadataMessageTypeRequest,
 					Piece: nextBlockIndex,

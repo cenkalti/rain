@@ -79,7 +79,7 @@ func (t *Torrent) run() {
 				Dropped: dropped,
 			}
 			msg := peerprotocol.ExtensionMessage{
-				ExtendedMessageID: peerprotocol.ExtensionPEXID,
+				ExtendedMessageID: peerprotocol.ExtensionIDPEX,
 				Payload:           extPEXMsg,
 			}
 			for pe := range t.peers {
@@ -346,12 +346,13 @@ func (t *Torrent) sendFirstMessage(p *peer.Peer) {
 		msg := peerprotocol.BitfieldMessage{Data: bitfieldData}
 		p.SendMessage(msg)
 	}
-	extHandshakeMsg := peerprotocol.NewExtensionHandshake()
+	var metadataSize uint32
 	if t.info != nil {
-		extHandshakeMsg.MetadataSize = t.info.InfoSize
+		metadataSize = t.info.InfoSize
 	}
+	extHandshakeMsg := peerprotocol.NewExtensionHandshake(metadataSize)
 	msg := peerprotocol.ExtensionMessage{
-		ExtendedMessageID: peerprotocol.ExtensionHandshakeID,
+		ExtendedMessageID: peerprotocol.ExtensionIDHandshake,
 		Payload:           extHandshakeMsg,
 	}
 	p.SendMessage(msg)
