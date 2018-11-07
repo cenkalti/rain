@@ -7,6 +7,11 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/tracker"
 )
 
+const (
+	maxPeers  = 50
+	maxRecent = 25
+)
+
 type PEXList struct {
 	added   map[tracker.CompactPeer]struct{}
 	dropped map[tracker.CompactPeer]struct{}

@@ -309,6 +309,9 @@ func (t *Torrent) processQueuedMessages() {
 }
 
 func (t *Torrent) startPeer(p *peerconn.Conn, peers map[*peer.Peer]struct{}) {
+	t.pexList.Add(p.Addr())
+	defer t.pexList.Drop(p.Addr())
+
 	_, ok := t.peerIDs[p.ID()]
 	if ok {
 		p.Logger().Errorln("peer with same id already connected:", p.ID())
@@ -327,8 +330,6 @@ func (t *Torrent) startPeer(p *peerconn.Conn, peers map[*peer.Peer]struct{}) {
 	if len(t.peers) <= 4 {
 		t.unchokePeer(pe)
 	}
-
-	t.pexList.Add(p.Addr())
 }
 
 func (t *Torrent) sendFirstMessage(p *peer.Peer) {
