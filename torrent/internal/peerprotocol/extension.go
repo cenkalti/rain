@@ -110,8 +110,6 @@ type ExtensionMetadataMessage struct {
 }
 
 type ExtensionPEXMessage struct {
-	Added    string `bencode:"added"`
-	Added6   string `bencode:"added6"`
-	Dropped  string `bencode:"dropped"`
-	Dropped6 string `bencode:"dropped6"`
+	Added   string `bencode:"added"`
+	Dropped string `bencode:"dropped"`
 }

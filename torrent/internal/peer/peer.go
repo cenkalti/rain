@@ -101,12 +101,12 @@ func (p *Peer) Run(messages chan Message, disconnect chan *Peer) {
 			p.pexList.Drop(addr)
 		case <-p.pexStartC:
 			p.pexStartC = nil
-			p.pexFlushPeers()
+			p.pexFlushPeers(false)
 			p.pexTicker = time.NewTicker(time.Minute)
 			p.pexTickerC = p.pexTicker.C
 			defer p.pexTicker.Stop()
 		case <-p.pexTickerC:
-			p.pexFlushPeers()
+			p.pexFlushPeers(true)
 		case <-p.closeC:
 			return
 		}
@@ -131,8 +131,8 @@ func (p *Peer) PEXDrop(addr *net.TCPAddr) {
 	}
 }
 
-func (p *Peer) pexFlushPeers() {
-	added, dropped := p.pexList.Flush()
+func (p *Peer) pexFlushPeers(limit bool) {
+	added, dropped := p.pexList.Flush(limit)
 	extPEXMsg := peerprotocol.ExtensionPEXMessage{
 		Added:   added,
 		Dropped: dropped,

@@ -8,7 +8,8 @@ import (
 )
 
 const (
-	// TODO limit max PEX peers at 50
+	// BEP 11: Except for the initial PEX message the combined amount of added v4/v6 contacts should not exceed 50 entries.
+	// The same applies to dropped entries.
 	maxPeers = 50
 	// TODO PEX send recent seen list if not enough peers
 	maxRecent = 25
@@ -38,19 +39,24 @@ func (l *PEXList) Drop(addr *net.TCPAddr) {
 	delete(l.added, peer)
 }
 
-func (l *PEXList) Clear() {
-	l.added = make(map[tracker.CompactPeer]struct{})
-	l.dropped = make(map[tracker.CompactPeer]struct{})
+func (l *PEXList) Flush(limit bool) (added, dropped string) {
+	return l.flush(l.added, limit), l.flush(l.dropped, limit)
 }
 
-func (l *PEXList) Flush() (added, dropped string) {
-	return l.flush(l.added), l.flush(l.dropped)
-}
+func (l *PEXList) flush(m map[tracker.CompactPeer]struct{}, limit bool) string {
+	count := len(m)
+	if limit && count > maxPeers {
+		count = maxPeers
+	}
 
-func (l *PEXList) flush(m map[tracker.CompactPeer]struct{}) string {
 	var s strings.Builder
-	s.Grow(len(m) * 6)
+	s.Grow(count * 6)
 	for p := range m {
+		if count == 0 {
+			break
+		}
+		count--
+
 		b, err := p.MarshalBinary()
 		if err != nil {
 			panic(err)
