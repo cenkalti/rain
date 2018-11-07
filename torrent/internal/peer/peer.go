@@ -120,14 +120,14 @@ func (p *Peer) PEXStart() {
 func (p *Peer) PEXAdd(addr *net.TCPAddr) {
 	select {
 	case p.pexAddPeerC <- addr:
-	case <-p.closeC:
+	case <-p.doneC:
 	}
 }
 
 func (p *Peer) PEXDrop(addr *net.TCPAddr) {
 	select {
 	case p.pexDropPeerC <- addr:
-	case <-p.closeC:
+	case <-p.doneC:
 	}
 }
 
