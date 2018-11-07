@@ -307,7 +307,7 @@ func (t *Torrent) startPeer(p *peerconn.Conn, peers map[*peer.Peer]struct{}) {
 	}
 	t.peerIDs[p.ID()] = struct{}{}
 
-	pe := peer.New(p, t.peers)
+	pe := peer.New(p)
 	t.peers[pe] = struct{}{}
 	peers[pe] = struct{}{}
 	go pe.Run(t.messages, t.peerDisconnectedC)
@@ -320,13 +320,17 @@ func (t *Torrent) startPeer(p *peerconn.Conn, peers map[*peer.Peer]struct{}) {
 
 func (t *Torrent) pexAddPeer(addr *net.TCPAddr) {
 	for pe := range t.peers {
-		pe.PEXAdd(addr)
+		if pe.PEX != nil {
+			pe.PEX.Add(addr)
+		}
 	}
 }
 
 func (t *Torrent) pexDropPeer(addr *net.TCPAddr) {
 	for pe := range t.peers {
-		pe.PEXDrop(addr)
+		if pe.PEX != nil {
+			pe.PEX.Drop(addr)
+		}
 	}
 }
 
