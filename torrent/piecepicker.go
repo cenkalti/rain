@@ -71,55 +71,11 @@ func (t *Torrent) select4RandomPiece() (*piece.Piece, *peer.Peer) {
 }
 
 func (t *Torrent) selectAllowedFastPiece(skipSnubbed, noDuplicate bool) (*piece.Piece, *peer.Peer) {
-	for _, pi := range t.sortedPieces {
-		if t.bitfield.Test(pi.Index) {
-			continue
-		}
-		if noDuplicate && len(pi.RequestedPeers) > 0 {
-			continue
-		} else if pi.RunningDownloads() >= t.config.EndgameParallelDownloadsPerPiece {
-			continue
-		}
-		for pe := range pi.HavingPeers {
-			if _, ok := t.pieceDownloaders[pe]; ok {
-				continue
-			}
-			if skipSnubbed && pe.Snubbed {
-				continue
-			}
-			if _, ok := pe.AllowedFastPieces[pi.Index]; !ok {
-				continue
-			}
-			return pi, pe
-		}
-	}
-	return nil, nil
+	return t.selectPiece(true, skipSnubbed, noDuplicate)
 }
 
 func (t *Torrent) selectUnchokedPeer(skipSnubbed, noDuplicate bool) (*piece.Piece, *peer.Peer) {
-	for _, pi := range t.sortedPieces {
-		if t.bitfield.Test(pi.Index) {
-			continue
-		}
-		if noDuplicate && len(pi.RequestedPeers) > 0 {
-			continue
-		} else if pi.RunningDownloads() >= t.config.EndgameParallelDownloadsPerPiece {
-			continue
-		}
-		for pe := range pi.HavingPeers {
-			if _, ok := t.pieceDownloaders[pe]; ok {
-				continue
-			}
-			if skipSnubbed && pe.Snubbed {
-				continue
-			}
-			if pe.PeerChoking {
-				continue
-			}
-			return pi, pe
-		}
-	}
-	return nil, nil
+	return t.selectPiece(false, skipSnubbed, noDuplicate)
 }
 
 func (t *Torrent) selectSnubbedPeer(noDuplicate bool) (*piece.Piece, *peer.Peer) {
@@ -146,6 +102,38 @@ func (t *Torrent) selectDuplicatePiece() (*piece.Piece, *peer.Peer) {
 	pe, pi = t.selectSnubbedPeer(false)
 	if pe != nil && pi != nil {
 		return pe, pi
+	}
+	return nil, nil
+}
+
+func (t *Torrent) selectPiece(preferAllowedFast, skipSnubbed, noDuplicate bool) (*piece.Piece, *peer.Peer) {
+	for _, pi := range t.sortedPieces {
+		if t.bitfield.Test(pi.Index) {
+			continue
+		}
+		if noDuplicate && len(pi.RequestedPeers) > 0 {
+			continue
+		} else if pi.RunningDownloads() >= t.config.EndgameParallelDownloadsPerPiece {
+			continue
+		}
+		for pe := range pi.HavingPeers {
+			if _, ok := t.pieceDownloaders[pe]; ok {
+				continue
+			}
+			if skipSnubbed && pe.Snubbed {
+				continue
+			}
+			if preferAllowedFast {
+				if _, ok := pe.AllowedFastPieces[pi.Index]; !ok {
+					continue
+				}
+			} else {
+				if pe.PeerChoking {
+					continue
+				}
+			}
+			return pi, pe
+		}
 	}
 	return nil, nil
 }
