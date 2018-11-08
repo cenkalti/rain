@@ -89,8 +89,10 @@ func (p *Peer) Run(messages chan Message, disconnect chan *Peer) {
 }
 
 func (p *Peer) StartPEX(initialPeers map[*Peer]struct{}) {
-	p.PEX = newPEX(p.Conn, p.ExtensionHandshake.M[peerprotocol.ExtensionKeyPEX], initialPeers)
-	go p.PEX.Run()
+	if p.PEX == nil {
+		p.PEX = newPEX(p.Conn, p.ExtensionHandshake.M[peerprotocol.ExtensionKeyPEX], initialPeers)
+		go p.PEX.Run()
+	}
 }
 
 func (p *Peer) StartSnubTimer(d time.Duration, snubbedC chan *Peer) {

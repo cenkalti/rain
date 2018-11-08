@@ -213,15 +213,21 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 	case peerwriter.BlockUploaded:
 		t.bytesUploaded += int64(msg.Length)
 		pe.BytesUploadedInChokePeriod += int64(msg.Length)
-	// TODO make it value type
+	// TODO make extension messages value type
 	case *peerprotocol.ExtensionHandshakeMessage:
 		pe.Logger().Debugln("extension handshake received:", msg)
+		if pe.ExtensionHandshake != nil {
+			pe.Logger().Debugln("peer changed extensions")
+			break
+		}
 		pe.ExtensionHandshake = msg
-		t.startInfoDownloaders()
+
+		if _, ok := msg.M[peerprotocol.ExtensionKeyMetadata]; ok {
+			t.startInfoDownloaders()
+		}
 		if _, ok := msg.M[peerprotocol.ExtensionKeyPEX]; ok {
 			pe.StartPEX(t.peers)
 		}
-	// TODO make it value type
 	case *peerprotocol.ExtensionMetadataMessage:
 		switch msg.Type {
 		case peerprotocol.ExtensionMetadataMessageTypeRequest:

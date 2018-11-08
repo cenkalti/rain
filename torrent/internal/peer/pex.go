@@ -17,10 +17,8 @@ type pex struct {
 	pexList *pexlist.PEXList
 
 	// To send connected peers at interval
-	pexTicker  *time.Ticker
-	pexTickerC <-chan time.Time
+	pexTicker *time.Ticker
 
-	pexStartC    chan struct{}
 	pexAddPeerC  chan *net.TCPAddr
 	pexDropPeerC chan *net.TCPAddr
 
@@ -37,7 +35,6 @@ func newPEX(conn *peerconn.Conn, extID uint8, initialPeers map[*Peer]struct{}) *
 		conn:         conn,
 		extID:        extID,
 		pexList:      pl,
-		pexStartC:    make(chan struct{}),
 		pexAddPeerC:  make(chan *net.TCPAddr),
 		pexDropPeerC: make(chan *net.TCPAddr),
 		closeC:       make(chan struct{}),
@@ -52,19 +49,19 @@ func (p *pex) Close() {
 
 func (p *pex) Run() {
 	defer close(p.doneC)
+
+	p.pexFlushPeers()
+
+	p.pexTicker = time.NewTicker(time.Minute)
+	defer p.pexTicker.Stop()
+
 	for {
 		select {
 		case addr := <-p.pexAddPeerC:
 			p.pexList.Add(addr)
 		case addr := <-p.pexDropPeerC:
 			p.pexList.Drop(addr)
-		case <-p.pexStartC:
-			p.pexStartC = nil
-			p.pexFlushPeers()
-			p.pexTicker = time.NewTicker(time.Minute)
-			p.pexTickerC = p.pexTicker.C
-			defer p.pexTicker.Stop()
-		case <-p.pexTickerC:
+		case <-p.pexTicker.C:
 			p.pexFlushPeers()
 		case <-p.closeC:
 			return
