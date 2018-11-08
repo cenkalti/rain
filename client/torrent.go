@@ -4,8 +4,8 @@ import (
 	"strconv"
 
 	"github.com/boltdb/bolt"
+	"github.com/cenkalti/dht"
 	"github.com/cenkalti/rain/torrent"
-	"github.com/nictuku/dht"
 )
 
 type Torrent struct {
@@ -70,7 +70,7 @@ func (t *Torrent) Stop() error {
 
 func (t *Torrent) setDHTNode() {
 	if !t.torrent.Stats().Private {
-		t.dhtAnnouncer = newDHTAnnouncer(t.client.dht, t.torrent.InfoHashBytes())
+		t.dhtAnnouncer = newDHTAnnouncer(t.client.dht, t.torrent.InfoHashBytes(), int(t.port))
 		t.torrent.SetDHT(t.dhtAnnouncer)
 	}
 }
