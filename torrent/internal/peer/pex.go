@@ -42,12 +42,12 @@ func newPEX(conn *peerconn.Conn, extID uint8, initialPeers map[*Peer]struct{}) *
 	}
 }
 
-func (p *pex) Close() {
+func (p *pex) close() {
 	close(p.closeC)
 	<-p.doneC
 }
 
-func (p *pex) Run() {
+func (p *pex) run() {
 	defer close(p.doneC)
 
 	p.pexFlushPeers()

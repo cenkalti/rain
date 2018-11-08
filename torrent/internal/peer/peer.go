@@ -57,7 +57,7 @@ func New(p *peerconn.Conn) *Peer {
 
 func (p *Peer) Close() {
 	if p.PEX != nil {
-		p.PEX.Close()
+		p.PEX.close()
 	}
 	close(p.closeC)
 	p.Conn.Close()
@@ -91,7 +91,7 @@ func (p *Peer) Run(messages chan Message, disconnect chan *Peer) {
 func (p *Peer) StartPEX(initialPeers map[*Peer]struct{}) {
 	if p.PEX == nil {
 		p.PEX = newPEX(p.Conn, p.ExtensionHandshake.M[peerprotocol.ExtensionKeyPEX], initialPeers)
-		go p.PEX.Run()
+		go p.PEX.run()
 	}
 }
 
