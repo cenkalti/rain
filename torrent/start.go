@@ -114,7 +114,7 @@ func (t *Torrent) startInfoDownloaders() {
 		}
 		t.log.Debugln("downloading info from", id.Peer.String())
 		t.infoDownloaders[id.Peer] = id
-		go id.Run(t.config.RequestQueueLength, t.config.PieceTimeout, t.snubbedInfoDownloaderC, t.infoDownloaderResultC)
+		id.RequestBlocks()
 	}
 }
 

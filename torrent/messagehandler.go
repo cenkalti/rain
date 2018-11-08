@@ -1,10 +1,13 @@
 package torrent
 
 import (
+	"bytes"
 	"crypto/sha1" // nolint: gosec
+	"errors"
 	"fmt"
 
 	"github.com/cenkalti/rain/torrent/internal/bitfield"
+	"github.com/cenkalti/rain/torrent/internal/metainfo"
 	"github.com/cenkalti/rain/torrent/internal/peer"
 	"github.com/cenkalti/rain/torrent/internal/peerconn/peerreader"
 	"github.com/cenkalti/rain/torrent/internal/peerconn/peerwriter"
@@ -124,15 +127,15 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			t.bytesWasted += int64(len(msg.Data))
 			break
 		}
-		allDone := pd.GotBlock(block, msg.Data)
-		if !allDone {
+		pd.GotBlock(block, msg.Data)
+		if !pd.Done() {
 			pd.RequestBlocks()
 			break
 		}
 		t.log.Debugln("piece download completed. index:", pd.Piece.Index)
 		t.closePieceDownloader(pd)
 
-		ok = piece.VerifyHash(pd.Buffer, sha1.New()) // nolint: gosec
+		ok = piece.VerifyHash(pd.Bytes, sha1.New()) // nolint: gosec
 		if !ok {
 			// TODO handle corrupt piece
 			t.log.Error("received corrupt piece")
@@ -149,7 +152,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		piece.Writing = true
 		pw := piecewriter.New(piece)
 		t.pieceWriters[pw] = struct{}{}
-		go pw.Run(pd.Buffer, t.pieceWriterResultC)
+		go pw.Run(pd.Bytes, t.pieceWriterResultC)
 
 		t.startPieceDownloaders()
 	case peerprotocol.RequestMessage:
@@ -249,9 +252,53 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			pe.SendMessage(extDataMsg)
 		case peerprotocol.ExtensionMetadataMessageTypeData:
 			id, ok := t.infoDownloaders[pe]
-			if ok {
-				id.Download(msg.Piece, msg.Data)
+			if !ok {
+				break
 			}
+			err := id.GotBlock(msg.Piece, msg.Data)
+			if err != nil {
+				id.Peer.Logger().Error(err)
+				t.closePeer(pe)
+				t.startInfoDownloaders()
+				break
+			}
+			if !id.Done() {
+				id.RequestBlocks()
+				break
+			}
+			hash := sha1.New()                              // nolint: gosec
+			hash.Write(id.Bytes)                            // nolint: gosec
+			if !bytes.Equal(hash.Sum(nil), t.infoHash[:]) { // nolint: gosec
+				id.Peer.Logger().Errorln("received info does not match with hash")
+				t.closePeer(id.Peer)
+				t.startInfoDownloaders()
+				break
+			}
+			t.stopInfoDownloaders()
+
+			t.info, err = metainfo.NewInfo(id.Bytes)
+			if err != nil {
+				err = fmt.Errorf("cannot parse info bytes: %s", err)
+				t.log.Error(err)
+				t.stop(err)
+				break
+			}
+			if t.info.Private == 1 {
+				err = errors.New("private torrent from magnet")
+				t.log.Error(err)
+				t.stop(err)
+				break
+			}
+			if t.resume != nil {
+				err = t.resume.WriteInfo(t.info.Bytes)
+				if err != nil {
+					err = fmt.Errorf("cannot write resume info: %s", err)
+					t.log.Error(err)
+					t.stop(err)
+					break
+				}
+			}
+			t.startAllocator()
 		case peerprotocol.ExtensionMetadataMessageTypeReject:
 			id, ok := t.infoDownloaders[pe]
 			if ok {

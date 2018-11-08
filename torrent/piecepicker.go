@@ -25,7 +25,7 @@ func (t *Torrent) nextInfoDownload() *infodownloader.InfoDownloader {
 		if !ok {
 			continue
 		}
-		return infodownloader.New(pe)
+		return infodownloader.New(pe, t.config.RequestQueueLength, t.config.PieceTimeout)
 	}
 	return nil
 }

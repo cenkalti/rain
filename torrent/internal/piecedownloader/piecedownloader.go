@@ -12,9 +12,9 @@ import (
 
 // PieceDownloader downloads all blocks of a piece from a peer.
 type PieceDownloader struct {
-	Piece  *pieceio.Piece
-	Peer   *peer.Peer
-	Buffer []byte
+	Piece *pieceio.Piece
+	Peer  *peer.Peer
+	Bytes []byte
 
 	requested      map[uint32]struct{}
 	nextBlockIndex uint32
@@ -37,7 +37,7 @@ func New(pi *pieceio.Piece, pe *peer.Peer, queueLength int, pieceTimeout time.Du
 		queueLength:  queueLength,
 		pieceTimeout: pieceTimeout,
 		requested:    make(map[uint32]struct{}),
-		Buffer:       make([]byte, pi.Length),
+		Bytes:        make([]byte, pi.Length),
 		downloadDone: make(map[uint32]struct{}),
 	}
 }
@@ -52,16 +52,15 @@ func (d *PieceDownloader) Unchoked() {
 	d.RequestBlocks()
 }
 
-func (d *PieceDownloader) GotBlock(block *pieceio.Block, data []byte) (allDone bool) {
+func (d *PieceDownloader) GotBlock(block *pieceio.Block, data []byte) {
 	if _, ok := d.downloadDone[block.Index]; ok {
 		d.Peer.Logger().Warningln("received duplicate block:", block.Index)
 	}
-	copy(d.Buffer[block.Begin:block.Begin+block.Length], data)
+	copy(d.Bytes[block.Begin:block.Begin+block.Length], data)
 	delete(d.requested, block.Index)
 	d.downloadDone[block.Index] = struct{}{}
 	d.pieceTimeoutC = nil
 	d.RequestBlocks()
-	return d.allDone()
 }
 
 func (d *PieceDownloader) Rejected(block *pieceio.Block) {
@@ -97,6 +96,6 @@ func (d *PieceDownloader) RequestBlocks() {
 	}
 }
 
-func (d *PieceDownloader) allDone() bool {
+func (d *PieceDownloader) Done() bool {
 	return len(d.downloadDone) == len(d.Piece.Blocks)
 }

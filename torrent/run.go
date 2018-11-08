@@ -1,8 +1,6 @@
 package torrent
 
 import (
-	"bytes"
-	"crypto/sha1" // nolint: gosec
 	"errors"
 	"fmt"
 	"net"
@@ -12,7 +10,6 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/handshaker/incominghandshaker"
 	"github.com/cenkalti/rain/torrent/internal/handshaker/outgoinghandshaker"
 	"github.com/cenkalti/rain/torrent/internal/infodownloader"
-	"github.com/cenkalti/rain/torrent/internal/metainfo"
 	"github.com/cenkalti/rain/torrent/internal/peer"
 	"github.com/cenkalti/rain/torrent/internal/peerconn"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
@@ -92,48 +89,6 @@ func (t *Torrent) run() {
 			tr := t.announcerFields()
 			// TODO set bytes uploaded/downloaded
 			req.Response <- announcer.Response{Torrent: tr}
-		case id := <-t.infoDownloaderResultC:
-			t.closeInfoDownloader(id)
-			if id.Error != nil {
-				id.Peer.Logger().Error(id.Error)
-				t.closePeer(id.Peer)
-				t.startInfoDownloaders()
-				break
-			}
-			hash := sha1.New()                              // nolint: gosec
-			hash.Write(id.Bytes)                            // nolint: gosec
-			if !bytes.Equal(hash.Sum(nil), t.infoHash[:]) { // nolint: gosec
-				id.Peer.Logger().Errorln("received info does not match with hash")
-				t.closePeer(id.Peer)
-				t.startInfoDownloaders()
-				break
-			}
-			t.stopInfoDownloaders()
-
-			var err error
-			t.info, err = metainfo.NewInfo(id.Bytes)
-			if err != nil {
-				err = fmt.Errorf("cannot parse info bytes: %s", err)
-				t.log.Error(err)
-				t.stop(err)
-				break
-			}
-			if t.info.Private == 1 {
-				err = errors.New("private torrent from magnet")
-				t.log.Error(err)
-				t.stop(err)
-				break
-			}
-			if t.resume != nil {
-				err = t.resume.WriteInfo(t.info.Bytes)
-				if err != nil {
-					err = fmt.Errorf("cannot write resume info: %s", err)
-					t.log.Error(err)
-					t.stop(err)
-					break
-				}
-			}
-			t.startAllocator()
 		case pw := <-t.pieceWriterResultC:
 			delete(t.pieceWriters, pw)
 			pw.Piece.Writing = false
@@ -161,17 +116,17 @@ func (t *Torrent) run() {
 				pe.SendMessage(msg)
 				t.updateInterestedState(pe)
 			}
-		case pd := <-t.snubbedPieceDownloaderC:
+		case pe := <-t.peerSnubbedC:
 			// Mark slow peer as snubbed and don't select that peer in piece picker
-			pd.Peer.Snubbed = true
-			t.peersSnubbed[pd.Peer] = struct{}{}
-			t.pieceDownloadersSnubbed[pd.Peer] = pd
-			t.startPieceDownloaders()
-		case id := <-t.snubbedInfoDownloaderC:
-			id.Peer.Snubbed = true
-			t.peersSnubbed[id.Peer] = struct{}{}
-			t.infoDownloadersSnubbed[id.Peer] = id
-			t.startInfoDownloaders()
+			pe.Snubbed = true
+			t.peersSnubbed[pe] = struct{}{}
+			if pd, ok := t.pieceDownloaders[pe]; ok {
+				t.pieceDownloadersSnubbed[pe] = pd
+				t.startPieceDownloaders()
+			} else if id, ok := t.infoDownloaders[pe]; ok {
+				t.infoDownloadersSnubbed[pe] = id
+				t.startInfoDownloaders()
+			}
 		case <-t.unchokeTimerC:
 			t.tickUnchoke()
 		case <-t.optimisticUnchokeTimerC:
@@ -234,7 +189,6 @@ func (t *Torrent) closePieceDownloader(pd *piecedownloader.PieceDownloader) {
 }
 
 func (t *Torrent) closeInfoDownloader(id *infodownloader.InfoDownloader) {
-	id.Close()
 	delete(t.infoDownloaders, id.Peer)
 	delete(t.infoDownloadersSnubbed, id.Peer)
 }

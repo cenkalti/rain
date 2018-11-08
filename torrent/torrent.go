@@ -85,9 +85,8 @@ type Torrent struct {
 	pieceDownloadersSnubbed map[*peer.Peer]*piecedownloader.PieceDownloader
 	pieceDownloadersChoked  map[*peer.Peer]*piecedownloader.PieceDownloader
 
-	// When piece downloaders detects that a peer has snubbed us, it will send a signal to this channel.
-	snubbedPieceDownloaderC chan *piecedownloader.PieceDownloader
-	snubbedInfoDownloaderC  chan *infodownloader.InfoDownloader
+	// When a peer has snubbed us, a message sent to this channel.
+	peerSnubbedC chan *peer.Peer
 
 	// Active metadata downloads are kept in this map.
 	infoDownloaders        map[*peer.Peer]*infodownloader.InfoDownloader
@@ -369,8 +368,7 @@ func newTorrent(spec *downloadSpec, cfg Config) (*Torrent, error) {
 		pieceDownloaders:          make(map[*peer.Peer]*piecedownloader.PieceDownloader),
 		pieceDownloadersSnubbed:   make(map[*peer.Peer]*piecedownloader.PieceDownloader),
 		pieceDownloadersChoked:    make(map[*peer.Peer]*piecedownloader.PieceDownloader),
-		snubbedPieceDownloaderC:   make(chan *piecedownloader.PieceDownloader),
-		snubbedInfoDownloaderC:    make(chan *infodownloader.InfoDownloader),
+		peerSnubbedC:              make(chan *peer.Peer),
 		infoDownloaders:           make(map[*peer.Peer]*infodownloader.InfoDownloader),
 		infoDownloadersSnubbed:    make(map[*peer.Peer]*infodownloader.InfoDownloader),
 		pieceWriters:              make(map[*piecewriter.PieceWriter]struct{}),
