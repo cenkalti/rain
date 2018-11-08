@@ -1,14 +1,10 @@
 package piecedownloader
 
 import (
-	"time"
-
 	"github.com/cenkalti/rain/torrent/internal/peer"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
 	"github.com/cenkalti/rain/torrent/internal/pieceio"
 )
-
-// TODO handle snubbed in piece downloader
 
 // PieceDownloader downloads all blocks of a piece from a peer.
 type PieceDownloader struct {
@@ -19,9 +15,6 @@ type PieceDownloader struct {
 	requested      map[uint32]struct{}
 	nextBlockIndex uint32
 	downloadDone   map[uint32]struct{}
-	pieceTimeoutC  <-chan time.Time
-	queueLength    int
-	pieceTimeout   time.Duration
 }
 
 type pieceReaderResult struct {
@@ -29,27 +22,19 @@ type pieceReaderResult struct {
 	Error      error
 }
 
-func New(pi *pieceio.Piece, pe *peer.Peer, queueLength int, pieceTimeout time.Duration) *PieceDownloader {
+func New(pi *pieceio.Piece, pe *peer.Peer) *PieceDownloader {
 	return &PieceDownloader{
-		Piece: pi,
-		Peer:  pe,
-
-		queueLength:  queueLength,
-		pieceTimeout: pieceTimeout,
-		requested:    make(map[uint32]struct{}),
+		Piece:        pi,
+		Peer:         pe,
 		Bytes:        make([]byte, pi.Length),
+		requested:    make(map[uint32]struct{}),
 		downloadDone: make(map[uint32]struct{}),
 	}
 }
 
 func (d *PieceDownloader) Choked() {
-	d.pieceTimeoutC = nil
 	d.requested = make(map[uint32]struct{})
 	d.nextBlockIndex = 0
-}
-
-func (d *PieceDownloader) Unchoked() {
-	d.RequestBlocks()
 }
 
 func (d *PieceDownloader) GotBlock(block *pieceio.Block, data []byte) {
@@ -59,8 +44,6 @@ func (d *PieceDownloader) GotBlock(block *pieceio.Block, data []byte) {
 	copy(d.Bytes[block.Begin:block.Begin+block.Length], data)
 	delete(d.requested, block.Index)
 	d.downloadDone[block.Index] = struct{}{}
-	d.pieceTimeoutC = nil
-	d.RequestBlocks()
 }
 
 func (d *PieceDownloader) Rejected(block *pieceio.Block) {
@@ -76,8 +59,8 @@ func (d *PieceDownloader) CancelPending() {
 	}
 }
 
-func (d *PieceDownloader) RequestBlocks() {
-	for ; d.nextBlockIndex < uint32(len(d.Piece.Blocks)) && len(d.requested) < d.queueLength; d.nextBlockIndex++ {
+func (d *PieceDownloader) RequestBlocks(queueLength int) {
+	for ; d.nextBlockIndex < uint32(len(d.Piece.Blocks)) && len(d.requested) < queueLength; d.nextBlockIndex++ {
 		b := d.Piece.Blocks[d.nextBlockIndex]
 		if _, ok := d.downloadDone[b.Index]; ok {
 			continue
@@ -88,11 +71,6 @@ func (d *PieceDownloader) RequestBlocks() {
 		msg := peerprotocol.RequestMessage{Index: d.Piece.Index, Begin: b.Begin, Length: b.Length}
 		d.Peer.SendMessage(msg)
 		d.requested[b.Index] = struct{}{}
-	}
-	if len(d.requested) > 0 {
-		d.pieceTimeoutC = time.After(d.pieceTimeout)
-	} else {
-		d.pieceTimeoutC = nil
 	}
 }
 

@@ -2,7 +2,6 @@ package infodownloader
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/cenkalti/rain/torrent/internal/peer"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
@@ -18,22 +17,17 @@ type InfoDownloader struct {
 	blocks         []block
 	requested      map[uint32]struct{}
 	nextBlockIndex uint32
-	queueLength    int
-	pieceTimeout   time.Duration
-	pieceTimeoutC  <-chan time.Time
 }
 
 type block struct {
 	size uint32
 }
 
-func New(pe *peer.Peer, queueLength int, pieceTimeout time.Duration) *InfoDownloader {
+func New(pe *peer.Peer) *InfoDownloader {
 	d := &InfoDownloader{
-		Peer:         pe,
-		Bytes:        make([]byte, pe.ExtensionHandshake.MetadataSize),
-		queueLength:  queueLength,
-		pieceTimeout: pieceTimeout,
-		requested:    make(map[uint32]struct{}),
+		Peer:      pe,
+		Bytes:     make([]byte, pe.ExtensionHandshake.MetadataSize),
+		requested: make(map[uint32]struct{}),
 	}
 	d.blocks = d.createBlocks()
 	return d
@@ -72,8 +66,8 @@ func (d *InfoDownloader) createBlocks() []block {
 	return blocks
 }
 
-func (d *InfoDownloader) RequestBlocks() {
-	for ; d.nextBlockIndex < uint32(len(d.blocks)) && len(d.requested) < d.queueLength; d.nextBlockIndex++ {
+func (d *InfoDownloader) RequestBlocks(queueLength int) {
+	for ; d.nextBlockIndex < uint32(len(d.blocks)) && len(d.requested) < queueLength; d.nextBlockIndex++ {
 		msg := peerprotocol.ExtensionMessage{
 			ExtendedMessageID: d.Peer.ExtensionHandshake.M[peerprotocol.ExtensionKeyMetadata],
 			Payload: peerprotocol.ExtensionMetadataMessage{
@@ -83,11 +77,6 @@ func (d *InfoDownloader) RequestBlocks() {
 		}
 		d.Peer.SendMessage(msg)
 		d.requested[d.nextBlockIndex] = struct{}{}
-	}
-	if len(d.requested) > 0 {
-		d.pieceTimeoutC = time.After(d.pieceTimeout)
-	} else {
-		d.pieceTimeoutC = nil
 	}
 }
 

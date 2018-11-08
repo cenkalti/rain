@@ -84,7 +84,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 	case peerprotocol.UnchokeMessage:
 		pe.PeerChoking = false
 		if pd, ok := t.pieceDownloaders[pe]; ok {
-			pd.Unchoked()
+			pd.RequestBlocks(t.config.RequestQueueLength)
 		}
 		t.startPieceDownloaders()
 	case peerprotocol.ChokeMessage:
@@ -129,11 +129,13 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		}
 		pd.GotBlock(block, msg.Data)
 		if !pd.Done() {
-			pd.RequestBlocks()
+			pd.RequestBlocks(t.config.RequestQueueLength)
+			pe.StartSnubTimer(t.config.RequestTimeout, t.peerSnubbedC)
 			break
 		}
 		t.log.Debugln("piece download completed. index:", pd.Piece.Index)
 		t.closePieceDownloader(pd)
+		pe.StopSnubTimer()
 
 		ok = piece.VerifyHash(pd.Bytes, sha1.New()) // nolint: gosec
 		if !ok {
@@ -263,9 +265,12 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 				break
 			}
 			if !id.Done() {
-				id.RequestBlocks()
+				id.RequestBlocks(t.config.RequestQueueLength)
+				pe.StartSnubTimer(t.config.RequestTimeout, t.peerSnubbedC)
 				break
 			}
+			pe.StopSnubTimer()
+
 			hash := sha1.New()                              // nolint: gosec
 			hash.Write(id.Bytes)                            // nolint: gosec
 			if !bytes.Equal(hash.Sum(nil), t.infoHash[:]) { // nolint: gosec

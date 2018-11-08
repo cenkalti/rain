@@ -1,6 +1,8 @@
 package peer
 
 import (
+	"time"
+
 	"github.com/cenkalti/rain/torrent/internal/peerconn"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
 )
@@ -29,6 +31,9 @@ type Peer struct {
 	AllowedFastPieces map[uint32]struct{}
 
 	PEX *pex
+
+	snubTimer       *time.Timer
+	snubTimerCloseC chan struct{}
 
 	closeC chan struct{}
 	doneC  chan struct{}
@@ -86,4 +91,28 @@ func (p *Peer) Run(messages chan Message, disconnect chan *Peer) {
 func (p *Peer) StartPEX(initialPeers map[*Peer]struct{}) {
 	p.PEX = newPEX(p.Conn, p.ExtensionHandshake.M[peerprotocol.ExtensionKeyPEX], initialPeers)
 	go p.PEX.Run()
+}
+
+func (p *Peer) StartSnubTimer(d time.Duration, snubbedC chan *Peer) {
+	p.StopSnubTimer()
+	p.snubTimer = time.NewTimer(d)
+	p.snubTimerCloseC = make(chan struct{})
+	go p.waitSnubTimeout(p.snubTimer, snubbedC, p.closeC)
+}
+
+func (p *Peer) waitSnubTimeout(t *time.Timer, snubbedC chan *Peer, closeC chan struct{}) {
+	select {
+	case <-t.C:
+		snubbedC <- p
+	case <-closeC:
+	}
+}
+
+func (p *Peer) StopSnubTimer() {
+	if p.snubTimer != nil {
+		p.snubTimer.Stop()
+		p.snubTimer = nil
+		close(p.snubTimerCloseC)
+		p.snubTimerCloseC = nil
+	}
 }
