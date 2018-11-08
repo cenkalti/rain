@@ -134,25 +134,17 @@ func (t *Torrent) run() {
 				}
 			}
 			t.startAllocator()
-		case pd := <-t.pieceDownloaderResultC:
-			t.log.Debugln("piece download completed. index:", pd.Piece.Index)
-			t.closePieceDownloader(pd)
-			if pd.Error != nil {
-				// TODO handle corrupt piece
-				// TODO stop on write error
-				t.log.Errorln(pd.Error)
-				t.closePeer(pd.Peer)
-				t.startPieceDownloaders()
+		case pw := <-t.pieceWriterResultC:
+			delete(t.pieceWriters, pw)
+			pw.Piece.Writing = false
+			if pw.Error != nil {
+				t.stop(pw.Error)
 				break
 			}
-			for _, pd := range t.pieces[pd.Piece.Index].RequestedPeers {
-				t.closePieceDownloader(pd)
-				pd.CancelPending()
-			}
-			if t.bitfield.Test(pd.Piece.Index) {
+			if t.bitfield.Test(pw.Piece.Index) {
 				panic("already have the piece")
 			}
-			t.bitfield.Set(pd.Piece.Index)
+			t.bitfield.Set(pw.Piece.Index)
 			if t.resume != nil {
 				err := t.resume.WriteBitfield(t.bitfield.Bytes())
 				if err != nil {
@@ -165,11 +157,10 @@ func (t *Torrent) run() {
 			t.checkCompletion()
 			// Tell everyone that we have this piece
 			for pe := range t.peers {
-				msg := peerprotocol.HaveMessage{Index: pd.Piece.Index}
+				msg := peerprotocol.HaveMessage{Index: pw.Piece.Index}
 				pe.SendMessage(msg)
 				t.updateInterestedState(pe)
 			}
-			t.startPieceDownloaders()
 		case pd := <-t.snubbedPieceDownloaderC:
 			// Mark slow peer as snubbed and don't select that peer in piece picker
 			pd.Peer.Snubbed = true
@@ -236,7 +227,6 @@ func (t *Torrent) closePeer(pe *peer.Peer) {
 }
 
 func (t *Torrent) closePieceDownloader(pd *piecedownloader.PieceDownloader) {
-	pd.Close()
 	delete(t.pieceDownloaders, pd.Peer)
 	delete(t.pieceDownloadersSnubbed, pd.Peer)
 	delete(t.pieceDownloadersChoked, pd.Peer)

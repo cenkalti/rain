@@ -133,6 +133,6 @@ func (t *Torrent) startPieceDownloaders() {
 		}
 		t.pieceDownloaders[pd.Peer] = pd
 		t.pieces[pd.Piece.Index].RequestedPeers[pd.Peer] = pd
-		go pd.Run(t.config.RequestQueueLength, t.config.PieceTimeout, t.snubbedPieceDownloaderC, t.pieceDownloaderResultC)
+		pd.RequestBlocks()
 	}
 }

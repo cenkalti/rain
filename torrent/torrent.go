@@ -26,6 +26,7 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/peer"
 	"github.com/cenkalti/rain/torrent/internal/piece"
 	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
+	"github.com/cenkalti/rain/torrent/internal/piecewriter"
 	"github.com/cenkalti/rain/torrent/internal/torrentdata"
 	"github.com/cenkalti/rain/torrent/internal/tracker"
 	"github.com/cenkalti/rain/torrent/internal/tracker/trackermanager"
@@ -91,6 +92,9 @@ type Torrent struct {
 	// Active metadata downloads are kept in this map.
 	infoDownloaders        map[*peer.Peer]*infodownloader.InfoDownloader
 	infoDownloadersSnubbed map[*peer.Peer]*infodownloader.InfoDownloader
+
+	pieceWriters       map[*piecewriter.PieceWriter]struct{}
+	pieceWriterResultC chan *piecewriter.PieceWriter
 
 	// Some peers are optimistically unchoked regardless of their download rate.
 	optimisticUnchokedPeers []*peer.Peer
@@ -163,9 +167,6 @@ type Torrent struct {
 
 	// When metadata of the torrent downloaded completely, a message is sent to this channel.
 	infoDownloaderResultC chan *infodownloader.InfoDownloader
-
-	// When a piece is downloaded completely a message is sent to this channel.
-	pieceDownloaderResultC chan *piecedownloader.PieceDownloader
 
 	// Announcers send a request to this channel to get information about the torrent.
 	announcerRequestC chan *announcer.Request
@@ -372,6 +373,8 @@ func newTorrent(spec *downloadSpec, cfg Config) (*Torrent, error) {
 		snubbedInfoDownloaderC:    make(chan *infodownloader.InfoDownloader),
 		infoDownloaders:           make(map[*peer.Peer]*infodownloader.InfoDownloader),
 		infoDownloadersSnubbed:    make(map[*peer.Peer]*infodownloader.InfoDownloader),
+		pieceWriters:              make(map[*piecewriter.PieceWriter]struct{}),
+		pieceWriterResultC:        make(chan *piecewriter.PieceWriter),
 		optimisticUnchokedPeers:   make([]*peer.Peer, 0, cfg.OptimisticUnchokedPeers),
 		completeC:                 make(chan struct{}),
 		closeC:                    make(chan struct{}),
@@ -386,7 +389,6 @@ func newTorrent(spec *downloadSpec, cfg Config) (*Torrent, error) {
 		incomingConnC:             make(chan net.Conn),
 		sKeyHash:                  mse.HashSKey(spec.infoHash[:]),
 		infoDownloaderResultC:     make(chan *infodownloader.InfoDownloader),
-		pieceDownloaderResultC:    make(chan *piecedownloader.PieceDownloader),
 		incomingHandshakers:       make(map[*incominghandshaker.IncomingHandshaker]struct{}),
 		outgoingHandshakers:       make(map[*outgoinghandshaker.OutgoingHandshaker]struct{}),
 		incomingHandshakerResultC: make(chan *incominghandshaker.IncomingHandshaker),

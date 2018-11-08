@@ -1,6 +1,7 @@
 package torrent
 
 import (
+	"crypto/sha1" // nolint: gosec
 	"fmt"
 
 	"github.com/cenkalti/rain/torrent/internal/bitfield"
@@ -8,6 +9,7 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/peerconn/peerreader"
 	"github.com/cenkalti/rain/torrent/internal/peerconn/peerwriter"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
+	"github.com/cenkalti/rain/torrent/internal/piecewriter"
 	"github.com/cenkalti/rain/torrent/internal/tracker"
 )
 
@@ -79,13 +81,13 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 	case peerprotocol.UnchokeMessage:
 		pe.PeerChoking = false
 		if pd, ok := t.pieceDownloaders[pe]; ok {
-			pd.Unchoke()
+			pd.Unchoked()
 		}
 		t.startPieceDownloaders()
 	case peerprotocol.ChokeMessage:
 		pe.PeerChoking = true
 		if pd, ok := t.pieceDownloaders[pe]; ok {
-			pd.Choke()
+			pd.Choked()
 			t.pieceDownloadersChoked[pe] = pd
 			t.startPieceDownloaders()
 		}
@@ -99,12 +101,12 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			t.closePeer(pe)
 			break
 		}
-		if msg.Index >= uint32(len(t.data.Pieces)) {
+		if msg.Index >= uint32(len(t.pieces)) {
 			pe.Logger().Errorln("invalid piece index:", msg.Index)
 			t.closePeer(pe)
 			break
 		}
-		piece := &t.data.Pieces[msg.Index]
+		piece := t.pieces[msg.Index]
 		block := piece.Blocks.Find(msg.Begin, uint32(len(msg.Data)))
 		if block == nil {
 			pe.Logger().Errorln("invalid piece begin:", msg.Begin, "length:", len(msg.Data))
@@ -113,11 +115,43 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		}
 		pe.BytesDownlaodedInChokePeriod += int64(len(msg.Data))
 		t.bytesDownloaded += int64(len(msg.Data))
-		if pd, ok := t.pieceDownloaders[pe]; ok && pd.Piece.Index == msg.Index {
-			pd.Download(block, msg.Data)
-		} else {
+		pd, ok := t.pieceDownloaders[pe]
+		if !ok {
 			t.bytesWasted += int64(len(msg.Data))
+			break
 		}
+		if pd.Piece.Index != msg.Index {
+			t.bytesWasted += int64(len(msg.Data))
+			break
+		}
+		allDone := pd.GotBlock(block, msg.Data)
+		if !allDone {
+			pd.RequestBlocks()
+			break
+		}
+		t.log.Debugln("piece download completed. index:", pd.Piece.Index)
+		t.closePieceDownloader(pd)
+
+		ok = piece.VerifyHash(pd.Buffer, sha1.New()) // nolint: gosec
+		if !ok {
+			// TODO handle corrupt piece
+			t.log.Error("received corrupt piece")
+			t.closePeer(pd.Peer)
+			t.startPieceDownloaders()
+			break
+		}
+
+		for _, pd := range piece.RequestedPeers {
+			t.closePieceDownloader(pd)
+			pd.CancelPending()
+		}
+
+		piece.Writing = true
+		pw := piecewriter.New(piece)
+		t.pieceWriters[pw] = struct{}{}
+		go pw.Run(pd.Buffer, t.pieceWriterResultC)
+
+		t.startPieceDownloaders()
 	case peerprotocol.RequestMessage:
 		if t.data == nil || t.bitfield == nil {
 			pe.Logger().Error("request received but we don't have info")
@@ -170,7 +204,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			t.closePeer(pe)
 			break
 		}
-		pd.Reject(block)
+		pd.Rejected(block)
 	case peerwriter.BlockUploaded:
 		t.bytesUploaded += int64(msg.Length)
 		pe.BytesUploadedInChokePeriod += int64(msg.Length)

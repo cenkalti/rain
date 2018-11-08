@@ -37,7 +37,7 @@ func (t *Torrent) nextPieceDownload() *piecedownloader.PieceDownloader {
 	}
 	pe.Snubbed = false
 	delete(t.peersSnubbed, pe)
-	return piecedownloader.New(pi.Piece, pe)
+	return piecedownloader.New(pi.Piece, pe, t.config.RequestQueueLength, t.config.PieceTimeout)
 }
 
 func (t *Torrent) findPieceAndPeer() (*piece.Piece, *peer.Peer) {
@@ -109,6 +109,9 @@ func (t *Torrent) selectDuplicatePiece() (*piece.Piece, *peer.Peer) {
 func (t *Torrent) selectPiece(preferAllowedFast, skipSnubbed, noDuplicate bool) (*piece.Piece, *peer.Peer) {
 	for _, pi := range t.sortedPieces {
 		if t.bitfield.Test(pi.Index) {
+			continue
+		}
+		if pi.Writing {
 			continue
 		}
 		if noDuplicate && len(pi.RequestedPeers) > 0 {
