@@ -47,7 +47,11 @@ func (a *StopAnnouncer) Run() {
 	doneC := make(chan struct{})
 	for _, trk := range a.trackers {
 		go func(trk tracker.Tracker) {
-			callAnnounce(ctx, trk, a.torrent, tracker.EventStopped, 0, a.log)
+			req := tracker.AnnounceRequest{
+				Torrent: a.torrent,
+				Event:   tracker.EventStopped,
+			}
+			_, _ = trk.Announce(ctx, req)
 			doneC <- struct{}{}
 		}(trk)
 	}

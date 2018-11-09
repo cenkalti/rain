@@ -88,7 +88,12 @@ func (t *Torrent) run() {
 		case req := <-t.announcerRequestC:
 			tr := t.announcerFields()
 			// TODO set bytes uploaded/downloaded
-			req.Response <- announcer.Response{Torrent: tr}
+			select {
+			case req.Response <- announcer.Response{Torrent: tr}:
+			case <-req.Cancel:
+			case <-t.closeC:
+				return
+			}
 		case pw := <-t.pieceWriterResultC:
 			delete(t.pieceWriters, pw)
 			pw.Piece.Writing = false
@@ -195,6 +200,7 @@ func (t *Torrent) closeInfoDownloader(id *infodownloader.InfoDownloader) {
 
 func (t *Torrent) handleNewPeers(addrs []*net.TCPAddr, source string) {
 	t.log.Debugf("received %d peers from %s", len(addrs), source)
+	t.setNeedMorePeers(false)
 	if !t.completed {
 		t.addrList.Push(addrs, t.port)
 		t.dialAddresses()
@@ -208,7 +214,7 @@ func (t *Torrent) dialAddresses() {
 	for len(t.outgoingPeers)+len(t.outgoingHandshakers) < t.config.MaxPeerDial {
 		addr := t.addrList.Pop()
 		if addr == nil {
-			t.needMorePeers()
+			t.setNeedMorePeers(true)
 			break
 		}
 		ip := addr.IP.String()
@@ -222,11 +228,13 @@ func (t *Torrent) dialAddresses() {
 	}
 }
 
-func (t *Torrent) needMorePeers() {
+func (t *Torrent) setNeedMorePeers(val bool) {
 	for _, an := range t.announcers {
-		an.Trigger()
+		an.NeedMorePeers(val)
 	}
-	// TODO announce to DHT when need more peers
+	if t.dhtAnnouncer != nil {
+		t.dhtAnnouncer.NeedMorePeers(val)
+	}
 }
 
 // Process messages received while we don't have metadata yet.
