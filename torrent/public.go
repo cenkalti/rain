@@ -9,7 +9,7 @@ import (
 func (t *Torrent) Start() {
 	select {
 	case t.startCommandC <- struct{}{}:
-	case <-t.doneC:
+	case <-t.closeC:
 	}
 }
 
@@ -18,17 +18,18 @@ func (t *Torrent) Start() {
 func (t *Torrent) Stop() {
 	select {
 	case t.stopCommandC <- struct{}{}:
-	case <-t.doneC:
+	case <-t.closeC:
 	}
 }
 
 // Close this torrent and release all resources.
 // Close must be called before discarding the torrent.
 func (t *Torrent) Close() {
+	doneC := make(chan struct{})
 	select {
-	case t.closeC <- struct{}{}:
-		<-t.doneC
-	case <-t.doneC:
+	case t.closeC <- doneC:
+		<-doneC
+	default:
 	}
 }
 
@@ -50,7 +51,7 @@ func (t *Torrent) NotifyError() <-chan error {
 	select {
 	case t.notifyErrorCommandC <- cmd:
 		return <-cmd.errCC
-	case <-t.doneC:
+	case <-t.closeC:
 		return nil
 	}
 }
@@ -77,6 +78,6 @@ func (t *Torrent) Stats() Stats {
 func (t *Torrent) AddPeers(peers []*net.TCPAddr) {
 	select {
 	case t.addPeersC <- peers:
-	case <-t.doneC:
+	case <-t.closeC:
 	}
 }

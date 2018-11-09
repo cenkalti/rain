@@ -111,10 +111,7 @@ type Torrent struct {
 	lastError error
 
 	// When Stop() is called, it will close this channel to signal run() function to stop.
-	closeC chan struct{}
-
-	// This channel will be closed after run loop exists.
-	doneC chan struct{}
+	closeC chan chan struct{}
 
 	// These are the channels for sending a message to run() loop.
 	statsCommandC       chan statsRequest       // Stats()
@@ -375,8 +372,7 @@ func newTorrent(spec *downloadSpec, cfg Config) (*Torrent, error) {
 		pieceWriterResultC:        make(chan *piecewriter.PieceWriter),
 		optimisticUnchokedPeers:   make([]*peer.Peer, 0, cfg.OptimisticUnchokedPeers),
 		completeC:                 make(chan struct{}),
-		closeC:                    make(chan struct{}),
-		doneC:                     make(chan struct{}),
+		closeC:                    make(chan chan struct{}),
 		startCommandC:             make(chan struct{}),
 		stopCommandC:              make(chan struct{}),
 		statsCommandC:             make(chan statsRequest),

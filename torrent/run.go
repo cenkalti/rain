@@ -36,11 +36,11 @@ func (t *Torrent) close() {
 
 // Torrent event loop
 func (t *Torrent) run() {
-	defer close(t.doneC)
-	defer t.close()
 	for {
 		select {
-		case <-t.closeC:
+		case doneC := <-t.closeC:
+			t.close()
+			close(doneC)
 			return
 		case <-t.startCommandC:
 			t.start()
@@ -91,8 +91,6 @@ func (t *Torrent) run() {
 			select {
 			case req.Response <- announcer.Response{Torrent: tr}:
 			case <-req.Cancel:
-			case <-t.closeC:
-				return
 			}
 		case pw := <-t.pieceWriterResultC:
 			delete(t.pieceWriters, pw)
