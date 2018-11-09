@@ -135,11 +135,12 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 	}
 
 	return &tracker.AnnounceResponse{
-		Interval:   time.Duration(response.Interval) * time.Second,
-		Leechers:   response.Incomplete,
-		Seeders:    response.Complete,
-		Peers:      peers,
-		ExternalIP: response.ExternalIP,
+		Interval:    time.Duration(response.Interval) * time.Second,
+		MinInterval: time.Duration(response.MinInterval) * time.Second,
+		Leechers:    response.Incomplete,
+		Seeders:     response.Complete,
+		Peers:       peers,
+		ExternalIP:  response.ExternalIP,
 	}, nil
 }
 
