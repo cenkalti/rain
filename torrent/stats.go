@@ -132,6 +132,7 @@ func (t *Torrent) stats() Stats {
 
 func (t *Torrent) avaliablePieceCount() uint32 {
 	var n uint32
+	// TODO eliminate for loop in stats
 	for _, pi := range t.pieces {
 		if len(pi.HavingPeers) > 0 {
 			n++
