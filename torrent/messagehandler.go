@@ -233,13 +233,27 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 	case *peerprotocol.ExtensionMetadataMessage:
 		switch msg.Type {
 		case peerprotocol.ExtensionMetadataMessageTypeRequest:
-			if t.info == nil {
-				// TODO send reject
-				break
-			}
 			extMsgID, ok := pe.ExtensionHandshake.M[peerprotocol.ExtensionKeyMetadata]
 			if !ok {
-				// TODO send reject
+				break
+			}
+			if t.info == nil {
+				// Send reject
+				dataMsg := peerprotocol.ExtensionMetadataMessage{
+					Type:  peerprotocol.ExtensionMetadataMessageTypeReject,
+					Piece: msg.Piece,
+				}
+				extDataMsg := peerprotocol.ExtensionMessage{
+					ExtendedMessageID: extMsgID,
+					Payload:           &dataMsg,
+				}
+				pe.SendMessage(extDataMsg)
+				break
+			}
+			if msg.Piece >= uint32(len(t.pieces)) {
+				pe.Logger().Errorln("peer requested invalid metadata piece:", msg.Piece)
+				t.closePeer(pe)
+				break
 			}
 			// TODO Clients MAY implement flood protection by rejecting request messages after a certain number of them have been served. Typically the number of pieces of metadata times a factor.
 			start := 16 * 1024 * msg.Piece
@@ -267,7 +281,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			}
 			err := id.GotBlock(msg.Piece, msg.Data)
 			if err != nil {
-				id.Peer.Logger().Error(err)
+				pe.Logger().Error(err)
 				t.closePeer(pe)
 				t.startInfoDownloaders()
 				break
@@ -282,7 +296,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			hash := sha1.New()                              // nolint: gosec
 			hash.Write(id.Bytes)                            // nolint: gosec
 			if !bytes.Equal(hash.Sum(nil), t.infoHash[:]) { // nolint: gosec
-				id.Peer.Logger().Errorln("received info does not match with hash")
+				pe.Logger().Errorln("received info does not match with hash")
 				t.closePeer(id.Peer)
 				t.startInfoDownloaders()
 				break
