@@ -13,23 +13,31 @@ import (
 	"github.com/jroimartin/gocui"
 )
 
+const (
+	// tabs
+	general int = iota
+	trackers
+)
+
 type Console struct {
 	client          *rainrpc.Client
 	torrents        []rainrpc.Torrent
 	errTorrents     error
 	selectedID      uint64
+	selectedTab     int
 	stats           torrent.Stats
-	errStats        error
+	trackers        []torrent.Tracker
+	errDetails      error
 	m               sync.Mutex
 	updateTorrentsC chan struct{}
-	updateStatsC    chan struct{}
+	updateDetailsC  chan struct{}
 }
 
 func New(clt *rainrpc.Client) *Console {
 	return &Console{
 		client:          clt,
 		updateTorrentsC: make(chan struct{}),
-		updateStatsC:    make(chan struct{}),
+		updateDetailsC:  make(chan struct{}),
 	}
 }
 
@@ -49,6 +57,8 @@ func (c *Console) Run() error {
 	g.SetKeybinding("torrents", 'R', gocui.ModNone, c.removeTorrent)
 	g.SetKeybinding("torrents", 's', gocui.ModNone, c.startTorrent)
 	g.SetKeybinding("torrents", 'S', gocui.ModNone, c.stopTorrent)
+	g.SetKeybinding("torrents", gocui.KeyCtrlG, gocui.ModNone, c.switchGeneral)
+	g.SetKeybinding("torrents", gocui.KeyCtrlT, gocui.ModNone, c.switchTrackers)
 
 	go c.updateLoop(g)
 
@@ -64,7 +74,7 @@ func (c *Console) layout(g *gocui.Gui) error {
 	if err != nil {
 		return err
 	}
-	err = c.drawStats(g)
+	err = c.drawDetails(g)
 	if err != nil {
 		return err
 	}
@@ -106,28 +116,35 @@ func (c *Console) drawTorrents(g *gocui.Gui) error {
 	return nil
 }
 
-func (c *Console) drawStats(g *gocui.Gui) error {
+func (c *Console) drawDetails(g *gocui.Gui) error {
 	c.m.Lock()
 	defer c.m.Unlock()
 
 	maxX, maxY := g.Size()
 	halfY := maxY / 2
-	if v, err := g.SetView("stats", -1, halfY, maxX, maxY); err != nil {
+	if v, err := g.SetView("details", -1, halfY, maxX, maxY); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
 		v.Wrap = true
-		fmt.Fprintln(v, "loading stats...")
+		fmt.Fprintln(v, "loading details...")
 	} else {
 		v.Clear()
-		if c.errStats != nil {
-			fmt.Fprintln(v, "error:", c.errStats)
+		if c.errDetails != nil {
+			fmt.Fprintln(v, "error:", c.errDetails)
 		} else {
-			b, err := jsonutil.MarshalCompactPretty(c.stats)
-			if err != nil {
-				fmt.Fprintln(v, "error:", c.errStats)
-			} else {
-				fmt.Fprintln(v, string(b))
+			switch c.selectedTab {
+			case general:
+				b, err := jsonutil.MarshalCompactPretty(c.stats)
+				if err != nil {
+					fmt.Fprintln(v, "error:", c.errDetails)
+				} else {
+					fmt.Fprintln(v, string(b))
+				}
+			case trackers:
+				for i, t := range c.trackers {
+					fmt.Fprintf(v, "#%d [%s] Status: %s, Seeders: %d, Leechers: %d", i, t.URL, t.Status, t.Seeders, t.Leechers)
+				}
 			}
 		}
 	}
@@ -136,18 +153,18 @@ func (c *Console) drawStats(g *gocui.Gui) error {
 
 func (c *Console) updateLoop(g *gocui.Gui) {
 	c.updateTorrents(g)
-	c.updateStats(g)
+	c.updateDetails(g)
 
 	ticker := time.NewTicker(time.Second)
 	for {
 		select {
 		case <-ticker.C:
 			c.updateTorrents(g)
-			c.updateStats(g)
+			c.updateDetails(g)
 		case <-c.updateTorrentsC:
 			c.updateTorrents(g)
-		case <-c.updateStatsC:
-			c.updateStats(g)
+		case <-c.updateDetailsC:
+			c.updateDetails(g)
 		}
 	}
 }
@@ -170,24 +187,33 @@ func (c *Console) updateTorrents(g *gocui.Gui) {
 	g.Update(c.drawTorrents)
 }
 
-func (c *Console) updateStats(g *gocui.Gui) {
+func (c *Console) updateDetails(g *gocui.Gui) {
 	c.m.Lock()
 	selectedID := c.selectedID
 	c.m.Unlock()
 
 	if selectedID != 0 {
-		resp, err := c.client.GetTorrentStats(selectedID)
-		c.m.Lock()
-		c.stats = resp.Stats
-		c.errStats = err
-		c.m.Unlock()
+		switch c.selectedTab {
+		case general:
+			resp, err := c.client.GetTorrentStats(selectedID)
+			c.m.Lock()
+			c.stats = resp.Stats
+			c.errDetails = err
+			c.m.Unlock()
+		case trackers:
+			resp, err := c.client.GetTorrentTrackers(selectedID)
+			c.m.Lock()
+			c.trackers = resp.Trackers
+			c.errDetails = err
+			c.m.Unlock()
+		}
 	} else {
 		c.m.Lock()
-		c.errStats = errors.New("no torrent selected")
+		c.errDetails = errors.New("no torrent selected")
 		c.m.Unlock()
 	}
 
-	g.Update(c.drawStats)
+	g.Update(c.drawDetails)
 }
 
 func quit(g *gocui.Gui, v *gocui.View) error {
@@ -245,10 +271,7 @@ func (c *Console) removeTorrent(g *gocui.Gui, v *gocui.View) error {
 	if err != nil {
 		return err
 	}
-	select {
-	case c.updateTorrentsC <- struct{}{}:
-	default:
-	}
+	c.triggerUpdateTorrents()
 	return nil
 }
 
@@ -256,10 +279,7 @@ func (c *Console) setSelectedID(id uint64) {
 	changed := id != c.selectedID
 	c.selectedID = id
 	if changed {
-		select {
-		case c.updateStatsC <- struct{}{}:
-		default:
-		}
+		c.triggerUpdateDetails()
 	}
 }
 
@@ -272,10 +292,7 @@ func (c *Console) startTorrent(g *gocui.Gui, v *gocui.View) error {
 	if err != nil {
 		return err
 	}
-	select {
-	case c.updateStatsC <- struct{}{}:
-	default:
-	}
+	c.triggerUpdateDetails()
 	return nil
 }
 
@@ -288,9 +305,36 @@ func (c *Console) stopTorrent(g *gocui.Gui, v *gocui.View) error {
 	if err != nil {
 		return err
 	}
+	c.triggerUpdateDetails()
+	return nil
+}
+
+func (c *Console) switchGeneral(g *gocui.Gui, v *gocui.View) error {
+	c.m.Lock()
+	c.selectedTab = general
+	c.m.Unlock()
+	c.triggerUpdateDetails()
+	return nil
+}
+
+func (c *Console) switchTrackers(g *gocui.Gui, v *gocui.View) error {
+	c.m.Lock()
+	c.selectedTab = trackers
+	c.m.Unlock()
+	c.triggerUpdateDetails()
+	return nil
+}
+
+func (c *Console) triggerUpdateDetails() {
 	select {
-	case c.updateStatsC <- struct{}{}:
+	case c.updateDetailsC <- struct{}{}:
 	default:
 	}
-	return nil
+}
+
+func (c *Console) triggerUpdateTorrents() {
+	select {
+	case c.updateTorrentsC <- struct{}{}:
+	default:
+	}
 }
