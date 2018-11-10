@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,6 +18,7 @@ const (
 	// tabs
 	general int = iota
 	trackers
+	peers
 )
 
 type Console struct {
@@ -27,6 +29,7 @@ type Console struct {
 	selectedTab     int
 	stats           torrent.Stats
 	trackers        []torrent.Tracker
+	peers           []torrent.Peer
 	errDetails      error
 	m               sync.Mutex
 	updateTorrentsC chan struct{}
@@ -59,6 +62,7 @@ func (c *Console) Run() error {
 	g.SetKeybinding("torrents", 'S', gocui.ModNone, c.stopTorrent)
 	g.SetKeybinding("torrents", gocui.KeyCtrlG, gocui.ModNone, c.switchGeneral)
 	g.SetKeybinding("torrents", gocui.KeyCtrlT, gocui.ModNone, c.switchTrackers)
+	g.SetKeybinding("torrents", gocui.KeyCtrlP, gocui.ModNone, c.switchPeers)
 
 	go c.updateLoop(g)
 
@@ -143,7 +147,11 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 				}
 			case trackers:
 				for i, t := range c.trackers {
-					fmt.Fprintf(v, "#%d [%s] Status: %s, Seeders: %d, Leechers: %d", i, t.URL, t.Status, t.Seeders, t.Leechers)
+					fmt.Fprintf(v, "#%d [%s] Status: %s, Seeders: %d, Leechers: %d\n", i, t.URL, t.Status, t.Seeders, t.Leechers)
+				}
+			case peers:
+				for i, p := range c.peers {
+					fmt.Fprintf(v, "#%d Addr: %s\n", i, p.Addr)
 				}
 			}
 		}
@@ -202,8 +210,16 @@ func (c *Console) updateDetails(g *gocui.Gui) {
 			c.m.Unlock()
 		case trackers:
 			resp, err := c.client.GetTorrentTrackers(selectedID)
+			sort.Slice(resp.Trackers, func(i, j int) bool { return strings.Compare(resp.Trackers[i].URL, resp.Trackers[j].URL) < 0 })
 			c.m.Lock()
 			c.trackers = resp.Trackers
+			c.errDetails = err
+			c.m.Unlock()
+		case peers:
+			resp, err := c.client.GetTorrentPeers(selectedID)
+			sort.Slice(resp.Peers, func(i, j int) bool { return strings.Compare(resp.Peers[i].Addr, resp.Peers[j].Addr) < 0 })
+			c.m.Lock()
+			c.peers = resp.Peers
 			c.errDetails = err
 			c.m.Unlock()
 		}
@@ -320,6 +336,14 @@ func (c *Console) switchGeneral(g *gocui.Gui, v *gocui.View) error {
 func (c *Console) switchTrackers(g *gocui.Gui, v *gocui.View) error {
 	c.m.Lock()
 	c.selectedTab = trackers
+	c.m.Unlock()
+	c.triggerUpdateDetails()
+	return nil
+}
+
+func (c *Console) switchPeers(g *gocui.Gui, v *gocui.View) error {
+	c.m.Lock()
+	c.selectedTab = peers
 	c.m.Unlock()
 	c.triggerUpdateDetails()
 	return nil

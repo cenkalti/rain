@@ -168,3 +168,14 @@ func (t *Torrent) getTrackers() []Tracker {
 	}
 	return trackers
 }
+
+func (t *Torrent) getPeers() []Peer {
+	var peers []Peer
+	for pe := range t.peers {
+		p := Peer{
+			Addr: pe.Addr().String(),
+		}
+		peers = append(peers, p)
+	}
+	return peers
+}

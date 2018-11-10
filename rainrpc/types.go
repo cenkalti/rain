@@ -58,6 +58,14 @@ type GetTorrentTrackersResponse struct {
 	Trackers []torrent.Tracker
 }
 
+type GetTorrentPeersRequest struct {
+	ID uint64
+}
+
+type GetTorrentPeersResponse struct {
+	Peers []torrent.Peer
+}
+
 type StartTorrentRequest struct {
 	ID uint64
 }

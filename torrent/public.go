@@ -107,3 +107,25 @@ func (t *Torrent) Trackers() []Tracker {
 	}
 	return trackers
 }
+
+type Peer struct {
+	Addr string
+}
+
+type peersRequest struct {
+	Response chan []Peer
+}
+
+func (t *Torrent) Peers() []Peer {
+	var peers []Peer
+	req := peersRequest{Response: make(chan []Peer, 1)}
+	select {
+	case t.peersCommandC <- req:
+	case <-t.closeC:
+	}
+	select {
+	case peers = <-req.Response:
+	case <-t.closeC:
+	}
+	return peers
+}

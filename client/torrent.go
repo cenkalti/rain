@@ -37,6 +37,10 @@ func (t *Torrent) Trackers() []torrent.Tracker {
 	return t.torrent.Trackers()
 }
 
+func (t *Torrent) Peers() []torrent.Peer {
+	return t.torrent.Peers()
+}
+
 func (t *Torrent) Port() uint16 {
 	return t.port
 }

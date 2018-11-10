@@ -59,6 +59,12 @@ func (c *Client) GetTorrentTrackers(id uint64) (*GetTorrentTrackersResponse, err
 	return &reply, c.client.Call("Client.GetTorrentTrackers", args, &reply)
 }
 
+func (c *Client) GetTorrentPeers(id uint64) (*GetTorrentPeersResponse, error) {
+	args := GetTorrentPeersRequest{ID: id}
+	var reply GetTorrentPeersResponse
+	return &reply, c.client.Call("Client.GetTorrentPeers", args, &reply)
+}
+
 func (c *Client) StartTorrent(id uint64) (*StartTorrentResponse, error) {
 	args := StartTorrentRequest{ID: id}
 	var reply StartTorrentResponse
