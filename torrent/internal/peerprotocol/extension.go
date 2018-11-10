@@ -105,7 +105,7 @@ func NewExtensionHandshake(metadataSize uint32) ExtensionHandshakeMessage {
 type ExtensionMetadataMessage struct {
 	Type      uint32 `bencode:"msg_type"`
 	Piece     uint32 `bencode:"piece"`
-	TotalSize uint32 `bencode:"total_size"`
+	TotalSize uint32 `bencode:"total_size,omitempty"`
 	Data      []byte `bencode:"-"`
 }
 
