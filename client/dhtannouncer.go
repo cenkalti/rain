@@ -3,8 +3,8 @@ package client
 import (
 	"net"
 
-	node "github.com/cenkalti/dht"
 	"github.com/cenkalti/rain/torrent/dht"
+	node "github.com/nictuku/dht"
 )
 
 type dhtAnnouncer struct {

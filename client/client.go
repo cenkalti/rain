@@ -13,13 +13,13 @@ import (
 	"time"
 
 	"github.com/boltdb/bolt"
-	"github.com/cenkalti/dht"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent"
 	"github.com/cenkalti/rain/torrent/resumer/boltdbresumer"
 	"github.com/cenkalti/rain/torrent/storage"
 	"github.com/cenkalti/rain/torrent/storage/filestorage"
 	"github.com/mitchellh/go-homedir"
+	"github.com/nictuku/dht"
 )
 
 var mainBucket = []byte("torrents")
