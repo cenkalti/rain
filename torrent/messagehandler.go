@@ -225,7 +225,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		if _, ok := msg.M[peerprotocol.ExtensionKeyMetadata]; ok {
 			t.startInfoDownloaders()
 		}
-		if _, ok := msg.M[peerprotocol.ExtensionKeyPEX]; ok {
+		if _, ok := msg.M[peerprotocol.ExtensionKeyPEX]; ok && t.info.Private != 1 {
 			pe.StartPEX(t.peers)
 		}
 	case *peerprotocol.ExtensionMetadataMessage:
