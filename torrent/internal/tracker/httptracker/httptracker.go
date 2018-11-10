@@ -17,6 +17,7 @@ import (
 )
 
 type HTTPTracker struct {
+	rawURL    string
 	url       *url.URL
 	log       logger.Logger
 	http      *http.Client
@@ -26,8 +27,9 @@ type HTTPTracker struct {
 
 var _ tracker.Tracker = (*HTTPTracker)(nil)
 
-func New(u *url.URL, timeout time.Duration, t *http.Transport) *HTTPTracker {
+func New(rawURL string, u *url.URL, timeout time.Duration, t *http.Transport) *HTTPTracker {
 	return &HTTPTracker{
+		rawURL:    rawURL,
 		url:       u,
 		log:       logger.New("tracker " + u.String()),
 		transport: t,
@@ -36,6 +38,10 @@ func New(u *url.URL, timeout time.Duration, t *http.Transport) *HTTPTracker {
 			Transport: t,
 		},
 	}
+}
+
+func (t *HTTPTracker) URL() string {
+	return t.rawURL
 }
 
 func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest) (*tracker.AnnounceResponse, error) {

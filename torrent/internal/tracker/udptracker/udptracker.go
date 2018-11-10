@@ -17,6 +17,7 @@ import (
 )
 
 type UDPTracker struct {
+	rawURL    string
 	urlData   string
 	log       logger.Logger
 	transport *Transport
@@ -24,12 +25,17 @@ type UDPTracker struct {
 
 var _ tracker.Tracker = (*UDPTracker)(nil)
 
-func New(urlData string, t *Transport) *UDPTracker {
+func New(rawURL string, urlData string, t *Transport) *UDPTracker {
 	return &UDPTracker{
+		rawURL:    rawURL,
 		urlData:   urlData,
 		log:       logger.New("tracker " + t.host),
 		transport: t,
 	}
+}
+
+func (t *UDPTracker) URL() string {
+	return t.rawURL
 }
 
 func (t *UDPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest) (*tracker.AnnounceResponse, error) {

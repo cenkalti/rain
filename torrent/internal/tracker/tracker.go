@@ -13,6 +13,9 @@ type Tracker interface {
 	// Announce should also be called on specific events.
 	// TODO specify numwant as 0 for stopped and completed event
 	Announce(ctx context.Context, req AnnounceRequest) (*AnnounceResponse, error)
+
+	// URL of the tracker.
+	URL() string
 }
 
 type AnnounceRequest struct {

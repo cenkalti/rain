@@ -50,6 +50,14 @@ type GetTorrentStatsResponse struct {
 	Stats torrent.Stats
 }
 
+type GetTorrentTrackersRequest struct {
+	ID uint64
+}
+
+type GetTorrentTrackersResponse struct {
+	Trackers []torrent.Tracker
+}
+
 type StartTorrentRequest struct {
 	ID uint64
 }

@@ -152,3 +152,19 @@ func (t *Torrent) bytesComplete() int64 {
 	}
 	return n
 }
+
+func (t *Torrent) getTrackers() []Tracker {
+	var trackers []Tracker
+	for _, an := range t.announcers {
+		st := an.Stats()
+		t := Tracker{
+			URL:      an.Tracker.URL(),
+			Status:   st.Status,
+			Seeders:  st.Seeders,
+			Leechers: st.Leechers,
+			Error:    st.Error,
+		}
+		trackers = append(trackers, t)
+	}
+	return trackers
+}

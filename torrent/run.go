@@ -55,6 +55,8 @@ func (t *Torrent) run() {
 			cmd.errCC <- t.errC
 		case req := <-t.statsCommandC:
 			req.Response <- t.stats()
+		case req := <-t.trackersCommandC:
+			req.Response <- t.getTrackers()
 		case <-t.allocatorProgressC:
 			// TODO handle allocation progress
 		case al := <-t.allocatorResultC:

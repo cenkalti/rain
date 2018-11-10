@@ -101,6 +101,11 @@ func main() {
 					Action: handleStats,
 				},
 				{
+					Name:   "trackers",
+					Usage:  "get trackers of torrent",
+					Action: handleTrackers,
+				},
+				{
 					Name:   "start",
 					Usage:  "start torrent",
 					Action: handleStart,
@@ -275,6 +280,24 @@ func handleStats(c *cli.Context) error {
 		return err
 	}
 	resp, err := clt.GetTorrentStats(id)
+	if err != nil {
+		return err
+	}
+	b, err := prettyjson.Marshal(resp)
+	if err != nil {
+		return err
+	}
+	_, _ = os.Stdout.Write(b)
+	_, _ = os.Stdout.WriteString("\n")
+	return nil
+}
+
+func handleTrackers(c *cli.Context) error {
+	id, err := strconv.ParseUint(c.Args().Get(0), 10, 64)
+	if err != nil {
+		return err
+	}
+	resp, err := clt.GetTorrentTrackers(id)
 	if err != nil {
 		return err
 	}

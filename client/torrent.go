@@ -33,6 +33,10 @@ func (t *Torrent) Stats() torrent.Stats {
 	return t.torrent.Stats()
 }
 
+func (t *Torrent) Trackers() []torrent.Tracker {
+	return t.torrent.Trackers()
+}
+
 func (t *Torrent) Port() uint16 {
 	return t.port
 }

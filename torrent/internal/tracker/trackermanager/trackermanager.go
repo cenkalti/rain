@@ -50,7 +50,7 @@ func (m *TrackerManager) Get(s string, httpTimeout time.Duration) (tracker.Track
 			m.httpTransports[u.Host] = t
 		}
 		m.httpHostCount[u.Host]++
-		tr := httptracker.New(u, httpTimeout, t)
+		tr := httptracker.New(s, u, httpTimeout, t)
 		m.httpHosts[tr] = u.Host
 		return tr, nil
 	case "udp":
@@ -60,7 +60,7 @@ func (m *TrackerManager) Get(s string, httpTimeout time.Duration) (tracker.Track
 			m.udpTransports[u.Host] = t
 		}
 		m.udpHostCount[u.Host]++
-		tr := udptracker.New(u.RequestURI(), t)
+		tr := udptracker.New(s, u.RequestURI(), t)
 		m.udpHosts[tr] = u.Host
 		return tr, nil
 	default:

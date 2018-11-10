@@ -113,6 +113,15 @@ func (h *handler) GetTorrentStats(args *GetTorrentStatsRequest, reply *GetTorren
 	return nil
 }
 
+func (h *handler) GetTorrentTrackers(args *GetTorrentTrackersRequest, reply *GetTorrentTrackersResponse) error {
+	t := h.client.GetTorrent(args.ID)
+	if t == nil {
+		return errors.New("torrent not found")
+	}
+	reply.Trackers = t.Trackers()
+	return nil
+}
+
 func (h *handler) StartTorrent(args *StartTorrentRequest, reply *StartTorrentResponse) error {
 	t := h.client.GetTorrent(args.ID)
 	if t == nil {

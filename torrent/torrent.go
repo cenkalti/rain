@@ -115,6 +115,7 @@ type Torrent struct {
 
 	// These are the channels for sending a message to run() loop.
 	statsCommandC       chan statsRequest       // Stats()
+	trackersCommandC    chan trackersRequest    // Trackers()
 	startCommandC       chan struct{}           // Start()
 	stopCommandC        chan struct{}           // Stop()
 	notifyErrorCommandC chan notifyErrorCommand // NotifyError()
@@ -376,6 +377,7 @@ func newTorrent(spec *downloadSpec, cfg Config) (*Torrent, error) {
 		startCommandC:             make(chan struct{}),
 		stopCommandC:              make(chan struct{}),
 		statsCommandC:             make(chan statsRequest),
+		trackersCommandC:          make(chan trackersRequest),
 		notifyErrorCommandC:       make(chan notifyErrorCommand),
 		addrsFromTrackers:         make(chan []*net.TCPAddr),
 		addrList:                  addrlist.New(),

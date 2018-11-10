@@ -10,11 +10,23 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/tracker"
 )
 
+const (
+	NotContactedYet string = "Not contacted yet"
+	Contacting             = "Contacting"
+	Working                = "Working"
+	NotWorking             = "Not working"
+)
+
 type PeriodicalAnnouncer struct {
 	Tracker        tracker.Tracker
+	status         string
+	statsCommandC  chan statsRequest
 	numWant        int
 	interval       time.Duration
 	minInterval    time.Duration
+	seeders        int
+	leechers       int
+	lastError      error
 	log            logger.Logger
 	completedC     chan struct{}
 	newPeers       chan []*net.TCPAddr
@@ -39,6 +51,8 @@ type Response struct {
 func NewPeriodicalAnnouncer(trk tracker.Tracker, numWant int, minInterval time.Duration, requests chan *Request, completedC chan struct{}, newPeers chan []*net.TCPAddr, l logger.Logger) *PeriodicalAnnouncer {
 	return &PeriodicalAnnouncer{
 		Tracker:        trk,
+		status:         NotContactedYet,
+		statsCommandC:  make(chan statsRequest),
 		numWant:        numWant,
 		minInterval:    minInterval,
 		log:            l,
@@ -62,6 +76,24 @@ func NewPeriodicalAnnouncer(trk tracker.Tracker, numWant int, minInterval time.D
 func (a *PeriodicalAnnouncer) Close() {
 	close(a.closeC)
 	<-a.doneC
+}
+
+type statsRequest struct {
+	Response chan Stats
+}
+
+func (a *PeriodicalAnnouncer) Stats() Stats {
+	var stats Stats
+	req := statsRequest{Response: make(chan Stats, 1)}
+	select {
+	case a.statsCommandC <- req:
+	case <-a.closeC:
+	}
+	select {
+	case stats = <-req.Response:
+	case <-a.closeC:
+	}
+	return stats
 }
 
 func (a *PeriodicalAnnouncer) NeedMorePeers(val bool) {
@@ -100,27 +132,33 @@ func (a *PeriodicalAnnouncer) Run() {
 	for {
 		select {
 		case <-timerC:
+			a.status = Contacting
 			announcer.Announce(tracker.EventNone, a.numWant)
 		case resp := <-announcer.ResponseC:
 			announcer.announcing = false
 			a.lastAnnounce = time.Now()
+			a.seeders = int(resp.Seeders)
+			a.leechers = int(resp.Leechers)
 			a.interval = resp.Interval
 			if resp.MinInterval > 0 {
 				a.minInterval = resp.MinInterval
 			}
 			a.HasAnnounced = true
+			a.lastError = nil
+			a.status = Working
 			a.backoff.Reset()
 			if needMorePeers {
 				setTimer(a.minInterval)
 			} else {
 				setTimer(a.interval)
 			}
-		case err := <-announcer.ErrorC:
+		case a.lastError = <-announcer.ErrorC:
 			announcer.announcing = false
-			if _, ok := err.(*net.OpError); ok {
-				a.log.Debugln("net operation error:", err)
+			a.status = NotWorking
+			if _, ok := a.lastError.(*net.OpError); ok {
+				a.log.Debugln("net operation error:", a.lastError)
 			} else {
-				a.log.Errorln("announce error:", err)
+				a.log.Errorln("announce error:", a.lastError)
 			}
 			setTimer(a.backoff.NextBackOff())
 		case needMorePeers = <-a.needMorePeersC:
@@ -134,8 +172,11 @@ func (a *PeriodicalAnnouncer) Run() {
 			}
 		case <-a.completedC:
 			announcer.Cancel()
+			a.status = Contacting
 			announcer.Announce(tracker.EventCompleted, 0)
 			a.completedC = nil
+		case req := <-a.statsCommandC:
+			req.Response <- a.stats()
 		case <-a.closeC:
 			if timer != nil {
 				timer.Stop()
@@ -143,6 +184,26 @@ func (a *PeriodicalAnnouncer) Run() {
 			return
 		}
 	}
+}
+
+type Stats struct {
+	Status   string
+	Error    *string
+	Seeders  int
+	Leechers int
+}
+
+func (a *PeriodicalAnnouncer) stats() Stats {
+	st := Stats{
+		Status:   a.status,
+		Seeders:  a.seeders,
+		Leechers: a.leechers,
+	}
+	if a.lastError != nil {
+		s := a.lastError.Error()
+		st.Error = &s
+	}
+	return st
 }
 
 type announcer struct {

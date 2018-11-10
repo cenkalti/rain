@@ -81,3 +81,29 @@ func (t *Torrent) AddPeers(peers []*net.TCPAddr) {
 	case <-t.closeC:
 	}
 }
+
+type Tracker struct {
+	URL      string
+	Status   string
+	Leechers int
+	Seeders  int
+	Error    *string
+}
+
+type trackersRequest struct {
+	Response chan []Tracker
+}
+
+func (t *Torrent) Trackers() []Tracker {
+	var trackers []Tracker
+	req := trackersRequest{Response: make(chan []Tracker, 1)}
+	select {
+	case t.trackersCommandC <- req:
+	case <-t.closeC:
+	}
+	select {
+	case trackers = <-req.Response:
+	case <-t.closeC:
+	}
+	return trackers
+}
