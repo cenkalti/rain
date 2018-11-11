@@ -5,9 +5,11 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"os/signal"
 	"runtime/pprof"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/boltdb/bolt"
 	"github.com/cenkalti/boltbrowser/boltbrowser"
@@ -218,7 +220,15 @@ func handleServer(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	return srv.ListenAndServe()
+	err = srv.Start()
+	if err != nil {
+		return err
+	}
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
+	s := <-ch
+	log.Noticef("received %s, stopping server", s)
+	return srv.Stop()
 }
 
 func handleBeforeClient(c *cli.Context) error {

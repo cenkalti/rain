@@ -1,6 +1,7 @@
 package rainrpc
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"net"
@@ -8,6 +9,7 @@ import (
 	"net/rpc"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/cenkalti/rain/client"
 	"github.com/cenkalti/rain/internal/logger"
@@ -15,21 +17,25 @@ import (
 )
 
 type Server struct {
-	config    ServerConfig
-	rpcServer *rpc.Server
-	log       logger.Logger
+	config     ServerConfig
+	client     *client.Client
+	rpcServer  *rpc.Server
+	httpServer http.Server
+	log        logger.Logger
 }
 
 type ServerConfig struct {
-	Host   string
-	Port   int
-	Client client.Config
+	Host            string
+	Port            int
+	ShutdownTimeout time.Duration
+	Client          client.Config
 }
 
 var DefaultServerConfig = ServerConfig{
-	Host:   "127.0.0.1",
-	Port:   7246,
-	Client: client.DefaultConfig,
+	Host:            "127.0.0.1",
+	Port:            7246,
+	ShutdownTimeout: 5 * time.Second,
+	Client:          client.DefaultConfig,
 }
 
 func NewServer(cfg ServerConfig) (*Server, error) {
@@ -42,20 +48,43 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 	srv.RegisterName("Client", h)
 	return &Server{
 		config:    cfg,
+		client:    clt,
 		rpcServer: srv,
-		log:       logger.New("rpc server"),
+		httpServer: http.Server{
+			Handler: jsonrpc2.HTTPHandler(srv),
+		},
+		log: logger.New("rpc server"),
 	}, nil
 }
 
-func (s *Server) ListenAndServe() error {
+func (s *Server) Start() error {
 	addr := net.JoinHostPort(s.config.Host, strconv.Itoa(s.config.Port))
 	s.log.Infoln("RPC server is listening on", addr)
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
 	}
-	defer listener.Close()
-	return http.Serve(listener, jsonrpc2.HTTPHandler(s.rpcServer))
+
+	go func() {
+		err := s.httpServer.Serve(listener)
+		if err == http.ErrServerClosed {
+			return
+		}
+		s.log.Fatal(err)
+	}()
+
+	return nil
+}
+
+func (s *Server) Stop() error {
+	ctx, cancel := context.WithTimeout(context.Background(), s.config.ShutdownTimeout)
+	defer cancel()
+	err := s.httpServer.Shutdown(ctx)
+	if err != nil {
+		return err
+	}
+	s.client.Close()
+	return nil
 }
 
 type handler struct {

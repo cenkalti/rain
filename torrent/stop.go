@@ -15,7 +15,7 @@ func (t *Torrent) stop(err error) {
 
 	t.log.Info("stopping torrent")
 	t.lastError = err
-	if err != nil {
+	if err != nil && err != errClosed {
 		t.log.Error(err)
 	}
 
