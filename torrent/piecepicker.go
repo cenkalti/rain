@@ -120,7 +120,7 @@ func (t *Torrent) selectPiece(preferAllowedFast, skipSnubbed, noDuplicate bool) 
 			continue
 		}
 		for pe := range pi.HavingPeers {
-			if _, ok := t.pieceDownloaders[pe]; ok {
+			if pe.Downloading {
 				continue
 			}
 			if skipSnubbed && pe.Snubbed {

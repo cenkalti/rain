@@ -196,6 +196,7 @@ func (t *Torrent) closePieceDownloader(pd *piecedownloader.PieceDownloader) {
 	delete(t.pieceDownloadersSnubbed, pd.Peer)
 	delete(t.pieceDownloadersChoked, pd.Peer)
 	delete(t.pieces[pd.Piece.Index].RequestedPeers, pd.Peer)
+	pd.Peer.Downloading = false
 }
 
 func (t *Torrent) closeInfoDownloader(id *infodownloader.InfoDownloader) {

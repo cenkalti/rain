@@ -20,6 +20,8 @@ type Peer struct {
 	// Snubbed means peer is sending pieces too slow.
 	Snubbed bool
 
+	Downloading bool
+
 	BytesDownlaodedInChokePeriod int64
 	BytesUploadedInChokePeriod   int64
 
