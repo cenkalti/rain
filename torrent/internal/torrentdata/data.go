@@ -1,8 +1,8 @@
 package torrentdata
 
 import (
-	"github.com/cenkalti/rain/torrent/internal/metainfo"
 	"github.com/cenkalti/rain/torrent/internal/pieceio"
+	"github.com/cenkalti/rain/torrent/metainfo"
 	"github.com/cenkalti/rain/torrent/storage"
 	"github.com/hashicorp/go-multierror"
 )

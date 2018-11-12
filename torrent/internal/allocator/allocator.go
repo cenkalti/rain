@@ -3,8 +3,8 @@ package allocator
 import (
 	"path/filepath"
 
-	"github.com/cenkalti/rain/torrent/internal/metainfo"
 	"github.com/cenkalti/rain/torrent/internal/torrentdata"
+	"github.com/cenkalti/rain/torrent/metainfo"
 	"github.com/cenkalti/rain/torrent/storage"
 )
 

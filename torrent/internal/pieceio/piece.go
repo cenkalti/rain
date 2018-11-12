@@ -6,7 +6,7 @@ import (
 	"io"
 
 	"github.com/cenkalti/rain/torrent/internal/filesection"
-	"github.com/cenkalti/rain/torrent/internal/metainfo"
+	"github.com/cenkalti/rain/torrent/metainfo"
 	"github.com/cenkalti/rain/torrent/storage"
 )
 

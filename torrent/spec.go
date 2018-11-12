@@ -2,7 +2,7 @@ package torrent
 
 import (
 	"github.com/cenkalti/rain/torrent/internal/bitfield"
-	"github.com/cenkalti/rain/torrent/internal/metainfo"
+	"github.com/cenkalti/rain/torrent/metainfo"
 	"github.com/cenkalti/rain/torrent/resumer"
 	"github.com/cenkalti/rain/torrent/storage"
 )
