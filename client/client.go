@@ -265,10 +265,16 @@ func (c *Client) hasStarted(id uint64) (bool, error) {
 func (c *Client) Close() error {
 	c.dht.Stop()
 
+	var wg sync.WaitGroup
 	c.m.Lock()
+	wg.Add(len(c.torrents))
 	for _, t := range c.torrents {
-		t.torrent.Close()
+		go func(t *Torrent) {
+			t.torrent.Close()
+			wg.Done()
+		}(t)
 	}
+	wg.Wait()
 	c.torrents = nil
 	c.m.Unlock()
 
