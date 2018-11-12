@@ -97,22 +97,25 @@ func (p *PeerWriter) queueMessage(msg peerprotocol.Message) {
 }
 
 func (p *PeerWriter) messageWriter() {
+	defer p.conn.Close()
+
+	// Disable write deadline that is previously set by handshaker.
+	err := p.conn.SetWriteDeadline(time.Time{})
+	if err != nil {
+		p.log.Error(err)
+		return
+	}
+
 	keepAliveTicker := time.NewTicker(keepAlivePeriod / 2)
 	defer keepAliveTicker.Stop()
+
 	for {
-		err := p.conn.SetWriteDeadline(time.Time{})
-		if err != nil {
-			p.log.Error(err)
-			p.conn.Close()
-			return
-		}
 		select {
 		case msg := <-p.writeC:
 			p.log.Debugf("writing message of type: %q", msg.ID())
 			payload, err := msg.MarshalBinary()
 			if err != nil {
 				p.log.Errorf("cannot marshal message [%v]: %s", msg.ID(), err.Error())
-				p.conn.Close()
 				return
 			}
 			buf := bytes.NewBuffer(make([]byte, 0, 4+1+len(payload)))
@@ -129,14 +132,12 @@ func (p *PeerWriter) messageWriter() {
 			p.countUploadBytes(msg, n)
 			if err != nil {
 				p.log.Errorf("cannot write message [%v]: %s", msg.ID(), err.Error())
-				p.conn.Close()
 				return
 			}
 		case <-keepAliveTicker.C:
 			_, err := p.conn.Write([]byte{0, 0, 0, 0})
 			if err != nil {
 				p.log.Errorf("cannot write keepalive message: %s", err.Error())
-				p.conn.Close()
 				return
 			}
 		case <-p.stopC:
