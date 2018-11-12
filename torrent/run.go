@@ -50,9 +50,12 @@ func (t *Torrent) run() {
 			t.stoppedEventAnnouncer = nil
 			t.errC <- t.lastError
 			t.errC = nil
+			t.portC = nil
 			t.log.Info("torrent has stopped")
 		case cmd := <-t.notifyErrorCommandC:
 			cmd.errCC <- t.errC
+		case cmd := <-t.notifyListenCommandC:
+			cmd.portCC <- t.portC
 		case req := <-t.statsCommandC:
 			req.Response <- t.stats()
 		case req := <-t.trackersCommandC:
@@ -69,7 +72,7 @@ func (t *Torrent) run() {
 			t.handleVerificationDone(ve)
 		case addrs := <-t.addrsFromTrackers:
 			t.handleNewPeers(addrs, "tracker")
-		case addrs := <-t.addPeersC:
+		case addrs := <-t.addPeersCommandC:
 			t.handleNewPeers(addrs, "manual")
 		case addrs := <-t.dhtPeersC:
 			t.handleNewPeers(addrs, "dht")

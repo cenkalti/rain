@@ -3,9 +3,6 @@ package torrent
 
 import (
 	"encoding/hex"
-	"errors"
-	"io"
-	"math/rand"
 	"net"
 	"time"
 
@@ -20,7 +17,6 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/handshaker/incominghandshaker"
 	"github.com/cenkalti/rain/torrent/internal/handshaker/outgoinghandshaker"
 	"github.com/cenkalti/rain/torrent/internal/infodownloader"
-	"github.com/cenkalti/rain/torrent/internal/mse"
 	"github.com/cenkalti/rain/torrent/internal/peer"
 	"github.com/cenkalti/rain/torrent/internal/piece"
 	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
@@ -29,11 +25,9 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/tracker"
 	"github.com/cenkalti/rain/torrent/internal/tracker/trackermanager"
 	"github.com/cenkalti/rain/torrent/internal/verifier"
-	"github.com/cenkalti/rain/torrent/magnet"
 	"github.com/cenkalti/rain/torrent/metainfo"
 	"github.com/cenkalti/rain/torrent/resumer"
 	"github.com/cenkalti/rain/torrent/storage"
-	"github.com/cenkalti/rain/torrent/storage/filestorage"
 )
 
 var (
@@ -51,8 +45,31 @@ func init() {
 
 // Torrent connects to peers and downloads files from swarm.
 type Torrent struct {
-	*downloadSpec
 	config Config
+
+	// Identifies the torrent being downloaded.
+	infoHash [20]byte
+
+	// List of addresses to announce this torrent.
+	trackers []string
+
+	// Name of the torrent.
+	name string
+
+	// Storage implementation to save the files in torrent.
+	storage storage.Storage
+
+	// TCP Port to listen for peer connections.
+	port int
+
+	// Optional DB implementation to save resume state of the torrent.
+	resume resumer.Resumer
+
+	// Contains info about files in torrent. This can be nil at start for magnet downloads.
+	info *metainfo.Info
+
+	// Bitfield for pieces we have. It is created after we got info.
+	bitfield *bitfield.Bitfield
 
 	// Unique peer ID is generated per downloader.
 	peerID [20]byte
@@ -107,6 +124,9 @@ type Torrent struct {
 	// If any unrecoverable error occurs, it will be sent to this channel and download will be stopped.
 	errC chan error
 
+	// After listener has started, port will be sent to this channel.
+	portC chan int
+
 	// Contains the last error sent to errC.
 	lastError error
 
@@ -114,13 +134,14 @@ type Torrent struct {
 	closeC chan chan struct{}
 
 	// These are the channels for sending a message to run() loop.
-	statsCommandC       chan statsRequest       // Stats()
-	trackersCommandC    chan trackersRequest    // Trackers()
-	peersCommandC       chan peersRequest       // Trackers()
-	startCommandC       chan struct{}           // Start()
-	stopCommandC        chan struct{}           // Stop()
-	notifyErrorCommandC chan notifyErrorCommand // NotifyError()
-	addPeersC           chan []*net.TCPAddr     // AddPeers()
+	statsCommandC        chan statsRequest        // Stats()
+	trackersCommandC     chan trackersRequest     // Trackers()
+	peersCommandC        chan peersRequest        // Peers()
+	startCommandC        chan struct{}            // Start()
+	stopCommandC         chan struct{}            // Stop()
+	notifyErrorCommandC  chan notifyErrorCommand  // NotifyError()
+	notifyListenCommandC chan notifyListenCommand // NotifyListen()
+	addPeersCommandC     chan []*net.TCPAddr      // AddPeers()
 
 	// Trackers send announce responses to this channel.
 	addrsFromTrackers chan []*net.TCPAddr
@@ -201,55 +222,6 @@ type Torrent struct {
 	log logger.Logger
 }
 
-// New returns a new torrent by reading a torrent metainfo file.
-func New(r io.Reader, port int, sto storage.Storage, cfg Config) (*Torrent, error) {
-	m, err := metainfo.New(r)
-	if err != nil {
-		return nil, err
-	}
-	spec := &downloadSpec{
-		infoHash: m.Info.Hash,
-		trackers: m.GetTrackers(),
-		name:     m.Info.Name,
-		port:     port,
-		storage:  sto,
-		info:     m.Info,
-	}
-	return newTorrent(spec, cfg)
-}
-
-// NewMagnet returns a new torrent by parsing a magnet link.
-func NewMagnet(link string, port int, sto storage.Storage, cfg Config) (*Torrent, error) {
-	m, err := magnet.New(link)
-	if err != nil {
-		return nil, err
-	}
-	spec := &downloadSpec{
-		infoHash: m.InfoHash,
-		trackers: m.Trackers,
-		name:     m.Name,
-		port:     port,
-		storage:  sto,
-	}
-	return newTorrent(spec, cfg)
-}
-
-// NewResume returns a new torrent by loading all info from a resume.DB.
-func NewResume(res resumer.Resumer, cfg Config) (*Torrent, *resumer.Spec, error) {
-	spec, err := res.Read()
-	if err != nil {
-		return nil, nil, err
-	}
-	if spec == nil {
-		return nil, nil, errors.New("no resume info")
-	}
-	t, err := loadResumeSpec(spec, res, cfg)
-	if err != nil {
-		return nil, nil, err
-	}
-	return t, spec, nil
-}
-
 // Name of the torrent.
 // For magnet downloads name can change after metadata is downloaded but this method still returns the initial name.
 // Use Stats() method to get name in info dictionary.
@@ -270,68 +242,15 @@ func (t *Torrent) InfoHashBytes() []byte {
 	return b
 }
 
-// SetResume adds resume capability to the torrent.
-// It must be called before Start() is called.
-// TODO Refactor SetResume
-func (t *Torrent) SetResume(res resumer.Resumer) (*resumer.Spec, error) {
-	spec, err := res.Read()
-	if err != nil {
-		return nil, err
-	}
-	if spec == nil {
-		return t.writeResume(res)
-	}
-	t2, err := loadResumeSpec(spec, res, t.config)
-	if err != nil {
-		return nil, err
-	}
-	if t.InfoHash() != t2.InfoHash() {
-		t2.Close()
-		return nil, errors.New("invalid resume file (info hashes does not match)")
-	}
-	t.Close()
-	*t = *t2
-	return spec, nil
-}
-
 func (t *Torrent) SetDHT(node dht.DHT) {
 	t.dhtNode = node
 	t.dhtPeersC = node.Peers()
 }
 
-func loadResumeSpec(spec *resumer.Spec, res resumer.Resumer, cfg Config) (*Torrent, error) {
-	var err error
-	dspec := &downloadSpec{
-		port:     spec.Port,
-		trackers: spec.Trackers,
-		name:     spec.Name,
-		resume:   res,
+func (t *Torrent) writeResume() error {
+	if t.resume == nil {
+		return nil
 	}
-	copy(dspec.infoHash[:], spec.InfoHash)
-	if len(spec.Info) > 0 {
-		dspec.info, err = metainfo.NewInfo(spec.Info)
-		if err != nil {
-			return nil, err
-		}
-		if len(spec.Bitfield) > 0 {
-			dspec.bitfield = bitfield.New(dspec.info.NumPieces)
-			copy(dspec.bitfield.Bytes(), spec.Bitfield)
-		}
-	}
-	switch spec.StorageType {
-	case filestorage.StorageType:
-		dspec.storage = &filestorage.FileStorage{}
-	default:
-		return nil, errors.New("unknown storage type: " + spec.StorageType)
-	}
-	err = dspec.storage.Load(spec.StorageArgs)
-	if err != nil {
-		return nil, err
-	}
-	return newTorrent(dspec, cfg)
-}
-
-func (t *Torrent) writeResume(res resumer.Resumer) (*resumer.Spec, error) {
 	rspec := &resumer.Spec{
 		InfoHash:    t.infoHash[:],
 		Port:        t.port,
@@ -346,71 +265,7 @@ func (t *Torrent) writeResume(res resumer.Resumer) (*resumer.Spec, error) {
 	if t.bitfield != nil {
 		rspec.Bitfield = t.bitfield.Bytes()
 	}
-	return rspec, res.Write(rspec)
-}
-
-func newTorrent(spec *downloadSpec, cfg Config) (*Torrent, error) {
-	logName := spec.name
-	if len(logName) > 8 {
-		logName = logName[:8]
-	}
-	d := &Torrent{
-		downloadSpec:              spec,
-		config:                    cfg,
-		log:                       logger.New("torrent " + logName),
-		peerDisconnectedC:         make(chan *peer.Peer),
-		messages:                  make(chan peer.Message),
-		peers:                     make(map[*peer.Peer]struct{}),
-		incomingPeers:             make(map[*peer.Peer]struct{}),
-		outgoingPeers:             make(map[*peer.Peer]struct{}),
-		peersSnubbed:              make(map[*peer.Peer]struct{}),
-		pieceDownloaders:          make(map[*peer.Peer]*piecedownloader.PieceDownloader),
-		pieceDownloadersSnubbed:   make(map[*peer.Peer]*piecedownloader.PieceDownloader),
-		pieceDownloadersChoked:    make(map[*peer.Peer]*piecedownloader.PieceDownloader),
-		peerSnubbedC:              make(chan *peer.Peer),
-		infoDownloaders:           make(map[*peer.Peer]*infodownloader.InfoDownloader),
-		infoDownloadersSnubbed:    make(map[*peer.Peer]*infodownloader.InfoDownloader),
-		pieceWriters:              make(map[*piecewriter.PieceWriter]struct{}),
-		pieceWriterResultC:        make(chan *piecewriter.PieceWriter),
-		optimisticUnchokedPeers:   make([]*peer.Peer, 0, cfg.OptimisticUnchokedPeers),
-		completeC:                 make(chan struct{}),
-		closeC:                    make(chan chan struct{}),
-		startCommandC:             make(chan struct{}),
-		stopCommandC:              make(chan struct{}),
-		statsCommandC:             make(chan statsRequest),
-		trackersCommandC:          make(chan trackersRequest),
-		peersCommandC:             make(chan peersRequest),
-		notifyErrorCommandC:       make(chan notifyErrorCommand),
-		addrsFromTrackers:         make(chan []*net.TCPAddr),
-		addrList:                  addrlist.New(),
-		peerIDs:                   make(map[[20]byte]struct{}),
-		incomingConnC:             make(chan net.Conn),
-		sKeyHash:                  mse.HashSKey(spec.infoHash[:]),
-		infoDownloaderResultC:     make(chan *infodownloader.InfoDownloader),
-		incomingHandshakers:       make(map[*incominghandshaker.IncomingHandshaker]struct{}),
-		outgoingHandshakers:       make(map[*outgoinghandshaker.OutgoingHandshaker]struct{}),
-		incomingHandshakerResultC: make(chan *incominghandshaker.IncomingHandshaker),
-		outgoingHandshakerResultC: make(chan *outgoinghandshaker.OutgoingHandshaker),
-		announcerRequestC:         make(chan *announcer.Request),
-		allocatorProgressC:        make(chan allocator.Progress),
-		allocatorResultC:          make(chan *allocator.Allocator),
-		verifierProgressC:         make(chan verifier.Progress),
-		verifierResultC:           make(chan *verifier.Verifier),
-		connectedPeerIPs:          make(map[string]struct{}),
-		announcersStoppedC:        make(chan struct{}),
-		addPeersC:                 make(chan []*net.TCPAddr),
-	}
-	copy(d.peerID[:], peerIDPrefix)
-	_, err := rand.Read(d.peerID[len(peerIDPrefix):]) // nolint: gosec
-	if err != nil {
-		return nil, err
-	}
-	d.trackersInstances, err = parseTrackers(d.trackers, d.log, cfg.HTTPTrackerTimeout)
-	if err != nil {
-		return nil, err
-	}
-	go d.run()
-	return d, nil
+	return t.resume.Write(rspec)
 }
 
 func parseTrackers(trackers []string, log logger.Logger, httpTimeout time.Duration) ([]tracker.Tracker, error) {
@@ -422,9 +277,6 @@ func parseTrackers(trackers []string, log logger.Logger, httpTimeout time.Durati
 			continue
 		}
 		ret = append(ret, t)
-	}
-	if len(ret) == 0 {
-		return nil, errors.New("no tracker found")
 	}
 	return ret, nil
 }

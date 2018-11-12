@@ -15,6 +15,8 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent"
+	"github.com/cenkalti/rain/torrent/magnet"
+	"github.com/cenkalti/rain/torrent/metainfo"
 	"github.com/cenkalti/rain/torrent/resumer/boltdbresumer"
 	"github.com/cenkalti/rain/torrent/storage"
 	"github.com/cenkalti/rain/torrent/storage/filestorage"
@@ -200,7 +202,34 @@ func (c *Client) loadExistingTorrents(ids []uint64) error {
 			c.log.Error(err)
 			continue
 		}
-		t, spec, err := torrent.NewResume(res, c.config.Torrent)
+		spec, err := res.Read()
+		if err != nil {
+			c.log.Error(err)
+			continue
+		}
+		opt := torrent.Options{
+			Name:     spec.Name,
+			Port:     spec.Port,
+			Trackers: spec.Trackers,
+			Resumer:  res,
+			Info:     spec.Info,
+			Bitfield: spec.Bitfield,
+			Config:   &c.config.Torrent,
+		}
+		var sto storage.Storage
+		switch spec.StorageType {
+		case filestorage.StorageType:
+			sto = &filestorage.FileStorage{}
+		default:
+			c.log.Error("unknown storage type: " + spec.StorageType)
+			continue
+		}
+		err = sto.Load(spec.StorageArgs)
+		if err != nil {
+			c.log.Error(err)
+			continue
+		}
+		t, err := opt.NewTorrent(spec.InfoHash, sto)
 		if err != nil {
 			c.log.Error(err)
 			continue
@@ -257,67 +286,87 @@ func (c *Client) ListTorrents() []*Torrent {
 }
 
 func (c *Client) AddTorrent(r io.Reader) (*Torrent, error) {
-	return c.add(func(port int, sto storage.Storage) (*torrent.Torrent, error) {
-		return torrent.New(r, port, sto, c.config.Torrent)
-	})
+	mi, err := metainfo.New(r)
+	if err != nil {
+		return nil, err
+	}
+	opt, sto, id, err := c.add()
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			c.releasePort(uint16(opt.Port))
+		}
+	}()
+	opt.Name = mi.Info.Name
+	opt.Trackers = mi.GetTrackers()
+	opt.Info = mi.Info.Bytes
+	t, err := opt.NewTorrent(mi.Info.Hash[:], sto)
+	if err != nil {
+		return nil, err
+	}
+	t2 := c.newTorrent(t, id, uint16(opt.Port))
+	return t2, t2.Start()
 }
 
 func (c *Client) AddMagnet(link string) (*Torrent, error) {
-	return c.add(func(port int, sto storage.Storage) (*torrent.Torrent, error) {
-		return torrent.NewMagnet(link, port, sto, c.config.Torrent)
-	})
-}
-
-func (c *Client) add(f func(port int, sto storage.Storage) (*torrent.Torrent, error)) (*Torrent, error) {
-	port, err := c.getPort()
+	ma, err := magnet.New(link)
 	if err != nil {
 		return nil, err
+	}
+	opt, sto, id, err := c.add()
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			c.releasePort(uint16(opt.Port))
+		}
+	}()
+	opt.Name = ma.Name
+	opt.Trackers = ma.Trackers
+	t, err := opt.NewTorrent(ma.InfoHash[:], sto)
+	if err != nil {
+		return nil, err
+	}
+	t2 := c.newTorrent(t, id, uint16(opt.Port))
+	return t2, t2.Start()
+}
+
+func (c *Client) add() (*torrent.Options, storage.Storage, uint64, error) {
+	port, err := c.getPort()
+	if err != nil {
+		return nil, nil, 0, err
 	}
 	defer func() {
 		if err != nil {
 			c.releasePort(port)
 		}
 	}()
-
 	var id uint64
 	err = c.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(mainBucket)
-		id, _ = bucket.NextSequence()
-		return nil
+		id, err = bucket.NextSequence()
+		return err
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, 0, err
 	}
-
+	res, err := boltdbresumer.New(c.db, mainBucket, []byte(strconv.FormatUint(id, 10)))
+	if err != nil {
+		return nil, nil, 0, err
+	}
 	dest := filepath.Join(c.config.DataDir, strconv.FormatUint(id, 10))
 	sto, err := filestorage.New(dest)
 	if err != nil {
-		return nil, err
+		return nil, nil, 0, err
 	}
-
-	t, err := f(int(port), sto)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err != nil {
-			t.Close()
-		}
-	}()
-
-	subBucket := strconv.FormatUint(id, 10)
-	res, err := boltdbresumer.New(c.db, mainBucket, []byte(subBucket))
-	if err != nil {
-		return nil, err
-	}
-	_, err = t.SetResume(res)
-	if err != nil {
-		return nil, err
-	}
-
-	t2 := c.newTorrent(t, id, port)
-
-	return t2, t2.Start()
+	return &torrent.Options{
+		Port:    int(port),
+		Resumer: res,
+		Config:  &c.config.Torrent,
+	}, sto, id, nil
 }
 
 func (c *Client) newTorrent(t *torrent.Torrent, id uint64, port uint16) *Torrent {

@@ -24,6 +24,7 @@ func (t *Torrent) start() {
 
 	t.log.Info("starting torrent")
 	t.errC = make(chan error, 1)
+	t.portC = make(chan int, 1)
 	t.lastError = nil
 
 	if t.info != nil {
@@ -87,6 +88,7 @@ func (t *Torrent) startAcceptor() {
 	} else {
 		t.log.Notice("Listening peers on tcp://" + listener.Addr().String())
 		t.port = listener.Addr().(*net.TCPAddr).Port
+		t.portC <- t.port
 		t.acceptor = acceptor.New(listener, t.incomingConnC, t.log)
 		go t.acceptor.Run()
 	}

@@ -56,6 +56,22 @@ func (t *Torrent) NotifyError() <-chan error {
 	}
 }
 
+type notifyListenCommand struct {
+	portCC chan chan int
+}
+
+// NotifyListen returns a new channel that is signalled after torrent has started to listen on peer port.
+// NotifyListen must be called after calling Start().
+func (t *Torrent) NotifyListen() <-chan int {
+	cmd := notifyListenCommand{portCC: make(chan chan int)}
+	select {
+	case t.notifyListenCommandC <- cmd:
+		return <-cmd.portCC
+	case <-t.closeC:
+		return nil
+	}
+}
+
 type statsRequest struct {
 	Response chan Stats
 }
@@ -77,7 +93,7 @@ func (t *Torrent) Stats() Stats {
 
 func (t *Torrent) AddPeers(peers []*net.TCPAddr) {
 	select {
-	case t.addPeersC <- peers:
+	case t.addPeersCommandC <- peers:
 	case <-t.closeC:
 	}
 }
