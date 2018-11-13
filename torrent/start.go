@@ -7,6 +7,7 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/acceptor"
 	"github.com/cenkalti/rain/torrent/internal/allocator"
 	"github.com/cenkalti/rain/torrent/internal/announcer"
+	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
 	"github.com/cenkalti/rain/torrent/internal/verifier"
 )
 
@@ -125,17 +126,20 @@ func (t *Torrent) startPieceDownloaders() {
 	if t.bitfield == nil {
 		return
 	}
+	if t.completed {
+		return
+	}
 	for len(t.pieceDownloaders)-len(t.pieceDownloadersChoked)-len(t.pieceDownloadersSnubbed) < t.config.ParallelPieceDownloads {
-		pd := t.nextPieceDownload()
-		if pd == nil {
+		i, pe := t.piecePicker.Pick()
+		if pe == nil {
 			break
 		}
-		t.log.Debugln("downloading piece", pd.Piece.Index, "from", pd.Peer.String())
+		pd := piecedownloader.New(t.pieces[i].Piece, pe)
+		// t.log.Debugln("downloading piece", pd.Piece.Index, "from", pd.Peer.String())
 		if _, ok := t.pieceDownloaders[pd.Peer]; ok {
 			panic("peer already has a piece downloader")
 		}
 		t.pieceDownloaders[pd.Peer] = pd
-		t.pieces[pd.Piece.Index].RequestedPeers[pd.Peer] = pd
 		pd.Peer.Downloading = true
 		pd.RequestBlocks(t.config.RequestQueueLength)
 		pd.Peer.StartSnubTimer(t.config.RequestTimeout, t.peerSnubbedC)

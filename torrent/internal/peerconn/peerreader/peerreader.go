@@ -106,7 +106,7 @@ func (p *PeerReader) Run() {
 		}
 		length--
 
-		p.log.Debugf("Received message of type: %q", id)
+		// p.log.Debugf("Received message of type: %q", id)
 
 		// TODO consider defining a type for peer message
 		var msg interface{}
@@ -152,7 +152,7 @@ func (p *PeerReader) Run() {
 			if err != nil {
 				return
 			}
-			p.log.Debugf("Received Request: %+v", rm)
+			// p.log.Debugf("Received Request: %+v", rm)
 
 			if rm.Length > maxBlockSize {
 				err = errors.New("received a request with block size larger than allowed")

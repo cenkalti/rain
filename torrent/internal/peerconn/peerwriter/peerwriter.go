@@ -112,7 +112,7 @@ func (p *PeerWriter) messageWriter() {
 	for {
 		select {
 		case msg := <-p.writeC:
-			p.log.Debugf("writing message of type: %q", msg.ID())
+			// p.log.Debugf("writing message of type: %q", msg.ID())
 			payload, err := msg.MarshalBinary()
 			if err != nil {
 				p.log.Errorf("cannot marshal message [%v]: %s", msg.ID(), err.Error())

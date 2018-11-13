@@ -6,6 +6,7 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/allocator"
 	"github.com/cenkalti/rain/torrent/internal/bitfield"
 	"github.com/cenkalti/rain/torrent/internal/piece"
+	"github.com/cenkalti/rain/torrent/internal/piecepicker"
 )
 
 func (t *Torrent) handleAllocationDone(al *allocator.Allocator) {
@@ -21,12 +22,14 @@ func (t *Torrent) handleAllocationDone(al *allocator.Allocator) {
 
 	t.data = al.Data
 	t.pieces = make([]*piece.Piece, len(t.data.Pieces))
-	t.sortedPieces = make([]*piece.Piece, len(t.data.Pieces))
 	for i := range t.data.Pieces {
 		p := piece.New(&t.data.Pieces[i])
 		t.pieces[i] = p
-		t.sortedPieces[i] = p
 	}
+	if t.piecePicker != nil {
+		panic("piece picker exists")
+	}
+	t.piecePicker = piecepicker.New(t.info.NumPieces, t.config.EndgameParallelDownloadsPerPiece, t.log)
 
 	// If we already have bitfield from resume db, skip verification and start downloading.
 	if t.bitfield != nil {

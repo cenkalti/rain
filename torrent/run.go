@@ -101,11 +101,12 @@ func (t *Torrent) run() {
 			}
 		case pw := <-t.pieceWriterResultC:
 			delete(t.pieceWriters, pw)
-			pw.Piece.Writing = false
 			if pw.Error != nil {
+				t.piecePicker.HandleWriteError(pw.Piece.Index)
 				t.stop(pw.Error)
 				break
 			}
+			t.piecePicker.HandleWriteSuccess(pw.Piece.Index)
 			if t.bitfield.Test(pw.Piece.Index) {
 				panic("already have the piece")
 			}
@@ -182,11 +183,7 @@ func (t *Torrent) closePeer(pe *peer.Peer) {
 	delete(t.peersSnubbed, pe)
 	delete(t.peerIDs, pe.ID())
 	delete(t.connectedPeerIPs, pe.Conn.IP())
-	for i := range t.pieces {
-		delete(t.pieces[i].HavingPeers, pe)
-		delete(t.pieces[i].AllowedFastPeers, pe)
-		delete(t.pieces[i].RequestedPeers, pe)
-	}
+	t.piecePicker.HandleDisconnect(pe)
 	t.pexDropPeer(pe.Addr())
 	t.dialAddresses()
 }
@@ -195,7 +192,7 @@ func (t *Torrent) closePieceDownloader(pd *piecedownloader.PieceDownloader) {
 	delete(t.pieceDownloaders, pd.Peer)
 	delete(t.pieceDownloadersSnubbed, pd.Peer)
 	delete(t.pieceDownloadersChoked, pd.Peer)
-	delete(t.pieces[pd.Piece.Index].RequestedPeers, pd.Peer)
+	t.piecePicker.HandleCancelDownload(pd.Peer, pd.Piece.Index)
 	pd.Peer.Downloading = false
 }
 

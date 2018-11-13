@@ -131,14 +131,7 @@ func (t *Torrent) stats() Stats {
 }
 
 func (t *Torrent) avaliablePieceCount() uint32 {
-	var n uint32
-	// TODO eliminate for loop in stats
-	for _, pi := range t.pieces {
-		if len(pi.HavingPeers) > 0 {
-			n++
-		}
-	}
-	return n
+	return t.piecePicker.Available()
 }
 
 func (t *Torrent) bytesComplete() int64 {

@@ -31,8 +31,8 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			break
 		}
 		pi := &t.data.Pieces[msg.Index]
-		pe.Logger().Debug("Peer ", pe.String(), " has piece #", pi.Index)
-		t.pieces[pi.Index].HavingPeers[pe] = struct{}{}
+		// pe.Logger().Debug("Peer ", pe.String(), " has piece #", pi.Index)
+		t.piecePicker.HandleHave(pe, pi.Index)
 		t.updateInterestedState(pe)
 		t.startPieceDownloaders()
 	case peerprotocol.BitfieldMessage:
@@ -51,7 +51,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		pe.Logger().Debugln("Received bitfield:", bf.Hex())
 		for i := uint32(0); i < bf.Len(); i++ {
 			if bf.Test(i) {
-				t.pieces[i].HavingPeers[pe] = struct{}{}
+				t.piecePicker.HandleHave(pe, i)
 			}
 		}
 		t.updateInterestedState(pe)
@@ -61,8 +61,8 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			pe.Messages = append(pe.Messages, msg)
 			break
 		}
-		for i := range t.pieces {
-			t.pieces[i].HavingPeers[pe] = struct{}{}
+		for i := range t.data.Pieces {
+			t.piecePicker.HandleHave(pe, uint32(i))
 		}
 		t.updateInterestedState(pe)
 		t.startPieceDownloaders()
@@ -79,8 +79,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		}
 		pi := &t.data.Pieces[msg.Index]
 		pe.Logger().Debug("Peer ", pe.String(), " has allowed fast for piece #", pi.Index)
-		t.pieces[msg.Index].AllowedFastPeers[pe] = struct{}{}
-		pe.AllowedFastPieces[msg.Index] = struct{}{}
+		t.piecePicker.HandleAllowedFast(pe, msg.Index)
 	case peerprotocol.UnchokeMessage:
 		pe.PeerChoking = false
 		if pd, ok := t.pieceDownloaders[pe]; ok {
@@ -133,7 +132,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			pe.StartSnubTimer(t.config.RequestTimeout, t.peerSnubbedC)
 			break
 		}
-		t.log.Debugln("piece download completed. index:", pd.Piece.Index)
+		// t.log.Debugln("piece download completed. index:", pd.Piece.Index)
 		t.closePieceDownloader(pd)
 		pe.StopSnubTimer()
 
@@ -146,12 +145,13 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			break
 		}
 
-		for _, pd := range piece.RequestedPeers {
-			t.closePieceDownloader(pd)
-			pd.CancelPending()
+		for pe := range t.piecePicker.RequestedPeers(piece.Index) {
+			pd2 := t.pieceDownloaders[pe]
+			t.closePieceDownloader(pd2)
+			pd2.CancelPending()
 		}
 
-		piece.Writing = true
+		t.piecePicker.HandleWriting(piece.Index)
 		pw := piecewriter.New(piece)
 		t.pieceWriters[pw] = struct{}{}
 		go pw.Run(pd.Bytes, t.pieceWriterResultC)
@@ -352,7 +352,7 @@ func (t *Torrent) updateInterestedState(pe *peer.Peer) {
 	interested := false
 	for i := uint32(0); i < t.bitfield.Len(); i++ {
 		weHave := t.bitfield.Test(i)
-		_, peerHave := t.pieces[i].HavingPeers[pe]
+		peerHave := t.piecePicker.DoesHave(pe, i)
 		if !weHave && peerHave {
 			interested = true
 			break

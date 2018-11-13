@@ -30,8 +30,6 @@ type Peer struct {
 
 	ExtensionHandshake *peerprotocol.ExtensionHandshakeMessage
 
-	AllowedFastPieces map[uint32]struct{}
-
 	PEX *pex
 
 	snubTimer       *time.Timer
@@ -48,12 +46,11 @@ type Message struct {
 
 func New(p *peerconn.Conn) *Peer {
 	return &Peer{
-		Conn:              p,
-		AmChoking:         true,
-		PeerChoking:       true,
-		AllowedFastPieces: make(map[uint32]struct{}),
-		closeC:            make(chan struct{}),
-		doneC:             make(chan struct{}),
+		Conn:        p,
+		AmChoking:   true,
+		PeerChoking: true,
+		closeC:      make(chan struct{}),
+		doneC:       make(chan struct{}),
 	}
 }
 

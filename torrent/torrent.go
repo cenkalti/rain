@@ -20,6 +20,7 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/peer"
 	"github.com/cenkalti/rain/torrent/internal/piece"
 	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
+	"github.com/cenkalti/rain/torrent/internal/piecepicker"
 	"github.com/cenkalti/rain/torrent/internal/piecewriter"
 	"github.com/cenkalti/rain/torrent/internal/torrentdata"
 	"github.com/cenkalti/rain/torrent/internal/tracker"
@@ -80,8 +81,7 @@ type Torrent struct {
 	// Contains state about the pieces in torrent.
 	pieces []*piece.Piece
 
-	// Contains pieces in sorted order for piece selection function.
-	sortedPieces []*piece.Piece
+	piecePicker *piecepicker.PiecePicker
 
 	// Peers are sent to this channel when they are disconnected.
 	peerDisconnectedC chan *peer.Peer
