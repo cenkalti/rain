@@ -51,7 +51,7 @@
   version = "1.0.0"
 
 [[constraint]]
-  branch = "master"
+  branch = "package"
   name = "github.com/cenkalti/boltbrowser"
 
 [[constraint]]
