@@ -42,12 +42,12 @@
   revision = "b7325b0f3f1097c6546ea5e83c4a23267e58ad71"
 
 [[projects]]
-  branch = "master"
-  digest = "1:a030f6a4ba294e42e3c3a47e2688b38f85da75865a5fa08e850505ac98c0c7a5"
+  branch = "package"
+  digest = "1:e284c574d53a2beb048c0a07fc95be4cc4c15163ddbce6bd7f9a8780bc971b8d"
   name = "github.com/cenkalti/boltbrowser"
   packages = ["boltbrowser"]
   pruneopts = "UT"
-  revision = "780ebf07b5e67c3394adff7b2ea9be01e24ac902"
+  revision = "9fca9dd713b34ebfc302fb1bfc56516b997a4674"
 
 [[projects]]
   branch = "master"
