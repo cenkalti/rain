@@ -32,45 +32,40 @@ type Stats struct {
 		// TODO BytesUploaded   int64
 	}
 	Peers struct {
-		Connected struct {
-			// Number of peers that are connected, handshaked and ready to send and receive messages.
-			// ConnectedPeers = IncomingPeers + OutgoingPeers
-			Total int
-			// Number of peers that have connected to us.
-			Incoming int
-			// Number of peers that we have connected to.
-			Outgoing int
-		}
-		Handshake struct {
-			// Number of peers that are not handshaked yet.
-			Total int
-			// Number of incoming peers in handshake state.
-			Incoming int
-			// Number of outgoing peers in handshake state.
-			Outgoing int
-		}
-		// Number of peer addresses that are ready to be connected.
-		Ready int
+		// Number of peers that are connected, handshaked and ready to send and receive messages.
+		Total int
+		// Number of peers that have connected to us.
+		Incoming int
+		// Number of peers that we have connected to.
+		Outgoing int
 	}
-	Downloads struct {
-		Piece struct {
-			// Number of active piece downloads.
-			Total int
-			// Number of pieces that are being downloaded normally.
-			Running int
-			// Number of pieces that are being downloaded too slow.
-			Snubbed int
-			// Number of piece downloads in choked state.
-			Choked int
-		}
-		Metadata struct {
-			// Number of active metadata downloads.
-			Total int
-			// Number of peers that uploading too slow.
-			Snubbed int
-			// Number of peers that are being downloaded normally.
-			Running int
-		}
+	Handshakes struct {
+		// Number of peers that are not handshaked yet.
+		Total int
+		// Number of incoming peers in handshake state.
+		Incoming int
+		// Number of outgoing peers in handshake state.
+		Outgoing int
+	}
+	// Number of peer addresses that are ready to be connected.
+	ReadyAddresses int
+	Downloads      struct {
+		// Number of active piece downloads.
+		Total int
+		// Number of pieces that are being downloaded normally.
+		Running int
+		// Number of pieces that are being downloaded too slow.
+		Snubbed int
+		// Number of piece downloads in choked state.
+		Choked int
+	}
+	MetadataDownloads struct {
+		// Number of active metadata downloads.
+		Total int
+		// Number of peers that uploading too slow.
+		Snubbed int
+		// Number of peers that are being downloaded normally.
+		Running int
 	}
 	// Name can change after metadata is downloaded.
 	Name string
@@ -89,20 +84,21 @@ func (t *Torrent) stats() Stats {
 	} else {
 		s.Error = nil
 	}
-	s.Peers.Ready = t.addrList.Len()
-	s.Peers.Handshake.Incoming = len(t.incomingHandshakers)
-	s.Peers.Handshake.Outgoing = len(t.outgoingHandshakers)
-	s.Peers.Handshake.Total = len(t.incomingHandshakers) + len(t.outgoingHandshakers)
-	s.Peers.Connected.Total = len(t.peers)
-	s.Peers.Connected.Incoming = len(t.incomingPeers)
-	s.Peers.Connected.Outgoing = len(t.outgoingPeers)
-	s.Downloads.Metadata.Total = len(t.infoDownloaders)
-	s.Downloads.Metadata.Snubbed = len(t.infoDownloadersSnubbed)
-	s.Downloads.Metadata.Running = len(t.infoDownloaders) - len(t.infoDownloadersSnubbed)
-	s.Downloads.Piece.Total = len(t.pieceDownloaders)
-	s.Downloads.Piece.Snubbed = len(t.pieceDownloadersSnubbed)
-	s.Downloads.Piece.Choked = len(t.pieceDownloadersChoked)
-	s.Downloads.Piece.Running = len(t.pieceDownloaders) - len(t.pieceDownloadersChoked) - len(t.pieceDownloadersSnubbed)
+	// TODO breakdown ready addresses by source
+	s.ReadyAddresses = t.addrList.Len()
+	s.Handshakes.Incoming = len(t.incomingHandshakers)
+	s.Handshakes.Outgoing = len(t.outgoingHandshakers)
+	s.Handshakes.Total = len(t.incomingHandshakers) + len(t.outgoingHandshakers)
+	s.Peers.Total = len(t.peers)
+	s.Peers.Incoming = len(t.incomingPeers)
+	s.Peers.Outgoing = len(t.outgoingPeers)
+	s.MetadataDownloads.Total = len(t.infoDownloaders)
+	s.MetadataDownloads.Snubbed = len(t.infoDownloadersSnubbed)
+	s.MetadataDownloads.Running = len(t.infoDownloaders) - len(t.infoDownloadersSnubbed)
+	s.Downloads.Total = len(t.pieceDownloaders)
+	s.Downloads.Snubbed = len(t.pieceDownloadersSnubbed)
+	s.Downloads.Choked = len(t.pieceDownloadersChoked)
+	s.Downloads.Running = len(t.pieceDownloaders) - len(t.pieceDownloadersChoked) - len(t.pieceDownloadersSnubbed)
 	s.Pieces.Available = t.avaliablePieceCount()
 	s.Bytes.Downloaded = t.bytesDownloaded
 	s.Bytes.Uploaded = t.bytesUploaded
