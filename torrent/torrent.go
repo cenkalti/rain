@@ -18,11 +18,10 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/handshaker/outgoinghandshaker"
 	"github.com/cenkalti/rain/torrent/internal/infodownloader"
 	"github.com/cenkalti/rain/torrent/internal/peer"
-	"github.com/cenkalti/rain/torrent/internal/piece"
 	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
+	"github.com/cenkalti/rain/torrent/internal/pieceio"
 	"github.com/cenkalti/rain/torrent/internal/piecepicker"
 	"github.com/cenkalti/rain/torrent/internal/piecewriter"
-	"github.com/cenkalti/rain/torrent/internal/torrentdata"
 	"github.com/cenkalti/rain/torrent/internal/tracker"
 	"github.com/cenkalti/rain/torrent/internal/tracker/trackermanager"
 	"github.com/cenkalti/rain/torrent/internal/verifier"
@@ -75,11 +74,8 @@ type Torrent struct {
 	// Unique peer ID is generated per downloader.
 	peerID [20]byte
 
-	// Data provides IO access to pieces in torrent.
-	data *torrentdata.Data
-
-	// Contains state about the pieces in torrent.
-	pieces []*piece.Piece
+	files  []storage.File
+	pieces []pieceio.Piece
 
 	piecePicker *piecepicker.PiecePicker
 

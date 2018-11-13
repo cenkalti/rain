@@ -29,7 +29,7 @@ func (t *Torrent) start() {
 	t.lastError = nil
 
 	if t.info != nil {
-		if t.data != nil {
+		if t.pieces != nil {
 			if t.bitfield != nil {
 				t.startAcceptor()
 				t.startAnnouncers()
@@ -53,7 +53,7 @@ func (t *Torrent) startVerifier() {
 		panic("verifier exists")
 	}
 	t.verifier = verifier.New()
-	go t.verifier.Run(t.data.Pieces, t.verifierProgressC, t.verifierResultC)
+	go t.verifier.Run(t.pieces, t.verifierProgressC, t.verifierResultC)
 }
 
 func (t *Torrent) startAllocator() {
@@ -134,7 +134,7 @@ func (t *Torrent) startPieceDownloaders() {
 		if pe == nil {
 			break
 		}
-		pd := piecedownloader.New(t.pieces[i].Piece, pe)
+		pd := piecedownloader.New(&t.pieces[i], pe)
 		// t.log.Debugln("downloading piece", pd.Piece.Index, "from", pd.Peer.String())
 		if _, ok := t.pieceDownloaders[pd.Peer]; ok {
 			panic("peer already has a piece downloader")

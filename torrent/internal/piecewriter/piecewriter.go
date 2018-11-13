@@ -1,18 +1,18 @@
 package piecewriter
 
 import (
-	"github.com/cenkalti/rain/torrent/internal/piece"
+	"github.com/cenkalti/rain/torrent/internal/pieceio"
 )
 
 type PieceWriter struct {
-	Piece *piece.Piece
+	Piece *pieceio.Piece
 	Error error
 
 	closeC chan struct{}
 	doneC  chan struct{}
 }
 
-func New(p *piece.Piece) *PieceWriter {
+func New(p *pieceio.Piece) *PieceWriter {
 	return &PieceWriter{
 		Piece:  p,
 		closeC: make(chan struct{}),

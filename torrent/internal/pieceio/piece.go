@@ -24,7 +24,7 @@ type Data interface {
 	io.Writer
 }
 
-func NewPieces(info *metainfo.Info, osFiles []storage.File) []Piece {
+func NewPieces(info *metainfo.Info, files []storage.File) []Piece {
 	var (
 		fileIndex  int   // index of the current file in torrent
 		fileLength int64 // length of the file in fileIndex
@@ -63,7 +63,7 @@ func NewPieces(info *metainfo.Info, osFiles []storage.File) []Piece {
 			n := uint32(minInt64(int64(left), fileLeft())) // number of bytes to write
 
 			file := filesection.Section{
-				File:   osFiles[fileIndex],
+				File:   files[fileIndex],
 				Offset: fileOffset,
 				Length: int64(n),
 			}

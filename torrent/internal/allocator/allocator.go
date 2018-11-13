@@ -3,13 +3,12 @@ package allocator
 import (
 	"path/filepath"
 
-	"github.com/cenkalti/rain/torrent/internal/torrentdata"
 	"github.com/cenkalti/rain/torrent/metainfo"
 	"github.com/cenkalti/rain/torrent/storage"
 )
 
 type Allocator struct {
-	Data          *torrentdata.Data
+	Files         []storage.File
 	NeedHashCheck bool
 	Error         error
 
@@ -36,16 +35,14 @@ func (a *Allocator) Close() {
 func (a *Allocator) Run(info *metainfo.Info, sto storage.Storage, progressC chan Progress, resultC chan *Allocator) {
 	defer close(a.doneC)
 
-	var files []storage.File
 	defer func() {
 		if a.Error != nil {
-			for _, f := range files {
+			for _, f := range a.Files {
 				if f != nil {
 					f.Close()
 				}
 			}
 		}
-		a.Data = torrentdata.New(info, files)
 		select {
 		case resultC <- a:
 		case <-a.closeC:
@@ -59,17 +56,17 @@ func (a *Allocator) Run(info *metainfo.Info, sto storage.Storage, progressC chan
 		if a.Error != nil {
 			return
 		}
-		files = []storage.File{f}
+		a.Files = []storage.File{f}
 		return
 	}
 
 	// Multiple files in torrent grouped in a folder
-	files = make([]storage.File, len(info.Files))
+	a.Files = make([]storage.File, len(info.Files))
 	for i, f := range info.Files {
 		parts := append([]string{info.Name}, f.Path...)
 		path := filepath.Join(parts...)
 		var exists bool
-		files[i], exists, a.Error = sto.Open(path, f.Length)
+		a.Files[i], exists, a.Error = sto.Open(path, f.Length)
 		if a.Error != nil {
 			return
 		}

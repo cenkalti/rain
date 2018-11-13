@@ -95,10 +95,13 @@ func (t *Torrent) stopIncomingHandshakers() {
 }
 
 func (t *Torrent) closeData() {
-	if t.data != nil {
-		t.data.Close()
-		t.data = nil
+	for _, f := range t.files {
+		err := f.Close()
+		if err != nil {
+			t.log.Error(err)
+		}
 	}
+	t.files = nil
 }
 
 func (t *Torrent) stopPeriodicalAnnouncers() {
