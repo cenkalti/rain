@@ -18,8 +18,8 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/handshaker/outgoinghandshaker"
 	"github.com/cenkalti/rain/torrent/internal/infodownloader"
 	"github.com/cenkalti/rain/torrent/internal/peer"
+	"github.com/cenkalti/rain/torrent/internal/piece"
 	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
-	"github.com/cenkalti/rain/torrent/internal/pieceio"
 	"github.com/cenkalti/rain/torrent/internal/piecepicker"
 	"github.com/cenkalti/rain/torrent/internal/piecewriter"
 	"github.com/cenkalti/rain/torrent/internal/tracker"
@@ -75,7 +75,7 @@ type Torrent struct {
 	peerID [20]byte
 
 	files  []storage.File
-	pieces []pieceio.Piece
+	pieces []piece.Piece
 
 	piecePicker *piecepicker.PiecePicker
 

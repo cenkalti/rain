@@ -1,4 +1,4 @@
-package pieceio
+package piece
 
 import (
 	"bytes"

@@ -5,7 +5,7 @@ import (
 
 	"github.com/cenkalti/rain/torrent/internal/allocator"
 	"github.com/cenkalti/rain/torrent/internal/bitfield"
-	"github.com/cenkalti/rain/torrent/internal/pieceio"
+	"github.com/cenkalti/rain/torrent/internal/piece"
 	"github.com/cenkalti/rain/torrent/internal/piecepicker"
 )
 
@@ -21,7 +21,7 @@ func (t *Torrent) handleAllocationDone(al *allocator.Allocator) {
 	}
 
 	t.files = al.Files
-	t.pieces = pieceio.NewPieces(t.info, t.files)
+	t.pieces = piece.NewPieces(t.info, t.files)
 	if t.piecePicker != nil {
 		panic("piece picker exists")
 	}

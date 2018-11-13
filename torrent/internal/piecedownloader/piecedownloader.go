@@ -3,12 +3,12 @@ package piecedownloader
 import (
 	"github.com/cenkalti/rain/torrent/internal/peer"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
-	"github.com/cenkalti/rain/torrent/internal/pieceio"
+	"github.com/cenkalti/rain/torrent/internal/piece"
 )
 
 // PieceDownloader downloads all blocks of a piece from a peer.
 type PieceDownloader struct {
-	Piece *pieceio.Piece
+	Piece *piece.Piece
 	Peer  *peer.Peer
 	Bytes []byte
 
@@ -22,7 +22,7 @@ type pieceReaderResult struct {
 	Error      error
 }
 
-func New(pi *pieceio.Piece, pe *peer.Peer) *PieceDownloader {
+func New(pi *piece.Piece, pe *peer.Peer) *PieceDownloader {
 	return &PieceDownloader{
 		Piece:        pi,
 		Peer:         pe,
@@ -37,7 +37,7 @@ func (d *PieceDownloader) Choked() {
 	d.nextBlockIndex = 0
 }
 
-func (d *PieceDownloader) GotBlock(block *pieceio.Block, data []byte) {
+func (d *PieceDownloader) GotBlock(block *piece.Block, data []byte) {
 	if _, ok := d.downloadDone[block.Index]; ok {
 		d.Peer.Logger().Warningln("received duplicate block:", block.Index)
 	}
@@ -46,7 +46,7 @@ func (d *PieceDownloader) GotBlock(block *pieceio.Block, data []byte) {
 	d.downloadDone[block.Index] = struct{}{}
 }
 
-func (d *PieceDownloader) Rejected(block *pieceio.Block) {
+func (d *PieceDownloader) Rejected(block *piece.Block) {
 	delete(d.requested, block.Index)
 	d.nextBlockIndex = 0
 }

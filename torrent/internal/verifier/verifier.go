@@ -4,7 +4,7 @@ import (
 	"crypto/sha1" // nolint: gosec
 
 	"github.com/cenkalti/rain/torrent/internal/bitfield"
-	"github.com/cenkalti/rain/torrent/internal/pieceio"
+	"github.com/cenkalti/rain/torrent/internal/piece"
 )
 
 type Verifier struct {
@@ -32,7 +32,7 @@ func (v *Verifier) Close() {
 	<-v.doneC
 }
 
-func (v *Verifier) Run(pieces []pieceio.Piece, progressC chan Progress, resultC chan *Verifier) {
+func (v *Verifier) Run(pieces []piece.Piece, progressC chan Progress, resultC chan *Verifier) {
 	defer close(v.doneC)
 
 	defer func() {
