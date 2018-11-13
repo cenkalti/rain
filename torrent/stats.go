@@ -131,6 +131,9 @@ func (t *Torrent) stats() Stats {
 }
 
 func (t *Torrent) avaliablePieceCount() uint32 {
+	if t.piecePicker == nil {
+		return 0
+	}
 	return t.piecePicker.Available()
 }
 

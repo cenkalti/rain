@@ -183,7 +183,9 @@ func (t *Torrent) closePeer(pe *peer.Peer) {
 	delete(t.peersSnubbed, pe)
 	delete(t.peerIDs, pe.ID())
 	delete(t.connectedPeerIPs, pe.Conn.IP())
-	t.piecePicker.HandleDisconnect(pe)
+	if t.piecePicker != nil {
+		t.piecePicker.HandleDisconnect(pe)
+	}
 	t.pexDropPeer(pe.Addr())
 	t.dialAddresses()
 }

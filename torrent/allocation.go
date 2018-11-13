@@ -20,11 +20,16 @@ func (t *Torrent) handleAllocationDone(al *allocator.Allocator) {
 		return
 	}
 
+	if t.files != nil {
+		panic("files exist")
+	}
 	t.files = al.Files
+
 	t.pieces = piece.NewPieces(t.info, t.files)
 	if t.piecePicker != nil {
 		panic("piece picker exists")
 	}
+
 	t.piecePicker = piecepicker.New(t.info.NumPieces, t.config.EndgameParallelDownloadsPerPiece, t.log)
 
 	// If we already have bitfield from resume db, skip verification and start downloading.

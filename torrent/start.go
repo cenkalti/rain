@@ -126,6 +126,9 @@ func (t *Torrent) startPieceDownloaders() {
 	if t.bitfield == nil {
 		return
 	}
+	if t.pieces == nil {
+		return
+	}
 	if t.completed {
 		return
 	}
