@@ -52,6 +52,8 @@ type Config struct {
 }
 
 var DefaultConfig = Config{
+	UnchokedPeers:                    3,
+	OptimisticUnchokedPeers:          1,
 	RequestQueueLength:               50,
 	RequestTimeout:                   20 * time.Second,
 	EndgameParallelDownloadsPerPiece: 2,
