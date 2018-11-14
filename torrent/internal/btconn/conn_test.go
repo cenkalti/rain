@@ -83,7 +83,7 @@ func TestEncrypted(t *testing.T) {
 	var gerr error
 	go func() {
 		defer close(done)
-		conn, cipher, ext, id, err2 := Dial(&net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: port}, 10*time.Second, 10*time.Second, true, false, ext1, infoHash, id1, nil)
+		conn, cipher, ext, id, err2 := Dial(&net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: port}, 10*time.Second, 10*time.Second, true, true, ext1, infoHash, id1, nil)
 		if err2 != nil {
 			gerr = err2
 			return
