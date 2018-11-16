@@ -113,19 +113,14 @@ func (p *PeerReader) Run() {
 
 		switch id {
 		case peerprotocol.Choke:
-			first = false
 			msg = peerprotocol.ChokeMessage{}
 		case peerprotocol.Unchoke:
-			first = false
 			msg = peerprotocol.UnchokeMessage{}
 		case peerprotocol.Interested:
-			first = false
 			msg = peerprotocol.InterestedMessage{}
 		case peerprotocol.NotInterested:
-			first = false
 			msg = peerprotocol.NotInterestedMessage{}
 		case peerprotocol.Have:
-			first = false
 			var hm peerprotocol.HaveMessage
 			err = binary.Read(p.buf, binary.BigEndian, &hm)
 			if err != nil {
@@ -137,7 +132,6 @@ func (p *PeerReader) Run() {
 				err = errors.New("bitfield can only be sent after handshake")
 				return
 			}
-			first = false
 			var bm peerprotocol.BitfieldMessage
 			bm.Data = make([]byte, length)
 			_, err = io.ReadFull(p.buf, bm.Data)
@@ -146,7 +140,6 @@ func (p *PeerReader) Run() {
 			}
 			msg = bm
 		case peerprotocol.Request:
-			first = false
 			var rm peerprotocol.RequestMessage
 			err = binary.Read(p.buf, binary.BigEndian, &rm)
 			if err != nil {
@@ -173,7 +166,6 @@ func (p *PeerReader) Run() {
 			msg = rm
 		// TODO handle cancel message
 		case peerprotocol.Piece:
-			first = false
 			var pm peerprotocol.PieceMessage
 			err = binary.Read(p.buf, binary.BigEndian, &pm)
 			if err != nil {
@@ -211,7 +203,6 @@ func (p *PeerReader) Run() {
 				err = errors.New("have_all can only be sent after handshake")
 				return
 			}
-			first = false
 			msg = peerprotocol.HaveAllMessage{}
 		case peerprotocol.HaveNone:
 			if !p.fastExtension {
@@ -222,7 +213,6 @@ func (p *PeerReader) Run() {
 				err = errors.New("have_none can only be sent after handshake")
 				return
 			}
-			first = false
 			msg = peerprotocol.HaveNoneMessage{}
 		case peerprotocol.AllowedFast:
 			var am peerprotocol.AllowedFastMessage
@@ -258,6 +248,10 @@ func (p *PeerReader) Run() {
 		}
 		if msg == nil {
 			panic("msg unset")
+		}
+		// Only message types defined in BEP 3 are counted.
+		if id < 9 {
+			first = false
 		}
 		select {
 		case p.messages <- msg:
