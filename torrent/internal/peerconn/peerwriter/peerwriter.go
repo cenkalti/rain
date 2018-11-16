@@ -2,6 +2,7 @@ package peerwriter
 
 import (
 	"bytes"
+	"container/list"
 	"encoding/binary"
 	"io"
 	"net"
@@ -16,7 +17,7 @@ const keepAlivePeriod = 2 * time.Minute
 type PeerWriter struct {
 	conn       net.Conn
 	queueC     chan peerprotocol.Message
-	writeQueue []peerprotocol.Message
+	writeQueue *list.List
 	writeC     chan peerprotocol.Message
 	messages   chan interface{}
 	log        logger.Logger
@@ -28,7 +29,7 @@ func New(conn net.Conn, l logger.Logger) *PeerWriter {
 	return &PeerWriter{
 		conn:       conn,
 		queueC:     make(chan peerprotocol.Message),
-		writeQueue: make([]peerprotocol.Message, 0),
+		writeQueue: list.New(),
 		writeC:     make(chan peerprotocol.Message),
 		messages:   make(chan interface{}),
 		log:        l,
@@ -70,7 +71,7 @@ func (p *PeerWriter) Run() {
 	go p.messageWriter()
 
 	for {
-		if len(p.writeQueue) == 0 {
+		if p.writeQueue.Len() == 0 {
 			select {
 			case msg := <-p.queueC:
 				p.queueMessage(msg)
@@ -78,13 +79,13 @@ func (p *PeerWriter) Run() {
 				return
 			}
 		}
-		msg := p.writeQueue[0]
+		e := p.writeQueue.Front()
+		msg := e.Value.(peerprotocol.Message)
 		select {
 		case msg = <-p.queueC:
 			p.queueMessage(msg)
 		case p.writeC <- msg:
-			// TODO peer write queue array grows indefinitely. Try using linked list.
-			p.writeQueue = p.writeQueue[1:]
+			p.writeQueue.Remove(e)
 		case <-p.stopC:
 			return
 		}
@@ -93,7 +94,7 @@ func (p *PeerWriter) Run() {
 
 func (p *PeerWriter) queueMessage(msg peerprotocol.Message) {
 	// TODO cancel pending requests on choke
-	p.writeQueue = append(p.writeQueue, msg)
+	p.writeQueue.PushBack(msg)
 }
 
 func (p *PeerWriter) messageWriter() {
