@@ -93,7 +93,16 @@ func (p *PeerWriter) Run() {
 }
 
 func (p *PeerWriter) queueMessage(msg peerprotocol.Message) {
-	// TODO cancel pending requests on choke
+	// Cancel queued piece messages on choke
+	if _, ok := msg.(peerprotocol.ChokeMessage); ok {
+		var next *list.Element
+		for e := p.writeQueue.Front(); e != nil; e = next {
+			next = e.Next()
+			if _, ok = e.Value.(Piece); ok {
+				p.writeQueue.Remove(e)
+			}
+		}
+	}
 	p.writeQueue.PushBack(msg)
 }
 
