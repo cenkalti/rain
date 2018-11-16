@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"io"
 
 	"github.com/zeebo/bencode"
 )
@@ -29,13 +28,6 @@ const (
 type ExtensionMessage struct {
 	ExtendedMessageID uint8
 	Payload           interface{}
-	payloadLength     uint32
-}
-
-func NewExtensionMessage(payloadLength uint32) ExtensionMessage {
-	return ExtensionMessage{
-		payloadLength: payloadLength,
-	}
 }
 
 func (m ExtensionMessage) ID() MessageID { return Extension }
@@ -47,44 +39,40 @@ func (m ExtensionMessage) MarshalBinary() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if mm, ok := m.Payload.(*ExtensionMetadataMessage); ok {
+	if mm, ok := m.Payload.(ExtensionMetadataMessage); ok {
 		buf.Write(mm.Data)
 	}
 	return buf.Bytes(), nil
 }
 
 func (m *ExtensionMessage) UnmarshalBinary(data []byte) error {
-	msg := struct{ ExtendedMessageID uint8 }{}
+	var extID uint8
 	r := bytes.NewReader(data)
-	err := binary.Read(r, binary.BigEndian, &msg)
+	err := binary.Read(r, binary.BigEndian, &extID)
 	if err != nil {
 		return err
 	}
-	m.ExtendedMessageID = msg.ExtendedMessageID
-	payload := make([]byte, m.payloadLength)
-	_, err = io.ReadFull(r, payload)
-	if err != nil {
-		return err
-	}
+	m.ExtendedMessageID = extID
+	payload := data[1:]
+	dec := bencode.NewDecoder(bytes.NewReader(payload))
 	switch m.ExtendedMessageID {
 	case ExtensionIDHandshake:
-		m.Payload = new(ExtensionHandshakeMessage)
+		var extMsg ExtensionHandshakeMessage
+		err = dec.Decode(&extMsg)
+		m.Payload = extMsg
 	case ExtensionIDMetadata:
-		m.Payload = new(ExtensionMetadataMessage)
+		var extMsg ExtensionMetadataMessage
+		err = dec.Decode(&extMsg)
+		extMsg.Data = payload[dec.BytesParsed():]
+		m.Payload = extMsg
 	case ExtensionIDPEX:
-		m.Payload = new(ExtensionPEXMessage)
+		var extMsg ExtensionPEXMessage
+		err = dec.Decode(&extMsg)
+		m.Payload = extMsg
 	default:
 		return fmt.Errorf("peer sent invalid extension message id: %d", m.ExtendedMessageID)
 	}
-	dec := bencode.NewDecoder(bytes.NewReader(payload))
-	err = dec.Decode(m.Payload)
-	if err != nil {
-		return err
-	}
-	if mm, ok := m.Payload.(*ExtensionMetadataMessage); ok {
-		mm.Data = payload[dec.BytesParsed():]
-	}
-	return nil
+	return err
 }
 
 type ExtensionHandshakeMessage struct {

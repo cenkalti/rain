@@ -239,9 +239,9 @@ func (p *PeerReader) Run() {
 			}
 			if !p.extensionProtocol {
 				err = errors.New("extension message received but it is not enabled in bitfield")
-				break
+				return
 			}
-			em := peerprotocol.NewExtensionMessage(length - 1)
+			var em peerprotocol.ExtensionMessage
 			err = em.UnmarshalBinary(buf)
 			if err != nil {
 				return
