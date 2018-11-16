@@ -66,7 +66,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		}
 		t.updateInterestedState(pe)
 		t.startPieceDownloaders()
-	case peerprotocol.HaveNoneMessage: // TODO handle?
+	case peerprotocol.HaveNoneMessage:
 	case peerprotocol.AllowedFastMessage:
 		if t.pieces == nil || t.bitfield == nil {
 			pe.Messages = append(pe.Messages, msg)
