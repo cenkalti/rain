@@ -124,19 +124,11 @@ func (p *PiecePicker) findPieceAndPeer() (*piece, *peer.Peer) {
 		return pe, pi
 	}
 	sort.Slice(p.sortedPieces, func(i, j int) bool { return len(p.sortedPieces[i].HavingPeers) < len(p.sortedPieces[j].HavingPeers) })
-	pe, pi = p.selectAllowedFastPiece(true, true)
+	pe, pi = p.selectPiece(true)
 	if pe != nil && pi != nil {
 		return pe, pi
 	}
-	pe, pi = p.selectUnchokedPeer(true, true)
-	if pe != nil && pi != nil {
-		return pe, pi
-	}
-	pe, pi = p.selectSnubbedPeer(true)
-	if pe != nil && pi != nil {
-		return pe, pi
-	}
-	pe, pi = p.selectDuplicatePiece()
+	pe, pi = p.selectPiece(false)
 	if pe != nil && pi != nil {
 		return pe, pi
 	}
@@ -148,43 +140,7 @@ func (p *PiecePicker) select4RandomPiece() (*piece, *peer.Peer) {
 	return nil, nil
 }
 
-func (p *PiecePicker) selectAllowedFastPiece(skipSnubbed, noDuplicate bool) (*piece, *peer.Peer) {
-	return p.selectPiece(true, skipSnubbed, noDuplicate)
-}
-
-func (p *PiecePicker) selectUnchokedPeer(skipSnubbed, noDuplicate bool) (*piece, *peer.Peer) {
-	return p.selectPiece(false, skipSnubbed, noDuplicate)
-}
-
-func (p *PiecePicker) selectSnubbedPeer(noDuplicate bool) (*piece, *peer.Peer) {
-	pi, pe := p.selectAllowedFastPiece(false, noDuplicate)
-	if pi != nil && pe != nil {
-		return pi, pe
-	}
-	pi, pe = p.selectUnchokedPeer(false, noDuplicate)
-	if pi != nil && pe != nil {
-		return pi, pe
-	}
-	return nil, nil
-}
-
-func (p *PiecePicker) selectDuplicatePiece() (*piece, *peer.Peer) {
-	pe, pi := p.selectAllowedFastPiece(true, false)
-	if pe != nil && pi != nil {
-		return pe, pi
-	}
-	pe, pi = p.selectUnchokedPeer(true, false)
-	if pe != nil && pi != nil {
-		return pe, pi
-	}
-	pe, pi = p.selectSnubbedPeer(false)
-	if pe != nil && pi != nil {
-		return pe, pi
-	}
-	return nil, nil
-}
-
-func (p *PiecePicker) selectPiece(preferAllowedFast, skipSnubbed, noDuplicate bool) (*piece, *peer.Peer) {
+func (p *PiecePicker) selectPiece(noDuplicate bool) (*piece, *peer.Peer) {
 	for _, pi := range p.sortedPieces {
 		if pi.Done {
 			continue
@@ -201,19 +157,12 @@ func (p *PiecePicker) selectPiece(preferAllowedFast, skipSnubbed, noDuplicate bo
 			if pe.Downloading {
 				continue
 			}
-			if skipSnubbed && pe.Snubbed {
-				continue
+			if !pe.PeerChoking {
+				return pi, pe
 			}
-			if preferAllowedFast {
-				if _, ok := pi.AllowedFastPeers[pe]; !ok {
-					continue
-				}
-			} else {
-				if pe.PeerChoking {
-					continue
-				}
+			if _, ok := pi.AllowedFastPeers[pe]; !ok {
+				return pi, pe
 			}
-			return pi, pe
 		}
 	}
 	return nil, nil
