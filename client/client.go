@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/boltdb/bolt"
@@ -49,7 +50,14 @@ func New(cfg Config) (*Client, error) {
 	if cfg.PortBegin >= cfg.PortEnd {
 		return nil, errors.New("invalid port range")
 	}
-	var err error
+	rLimit := syscall.Rlimit{
+		Cur: cfg.MaxOpenFiles,
+		Max: cfg.MaxOpenFiles,
+	}
+	err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rLimit)
+	if err != nil {
+		return nil, err
+	}
 	cfg.Database, err = homedir.Expand(cfg.Database)
 	if err != nil {
 		return nil, err
