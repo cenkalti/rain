@@ -1,7 +1,6 @@
 package btconn
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -9,17 +8,15 @@ import (
 
 var errInvalidProtocol = errors.New("invalid protocol")
 
-var pstr = [19]byte{'B', 'i', 't', 'T', 'o', 'r', 'r', 'e', 'n', 't', ' ', 'p', 'r', 'o', 't', 'o', 'c', 'o', 'l'}
+var pstr = [20]byte{19, 'B', 'i', 't', 'T', 'o', 'r', 'r', 'e', 'n', 't', ' ', 'p', 'r', 'o', 't', 'o', 'c', 'o', 'l'}
 
 func writeHandshake(w io.Writer, ih [20]byte, id [20]byte, extensions [8]byte) error {
 	var h = struct {
-		Pstrlen    byte
-		Pstr       [len(pstr)]byte
+		Pstr       [20]byte
 		Extensions [8]byte
 		InfoHash   [20]byte
 		PeerID     [20]byte
 	}{
-		Pstrlen:    byte(len(pstr)),
 		Pstr:       pstr,
 		Extensions: extensions,
 		InfoHash:   ih,
@@ -29,31 +26,18 @@ func writeHandshake(w io.Writer, ih [20]byte, id [20]byte, extensions [8]byte) e
 }
 
 func readHandshake1(r io.Reader) (extensions [8]byte, ih [20]byte, err error) {
-	var pstrLen byte
-	err = binary.Read(r, binary.BigEndian, &pstrLen)
+	_, err = io.ReadFull(r, ih[:])
 	if err != nil {
 		return
 	}
-	if pstrLen != byte(len(pstr)) {
+	if ih != pstr {
 		err = errInvalidProtocol
 		return
 	}
-
-	pstr := make([]byte, pstrLen)
-	_, err = io.ReadFull(r, pstr)
-	if err != nil {
-		return
-	}
-	if !bytes.Equal(pstr, pstr) {
-		err = errInvalidProtocol
-		return
-	}
-
 	_, err = io.ReadFull(r, extensions[:])
 	if err != nil {
 		return
 	}
-
 	_, err = io.ReadFull(r, ih[:])
 	return
 }
