@@ -198,6 +198,7 @@ func parseDHTPeers(peers []string) []*net.TCPAddr {
 }
 
 func (c *Client) loadExistingTorrents(ids []uint64) error {
+	var loaded int
 	var started []*Torrent
 	for _, id := range ids {
 		res, err := boltdbresumer.New(c.db, mainBucket, []byte(strconv.FormatUint(id, 10)))
@@ -245,11 +246,13 @@ func (c *Client) loadExistingTorrents(ids []uint64) error {
 		delete(c.availablePorts, uint16(spec.Port))
 
 		t2 := c.newTorrent(t, id, uint16(spec.Port))
-		c.log.Infof("loaded existing torrent: #%d %s", id, t.Name())
+		c.log.Debugf("loaded existing torrent: #%d %s", id, t.Name())
+		loaded++
 		if hasStarted {
 			started = append(started, t2)
 		}
 	}
+	c.log.Infof("loaded %d existing torrents", loaded)
 	for _, t := range started {
 		t.Start()
 	}
