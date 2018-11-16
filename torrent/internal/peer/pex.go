@@ -29,7 +29,9 @@ type pex struct {
 func newPEX(conn *peerconn.Conn, extID uint8, initialPeers map[*Peer]struct{}) *pex {
 	pl := pexlist.New()
 	for pe := range initialPeers {
-		pl.Add(pe.Addr())
+		if pe.Addr().String() != conn.Addr().String() {
+			pl.Add(pe.Addr())
+		}
 	}
 	return &pex{
 		conn:         conn,
