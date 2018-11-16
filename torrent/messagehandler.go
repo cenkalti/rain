@@ -94,9 +94,9 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			t.startPieceDownloaders()
 		}
 	case peerprotocol.InterestedMessage:
-		// TODO handle intereseted messages
+		pe.PeerInterested = true
 	case peerprotocol.NotInterestedMessage:
-		// TODO handle not intereseted messages
+		pe.PeerInterested = false
 	case peerreader.Piece:
 		if t.pieces == nil || t.bitfield == nil {
 			pe.Logger().Error("piece received but we don't have info")
