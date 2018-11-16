@@ -201,15 +201,10 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			t.closePeer(pe)
 			break
 		}
-		// TODO check piece index
-		// TODO check piece index on cancel
 		pd, ok := t.pieceDownloaders[pe]
-		if !ok {
-			pe.Logger().Error("reject received but we don't have active download")
-			t.closePeer(pe)
-			break
+		if ok {
+			pd.Rejected(block)
 		}
-		pd.Rejected(block)
 	case peerprotocol.CancelMessage:
 		if t.pieces == nil || t.bitfield == nil {
 			pe.Logger().Error("cancel received but we don't have info")
