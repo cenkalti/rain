@@ -210,6 +210,19 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			break
 		}
 		pd.Rejected(block)
+	case peerprotocol.CancelMessage:
+		if t.pieces == nil || t.bitfield == nil {
+			pe.Logger().Error("cancel received but we don't have info")
+			t.closePeer(pe)
+			break
+		}
+
+		if msg.Index >= t.info.NumPieces {
+			pe.Logger().Errorln("invalid cancel index:", msg.Index)
+			t.closePeer(pe)
+			break
+		}
+		pe.CancelRequest(msg)
 	case peerwriter.BlockUploaded:
 		t.bytesUploaded += int64(msg.Length)
 		pe.BytesUploadedInChokePeriod += int64(msg.Length)

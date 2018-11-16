@@ -164,7 +164,17 @@ func (p *PeerReader) Run() {
 			}
 			p.log.Debugf("Received Reject: %+v", rm)
 			msg = rm
-		// TODO handle cancel message
+		case peerprotocol.Cancel:
+			var cm peerprotocol.CancelMessage
+			err = binary.Read(p.buf, binary.BigEndian, &cm)
+			if err != nil {
+				return
+			}
+			if cm.Length > maxBlockSize {
+				err = errors.New("received a cancel with block size larger than allowed")
+				return
+			}
+			msg = cm
 		case peerprotocol.Piece:
 			var pm peerprotocol.PieceMessage
 			err = binary.Read(p.buf, binary.BigEndian, &pm)

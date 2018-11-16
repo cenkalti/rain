@@ -81,6 +81,10 @@ func (p *Conn) SendPiece(msg peerprotocol.RequestMessage, pi io.ReaderAt) {
 	p.writer.SendPiece(msg, pi)
 }
 
+func (p *Conn) CancelRequest(msg peerprotocol.CancelMessage) {
+	p.writer.CancelRequest(msg)
+}
+
 // Run reads and processes incoming messages after handshake.
 func (p *Conn) Run() {
 	defer close(p.doneC)

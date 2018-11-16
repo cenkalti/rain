@@ -17,6 +17,7 @@ const keepAlivePeriod = 2 * time.Minute
 type PeerWriter struct {
 	conn       net.Conn
 	queueC     chan peerprotocol.Message
+	cancelC    chan peerprotocol.CancelMessage
 	writeQueue *list.List
 	writeC     chan peerprotocol.Message
 	messages   chan interface{}
@@ -29,6 +30,7 @@ func New(conn net.Conn, l logger.Logger) *PeerWriter {
 	return &PeerWriter{
 		conn:       conn,
 		queueC:     make(chan peerprotocol.Message),
+		cancelC:    make(chan peerprotocol.CancelMessage),
 		writeQueue: list.New(),
 		writeC:     make(chan peerprotocol.Message),
 		messages:   make(chan interface{}),
@@ -53,6 +55,13 @@ func (p *PeerWriter) SendPiece(msg peerprotocol.RequestMessage, pi io.ReaderAt) 
 	m := Piece{Piece: pi, Index: msg.Index, Begin: msg.Begin, Length: msg.Length}
 	select {
 	case p.queueC <- m:
+	case <-p.doneC:
+	}
+}
+
+func (p *PeerWriter) CancelRequest(msg peerprotocol.CancelMessage) {
+	select {
+	case p.cancelC <- msg:
 	case <-p.doneC:
 	}
 }
@@ -84,6 +93,8 @@ func (p *PeerWriter) Run() {
 			p.queueMessage(msg)
 		case writeC <- msg:
 			p.writeQueue.Remove(e)
+		case cm := <-p.cancelC:
+			p.cancelRequest(cm)
 		case <-p.stopC:
 			return
 		}
@@ -102,6 +113,15 @@ func (p *PeerWriter) queueMessage(msg peerprotocol.Message) {
 		}
 	}
 	p.writeQueue.PushBack(msg)
+}
+
+func (p *PeerWriter) cancelRequest(cm peerprotocol.CancelMessage) {
+	for e := p.writeQueue.Front(); e != nil; e = e.Next() {
+		if pi, ok := e.Value.(Piece); ok && pi.Index == cm.Index && pi.Begin == cm.Begin && pi.Length == cm.Length {
+			p.writeQueue.Remove(e)
+			break
+		}
+	}
 }
 
 func (p *PeerWriter) messageWriter() {
