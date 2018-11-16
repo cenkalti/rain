@@ -71,20 +71,18 @@ func (p *PeerWriter) Run() {
 	go p.messageWriter()
 
 	for {
-		if p.writeQueue.Len() == 0 {
-			select {
-			case msg := <-p.queueC:
-				p.queueMessage(msg)
-			case <-p.stopC:
-				return
-			}
+		var e *list.Element
+		var msg peerprotocol.Message
+		var writeC chan peerprotocol.Message
+		if p.writeQueue.Len() > 0 {
+			e = p.writeQueue.Front()
+			msg = e.Value.(peerprotocol.Message)
+			writeC = p.writeC
 		}
-		e := p.writeQueue.Front()
-		msg := e.Value.(peerprotocol.Message)
 		select {
 		case msg = <-p.queueC:
 			p.queueMessage(msg)
-		case p.writeC <- msg:
+		case writeC <- msg:
 			p.writeQueue.Remove(e)
 		case <-p.stopC:
 			return
