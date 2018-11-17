@@ -133,6 +133,7 @@ func (t *Torrent) run() {
 			t.peersSnubbed[pe] = struct{}{}
 			if pd, ok := t.pieceDownloaders[pe]; ok {
 				t.pieceDownloadersSnubbed[pe] = pd
+				t.piecePicker.HandleSnubbed(pe, pd.Piece.Index)
 				t.startPieceDownloaders()
 			} else if id, ok := t.infoDownloaders[pe]; ok {
 				t.infoDownloadersSnubbed[pe] = id

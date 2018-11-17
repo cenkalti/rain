@@ -20,18 +20,13 @@ type piece struct {
 	HavingPeers      map[*peer.Peer]struct{}
 	AllowedFastPeers map[*peer.Peer]struct{}
 	RequestedPeers   map[*peer.Peer]struct{}
+	SnubbedPeers     map[*peer.Peer]struct{}
 	Writing          bool
 	Done             bool
 }
 
 func (p *piece) RunningDownloads() int {
-	n := len(p.RequestedPeers)
-	for pe := range p.RequestedPeers {
-		if pe.Snubbed {
-			n--
-		}
-	}
-	return n
+	return len(p.RequestedPeers) - len(p.SnubbedPeers)
 }
 
 func New(numPieces uint32, endgameParallelDownloadsPerPiece int, l logger.Logger) *PiecePicker {
@@ -42,6 +37,7 @@ func New(numPieces uint32, endgameParallelDownloadsPerPiece int, l logger.Logger
 			HavingPeers:      make(map[*peer.Peer]struct{}),
 			AllowedFastPeers: make(map[*peer.Peer]struct{}),
 			RequestedPeers:   make(map[*peer.Peer]struct{}),
+			SnubbedPeers:     make(map[*peer.Peer]struct{}),
 		}
 	}
 	sps := make([]*piece, len(ps))
@@ -80,15 +76,20 @@ func (p *PiecePicker) HandleAllowedFast(pe *peer.Peer, i uint32) {
 	p.pieces[i].AllowedFastPeers[pe] = struct{}{}
 }
 
+func (p *PiecePicker) HandleSnubbed(pe *peer.Peer, i uint32) {
+	p.pieces[i].SnubbedPeers[pe] = struct{}{}
+}
+
 func (p *PiecePicker) HandleCancelDownload(pe *peer.Peer, i uint32) {
 	delete(p.pieces[i].RequestedPeers, pe)
+	delete(p.pieces[i].SnubbedPeers, pe)
 }
 
 func (p *PiecePicker) HandleDisconnect(pe *peer.Peer) {
 	for i := range p.pieces {
-		delete(p.pieces[i].HavingPeers, pe)
+		p.HandleCancelDownload(pe, uint32(i))
 		delete(p.pieces[i].AllowedFastPeers, pe)
-		delete(p.pieces[i].RequestedPeers, pe)
+		delete(p.pieces[i].HavingPeers, pe)
 		if len(p.pieces[i].HavingPeers) == 0 {
 			p.available--
 		}
