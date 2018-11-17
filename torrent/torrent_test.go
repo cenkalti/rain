@@ -18,10 +18,10 @@ import (
 )
 
 var (
-	torrentFile           = filepath.Join("testdata", "10mb.torrent")
-	torrentInfoHashString = "0a8e2e8c9371a91e9047ed189ceffbc460803262"
+	torrentFile           = filepath.Join("testdata", "sample_torrent.torrent")
+	torrentInfoHashString = "4242e334070406956b87c25f7c36251d32743461"
 	torrentDataDir        = "testdata"
-	torrentName           = "10mb"
+	torrentName           = "sample_torrent"
 	timeout               = 10 * time.Second
 )
 
