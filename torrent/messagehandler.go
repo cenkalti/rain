@@ -245,29 +245,23 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 				break
 			}
 			if t.info == nil {
-				// Send reject
-				dataMsg := peerprotocol.ExtensionMetadataMessage{
-					Type:  peerprotocol.ExtensionMetadataMessageTypeReject,
-					Piece: msg.Piece,
-				}
-				extDataMsg := peerprotocol.ExtensionMessage{
-					ExtendedMessageID: extMsgID,
-					Payload:           &dataMsg,
-				}
-				pe.SendMessage(extDataMsg)
-				break
-			}
-			if msg.Piece >= uint32(len(t.pieces)) {
-				pe.Logger().Errorln("peer requested invalid metadata piece:", msg.Piece)
-				t.closePeer(pe)
+				t.sendMetadataReject(pe, msg.Piece, extMsgID)
 				break
 			}
 			// TODO Clients MAY implement flood protection by rejecting request messages after a certain number of them have been served. Typically the number of pieces of metadata times a factor.
 			start := 16 * 1024 * msg.Piece
-			end := 16 * 1024 * (msg.Piece + 1)
+			end := start + 16*1024
 			totalSize := uint32(len(t.info.Bytes))
 			if end > totalSize {
 				end = totalSize
+			}
+			if start >= totalSize {
+				t.sendMetadataReject(pe, msg.Piece, extMsgID)
+				break
+			}
+			if end > totalSize {
+				t.sendMetadataReject(pe, msg.Piece, extMsgID)
+				break
 			}
 			data := t.info.Bytes[start:end]
 			dataMsg := peerprotocol.ExtensionMetadataMessage{
@@ -377,4 +371,16 @@ func (t *Torrent) updateInterestedState(pe *peer.Peer) {
 		pe.SendMessage(msg)
 		return
 	}
+}
+
+func (t *Torrent) sendMetadataReject(pe *peer.Peer, i uint32, msgID uint8) {
+	dataMsg := peerprotocol.ExtensionMetadataMessage{
+		Type:  peerprotocol.ExtensionMetadataMessageTypeReject,
+		Piece: i,
+	}
+	extDataMsg := peerprotocol.ExtensionMessage{
+		ExtendedMessageID: msgID,
+		Payload:           &dataMsg,
+	}
+	pe.SendMessage(extDataMsg)
 }
