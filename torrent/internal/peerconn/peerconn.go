@@ -24,14 +24,14 @@ type Conn struct {
 	doneC         chan struct{}
 }
 
-func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, l logger.Logger, pieceTimeout time.Duration) *Conn {
+func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, l logger.Logger, pieceTimeout time.Duration, readBufferSize int) *Conn {
 	fastExtension := extensions.Test(61)
 	extensionProtocol := extensions.Test(43)
 	return &Conn{
 		conn:          conn,
 		id:            id,
 		FastExtension: fastExtension,
-		reader:        peerreader.New(conn, l, pieceTimeout, fastExtension, extensionProtocol),
+		reader:        peerreader.New(conn, l, pieceTimeout, readBufferSize, fastExtension, extensionProtocol),
 		writer:        peerwriter.New(conn, l),
 		messages:      make(chan interface{}),
 		log:           l,

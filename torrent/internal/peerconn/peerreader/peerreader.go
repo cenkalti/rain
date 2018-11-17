@@ -32,10 +32,10 @@ type PeerReader struct {
 	doneC             chan struct{}
 }
 
-func New(conn net.Conn, l logger.Logger, pieceTimeout time.Duration, fastExtension, extensionProtocol bool) *PeerReader {
+func New(conn net.Conn, l logger.Logger, pieceTimeout time.Duration, bufferSize int, fastExtension, extensionProtocol bool) *PeerReader {
 	return &PeerReader{
 		conn:              conn,
-		buf:               bufio.NewReaderSize(conn, 4+1+8+maxBlockSize),
+		buf:               bufio.NewReaderSize(conn, bufferSize),
 		log:               l,
 		pieceTimeout:      pieceTimeout,
 		messages:          make(chan interface{}),

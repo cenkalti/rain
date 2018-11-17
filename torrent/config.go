@@ -27,6 +27,8 @@ type Config struct {
 	PeerHandshakeTimeout time.Duration
 	// When peer has started to send piece block, if it does not send any bytes in PieceTimeout, the connection is closed.
 	PieceTimeout time.Duration
+	// Buffer size for messages read from a single peer
+	PeerReadBufferSize int
 	// When the client want to connect a peer, first it tries to do encrypted handshake.
 	// If it does not work, it connects to same peer again and does unencrypted handshake.
 	// This behavior can be changed via this variable.
@@ -64,6 +66,7 @@ var DefaultConfig = Config{
 	PeerConnectTimeout:               5 * time.Second,
 	PeerHandshakeTimeout:             10 * time.Second,
 	PieceTimeout:                     30 * time.Second,
+	PeerReadBufferSize:               10 * 16 * 1024,
 	TrackerNumWant:                   100,
 	TrackerStopTimeout:               5 * time.Second,
 	MinAnnounceInterval:              time.Minute,
