@@ -3,6 +3,7 @@ package resumer
 
 // Resumer provides operations to save and load resume info for a Torrent.
 type Resumer interface {
+	// TODO remove Write and Spec from resumer
 	Write(spec *Spec) error
 	WriteInfo([]byte) error
 	WriteBitfield([]byte) error
