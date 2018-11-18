@@ -30,18 +30,20 @@ func (t *Torrent) handleVerificationDone(ve *verifier.Verifier) {
 		}
 	}
 
+	var haveMessages []peerprotocol.HaveMessage
+
 	// Mark downloaded pieces.
 	for i := uint32(0); i < t.bitfield.Len(); i++ {
-		t.pieces[i].Done = t.bitfield.Test(i)
+		if t.bitfield.Test(i) {
+			t.pieces[i].Done = true
+			haveMessages = append(haveMessages, peerprotocol.HaveMessage{Index: i})
+		}
 	}
 
 	// Tell connected peers that pieces we have.
 	for pe := range t.peers {
-		for i := uint32(0); i < t.bitfield.Len(); i++ {
-			if t.bitfield.Test(i) {
-				msg := peerprotocol.HaveMessage{Index: i}
-				pe.SendMessage(msg)
-			}
+		for _, msg := range haveMessages {
+			pe.SendMessage(msg)
 		}
 		t.updateInterestedState(pe)
 	}
