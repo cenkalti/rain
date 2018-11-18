@@ -30,6 +30,11 @@ func (t *Torrent) handleVerificationDone(ve *verifier.Verifier) {
 		}
 	}
 
+	// Mark downloaded pieces.
+	for i := uint32(0); i < t.bitfield.Len(); i++ {
+		t.pieces[i].Done = t.bitfield.Test(i)
+	}
+
 	// Tell connected peers that pieces we have.
 	for pe := range t.peers {
 		for i := uint32(0); i < t.bitfield.Len(); i++ {
