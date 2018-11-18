@@ -43,6 +43,10 @@ func main() {
 			Usage: "write cpu profile to `FILE`",
 		},
 		cli.StringFlag{
+			Name:  "memprofile",
+			Usage: "write memory profile to `FILE`",
+		},
+		cli.StringFlag{
 			Name:  "pprof",
 			Usage: "run pprof server on `ADDR`",
 		},
@@ -184,6 +188,15 @@ func handleBeforeCommand(c *cli.Context) error {
 func handleAfterCommand(c *cli.Context) error {
 	if c.GlobalString("cpuprofile") != "" {
 		pprof.StopCPUProfile()
+	}
+	memprofile := c.GlobalString("memprofile")
+	if memprofile != "" {
+		f, err := os.Create(memprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.WriteHeapProfile(f)
+		f.Close()
 	}
 	return nil
 }
