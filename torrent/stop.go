@@ -78,6 +78,8 @@ func (t *Torrent) stop(err error) {
 	t.stoppedEventAnnouncer = announcer.NewStopAnnouncer(trackers, t.announcerFields(), t.config.TrackerStopTimeout, t.announcersStoppedC, t.log)
 
 	go t.stoppedEventAnnouncer.Run()
+
+	t.addrList.Reset()
 }
 
 func (t *Torrent) stopOutgoingHandshakers() {
