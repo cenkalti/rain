@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/cenkalti/rain/torrent/internal/peer"
+	"github.com/cenkalti/rain/torrent/internal/piece"
 	"github.com/cenkalti/rain/torrent/internal/piecepicker"
 )
 
@@ -23,7 +24,8 @@ func benchmarkPick(numPieces uint32, numPeers int, b *testing.B) {
 }
 
 func newPiecePicker(numPieces uint32, numPeers int) *piecepicker.PiecePicker {
-	pp := piecepicker.New(numPieces, endgameParallelDownloadsPerPiece, nil)
+	pieces := make([]piece.Piece, numPieces)
+	pp := piecepicker.New(pieces, endgameParallelDownloadsPerPiece, nil)
 	for i := 0; i < numPeers; i++ {
 		pe := peer.New(nil)
 		if prob(snubRatio) {
