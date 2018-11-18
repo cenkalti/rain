@@ -189,15 +189,6 @@ func handleAfterCommand(c *cli.Context) error {
 	if c.GlobalString("cpuprofile") != "" {
 		pprof.StopCPUProfile()
 	}
-	memprofile := c.GlobalString("memprofile")
-	if memprofile != "" {
-		f, err := os.Create(memprofile)
-		if err != nil {
-			log.Fatal(err)
-		}
-		pprof.WriteHeapProfile(f)
-		f.Close()
-	}
 	return nil
 }
 
@@ -241,6 +232,23 @@ func handleServer(c *cli.Context) error {
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	s := <-ch
 	log.Noticef("received %s, stopping server", s)
+
+	memprofile := c.GlobalString("memprofile")
+	if memprofile != "" {
+		f, err := os.Create(memprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = pprof.WriteHeapProfile(f)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = f.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
 	return srv.Stop()
 }
 
