@@ -4,6 +4,7 @@ package torrent
 import (
 	"encoding/hex"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/cenkalti/rain/internal/clientversion"
@@ -214,6 +215,8 @@ type Torrent struct {
 
 	// A signal sent to run() loop when announcers are stopped.
 	announcersStoppedC chan struct{}
+
+	piecePool sync.Pool
 
 	log logger.Logger
 }

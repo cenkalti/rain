@@ -137,7 +137,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		t.closePieceDownloader(pd)
 		pe.StopSnubTimer()
 
-		ok = piece.VerifyHash(pd.Bytes, sha1.New()) // nolint: gosec
+		ok = piece.VerifyHash(pd.Buffer[:pd.Piece.Length], sha1.New()) // nolint: gosec
 		if !ok {
 			// TODO ban peers that sent corrupt piece
 			t.log.Error("received corrupt piece")
@@ -157,9 +157,9 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		}
 		piece.Writing = true
 
-		pw := piecewriter.New(piece)
+		pw := piecewriter.New(piece, pd.Buffer, pd.Piece.Length)
 		t.pieceWriters[pw] = struct{}{}
-		go pw.Run(pd.Bytes, t.pieceWriterResultC)
+		go pw.Run(t.pieceWriterResultC)
 
 		t.startPieceDownloaders()
 	case peerprotocol.RequestMessage:
@@ -309,19 +309,20 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			}
 			t.stopInfoDownloaders()
 
-			t.info, err = metainfo.NewInfo(id.Bytes)
+			info, err := metainfo.NewInfo(id.Bytes)
 			if err != nil {
 				err = fmt.Errorf("cannot parse info bytes: %s", err)
 				t.log.Error(err)
 				t.stop(err)
 				break
 			}
-			if t.info.Private == 1 {
+			if info.Private == 1 {
 				err = errors.New("private torrent from magnet")
 				t.log.Error(err)
 				t.stop(err)
 				break
 			}
+			t.info = info
 			if t.resume != nil {
 				err = t.resume.WriteInfo(t.info.Bytes)
 				if err != nil {

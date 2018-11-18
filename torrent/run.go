@@ -102,6 +102,7 @@ func (t *Torrent) run() {
 		case pw := <-t.pieceWriterResultC:
 			pw.Piece.Writing = false
 			delete(t.pieceWriters, pw)
+			t.piecePool.Put(pw.Buffer)
 			if pw.Error != nil {
 				t.stop(pw.Error)
 				break

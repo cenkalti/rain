@@ -123,6 +123,9 @@ func (o *Options) NewTorrent(infoHash []byte, sto storage.Storage) (*Torrent, er
 		announcersStoppedC:        make(chan struct{}),
 	}
 	copy(t.peerID[:], peerIDPrefix)
+	t.piecePool.New = func() interface{} {
+		return make([]byte, t.info.PieceLength)
+	}
 	_, err = rand.Read(t.peerID[len(peerIDPrefix):]) // nolint: gosec
 	if err != nil {
 		return nil, err

@@ -8,9 +8,9 @@ import (
 
 // PieceDownloader downloads all blocks of a piece from a peer.
 type PieceDownloader struct {
-	Piece *piece.Piece
-	Peer  *peer.Peer
-	Bytes []byte
+	Piece  *piece.Piece
+	Peer   *peer.Peer
+	Buffer []byte
 
 	requested      map[uint32]struct{}
 	nextBlockIndex uint32
@@ -22,11 +22,11 @@ type pieceReaderResult struct {
 	Error      error
 }
 
-func New(pi *piece.Piece, pe *peer.Peer) *PieceDownloader {
+func New(pi *piece.Piece, pe *peer.Peer, buf []byte) *PieceDownloader {
 	return &PieceDownloader{
 		Piece:        pi,
 		Peer:         pe,
-		Bytes:        make([]byte, pi.Length),
+		Buffer:       buf,
 		requested:    make(map[uint32]struct{}),
 		downloadDone: make(map[uint32]struct{}),
 	}
@@ -41,7 +41,7 @@ func (d *PieceDownloader) GotBlock(block *piece.Block, data []byte) {
 	if _, ok := d.downloadDone[block.Index]; ok {
 		d.Peer.Logger().Warningln("received duplicate block:", block.Index)
 	}
-	copy(d.Bytes[block.Begin:block.Begin+block.Length], data)
+	copy(d.Buffer[block.Begin:block.Begin+block.Length], data)
 	delete(d.requested, block.Index)
 	d.downloadDone[block.Index] = struct{}{}
 }
