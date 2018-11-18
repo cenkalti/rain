@@ -66,7 +66,7 @@ var DefaultConfig = Config{
 	PeerConnectTimeout:               5 * time.Second,
 	PeerHandshakeTimeout:             10 * time.Second,
 	PieceTimeout:                     30 * time.Second,
-	PeerReadBufferSize:               10 * 16 * 1024,
+	PeerReadBufferSize:               13 + 16*1024,
 	TrackerNumWant:                   100,
 	TrackerStopTimeout:               5 * time.Second,
 	MinAnnounceInterval:              time.Minute,
