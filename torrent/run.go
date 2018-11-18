@@ -123,6 +123,7 @@ func (t *Torrent) run() {
 			t.checkCompletion()
 			// Tell everyone that we have this piece
 			for pe := range t.peers {
+				// TODO skip peers having the piece
 				msg := peerprotocol.HaveMessage{Index: pw.Piece.Index}
 				pe.SendMessage(msg)
 				t.updateInterestedState(pe)
