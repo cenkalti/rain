@@ -100,13 +100,13 @@ func (t *Torrent) run() {
 			case <-req.Cancel:
 			}
 		case pw := <-t.pieceWriterResultC:
+			pw.Piece.Writing = false
 			delete(t.pieceWriters, pw)
 			if pw.Error != nil {
-				t.piecePicker.HandleWriteError(pw.Piece.Index)
 				t.stop(pw.Error)
 				break
 			}
-			t.piecePicker.HandleWriteSuccess(pw.Piece.Index)
+			pw.Piece.Done = true
 			if t.bitfield.Test(pw.Piece.Index) {
 				panic("already have the piece")
 			}

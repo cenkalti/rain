@@ -12,11 +12,13 @@ import (
 
 // Piece of a torrent.
 type Piece struct {
-	Index  uint32 // index in torrent
-	Length uint32 // always equal to Info.PieceLength except last piece
-	Blocks Blocks
-	Data   Data // the place to write downloaded bytes
-	Hash   []byte
+	Index   uint32 // index in torrent
+	Length  uint32 // always equal to Info.PieceLength except last piece
+	Blocks  Blocks
+	Data    Data // the place to write downloaded bytes
+	Hash    []byte
+	Writing bool
+	Done    bool
 }
 
 type Data interface {

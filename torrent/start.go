@@ -133,11 +133,11 @@ func (t *Torrent) startPieceDownloaders() {
 		return
 	}
 	for len(t.pieceDownloaders)-len(t.pieceDownloadersChoked)-len(t.pieceDownloadersSnubbed) < t.config.ParallelPieceDownloads {
-		i, pe := t.piecePicker.Pick()
-		if pe == nil {
+		pi, pe := t.piecePicker.Pick()
+		if pi == nil || pe == nil {
 			break
 		}
-		pd := piecedownloader.New(&t.pieces[i], pe)
+		pd := piecedownloader.New(pi, pe)
 		// t.log.Debugln("downloading piece", pd.Piece.Index, "from", pd.Peer.String())
 		if _, ok := t.pieceDownloaders[pd.Peer]; ok {
 			panic("peer already has a piece downloader")

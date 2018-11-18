@@ -5,42 +5,41 @@ import (
 
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent/internal/peer"
+	"github.com/cenkalti/rain/torrent/internal/piece"
 )
 
 type PiecePicker struct {
-	pieces                           []piece
-	sortedPieces                     []*piece
+	pieces                           []myPiece
+	sortedPieces                     []*myPiece
 	endgameParallelDownloadsPerPiece int
 	available                        uint32
 	log                              logger.Logger
 }
 
-type piece struct {
-	Index            uint32
+type myPiece struct {
+	*piece.Piece
 	HavingPeers      map[*peer.Peer]struct{}
 	AllowedFastPeers map[*peer.Peer]struct{}
 	RequestedPeers   map[*peer.Peer]struct{}
 	SnubbedPeers     map[*peer.Peer]struct{}
-	Writing          bool
-	Done             bool
 }
 
-func (p *piece) RunningDownloads() int {
+func (p *myPiece) RunningDownloads() int {
 	return len(p.RequestedPeers) - len(p.SnubbedPeers)
 }
 
-func New(numPieces uint32, endgameParallelDownloadsPerPiece int, l logger.Logger) *PiecePicker {
-	ps := make([]piece, numPieces)
-	for i := range ps {
-		ps[i] = piece{
-			Index:            uint32(i),
+func New(pieces []piece.Piece, endgameParallelDownloadsPerPiece int, l logger.Logger) *PiecePicker {
+	ps := make([]myPiece, len(pieces))
+	for i := range pieces {
+		ps[i] = myPiece{
+			Piece:            &pieces[i],
 			HavingPeers:      make(map[*peer.Peer]struct{}),
 			AllowedFastPeers: make(map[*peer.Peer]struct{}),
 			RequestedPeers:   make(map[*peer.Peer]struct{}),
 			SnubbedPeers:     make(map[*peer.Peer]struct{}),
 		}
 	}
-	sps := make([]*piece, len(ps))
+	sps := make([]*myPiece, len(ps))
 	for i := range sps {
 		sps[i] = &ps[i]
 	}
@@ -96,30 +95,17 @@ func (p *PiecePicker) HandleDisconnect(pe *peer.Peer) {
 	}
 }
 
-func (p *PiecePicker) HandleWriting(i uint32) {
-	p.pieces[i].Writing = true
-}
-
-func (p *PiecePicker) HandleWriteSuccess(i uint32) {
-	p.pieces[i].Writing = false
-	p.pieces[i].Done = true
-}
-
-func (p *PiecePicker) HandleWriteError(i uint32) {
-	p.pieces[i].Writing = false
-}
-
-func (p *PiecePicker) Pick() (uint32, *peer.Peer) {
+func (p *PiecePicker) Pick() (*piece.Piece, *peer.Peer) {
 	pi, pe := p.findPieceAndPeer()
 	if pi == nil || pe == nil {
-		return 0, nil
+		return nil, nil
 	}
 	pe.Snubbed = false
 	pi.RequestedPeers[pe] = struct{}{}
-	return pi.Index, pe
+	return pi.Piece, pe
 }
 
-func (p *PiecePicker) findPieceAndPeer() (*piece, *peer.Peer) {
+func (p *PiecePicker) findPieceAndPeer() (*myPiece, *peer.Peer) {
 	pe, pi := p.select4RandomPiece()
 	if pe != nil && pi != nil {
 		return pe, pi
@@ -136,12 +122,12 @@ func (p *PiecePicker) findPieceAndPeer() (*piece, *peer.Peer) {
 	return nil, nil
 }
 
-func (p *PiecePicker) select4RandomPiece() (*piece, *peer.Peer) {
+func (p *PiecePicker) select4RandomPiece() (*myPiece, *peer.Peer) {
 	// TODO request first 4 pieces randomly
 	return nil, nil
 }
 
-func (p *PiecePicker) selectPiece(noDuplicate bool) (*piece, *peer.Peer) {
+func (p *PiecePicker) selectPiece(noDuplicate bool) (*myPiece, *peer.Peer) {
 	for _, pi := range p.sortedPieces {
 		if pi.Done {
 			continue

@@ -151,7 +151,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			pd2.CancelPending()
 		}
 
-		t.piecePicker.HandleWriting(piece.Index)
+		piece.Writing = true
 		pw := piecewriter.New(piece)
 		t.pieceWriters[pw] = struct{}{}
 		go pw.Run(pd.Bytes, t.pieceWriterResultC)
