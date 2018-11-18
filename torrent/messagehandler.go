@@ -151,7 +151,11 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			pd2.CancelPending()
 		}
 
+		if piece.Writing {
+			panic("piece already writing")
+		}
 		piece.Writing = true
+
 		pw := piecewriter.New(piece)
 		t.pieceWriters[pw] = struct{}{}
 		go pw.Run(pd.Bytes, t.pieceWriterResultC)
