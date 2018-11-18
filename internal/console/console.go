@@ -31,6 +31,7 @@ type Console struct {
 	trackers        []torrent.Tracker
 	peers           []torrent.Peer
 	errDetails      error
+	updatingDetails bool
 	m               sync.Mutex
 	updateTorrentsC chan struct{}
 	updateDetailsC  chan struct{}
@@ -134,6 +135,10 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 		fmt.Fprintln(v, "loading details...")
 	} else {
 		v.Clear()
+		if c.updatingDetails {
+			fmt.Fprintln(v, "refreshing...")
+			return nil
+		}
 		if c.errDetails != nil {
 			fmt.Fprintln(v, "error:", c.errDetails)
 		} else {
@@ -229,6 +234,9 @@ func (c *Console) updateDetails(g *gocui.Gui) {
 		c.m.Unlock()
 	}
 
+	c.m.Lock()
+	c.updatingDetails = false
+	c.m.Unlock()
 	g.Update(c.drawDetails)
 }
 
@@ -252,6 +260,7 @@ func (c *Console) cursorDown(g *gocui.Gui, v *gocui.View) error {
 	}
 	row := cy + oy + 1
 	if row >= 0 && row < len(c.torrents) {
+		c.updatingDetails = true
 		c.setSelectedID(c.torrents[row].ID)
 	}
 	return nil
@@ -273,6 +282,7 @@ func (c *Console) cursorUp(g *gocui.Gui, v *gocui.View) error {
 	}
 	row := cy + oy - 1
 	if row >= 0 && row < len(c.torrents) {
+		c.updatingDetails = true
 		c.setSelectedID(c.torrents[row].ID)
 	}
 	return nil
