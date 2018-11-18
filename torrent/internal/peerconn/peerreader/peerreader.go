@@ -7,10 +7,12 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
+	"github.com/cenkalti/rain/torrent/internal/piece"
 )
 
 const (
@@ -19,6 +21,12 @@ const (
 	// time to wait for a message. peer must send keep-alive messages to keep connection alive.
 	readTimeout = 2 * time.Minute
 )
+
+var PiecePool = sync.Pool{
+	New: func() interface{} {
+		return make([]byte, piece.BlockSize)
+	},
+}
 
 type PeerReader struct {
 	conn              net.Conn
@@ -182,7 +190,7 @@ func (p *PeerReader) Run() {
 				return
 			}
 			var m, n int
-			b := make([]byte, length-8)
+			b := PiecePool.Get().([]byte)[:length-8]
 			for {
 				err = p.conn.SetReadDeadline(time.Now().Add(p.pieceTimeout))
 				if err != nil {

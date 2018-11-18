@@ -127,6 +127,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			break
 		}
 		pd.GotBlock(block, msg.Data)
+		peerreader.PiecePool.Put(msg.Data)
 		if !pd.Done() {
 			pd.RequestBlocks(t.config.RequestQueueLength)
 			pe.StartSnubTimer(t.config.RequestTimeout, t.peerSnubbedC)
