@@ -267,10 +267,10 @@ func (t *Torrent) startPeer(p *peerconn.Conn, peers map[*peer.Peer]struct{}) {
 	}
 	t.peerIDs[p.ID()] = struct{}{}
 
-	pe := peer.New(p)
+	pe := peer.New(p, t.config.RequestTimeout)
 	t.peers[pe] = struct{}{}
 	peers[pe] = struct{}{}
-	go pe.Run(t.messages, t.peerDisconnectedC)
+	go pe.Run(t.messages, t.peerSnubbedC, t.peerDisconnectedC)
 
 	t.sendFirstMessage(pe)
 	if len(t.peers) <= 4 {

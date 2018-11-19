@@ -1,6 +1,7 @@
 package peer
 
 import (
+	"math"
 	"time"
 
 	"github.com/cenkalti/rain/torrent/internal/peerconn"
@@ -32,8 +33,8 @@ type Peer struct {
 
 	PEX *pex
 
-	snubTimer       *time.Timer
-	snubTimerCloseC chan struct{}
+	snubTimeout time.Duration
+	snubTimer   *time.Timer
 
 	closeC chan struct{}
 	doneC  chan struct{}
@@ -44,17 +45,22 @@ type Message struct {
 	Message interface{}
 }
 
-func New(p *peerconn.Conn) *Peer {
+func New(p *peerconn.Conn, snubTimeout time.Duration) *Peer {
+	t := time.NewTimer(math.MaxInt64)
+	t.Stop()
 	return &Peer{
 		Conn:        p,
 		AmChoking:   true,
 		PeerChoking: true,
+		snubTimeout: snubTimeout,
+		snubTimer:   t,
 		closeC:      make(chan struct{}),
 		doneC:       make(chan struct{}),
 	}
 }
 
 func (p *Peer) Close() {
+	p.snubTimer.Stop()
 	if p.PEX != nil {
 		p.PEX.close()
 	}
@@ -63,7 +69,7 @@ func (p *Peer) Close() {
 	<-p.doneC
 }
 
-func (p *Peer) Run(messages chan Message, disconnect chan *Peer) {
+func (p *Peer) Run(messages chan Message, snubbed, disconnect chan *Peer) {
 	defer close(p.doneC)
 	go p.Conn.Run()
 	for {
@@ -81,6 +87,12 @@ func (p *Peer) Run(messages chan Message, disconnect chan *Peer) {
 			case <-p.closeC:
 				return
 			}
+		case <-p.snubTimer.C:
+			select {
+			case snubbed <- p:
+			case <-p.closeC:
+				return
+			}
 		case <-p.closeC:
 			return
 		}
@@ -94,26 +106,10 @@ func (p *Peer) StartPEX(initialPeers map[*Peer]struct{}) {
 	}
 }
 
-func (p *Peer) StartSnubTimer(d time.Duration, snubbedC chan *Peer) {
-	p.StopSnubTimer()
-	p.snubTimer = time.NewTimer(d)
-	p.snubTimerCloseC = make(chan struct{})
-	go p.waitSnubTimeout(p.snubTimer, snubbedC, p.closeC)
-}
-
-func (p *Peer) waitSnubTimeout(t *time.Timer, snubbedC chan *Peer, closeC chan struct{}) {
-	select {
-	case <-t.C:
-		snubbedC <- p
-	case <-closeC:
-	}
+func (p *Peer) ResetSnubTimer() {
+	p.snubTimer.Reset(p.snubTimeout)
 }
 
 func (p *Peer) StopSnubTimer() {
-	if p.snubTimer != nil {
-		p.snubTimer.Stop()
-		p.snubTimer = nil
-		close(p.snubTimerCloseC)
-		p.snubTimerCloseC = nil
-	}
+	p.snubTimer.Stop()
 }
