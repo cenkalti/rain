@@ -6,6 +6,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"runtime"
 	"runtime/pprof"
 	"strconv"
 	"strings"
@@ -45,6 +46,10 @@ func main() {
 		cli.StringFlag{
 			Name:  "memprofile",
 			Usage: "write memory profile to `FILE`",
+		},
+		cli.IntFlag{
+			Name:  "blockprofile",
+			Usage: "enable blocking profiler",
 		},
 		cli.StringFlag{
 			Name:  "pprof",
@@ -178,6 +183,10 @@ func handleBeforeCommand(c *cli.Context) error {
 			log.Fatal("could not create log file: ", err)
 		}
 		logger.SetHandler(clog.NewFileHandler(f))
+	}
+	blockProfile := c.GlobalInt("blockprofile")
+	if blockProfile != 0 {
+		runtime.SetBlockProfileRate(blockProfile)
 	}
 	if c.GlobalBool("debug") {
 		logger.SetLevel(clog.DEBUG)
