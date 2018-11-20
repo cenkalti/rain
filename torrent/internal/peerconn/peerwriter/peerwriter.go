@@ -80,9 +80,11 @@ func (p *PeerWriter) Run() {
 	go p.messageWriter()
 
 	for {
-		var e *list.Element
-		var msg peerprotocol.Message
-		var writeC chan peerprotocol.Message
+		var (
+			e      *list.Element
+			msg    peerprotocol.Message
+			writeC chan peerprotocol.Message
+		)
 		if p.writeQueue.Len() > 0 {
 			e = p.writeQueue.Front()
 			msg = e.Value.(peerprotocol.Message)
@@ -102,17 +104,20 @@ func (p *PeerWriter) Run() {
 }
 
 func (p *PeerWriter) queueMessage(msg peerprotocol.Message) {
-	// Cancel queued piece messages on choke
 	if _, ok := msg.(peerprotocol.ChokeMessage); ok {
-		var next *list.Element
-		for e := p.writeQueue.Front(); e != nil; e = next {
-			next = e.Next()
-			if _, ok = e.Value.(Piece); ok {
-				p.writeQueue.Remove(e)
-			}
-		}
+		p.cancelQueuedPieceMessages()
 	}
 	p.writeQueue.PushBack(msg)
+}
+
+func (p *PeerWriter) cancelQueuedPieceMessages() {
+	var next *list.Element
+	for e := p.writeQueue.Front(); e != nil; e = next {
+		next = e.Next()
+		if _, ok := e.Value.(Piece); ok {
+			p.writeQueue.Remove(e)
+		}
+	}
 }
 
 func (p *PeerWriter) cancelRequest(cm peerprotocol.CancelMessage) {
