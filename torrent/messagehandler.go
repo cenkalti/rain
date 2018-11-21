@@ -119,10 +119,12 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		pd, ok := t.pieceDownloaders[pe]
 		if !ok {
 			t.bytesWasted += int64(len(msg.Data))
+			peerreader.PiecePool.Put(msg.Data)
 			break
 		}
 		if pd.Piece.Index != msg.Index {
 			t.bytesWasted += int64(len(msg.Data))
+			peerreader.PiecePool.Put(msg.Data)
 			break
 		}
 		pd.GotBlock(block, msg.Data)
