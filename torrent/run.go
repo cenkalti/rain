@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent/internal/announcer"
@@ -112,16 +113,6 @@ func (t *Torrent) run() {
 				panic("already have the piece")
 			}
 			t.bitfield.Set(pw.Piece.Index)
-			if t.resume != nil {
-				err := t.resume.WriteBitfield(t.bitfield.Bytes())
-				if err != nil {
-					err = fmt.Errorf("cannot write bitfield to resume db: %s", err)
-					t.log.Errorln(err)
-					t.stop(err)
-					break
-				}
-			}
-			t.checkCompletion()
 			// Tell everyone that we have this piece
 			for pe := range t.peers {
 				// TODO skip peers having the piece
@@ -129,6 +120,17 @@ func (t *Torrent) run() {
 				pe.SendMessage(msg)
 				t.updateInterestedState(pe)
 			}
+			completed := t.checkCompletion()
+			if t.resume != nil {
+				if completed {
+					t.writeBitfield()
+				} else if t.resumeWriteTimer == nil {
+					t.resumeWriteTimer = time.NewTimer(t.config.BitfieldWriteInterval)
+					t.resumeWriteTimerC = t.resumeWriteTimer.C
+				}
+			}
+		case <-t.resumeWriteTimerC:
+			t.writeBitfield()
 		case pe := <-t.peerSnubbedC:
 			// Mark slow peer as snubbed and don't select that peer in piece picker
 			pe.Snubbed = true
@@ -169,6 +171,20 @@ func (t *Torrent) run() {
 		case pm := <-t.messages:
 			t.handlePeerMessage(pm)
 		}
+	}
+}
+
+func (t *Torrent) writeBitfield() {
+	if t.resumeWriteTimer != nil {
+		t.resumeWriteTimer.Stop()
+		t.resumeWriteTimer = nil
+		t.resumeWriteTimerC = nil
+	}
+	err := t.resume.WriteBitfield(t.bitfield.Bytes())
+	if err != nil {
+		err = fmt.Errorf("cannot write bitfield to resume db: %s", err)
+		t.log.Errorln(err)
+		t.stop(err)
 	}
 }
 
@@ -336,23 +352,25 @@ func (t *Torrent) unchokePeer(pe *peer.Peer) {
 	}
 }
 
-func (t *Torrent) checkCompletion() {
+func (t *Torrent) checkCompletion() bool {
 	if t.completed {
-		return
+		return true
 	}
-	if t.bitfield.All() {
-		t.log.Info("download completed")
-		t.completed = true
-		close(t.completeC)
-		for h := range t.outgoingHandshakers {
-			h.Close()
-		}
-		t.outgoingHandshakers = make(map[*outgoinghandshaker.OutgoingHandshaker]struct{})
-		for pe := range t.peers {
-			if !pe.PeerInterested {
-				t.closePeer(pe)
-			}
-		}
-		t.addrList.Reset()
+	if !t.bitfield.All() {
+		return false
 	}
+	t.log.Info("download completed")
+	t.completed = true
+	close(t.completeC)
+	for h := range t.outgoingHandshakers {
+		h.Close()
+	}
+	t.outgoingHandshakers = make(map[*outgoinghandshaker.OutgoingHandshaker]struct{})
+	for pe := range t.peers {
+		if !pe.PeerInterested {
+			t.closePeer(pe)
+		}
+	}
+	t.addrList.Reset()
+	return true
 }

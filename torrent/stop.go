@@ -31,6 +31,8 @@ func (t *Torrent) stop(err error) {
 	t.log.Debugln("stopping info downloaders")
 	t.stopInfoDownloaders()
 
+	t.writeBitfield()
+
 	t.log.Debugln("stopping unchoke timers")
 	t.stopUnchokeTimers()
 

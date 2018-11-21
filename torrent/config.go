@@ -49,8 +49,12 @@ type Config struct {
 	// This includes ConnectTimeout and TLSHandshakeTimeout.
 	HTTPTrackerTimeout time.Duration
 	// DHT announce interval
-	DHTAnnounceInterval    time.Duration
+	DHTAnnounceInterval time.Duration
+	// Minimum announce interval when announcing to DHT.
 	MinDHTAnnounceInterval time.Duration
+	// Bitfield is saved to disk for fast resume without hash checking.
+	// There is an interval to keep IO lower.
+	BitfieldWriteInterval time.Duration
 }
 
 var DefaultConfig = Config{
@@ -73,4 +77,5 @@ var DefaultConfig = Config{
 	HTTPTrackerTimeout:               10 * time.Second,
 	DHTAnnounceInterval:              30 * time.Minute,
 	MinDHTAnnounceInterval:           time.Minute,
+	BitfieldWriteInterval:            time.Minute,
 }

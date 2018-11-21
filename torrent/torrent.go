@@ -216,7 +216,12 @@ type Torrent struct {
 	// A signal sent to run() loop when announcers are stopped.
 	announcersStoppedC chan struct{}
 
+	// Piece buffers that are being downloaded are pooled to reduce load on GC.
 	piecePool sync.Pool
+
+	// Keep a timer to write bitfield at interval to reduce IO.
+	resumeWriteTimer  *time.Timer
+	resumeWriteTimerC <-chan time.Time
 
 	log logger.Logger
 }
