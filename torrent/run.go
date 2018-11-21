@@ -123,14 +123,13 @@ func (t *Torrent) run() {
 			completed := t.checkCompletion()
 			if t.resume != nil {
 				if completed {
-					t.writeBitfield()
-				} else if t.resumeWriteTimer == nil {
-					t.resumeWriteTimer = time.NewTimer(t.config.BitfieldWriteInterval)
-					t.resumeWriteTimerC = t.resumeWriteTimer.C
+					t.writeBitfield(true)
+				} else {
+					t.deferWriteBitfield()
 				}
 			}
 		case <-t.resumeWriteTimerC:
-			t.writeBitfield()
+			t.writeBitfield(true)
 		case pe := <-t.peerSnubbedC:
 			// Mark slow peer as snubbed and don't select that peer in piece picker
 			pe.Snubbed = true
@@ -174,7 +173,14 @@ func (t *Torrent) run() {
 	}
 }
 
-func (t *Torrent) writeBitfield() {
+func (t *Torrent) deferWriteBitfield() {
+	if t.resumeWriteTimer == nil {
+		t.resumeWriteTimer = time.NewTimer(t.config.BitfieldWriteInterval)
+		t.resumeWriteTimerC = t.resumeWriteTimer.C
+	}
+}
+
+func (t *Torrent) writeBitfield(stopOnError bool) {
 	if t.resumeWriteTimer != nil {
 		t.resumeWriteTimer.Stop()
 		t.resumeWriteTimer = nil
@@ -184,7 +190,9 @@ func (t *Torrent) writeBitfield() {
 	if err != nil {
 		err = fmt.Errorf("cannot write bitfield to resume db: %s", err)
 		t.log.Errorln(err)
-		t.stop(err)
+		if stopOnError {
+			t.stop(err)
+		}
 	}
 }
 
