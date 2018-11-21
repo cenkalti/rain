@@ -75,10 +75,3 @@ func (t *Torrent) Stop() error {
 	t.torrent.Stop()
 	return nil
 }
-
-func (t *Torrent) setDHTNode() {
-	if !t.torrent.Stats().Private {
-		t.dhtAnnouncer = newDHTAnnouncer(t.client.dht, t.torrent.InfoHashBytes(), int(t.port))
-		t.torrent.SetDHT(t.dhtAnnouncer)
-	}
-}

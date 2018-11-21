@@ -241,11 +241,6 @@ func (t *Torrent) InfoHashBytes() []byte {
 	return b
 }
 
-func (t *Torrent) SetDHT(node dht.DHT) {
-	t.dhtNode = node
-	t.dhtPeersC = node.Peers()
-}
-
 func (t *Torrent) writeResume() error {
 	if t.resume == nil {
 		return nil

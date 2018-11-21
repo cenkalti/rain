@@ -7,6 +7,7 @@ import (
 
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent/bitfield"
+	"github.com/cenkalti/rain/torrent/dht"
 	"github.com/cenkalti/rain/torrent/internal/addrlist"
 	"github.com/cenkalti/rain/torrent/internal/allocator"
 	"github.com/cenkalti/rain/torrent/internal/announcer"
@@ -39,6 +40,8 @@ type Options struct {
 	Bitfield *bitfield.Bitfield
 	// Config for downloading torrent. DefaultOptions will be used if nil.
 	Config *Config
+	// Optional DHT node
+	DHT dht.DHT
 }
 
 // NewTorrent creates a new torrent that downloads the torrent with infoHash and saves the files to the storage.
@@ -109,6 +112,7 @@ func (o *Options) NewTorrent(infoHash []byte, sto storage.Storage) (*Torrent, er
 		verifierResultC:           make(chan *verifier.Verifier),
 		connectedPeerIPs:          make(map[string]struct{}),
 		announcersStoppedC:        make(chan struct{}),
+		dhtNode:                   o.DHT,
 	}
 	copy(t.peerID[:], peerIDPrefix)
 	t.piecePool.New = func() interface{} {
@@ -125,6 +129,9 @@ func (o *Options) NewTorrent(infoHash []byte, sto storage.Storage) (*Torrent, er
 	err = t.writeResume()
 	if err != nil {
 		return nil, err
+	}
+	if t.dhtNode != nil {
+		t.dhtPeersC = t.dhtNode.Peers()
 	}
 	go t.run()
 	return t, nil

@@ -224,21 +224,28 @@ func (c *Client) loadExistingTorrents(ids []uint64) error {
 			Resumer:  res,
 			Config:   &c.config.Torrent,
 		}
+		var private bool
+		var ann *dhtAnnouncer
 		if len(spec.Info) > 0 {
-			mi, err := metainfo.New(bytes.NewReader(spec.Info))
-			if err != nil {
-				c.log.Error(err)
+			mi, err2 := metainfo.New(bytes.NewReader(spec.Info))
+			if err2 != nil {
+				c.log.Error(err2)
 				continue
 			}
 			opt.Info = mi.Info
+			private = mi.Info.Private == 1
 			if len(spec.Bitfield) > 0 {
-				bf, err := bitfield.NewBytes(spec.Bitfield, mi.Info.NumPieces)
-				if err != nil {
-					c.log.Error(err)
+				bf, err3 := bitfield.NewBytes(spec.Bitfield, mi.Info.NumPieces)
+				if err3 != nil {
+					c.log.Error(err3)
 					continue
 				}
 				opt.Bitfield = bf
 			}
+		}
+		if !private {
+			ann = newDHTAnnouncer(c.dht, spec.InfoHash, spec.Port)
+			opt.DHT = ann
 		}
 		var sto storage.Storage
 		switch spec.StorageType {
@@ -260,7 +267,7 @@ func (c *Client) loadExistingTorrents(ids []uint64) error {
 		}
 		delete(c.availablePorts, uint16(spec.Port))
 
-		t2 := c.newTorrent(t, id, uint16(spec.Port))
+		t2 := c.newTorrent(t, id, uint16(spec.Port), ann)
 		c.log.Debugf("loaded existing torrent: #%d %s", id, t.Name())
 		loaded++
 		if hasStarted {
@@ -334,11 +341,16 @@ func (c *Client) AddTorrent(r io.Reader) (*Torrent, error) {
 	opt.Name = mi.Info.Name
 	opt.Trackers = mi.GetTrackers()
 	opt.Info = mi.Info
+	var ann *dhtAnnouncer
+	if mi.Info.Private != 1 {
+		ann = newDHTAnnouncer(c.dht, mi.Info.Hash[:], opt.Port)
+		opt.DHT = ann
+	}
 	t, err := opt.NewTorrent(mi.Info.Hash[:], sto)
 	if err != nil {
 		return nil, err
 	}
-	t2 := c.newTorrent(t, id, uint16(opt.Port))
+	t2 := c.newTorrent(t, id, uint16(opt.Port), ann)
 	return t2, t2.Start()
 }
 
@@ -358,11 +370,13 @@ func (c *Client) AddMagnet(link string) (*Torrent, error) {
 	}()
 	opt.Name = ma.Name
 	opt.Trackers = ma.Trackers
+	ann := newDHTAnnouncer(c.dht, ma.InfoHash[:], opt.Port)
+	opt.DHT = ann
 	t, err := opt.NewTorrent(ma.InfoHash[:], sto)
 	if err != nil {
 		return nil, err
 	}
-	t2 := c.newTorrent(t, id, uint16(opt.Port))
+	t2 := c.newTorrent(t, id, uint16(opt.Port), ann)
 	return t2, t2.Start()
 }
 
@@ -401,16 +415,15 @@ func (c *Client) add() (*torrent.Options, storage.Storage, uint64, error) {
 	}, sto, id, nil
 }
 
-func (c *Client) newTorrent(t *torrent.Torrent, id uint64, port uint16) *Torrent {
+func (c *Client) newTorrent(t *torrent.Torrent, id uint64, port uint16, ann *dhtAnnouncer) *Torrent {
 	t2 := &Torrent{
-		client:  c,
-		torrent: t,
-		id:      id,
-		port:    port,
-		removed: make(chan struct{}),
+		client:       c,
+		torrent:      t,
+		id:           id,
+		port:         port,
+		dhtAnnouncer: ann,
+		removed:      make(chan struct{}),
 	}
-	t2.setDHTNode()
-
 	c.m.Lock()
 	defer c.m.Unlock()
 	c.torrents[id] = t2
