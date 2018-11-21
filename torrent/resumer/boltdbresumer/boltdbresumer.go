@@ -3,6 +3,7 @@ package boltdbresumer
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 
 	"github.com/boltdb/bolt"
@@ -10,14 +11,13 @@ import (
 )
 
 var (
-	infoHashKey    = []byte("infohash")
-	portKey        = []byte("port")
-	nameKey        = []byte("name")
-	trackersKey    = []byte("trackers")
-	storageTypeKey = []byte("storage_type")
-	storageArgsKey = []byte("storage_args")
-	infoKey        = []byte("info")
-	bitfieldKey    = []byte("bitfield")
+	infoHashKey = []byte("info_hash")
+	portKey     = []byte("port")
+	nameKey     = []byte("name")
+	trackersKey = []byte("trackers")
+	destKey     = []byte("dest")
+	infoKey     = []byte("info")
+	bitfieldKey = []byte("bitfield")
 )
 
 type Resumer struct {
@@ -42,13 +42,9 @@ func New(db *bolt.DB, mainBucket, subBucket []byte) (*Resumer, error) {
 	}, nil
 }
 
-func (r *Resumer) Write(spec *resumer.Spec) error {
+func (r *Resumer) Write(spec *Spec) error {
 	port := strconv.Itoa(spec.Port)
 	trackers, err := json.Marshal(spec.Trackers)
-	if err != nil {
-		return err
-	}
-	storageArgs, err := json.Marshal(spec.StorageArgs)
 	if err != nil {
 		return err
 	}
@@ -60,8 +56,7 @@ func (r *Resumer) Write(spec *resumer.Spec) error {
 		b.Put(infoHashKey, spec.InfoHash)
 		b.Put(portKey, []byte(port))
 		b.Put(nameKey, []byte(spec.Name))
-		b.Put(storageTypeKey, []byte(spec.StorageType))
-		b.Put(storageArgsKey, storageArgs)
+		b.Put(destKey, []byte(spec.Dest))
 		b.Put(trackersKey, trackers)
 		b.Put(infoKey, spec.Info)
 		b.Put(bitfieldKey, spec.Bitfield)
@@ -83,20 +78,20 @@ func (r *Resumer) WriteBitfield(value []byte) error {
 	})
 }
 
-func (r *Resumer) Read() (*resumer.Spec, error) {
-	var spec *resumer.Spec
+func (r *Resumer) Read() (*Spec, error) {
+	var spec *Spec
 	err := r.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(r.mainBucket).Bucket(r.subBucket)
 		if b == nil {
-			return nil
+			return fmt.Errorf("bucket not found: %q", string(r.subBucket))
 		}
 
 		value := b.Get(infoHashKey)
 		if value == nil {
-			return nil
+			return fmt.Errorf("key not found: %q", string(infoHashKey))
 		}
 
-		spec = new(resumer.Spec)
+		spec = new(Spec)
 		spec.InfoHash = make([]byte, len(value))
 		copy(spec.InfoHash, value)
 
@@ -116,14 +111,8 @@ func (r *Resumer) Read() (*resumer.Spec, error) {
 			return err
 		}
 
-		value = b.Get(storageTypeKey)
-		spec.StorageType = string(value)
-
-		value = b.Get(storageArgsKey)
-		err = json.Unmarshal(value, &spec.StorageArgs)
-		if err != nil {
-			return err
-		}
+		value = b.Get(destKey)
+		spec.Dest = string(value)
 
 		value = b.Get(infoKey)
 		spec.Info = make([]byte, len(value))

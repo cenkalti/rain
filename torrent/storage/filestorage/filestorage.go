@@ -2,7 +2,6 @@
 package filestorage
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 
@@ -27,6 +26,10 @@ func New(dest string) (*FileStorage, error) {
 }
 
 var _ storage.Storage = (*FileStorage)(nil)
+
+func (s *FileStorage) Dest() string {
+	return s.dest
+}
 
 func (s *FileStorage) Open(name string, size int64) (f storage.File, exists bool, err error) {
 	// All files are saved under dest.
@@ -71,26 +74,4 @@ func (s *FileStorage) Open(name string, size int64) (f storage.File, exists bool
 		err = of.Truncate(size)
 	}
 	return
-}
-
-func (s *FileStorage) Type() string {
-	return StorageType
-}
-
-func (s *FileStorage) Args() map[string]interface{} {
-	return map[string]interface{}{
-		destKey: s.dest,
-	}
-}
-
-func (s *FileStorage) Load(args map[string]interface{}) error {
-	dest, ok := args[destKey]
-	if !ok {
-		return errors.New("no dest param in file storage args")
-	}
-	s.dest, ok = dest.(string)
-	if !ok {
-		return errors.New("dest param in file storage args must be string")
-	}
-	return nil
 }

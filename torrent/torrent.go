@@ -241,27 +241,6 @@ func (t *Torrent) InfoHashBytes() []byte {
 	return b
 }
 
-func (t *Torrent) writeResume() error {
-	if t.resume == nil {
-		return nil
-	}
-	rspec := &resumer.Spec{
-		InfoHash:    t.infoHash[:],
-		Port:        t.port,
-		Name:        t.name,
-		Trackers:    t.trackers,
-		StorageType: t.storage.Type(),
-		StorageArgs: t.storage.Args(),
-	}
-	if t.info != nil {
-		rspec.Info = t.info.Bytes
-	}
-	if t.bitfield != nil {
-		rspec.Bitfield = t.bitfield.Bytes()
-	}
-	return t.resume.Write(rspec)
-}
-
 func parseTrackers(trackers []string, log logger.Logger, httpTimeout time.Duration) ([]tracker.Tracker, error) {
 	var ret []tracker.Tracker
 	for _, s := range trackers {

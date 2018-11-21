@@ -20,7 +20,6 @@ import (
 	"github.com/cenkalti/rain/torrent/magnet"
 	"github.com/cenkalti/rain/torrent/metainfo"
 	"github.com/cenkalti/rain/torrent/resumer/boltdbresumer"
-	"github.com/cenkalti/rain/torrent/storage"
 	"github.com/cenkalti/rain/torrent/storage/filestorage"
 	"github.com/mitchellh/go-homedir"
 	"github.com/nictuku/dht"
@@ -227,15 +226,15 @@ func (c *Client) loadExistingTorrents(ids []uint64) error {
 		var private bool
 		var ann *dhtAnnouncer
 		if len(spec.Info) > 0 {
-			mi, err2 := metainfo.New(bytes.NewReader(spec.Info))
+			info, err2 := metainfo.NewInfo(spec.Info)
 			if err2 != nil {
 				c.log.Error(err2)
 				continue
 			}
-			opt.Info = mi.Info
-			private = mi.Info.Private == 1
+			opt.Info = info
+			private = info.Private == 1
 			if len(spec.Bitfield) > 0 {
-				bf, err3 := bitfield.NewBytes(spec.Bitfield, mi.Info.NumPieces)
+				bf, err3 := bitfield.NewBytes(spec.Bitfield, info.NumPieces)
 				if err3 != nil {
 					c.log.Error(err3)
 					continue
@@ -247,15 +246,7 @@ func (c *Client) loadExistingTorrents(ids []uint64) error {
 			ann = newDHTAnnouncer(c.dht, spec.InfoHash, spec.Port)
 			opt.DHT = ann
 		}
-		var sto storage.Storage
-		switch spec.StorageType {
-		case filestorage.StorageType:
-			sto = &filestorage.FileStorage{}
-		default:
-			c.log.Error("unknown storage type: " + spec.StorageType)
-			continue
-		}
-		err = sto.Load(spec.StorageArgs)
+		sto, err := filestorage.New(spec.Dest)
 		if err != nil {
 			c.log.Error(err)
 			continue
@@ -350,6 +341,24 @@ func (c *Client) AddTorrent(r io.Reader) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if err != nil {
+			t.Close()
+		}
+	}()
+	rspec := &boltdbresumer.Spec{
+		InfoHash: t.InfoHashBytes(),
+		Dest:     sto.Dest(),
+		Port:     opt.Port,
+		Name:     opt.Name,
+		Trackers: opt.Trackers,
+		Info:     opt.Info.Bytes,
+		Bitfield: opt.Bitfield.Bytes(),
+	}
+	err = opt.Resumer.(*boltdbresumer.Resumer).Write(rspec)
+	if err != nil {
+		return nil, err
+	}
 	t2 := c.newTorrent(t, id, uint16(opt.Port), ann)
 	return t2, t2.Start()
 }
@@ -376,11 +385,27 @@ func (c *Client) AddMagnet(link string) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if err != nil {
+			t.Close()
+		}
+	}()
+	rspec := &boltdbresumer.Spec{
+		InfoHash: ma.InfoHash[:],
+		Dest:     sto.Dest(),
+		Port:     opt.Port,
+		Name:     opt.Name,
+		Trackers: ma.Trackers,
+	}
+	err = opt.Resumer.(*boltdbresumer.Resumer).Write(rspec)
+	if err != nil {
+		return nil, err
+	}
 	t2 := c.newTorrent(t, id, uint16(opt.Port), ann)
 	return t2, t2.Start()
 }
 
-func (c *Client) add() (*torrent.Options, storage.Storage, uint64, error) {
+func (c *Client) add() (*torrent.Options, *filestorage.FileStorage, uint64, error) {
 	port, err := c.getPort()
 	if err != nil {
 		return nil, nil, 0, err

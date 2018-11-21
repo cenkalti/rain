@@ -126,10 +126,6 @@ func (o *Options) NewTorrent(infoHash []byte, sto storage.Storage) (*Torrent, er
 	if err != nil {
 		return nil, err
 	}
-	err = t.writeResume()
-	if err != nil {
-		return nil, err
-	}
 	if t.dhtNode != nil {
 		t.dhtPeersC = t.dhtNode.Peers()
 	}
