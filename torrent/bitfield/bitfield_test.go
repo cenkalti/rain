@@ -16,14 +16,10 @@ func TestNew(t *testing.T) {
 		t.Errorf("invalid value: %s", v.Hex())
 	}
 
-	func() {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Error("expected panic but not found")
-			}
-		}()
-		NewBytes(buf, 9)
-	}()
+	_, err := NewBytes(buf, 9)
+	if err == nil {
+		t.Error("expected error but not found")
+	}
 }
 
 func TestSet(t *testing.T) {
