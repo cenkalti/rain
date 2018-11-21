@@ -34,9 +34,9 @@ type Options struct {
 	// Optional resumer that saves fast resume data.
 	Resumer resumer.Resumer
 	// Info dict of torrent file. May be nil for magnet links.
-	Info []byte
+	Info *metainfo.Info
 	// Marks downloaded pieces for fast resuming. May be nil.
-	Bitfield []byte
+	Bitfield *bitfield.Bitfield
 	// Config for downloading torrent. DefaultOptions will be used if nil.
 	Config *Config
 }
@@ -56,18 +56,6 @@ func (o *Options) NewTorrent(infoHash []byte, sto storage.Storage) (*Torrent, er
 	}
 	var ih [20]byte
 	copy(ih[:], infoHash)
-	var info *metainfo.Info
-	var bf *bitfield.Bitfield
-	var err error
-	if o.Info != nil {
-		info, err = metainfo.NewInfo(o.Info)
-		if err != nil {
-			return nil, err
-		}
-		if o.Bitfield != nil {
-			bf = bitfield.NewBytes(o.Bitfield, info.NumPieces)
-		}
-	}
 	t := &Torrent{
 		config:                    *cfg,
 		infoHash:                  ih,
@@ -76,8 +64,8 @@ func (o *Options) NewTorrent(infoHash []byte, sto storage.Storage) (*Torrent, er
 		storage:                   sto,
 		port:                      o.Port,
 		resume:                    o.Resumer,
-		info:                      info,
-		bitfield:                  bf,
+		info:                      o.Info,
+		bitfield:                  o.Bitfield,
 		log:                       logger.New("torrent " + logName),
 		peerDisconnectedC:         make(chan *peer.Peer),
 		messages:                  make(chan peer.Message),
@@ -126,7 +114,7 @@ func (o *Options) NewTorrent(infoHash []byte, sto storage.Storage) (*Torrent, er
 	t.piecePool.New = func() interface{} {
 		return make([]byte, t.info.PieceLength)
 	}
-	_, err = rand.Read(t.peerID[len(peerIDPrefix):]) // nolint: gosec
+	_, err := rand.Read(t.peerID[len(peerIDPrefix):]) // nolint: gosec
 	if err != nil {
 		return nil, err
 	}

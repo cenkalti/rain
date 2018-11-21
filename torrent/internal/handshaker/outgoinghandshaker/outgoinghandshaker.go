@@ -61,7 +61,7 @@ func (h *OutgoingHandshaker) Run(dialTimeout, handshakeTimeout time.Duration, pe
 	}
 	log.Debugf("Connected to peer. (cipher=%s extensions=%x client=%q)", cipher, peerExtensions, peerID[:8])
 
-	peerbf := bitfield.NewBytes(peerExtensions[:], 64)
+	peerbf, _ := bitfield.NewBytes(peerExtensions[:], 64)
 	peerbf.And(ourExtensions)
 
 	h.Conn = conn

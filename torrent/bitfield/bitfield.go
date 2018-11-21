@@ -3,6 +3,7 @@ package bitfield
 
 import (
 	"encoding/hex"
+	"errors"
 )
 
 func NumBytes(length uint32) int {
@@ -26,15 +27,15 @@ func New(length uint32) *Bitfield {
 // NewBytes returns a new Bitfield from bytes.
 // Bytes in b are not copied. Unused bits in last byte are cleared.
 // Panics if b is not big enough to hold "length" bits.
-func NewBytes(b []byte, length uint32) *Bitfield {
+func NewBytes(b []byte, length uint32) (*Bitfield, error) {
 	div, mod := divMod32(length, 8)
 	lastByteIncomplete := mod != 0
 	requiredBytes := div
 	if lastByteIncomplete {
 		requiredBytes++
 	}
-	if uint32(len(b)) < requiredBytes {
-		panic("not enough bytes in slice for specified length")
+	if uint32(len(b)) != requiredBytes {
+		return nil, errors.New("invalid length")
 	}
 	if lastByteIncomplete {
 		b[len(b)-1] &= ^(0xff >> mod)
@@ -42,7 +43,7 @@ func NewBytes(b []byte, length uint32) *Bitfield {
 	return &Bitfield{
 		bytes:  b[:requiredBytes],
 		length: length,
-	}
+	}, nil
 }
 
 func (b *Bitfield) Copy() *Bitfield {

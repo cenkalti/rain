@@ -6,12 +6,12 @@ func TestNew(t *testing.T) {
 	var v *Bitfield
 	var buf = []byte{0x0f}
 
-	v = NewBytes(buf, 8)
+	v, _ = NewBytes(buf, 8)
 	if v.Hex() != "0f" {
 		t.Errorf("invalid value: %s", v.Hex())
 	}
 
-	v = NewBytes(buf, 7)
+	v, _ = NewBytes(buf, 7)
 	if v.Hex() != "0e" {
 		t.Errorf("invalid value: %s", v.Hex())
 	}

@@ -41,13 +41,12 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 			pe.Messages = append(pe.Messages, msg)
 			break
 		}
-		numBytes := uint32(bitfield.NumBytes(t.info.NumPieces))
-		if uint32(len(msg.Data)) != numBytes {
-			pe.Logger().Errorln("invalid bitfield length:", len(msg.Data))
+		bf, err := bitfield.NewBytes(msg.Data, t.info.NumPieces)
+		if err != nil {
+			pe.Logger().Errorln(err)
 			t.closePeer(pe)
 			break
 		}
-		bf := bitfield.NewBytes(msg.Data, t.info.NumPieces)
 		pe.Logger().Debugln("Received bitfield:", bf.Hex())
 		for i := uint32(0); i < bf.Len(); i++ {
 			if bf.Test(i) {

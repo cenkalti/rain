@@ -16,6 +16,7 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent"
+	"github.com/cenkalti/rain/torrent/bitfield"
 	"github.com/cenkalti/rain/torrent/magnet"
 	"github.com/cenkalti/rain/torrent/metainfo"
 	"github.com/cenkalti/rain/torrent/resumer/boltdbresumer"
@@ -221,9 +222,23 @@ func (c *Client) loadExistingTorrents(ids []uint64) error {
 			Port:     spec.Port,
 			Trackers: spec.Trackers,
 			Resumer:  res,
-			Info:     spec.Info,
-			Bitfield: spec.Bitfield,
 			Config:   &c.config.Torrent,
+		}
+		if len(spec.Info) > 0 {
+			mi, err := metainfo.New(bytes.NewReader(spec.Info))
+			if err != nil {
+				c.log.Error(err)
+				continue
+			}
+			opt.Info = mi.Info
+			if len(spec.Bitfield) > 0 {
+				bf, err := bitfield.NewBytes(spec.Bitfield, mi.Info.NumPieces)
+				if err != nil {
+					c.log.Error(err)
+					continue
+				}
+				opt.Bitfield = bf
+			}
 		}
 		var sto storage.Storage
 		switch spec.StorageType {
@@ -318,7 +333,7 @@ func (c *Client) AddTorrent(r io.Reader) (*Torrent, error) {
 	}()
 	opt.Name = mi.Info.Name
 	opt.Trackers = mi.GetTrackers()
-	opt.Info = mi.Info.Bytes
+	opt.Info = mi.Info
 	t, err := opt.NewTorrent(mi.Info.Hash[:], sto)
 	if err != nil {
 		return nil, err
