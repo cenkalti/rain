@@ -3,8 +3,8 @@ package torrent
 import (
 	"fmt"
 
+	"github.com/cenkalti/rain/torrent/bitfield"
 	"github.com/cenkalti/rain/torrent/internal/allocator"
-	"github.com/cenkalti/rain/torrent/internal/bitfield"
 	"github.com/cenkalti/rain/torrent/internal/piece"
 	"github.com/cenkalti/rain/torrent/internal/piecepicker"
 )

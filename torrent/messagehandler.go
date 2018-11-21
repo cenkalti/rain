@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/cenkalti/rain/torrent/internal/bitfield"
+	"github.com/cenkalti/rain/torrent/bitfield"
 	"github.com/cenkalti/rain/torrent/internal/peer"
 	"github.com/cenkalti/rain/torrent/internal/peerconn/peerreader"
 	"github.com/cenkalti/rain/torrent/internal/peerconn/peerwriter"

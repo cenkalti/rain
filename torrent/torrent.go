@@ -9,12 +9,12 @@ import (
 
 	"github.com/cenkalti/rain/internal/clientversion"
 	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/torrent/bitfield"
 	"github.com/cenkalti/rain/torrent/dht"
 	"github.com/cenkalti/rain/torrent/internal/acceptor"
 	"github.com/cenkalti/rain/torrent/internal/addrlist"
 	"github.com/cenkalti/rain/torrent/internal/allocator"
 	"github.com/cenkalti/rain/torrent/internal/announcer"
-	"github.com/cenkalti/rain/torrent/internal/bitfield"
 	"github.com/cenkalti/rain/torrent/internal/handshaker/incominghandshaker"
 	"github.com/cenkalti/rain/torrent/internal/handshaker/outgoinghandshaker"
 	"github.com/cenkalti/rain/torrent/internal/infodownloader"

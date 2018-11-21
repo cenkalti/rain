@@ -3,7 +3,7 @@ package verifier
 import (
 	"crypto/sha1" // nolint: gosec
 
-	"github.com/cenkalti/rain/torrent/internal/bitfield"
+	"github.com/cenkalti/rain/torrent/bitfield"
 	"github.com/cenkalti/rain/torrent/internal/piece"
 )
 
