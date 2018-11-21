@@ -158,8 +158,8 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		}
 		piece.Writing = true
 
+		t.messagesC = nil
 		pw := piecewriter.New(piece, pd.Buffer, pd.Piece.Length)
-		t.pieceWriters[pw] = struct{}{}
 		go pw.Run(t.pieceWriterResultC)
 
 		t.startPieceDownloaders()

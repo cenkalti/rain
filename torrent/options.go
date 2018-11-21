@@ -82,7 +82,6 @@ func (o *Options) NewTorrent(infoHash []byte, sto storage.Storage) (*Torrent, er
 		peerSnubbedC:              make(chan *peer.Peer),
 		infoDownloaders:           make(map[*peer.Peer]*infodownloader.InfoDownloader),
 		infoDownloadersSnubbed:    make(map[*peer.Peer]*infodownloader.InfoDownloader),
-		pieceWriters:              make(map[*piecewriter.PieceWriter]struct{}),
 		pieceWriterResultC:        make(chan *piecewriter.PieceWriter),
 		optimisticUnchokedPeers:   make([]*peer.Peer, 0, cfg.OptimisticUnchokedPeers),
 		completeC:                 make(chan struct{}),

@@ -84,7 +84,8 @@ type Torrent struct {
 	peerDisconnectedC chan *peer.Peer
 
 	// All messages coming from peers are sent to this channel.
-	messages chan peer.Message
+	messages  chan peer.Message
+	messagesC chan peer.Message
 
 	// We keep connected peers in this map after they complete handshake phase.
 	peers map[*peer.Peer]struct{}
@@ -106,7 +107,6 @@ type Torrent struct {
 	infoDownloaders        map[*peer.Peer]*infodownloader.InfoDownloader
 	infoDownloadersSnubbed map[*peer.Peer]*infodownloader.InfoDownloader
 
-	pieceWriters       map[*piecewriter.PieceWriter]struct{}
 	pieceWriterResultC chan *piecewriter.PieceWriter
 
 	// Some peers are optimistically unchoked regardless of their download rate.

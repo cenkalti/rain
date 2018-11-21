@@ -37,6 +37,7 @@ func (t *Torrent) close() {
 
 // Torrent event loop
 func (t *Torrent) run() {
+	t.messagesC = t.messages
 	for {
 		select {
 		case doneC := <-t.closeC:
@@ -102,7 +103,7 @@ func (t *Torrent) run() {
 			}
 		case pw := <-t.pieceWriterResultC:
 			pw.Piece.Writing = false
-			delete(t.pieceWriters, pw)
+			t.messagesC = t.messages
 			t.piecePool.Put(pw.Buffer)
 			if pw.Error != nil {
 				t.stop(pw.Error)
@@ -167,7 +168,7 @@ func (t *Torrent) run() {
 			t.startPeer(pe, t.outgoingPeers)
 		case pe := <-t.peerDisconnectedC:
 			t.closePeer(pe)
-		case pm := <-t.messages:
+		case pm := <-t.messagesC:
 			t.handlePeerMessage(pm)
 		}
 	}
