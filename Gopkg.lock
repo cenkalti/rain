@@ -377,7 +377,6 @@
     "github.com/chihaya/chihaya/storage",
     "github.com/chihaya/chihaya/storage/memory",
     "github.com/fatih/structs",
-    "github.com/hashicorp/go-multierror",
     "github.com/hokaccha/go-prettyjson",
     "github.com/jroimartin/gocui",
     "github.com/mitchellh/go-homedir",
