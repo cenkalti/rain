@@ -31,13 +31,13 @@ func TestFiles(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	files := []Section{
+	files := []FileSection{
 		{osFiles[0], 2, 2},
 		{osFiles[1], 0, 1},
 		{osFiles[2], 0, 0},
 		{osFiles[3], 0, 2},
 	}
-	pf := Sections(files)
+	pf := Piece(files)
 
 	// test full read
 	b := make([]byte, 5)

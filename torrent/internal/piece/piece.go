@@ -56,7 +56,7 @@ func NewPieces(info *metainfo.Info, files []storage.File) []Piece {
 			Hash:  info.PieceHashes[i],
 		}
 
-		var sections filesection.Sections
+		var sections filesection.Piece
 
 		// Construct p.Files
 		var pieceOffset uint32
@@ -64,7 +64,7 @@ func NewPieces(info *metainfo.Info, files []storage.File) []Piece {
 		for left := pieceLeft(); left > 0; {
 			n := uint32(minInt64(int64(left), fileLeft())) // number of bytes to write
 
-			file := filesection.Section{
+			file := filesection.FileSection{
 				File:   files[fileIndex],
 				Offset: fileOffset,
 				Length: int64(n),
