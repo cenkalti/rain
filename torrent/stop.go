@@ -62,6 +62,9 @@ func (t *Torrent) stop(err error) {
 	t.log.Debugln("stopping incoming handshakers")
 	t.stopIncomingHandshakers()
 
+	t.log.Debugln("clearing piece cache")
+	t.pieceCache.Clear()
+
 	// Stop periodical announcers first.
 	t.log.Debugln("stopping announcers")
 	announcers := t.announcers // keep a reference to the list before nilling in order to start StopAnnouncer

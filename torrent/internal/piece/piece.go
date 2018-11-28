@@ -3,7 +3,6 @@ package piece
 import (
 	"bytes"
 	"hash"
-	"io"
 
 	"github.com/cenkalti/rain/torrent/internal/filesection"
 	"github.com/cenkalti/rain/torrent/metainfo"
@@ -12,18 +11,14 @@ import (
 
 // Piece of a torrent.
 type Piece struct {
-	Index   uint32 // index in torrent
-	Length  uint32 // always equal to Info.PieceLength except last piece
+	Index  uint32 // index in torrent
+	Length uint32 // always equal to Info.PieceLength except last piece
+	// TODO try remove Blocks field
 	Blocks  Blocks
-	Data    Data // the place to write downloaded bytes
+	Data    filesection.Piece // the place to write downloaded bytes
 	Hash    []byte
 	Writing bool
 	Done    bool
-}
-
-type Data interface {
-	io.ReaderAt
-	io.Writer
 }
 
 func NewPieces(info *metainfo.Info, files []storage.File) []Piece {

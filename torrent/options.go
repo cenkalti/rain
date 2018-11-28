@@ -16,6 +16,7 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/infodownloader"
 	"github.com/cenkalti/rain/torrent/internal/mse"
 	"github.com/cenkalti/rain/torrent/internal/peer"
+	"github.com/cenkalti/rain/torrent/internal/piececache"
 	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
 	"github.com/cenkalti/rain/torrent/internal/piecewriter"
 	"github.com/cenkalti/rain/torrent/internal/verifier"
@@ -112,6 +113,7 @@ func (o *Options) NewTorrent(infoHash []byte, sto storage.Storage) (*Torrent, er
 		connectedPeerIPs:          make(map[string]struct{}),
 		announcersStoppedC:        make(chan struct{}),
 		dhtNode:                   o.DHT,
+		pieceCache:                piececache.New(cfg.PieceCacheSize),
 	}
 	copy(t.peerID[:], peerIDPrefix)
 	t.piecePool.New = func() interface{} {

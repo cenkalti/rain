@@ -7,7 +7,7 @@ import (
 )
 
 type Cache struct {
-	size, maxSize int
+	size, maxSize int64
 	items         map[string]*item
 	accessList    accessList
 	m             sync.Mutex
@@ -15,11 +15,18 @@ type Cache struct {
 
 type Loader func() ([]byte, error)
 
-func New(maxSize int) *Cache {
+func New(maxSize int64) *Cache {
 	return &Cache{
 		maxSize: maxSize,
 		items:   make(map[string]*item),
 	}
+}
+
+func (c *Cache) Clear() {
+	c.m.Lock()
+	c.items = make(map[string]*item)
+	c.accessList = nil
+	c.m.Unlock()
 }
 
 func (c *Cache) Get(key string, loader Loader) ([]byte, error) {
@@ -67,14 +74,14 @@ func (c *Cache) handleNewItem(i *item) ([]byte, error) {
 	}
 
 	// Do not cache values larger than cache size.
-	if len(i.value) > c.maxSize {
+	if int64(len(i.value)) > c.maxSize {
 		delete(c.items, i.key)
 		return i.value, nil
 	}
 
 	c.makeRoom(i)
 
-	c.size += len(i.value)
+	c.size += int64(len(i.value))
 
 	i.lastAccessed = time.Now()
 	heap.Push(&c.accessList, i)
@@ -91,9 +98,9 @@ func (c *Cache) updateAccessTime(i *item) {
 }
 
 func (c *Cache) makeRoom(i *item) {
-	for c.maxSize-c.size < len(i.value) {
+	for c.maxSize-c.size < int64(len(i.value)) {
 		oldest := heap.Pop(&c.accessList).(*item)
 		delete(c.items, oldest.key)
-		c.size -= len(oldest.value)
+		c.size -= int64(len(oldest.value))
 	}
 }

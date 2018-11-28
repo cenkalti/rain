@@ -156,30 +156,27 @@ func TestCache(t *testing.T) {
 		t.FailNow()
 	}
 
-	// // Test update access time
-	// second := func() ([]byte, error) {
-	// 	return []byte("a"), nil
-	// }
-	// val, err = c.Get("second", second)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// if string(val) != "a" {
-	// 	t.FailNow()
-	// }
-	// if len(c.items) != 2 {
-	// 	t.FailNow()
-	// }
-	// if len(c.accessList) != 2 {
-	// 	t.FailNow()
-	// }
-	// if c.size != 9 {
-	// 	t.FailNow()
-	// }
-	// if c.accessList[0].key != "second" {
-	// 	t.FailNow()
-	// }
-	// if c.accessList[1].key != "foo8" {
-	// 	t.FailNow()
-	// }
+	// Test update access time
+	val, err = c.Get("foo8", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(val) != "12345678" {
+		t.FailNow()
+	}
+	if len(c.items) != 2 {
+		t.FailNow()
+	}
+	if len(c.accessList) != 2 {
+		t.FailNow()
+	}
+	if c.size != 9 {
+		t.FailNow()
+	}
+	if c.accessList[0].key != "second" {
+		t.FailNow()
+	}
+	if c.accessList[1].key != "foo8" {
+		t.FailNow()
+	}
 }

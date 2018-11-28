@@ -18,46 +18,36 @@ type ReadWriterAt interface {
 // all files are concatenated and splitted into pieces in length specified in the torrent file.
 type Piece []FileSection
 
-func (p Piece) ReadFull(buf []byte) error {
-	readers := make([]io.Reader, len(p))
-	for i := range p {
-		readers[i] = io.NewSectionReader(p[i].File, p[i].Offset, p[i].Length)
-	}
-	r := io.MultiReader(readers...)
-	_, err := io.ReadFull(r, buf)
-	return err
-}
-
 // ReadAt implements io.ReaderAt interface.
 // It reads bytes from s at given offset into p.
 // Used when uploading blocks of a piece.
-func (s Piece) ReadAt(p []byte, off int64) (int, error) {
+func (p Piece) ReadAt(b []byte, off int64) (int, error) {
 	var readers []io.Reader
 	var i int
 	var pos int64
 
 	// Skip sections up to offset
-	for ; i < len(s); i++ {
-		pos += s[i].Length
+	for ; i < len(p); i++ {
+		pos += p[i].Length
 		if pos >= off {
 			break
 		}
 	}
 
 	// Add half section
-	advance := s[i].Length - (pos - off)
-	readers = append(readers, io.NewSectionReader(s[i].File, s[i].Offset+advance, s[i].Length-advance))
+	advance := p[i].Length - (pos - off)
+	readers = append(readers, io.NewSectionReader(p[i].File, p[i].Offset+advance, p[i].Length-advance))
 
 	// Add remaining sections
-	for i++; i < len(s); i++ {
-		readers = append(readers, io.NewSectionReader(s[i].File, s[i].Offset, s[i].Length))
-		pos += s[i].Length
-		if pos >= off+int64(len(p)) {
+	for i++; i < len(p); i++ {
+		readers = append(readers, io.NewSectionReader(p[i].File, p[i].Offset, p[i].Length))
+		pos += p[i].Length
+		if pos >= off+int64(len(b)) {
 			break
 		}
 	}
 
-	return io.ReadFull(io.MultiReader(readers...), p)
+	return io.ReadFull(io.MultiReader(readers...), b)
 }
 
 // Write implements io.Writer interface.
@@ -71,10 +61,6 @@ func (p Piece) Write(b []byte) (n int, err error) {
 		m, err = sec.File.WriteAt(b[:sec.Length], sec.Offset)
 		n += m
 		if err != nil {
-			return
-		}
-		if int64(m) < sec.Length {
-			err = io.ErrShortWrite
 			return
 		}
 		b = b[m:]

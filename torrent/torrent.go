@@ -20,6 +20,7 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/infodownloader"
 	"github.com/cenkalti/rain/torrent/internal/peer"
 	"github.com/cenkalti/rain/torrent/internal/piece"
+	"github.com/cenkalti/rain/torrent/internal/piececache"
 	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
 	"github.com/cenkalti/rain/torrent/internal/piecepicker"
 	"github.com/cenkalti/rain/torrent/internal/piecewriter"
@@ -222,6 +223,8 @@ type Torrent struct {
 	// Keep a timer to write bitfield at interval to reduce IO.
 	resumeWriteTimer  *time.Timer
 	resumeWriteTimerC <-chan time.Time
+
+	pieceCache *piececache.Cache
 
 	log logger.Logger
 }
