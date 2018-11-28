@@ -3,11 +3,11 @@ package piececache
 import (
 	"errors"
 	"testing"
-	// "time"
+	"time"
 )
 
 func TestCache(t *testing.T) {
-	c := New(10)
+	c := New(10, time.Minute)
 
 	// Test empty cache
 	if len(c.items) != 0 {
@@ -177,6 +177,56 @@ func TestCache(t *testing.T) {
 		t.FailNow()
 	}
 	if c.accessList[1].key != "foo8" {
+		t.FailNow()
+	}
+}
+
+func TestTTL(t *testing.T) {
+	const ttl = 100 * time.Millisecond
+
+	c := New(10, ttl)
+
+	var loaded bool
+	fooLoader := func() ([]byte, error) {
+		loaded = true
+		return []byte("bar"), nil
+	}
+	val, err := c.Get("foo", fooLoader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !loaded {
+		t.FailNow()
+	}
+	if string(val) != "bar" {
+		t.FailNow()
+	}
+
+	// Must not load
+	loaded = false
+	val, err = c.Get("foo", fooLoader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded {
+		t.FailNow()
+	}
+	if string(val) != "bar" {
+		t.FailNow()
+	}
+
+	// Must load again
+	time.Sleep(ttl + 10*time.Millisecond)
+
+	loaded = false
+	val, err = c.Get("foo", fooLoader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !loaded {
+		t.FailNow()
+	}
+	if string(val) != "bar" {
 		t.FailNow()
 	}
 }

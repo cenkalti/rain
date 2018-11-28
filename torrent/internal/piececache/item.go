@@ -12,6 +12,7 @@ type item struct {
 	err          error
 	lastAccessed time.Time
 	index        int
+	timer        *time.Timer
 	sync.Mutex
 }
 

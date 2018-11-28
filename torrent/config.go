@@ -59,6 +59,8 @@ type Config struct {
 	PieceReadSize int64
 	// Number of cached bytes for piece read requests.
 	PieceCacheSize int64
+	// Read bytes for a piece part expires after duration.
+	PieceCacheTTL time.Duration
 }
 
 var DefaultConfig = Config{
@@ -84,4 +86,5 @@ var DefaultConfig = Config{
 	BitfieldWriteInterval:            time.Minute,
 	PieceReadSize:                    256 * 1024,
 	PieceCacheSize:                   50 * 256 * 1024,
+	PieceCacheTTL:                    5 * time.Minute,
 }

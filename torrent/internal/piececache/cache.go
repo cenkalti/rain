@@ -8,6 +8,7 @@ import (
 
 type Cache struct {
 	size, maxSize int64
+	ttl           time.Duration
 	items         map[string]*item
 	accessList    accessList
 	m             sync.Mutex
@@ -15,9 +16,10 @@ type Cache struct {
 
 type Loader func() ([]byte, error)
 
-func New(maxSize int64) *Cache {
+func New(maxSize int64, ttl time.Duration) *Cache {
 	return &Cache{
 		maxSize: maxSize,
+		ttl:     ttl,
 		items:   make(map[string]*item),
 	}
 }
@@ -86,6 +88,12 @@ func (c *Cache) handleNewItem(i *item) ([]byte, error) {
 	i.lastAccessed = time.Now()
 	heap.Push(&c.accessList, i)
 
+	i.timer = time.AfterFunc(c.ttl, func() {
+		c.m.Lock()
+		c.removeItem(i)
+		c.m.Unlock()
+	})
+
 	return i.value, nil
 }
 
@@ -95,12 +103,20 @@ func (c *Cache) updateAccessTime(i *item) {
 
 	i.lastAccessed = time.Now()
 	heap.Fix(&c.accessList, i.index)
+
+	i.timer.Reset(c.ttl)
 }
 
 func (c *Cache) makeRoom(i *item) {
 	for c.maxSize-c.size < int64(len(i.value)) {
-		oldest := heap.Pop(&c.accessList).(*item)
-		delete(c.items, oldest.key)
-		c.size -= int64(len(oldest.value))
+		i := c.accessList[0]
+		i.timer.Stop()
+		c.removeItem(i)
 	}
+}
+
+func (c *Cache) removeItem(i *item) {
+	delete(c.items, i.key)
+	heap.Remove(&c.accessList, i.index)
+	c.size -= int64(len(i.value))
 }

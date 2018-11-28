@@ -113,7 +113,7 @@ func (o *Options) NewTorrent(infoHash []byte, sto storage.Storage) (*Torrent, er
 		connectedPeerIPs:          make(map[string]struct{}),
 		announcersStoppedC:        make(chan struct{}),
 		dhtNode:                   o.DHT,
-		pieceCache:                piececache.New(cfg.PieceCacheSize),
+		pieceCache:                piececache.New(cfg.PieceCacheSize, cfg.PieceCacheTTL),
 	}
 	copy(t.peerID[:], peerIDPrefix)
 	t.piecePool.New = func() interface{} {
