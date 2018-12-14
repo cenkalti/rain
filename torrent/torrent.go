@@ -229,6 +229,7 @@ type Torrent struct {
 	resumeWriteTimer  *time.Timer
 	resumeWriteTimerC <-chan time.Time
 
+	// Keeps blocks read from disk in memory.
 	pieceCache *piececache.Cache
 
 	// To limit parallel disk reads.
