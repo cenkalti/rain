@@ -231,6 +231,9 @@ type Torrent struct {
 
 	pieceCache *piececache.Cache
 
+	// To limit parallel disk reads.
+	readMutex sync.Mutex
+
 	log logger.Logger
 }
 
