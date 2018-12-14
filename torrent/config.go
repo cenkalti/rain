@@ -70,7 +70,7 @@ var DefaultConfig = Config{
 	RequestTimeout:                   20 * time.Second,
 	EndgameParallelDownloadsPerPiece: 2,
 	MaxPeerDial:                      20,
-	MaxPeerAccept:                    5,
+	MaxPeerAccept:                    20,
 	ParallelPieceDownloads:           10,
 	ParallelMetadataDownloads:        2,
 	PeerConnectTimeout:               5 * time.Second,

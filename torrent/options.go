@@ -73,6 +73,7 @@ func (o *Options) NewTorrent(infoHash []byte, sto storage.Storage) (*Torrent, er
 		log:                       logger.New("torrent " + logName),
 		peerDisconnectedC:         make(chan *peer.Peer),
 		messages:                  make(chan peer.Message),
+		pieceMessages:             make(chan peer.PieceMessage),
 		peers:                     make(map[*peer.Peer]struct{}),
 		incomingPeers:             make(map[*peer.Peer]struct{}),
 		outgoingPeers:             make(map[*peer.Peer]struct{}),

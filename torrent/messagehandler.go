@@ -16,6 +16,79 @@ import (
 	"github.com/cenkalti/rain/torrent/metainfo"
 )
 
+func (t *Torrent) handlePieceMessage(pm peer.PieceMessage) {
+	msg := pm.Piece
+	pe := pm.Peer
+	if t.pieces == nil || t.bitfield == nil {
+		pe.Logger().Error("piece received but we don't have info")
+		t.closePeer(pe)
+		return
+	}
+	if msg.Index >= uint32(len(t.pieces)) {
+		pe.Logger().Errorln("invalid piece index:", msg.Index)
+		t.closePeer(pe)
+		return
+	}
+	piece := &t.pieces[msg.Index]
+	block := piece.Blocks.Find(msg.Begin, uint32(len(msg.Data)))
+	if block == nil {
+		pe.Logger().Errorln("invalid piece begin:", msg.Begin, "length:", len(msg.Data))
+		t.closePeer(pe)
+		return
+	}
+	pe.BytesDownlaodedInChokePeriod += int64(len(msg.Data))
+	t.bytesDownloaded += int64(len(msg.Data))
+	pd, ok := t.pieceDownloaders[pe]
+	if !ok {
+		t.bytesWasted += int64(len(msg.Data))
+		peerreader.PiecePool.Put(msg.Data)
+		return
+	}
+	if pd.Piece.Index != msg.Index {
+		t.bytesWasted += int64(len(msg.Data))
+		peerreader.PiecePool.Put(msg.Data)
+		return
+	}
+	pd.GotBlock(block, msg.Data)
+	peerreader.PiecePool.Put(msg.Data)
+	if !pd.Done() {
+		pd.RequestBlocks(t.config.RequestQueueLength)
+		pe.ResetSnubTimer()
+		return
+	}
+	// t.log.Debugln("piece download completed. index:", pd.Piece.Index)
+	t.closePieceDownloader(pd)
+	pe.StopSnubTimer()
+
+	ok = piece.VerifyHash(pd.Buffer[:pd.Piece.Length], sha1.New()) // nolint: gosec
+	if !ok {
+		// TODO ban peers that sent corrupt piece
+		t.log.Error("received corrupt piece")
+		t.closePeer(pd.Peer)
+		t.startPieceDownloaders()
+		return
+	}
+
+	for pe := range t.piecePicker.RequestedPeers(piece.Index) {
+		pd2 := t.pieceDownloaders[pe]
+		t.closePieceDownloader(pd2)
+		pd2.CancelPending()
+	}
+
+	if piece.Writing {
+		panic("piece already writing")
+	}
+	piece.Writing = true
+
+	t.blockPieceMessages = t.pieceMessages
+	t.pieceMessages = nil
+
+	pw := piecewriter.New(piece, pd.Buffer, pd.Piece.Length)
+	go pw.Run(t.pieceWriterResultC)
+
+	t.startPieceDownloaders()
+}
+
 func (t *Torrent) handlePeerMessage(pm peer.Message) {
 	pe := pm.Peer
 	switch msg := pm.Message.(type) {
@@ -96,73 +169,6 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 		pe.PeerInterested = true
 	case peerprotocol.NotInterestedMessage:
 		pe.PeerInterested = false
-	case peerreader.Piece:
-		if t.pieces == nil || t.bitfield == nil {
-			pe.Logger().Error("piece received but we don't have info")
-			t.closePeer(pe)
-			break
-		}
-		if msg.Index >= uint32(len(t.pieces)) {
-			pe.Logger().Errorln("invalid piece index:", msg.Index)
-			t.closePeer(pe)
-			break
-		}
-		piece := &t.pieces[msg.Index]
-		block := piece.Blocks.Find(msg.Begin, uint32(len(msg.Data)))
-		if block == nil {
-			pe.Logger().Errorln("invalid piece begin:", msg.Begin, "length:", len(msg.Data))
-			t.closePeer(pe)
-			break
-		}
-		pe.BytesDownlaodedInChokePeriod += int64(len(msg.Data))
-		t.bytesDownloaded += int64(len(msg.Data))
-		pd, ok := t.pieceDownloaders[pe]
-		if !ok {
-			t.bytesWasted += int64(len(msg.Data))
-			peerreader.PiecePool.Put(msg.Data)
-			break
-		}
-		if pd.Piece.Index != msg.Index {
-			t.bytesWasted += int64(len(msg.Data))
-			peerreader.PiecePool.Put(msg.Data)
-			break
-		}
-		pd.GotBlock(block, msg.Data)
-		peerreader.PiecePool.Put(msg.Data)
-		if !pd.Done() {
-			pd.RequestBlocks(t.config.RequestQueueLength)
-			pe.ResetSnubTimer()
-			break
-		}
-		// t.log.Debugln("piece download completed. index:", pd.Piece.Index)
-		t.closePieceDownloader(pd)
-		pe.StopSnubTimer()
-
-		ok = piece.VerifyHash(pd.Buffer[:pd.Piece.Length], sha1.New()) // nolint: gosec
-		if !ok {
-			// TODO ban peers that sent corrupt piece
-			t.log.Error("received corrupt piece")
-			t.closePeer(pd.Peer)
-			t.startPieceDownloaders()
-			break
-		}
-
-		for pe := range t.piecePicker.RequestedPeers(piece.Index) {
-			pd2 := t.pieceDownloaders[pe]
-			t.closePieceDownloader(pd2)
-			pd2.CancelPending()
-		}
-
-		if piece.Writing {
-			panic("piece already writing")
-		}
-		piece.Writing = true
-
-		t.messagesC = nil
-		pw := piecewriter.New(piece, pd.Buffer, pd.Piece.Length)
-		go pw.Run(t.pieceWriterResultC)
-
-		t.startPieceDownloaders()
 	case peerprotocol.RequestMessage:
 		if t.pieces == nil || t.bitfield == nil {
 			pe.Logger().Error("request received but we don't have info")

@@ -37,7 +37,6 @@ func (t *Torrent) close() {
 
 // Torrent event loop
 func (t *Torrent) run() {
-	t.messagesC = t.messages
 	for {
 		select {
 		case doneC := <-t.closeC:
@@ -103,7 +102,10 @@ func (t *Torrent) run() {
 			}
 		case pw := <-t.pieceWriterResultC:
 			pw.Piece.Writing = false
-			t.messagesC = t.messages
+
+			t.pieceMessages = t.blockPieceMessages
+			t.blockPieceMessages = nil
+
 			t.piecePool.Put(pw.Buffer)
 			if pw.Error != nil {
 				t.stop(pw.Error)
@@ -168,7 +170,9 @@ func (t *Torrent) run() {
 			t.startPeer(pe, t.outgoingPeers)
 		case pe := <-t.peerDisconnectedC:
 			t.closePeer(pe)
-		case pm := <-t.messagesC:
+		case pm := <-t.pieceMessages:
+			t.handlePieceMessage(pm)
+		case pm := <-t.messages:
 			t.handlePeerMessage(pm)
 		}
 	}
@@ -295,7 +299,7 @@ func (t *Torrent) startPeer(p *peerconn.Conn, peers map[*peer.Peer]struct{}) {
 	pe := peer.New(p, t.config.RequestTimeout)
 	t.peers[pe] = struct{}{}
 	peers[pe] = struct{}{}
-	go pe.Run(t.messages, t.peerSnubbedC, t.peerDisconnectedC)
+	go pe.Run(t.messages, t.pieceMessages, t.peerSnubbedC, t.peerDisconnectedC)
 
 	t.sendFirstMessage(pe)
 	if len(t.peers) <= 4 {

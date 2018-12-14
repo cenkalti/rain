@@ -84,9 +84,14 @@ type Torrent struct {
 	// Peers are sent to this channel when they are disconnected.
 	peerDisconnectedC chan *peer.Peer
 
-	// All messages coming from peers are sent to this channel.
-	messages  chan peer.Message
-	messagesC chan peer.Message
+	// Piece messages coming from peers are sent this channel.
+	pieceMessages chan peer.PieceMessage
+
+	// To limit parallel writes to disk, pieceMessages is set to nil when a piece has started writing to disk.
+	blockPieceMessages chan peer.PieceMessage
+
+	// Other messages coming from peers are sent to this channel.
+	messages chan peer.Message
 
 	// We keep connected peers in this map after they complete handshake phase.
 	peers map[*peer.Peer]struct{}

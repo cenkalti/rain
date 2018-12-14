@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/rain/torrent/internal/peerconn"
+	"github.com/cenkalti/rain/torrent/internal/peerconn/peerreader"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
 )
 
@@ -45,6 +46,11 @@ type Message struct {
 	Message interface{}
 }
 
+type PieceMessage struct {
+	*Peer
+	Piece peerreader.Piece
+}
+
 func New(p *peerconn.Conn, snubTimeout time.Duration) *Peer {
 	t := time.NewTimer(math.MaxInt64)
 	t.Stop()
@@ -69,7 +75,7 @@ func (p *Peer) Close() {
 	<-p.doneC
 }
 
-func (p *Peer) Run(messages chan Message, snubbed, disconnect chan *Peer) {
+func (p *Peer) Run(messages chan Message, pieces chan PieceMessage, snubbed, disconnect chan *Peer) {
 	defer close(p.doneC)
 	go p.Conn.Run()
 	for {
@@ -82,10 +88,18 @@ func (p *Peer) Run(messages chan Message, snubbed, disconnect chan *Peer) {
 				}
 				return
 			}
-			select {
-			case messages <- Message{Peer: p, Message: pm}:
-			case <-p.closeC:
-				return
+			if m, ok := pm.(peerreader.Piece); ok {
+				select {
+				case pieces <- PieceMessage{Peer: p, Piece: m}:
+				case <-p.closeC:
+					return
+				}
+			} else {
+				select {
+				case messages <- Message{Peer: p, Message: pm}:
+				case <-p.closeC:
+					return
+				}
 			}
 		case <-p.snubTimer.C:
 			select {
