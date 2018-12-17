@@ -139,7 +139,9 @@ func (t *Torrent) run() {
 			t.peersSnubbed[pe] = struct{}{}
 			if pd, ok := t.pieceDownloaders[pe]; ok {
 				t.pieceDownloadersSnubbed[pe] = pd
-				t.piecePicker.HandleSnubbed(pe, pd.Piece.Index)
+				if t.piecePicker != nil {
+					t.piecePicker.HandleSnubbed(pe, pd.Piece.Index)
+				}
 				t.startPieceDownloaders()
 			} else if id, ok := t.infoDownloaders[pe]; ok {
 				t.infoDownloadersSnubbed[pe] = id
@@ -226,7 +228,9 @@ func (t *Torrent) closePieceDownloader(pd *piecedownloader.PieceDownloader) {
 	delete(t.pieceDownloaders, pd.Peer)
 	delete(t.pieceDownloadersSnubbed, pd.Peer)
 	delete(t.pieceDownloadersChoked, pd.Peer)
-	t.piecePicker.HandleCancelDownload(pd.Peer, pd.Piece.Index)
+	if t.piecePicker != nil {
+		t.piecePicker.HandleCancelDownload(pd.Peer, pd.Piece.Index)
+	}
 	pd.Peer.Downloading = false
 }
 
@@ -385,5 +389,10 @@ func (t *Torrent) checkCompletion() bool {
 		}
 	}
 	t.addrList.Reset()
+	for _, pd := range t.pieceDownloaders {
+		t.closePieceDownloader(pd)
+		pd.CancelPending()
+	}
+	t.piecePicker = nil
 	return true
 }
