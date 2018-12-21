@@ -8,11 +8,11 @@ import (
 
 func (t *Torrent) announcerFields() tracker.Torrent {
 	tr := tracker.Torrent{
-		InfoHash: t.infoHash,
-		PeerID:   t.peerID,
-		Port:     t.port,
-		// TODO send BytesDownloaded to tracker
-		// TODO send BytesUploaded to tracker
+		InfoHash:        t.infoHash,
+		PeerID:          t.peerID,
+		Port:            t.port,
+		BytesDownloaded: t.byteStats.BytesDownloaded,
+		BytesUploaded:   t.byteStats.BytesUploaded,
 	}
 	if t.bitfield == nil {
 		tr.BytesLeft = math.MaxUint32
