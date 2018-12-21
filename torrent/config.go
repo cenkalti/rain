@@ -55,6 +55,8 @@ type Config struct {
 	// Bitfield is saved to disk for fast resume without hash checking.
 	// There is an interval to keep IO lower.
 	BitfieldWriteInterval time.Duration
+	// Stats are written at interval to reduce write operations.
+	StatsWriteInterval time.Duration
 	// Number of bytes to read when a piece is requested by a peer.
 	PieceReadSize int64
 	// Number of cached bytes for piece read requests.
@@ -83,7 +85,8 @@ var DefaultConfig = Config{
 	HTTPTrackerTimeout:               10 * time.Second,
 	DHTAnnounceInterval:              30 * time.Minute,
 	MinDHTAnnounceInterval:           time.Minute,
-	BitfieldWriteInterval:            time.Minute,
+	BitfieldWriteInterval:            30 * time.Second,
+	StatsWriteInterval:               30 * time.Second,
 	PieceReadSize:                    256 * 1024,
 	PieceCacheSize:                   50 * 256 * 1024,
 	PieceCacheTTL:                    5 * time.Minute,

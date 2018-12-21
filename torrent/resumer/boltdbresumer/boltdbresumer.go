@@ -11,13 +11,16 @@ import (
 )
 
 var (
-	infoHashKey = []byte("info_hash")
-	portKey     = []byte("port")
-	nameKey     = []byte("name")
-	trackersKey = []byte("trackers")
-	destKey     = []byte("dest")
-	infoKey     = []byte("info")
-	bitfieldKey = []byte("bitfield")
+	infoHashKey        = []byte("info_hash")
+	portKey            = []byte("port")
+	nameKey            = []byte("name")
+	trackersKey        = []byte("trackers")
+	destKey            = []byte("dest")
+	infoKey            = []byte("info")
+	bitfieldKey        = []byte("bitfield")
+	bytesDownloadedKey = []byte("bytes_downloaded")
+	bytesUploadedKey   = []byte("bytes_uploaded")
+	bytesWastedKey     = []byte("bytes_wasted")
 )
 
 type Resumer struct {
@@ -60,6 +63,9 @@ func (r *Resumer) Write(spec *Spec) error {
 		b.Put(trackersKey, trackers)
 		b.Put(infoKey, spec.Info)
 		b.Put(bitfieldKey, spec.Bitfield)
+		b.Put(bytesDownloadedKey, []byte(strconv.FormatInt(spec.BytesDownloaded, 10)))
+		b.Put(bytesUploadedKey, []byte(strconv.FormatInt(spec.BytesUploaded, 10)))
+		b.Put(bytesWastedKey, []byte(strconv.FormatInt(spec.BytesWasted, 10)))
 		return nil
 	})
 }
@@ -75,6 +81,16 @@ func (r *Resumer) WriteBitfield(value []byte) error {
 	return r.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(r.mainBucket).Bucket(r.subBucket)
 		return b.Put(bitfieldKey, value)
+	})
+}
+
+func (r *Resumer) WriteStats(s resumer.Stats) error {
+	return r.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(r.mainBucket).Bucket(r.subBucket)
+		b.Put(bytesDownloadedKey, []byte(strconv.FormatInt(s.BytesDownloaded, 10)))
+		b.Put(bytesUploadedKey, []byte(strconv.FormatInt(s.BytesUploaded, 10)))
+		b.Put(bytesWastedKey, []byte(strconv.FormatInt(s.BytesWasted, 10)))
+		return nil
 	})
 }
 
@@ -121,6 +137,24 @@ func (r *Resumer) Read() (*Spec, error) {
 		value = b.Get(bitfieldKey)
 		spec.Bitfield = make([]byte, len(value))
 		copy(spec.Bitfield, value)
+
+		value = b.Get(bytesDownloadedKey)
+		spec.BytesDownloaded, err = strconv.ParseInt(string(value), 10, 64)
+		if err != nil {
+			return err
+		}
+
+		value = b.Get(bytesUploadedKey)
+		spec.BytesUploaded, err = strconv.ParseInt(string(value), 10, 64)
+		if err != nil {
+			return err
+		}
+
+		value = b.Get(bytesWastedKey)
+		spec.BytesWasted, err = strconv.ParseInt(string(value), 10, 64)
+		if err != nil {
+			return err
+		}
 
 		return nil
 	})

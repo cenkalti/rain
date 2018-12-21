@@ -133,6 +133,10 @@ func (t *Torrent) run() {
 			}
 		case <-t.resumeWriteTimerC:
 			t.writeBitfield(true)
+		case <-t.statsWriteTickerC:
+			if t.resume != nil {
+				t.resume.WriteStats(t.byteStats)
+			}
 		case pe := <-t.peerSnubbedC:
 			// Mark slow peer as snubbed and don't select that peer in piece picker
 			pe.Snubbed = true

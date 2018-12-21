@@ -46,6 +46,16 @@ func (t *Torrent) start() {
 		t.startAnnouncers()
 		t.startInfoDownloaders()
 	}
+
+	t.startStatsWriter()
+}
+
+func (t *Torrent) startStatsWriter() {
+	if t.statsWriteTicker != nil {
+		return
+	}
+	t.statsWriteTicker = time.NewTicker(t.config.StatsWriteInterval)
+	t.statsWriteTickerC = t.statsWriteTicker.C
 }
 
 func (t *Torrent) startVerifier() {

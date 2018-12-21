@@ -211,10 +211,7 @@ type Torrent struct {
 	verifierProgressC chan verifier.Progress
 	verifierResultC   chan *verifier.Verifier
 
-	// Byte stats
-	bytesDownloaded int64
-	bytesUploaded   int64
-	bytesWasted     int64
+	byteStats resumer.Stats
 
 	// Holds connected peer IPs so we don't dial/accept multiple connections to/from same IP.
 	connectedPeerIPs map[string]struct{}
@@ -228,6 +225,10 @@ type Torrent struct {
 	// Keep a timer to write bitfield at interval to reduce IO.
 	resumeWriteTimer  *time.Timer
 	resumeWriteTimerC <-chan time.Time
+
+	// Stats are written at interval to reduce IO.
+	statsWriteTicker  *time.Ticker
+	statsWriteTickerC <-chan time.Time
 
 	// Keeps blocks read from disk in memory.
 	pieceCache *piececache.Cache

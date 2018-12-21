@@ -5,4 +5,11 @@ package resumer
 type Resumer interface {
 	WriteInfo([]byte) error
 	WriteBitfield([]byte) error
+	WriteStats(Stats) error
+}
+
+type Stats struct {
+	BytesDownloaded int64
+	BytesUploaded   int64
+	BytesWasted     int64
 }

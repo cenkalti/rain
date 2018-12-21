@@ -62,6 +62,9 @@ func (t *Torrent) stop(err error) {
 	t.log.Debugln("stopping incoming handshakers")
 	t.stopIncomingHandshakers()
 
+	t.log.Debugln("stopping stats writer")
+	t.stopStatsWriter()
+
 	t.log.Debugln("clearing piece cache")
 	t.pieceCache.Clear()
 
@@ -87,6 +90,12 @@ func (t *Torrent) stop(err error) {
 	go t.stoppedEventAnnouncer.Run()
 
 	t.addrList.Reset()
+}
+
+func (t *Torrent) stopStatsWriter() {
+	t.statsWriteTicker.Stop()
+	t.statsWriteTicker = nil
+	t.statsWriteTickerC = nil
 }
 
 func (t *Torrent) stopOutgoingHandshakers() {

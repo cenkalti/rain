@@ -100,9 +100,9 @@ func (t *Torrent) stats() Stats {
 	s.Downloads.Choked = len(t.pieceDownloadersChoked)
 	s.Downloads.Running = len(t.pieceDownloaders) - len(t.pieceDownloadersChoked) - len(t.pieceDownloadersSnubbed)
 	s.Pieces.Available = t.avaliablePieceCount()
-	s.Bytes.Downloaded = t.bytesDownloaded
-	s.Bytes.Uploaded = t.bytesUploaded
-	s.Bytes.Wasted = t.bytesWasted
+	s.Bytes.Downloaded = t.byteStats.BytesDownloaded
+	s.Bytes.Uploaded = t.byteStats.BytesUploaded
+	s.Bytes.Wasted = t.byteStats.BytesWasted
 
 	if t.info != nil {
 		s.Bytes.Total = t.info.TotalLength

@@ -19,6 +19,7 @@ import (
 	"github.com/cenkalti/rain/torrent/bitfield"
 	"github.com/cenkalti/rain/torrent/magnet"
 	"github.com/cenkalti/rain/torrent/metainfo"
+	"github.com/cenkalti/rain/torrent/resumer"
 	"github.com/cenkalti/rain/torrent/resumer/boltdbresumer"
 	"github.com/cenkalti/rain/torrent/storage/filestorage"
 	"github.com/mitchellh/go-homedir"
@@ -222,6 +223,11 @@ func (c *Client) loadExistingTorrents(ids []uint64) error {
 			Trackers: spec.Trackers,
 			Resumer:  res,
 			Config:   &c.config.Torrent,
+			Stats: resumer.Stats{
+				BytesDownloaded: spec.BytesDownloaded,
+				BytesUploaded:   spec.BytesUploaded,
+				BytesWasted:     spec.BytesWasted,
+			},
 		}
 		var private bool
 		var ann *dhtAnnouncer

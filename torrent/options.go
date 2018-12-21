@@ -39,6 +39,8 @@ type Options struct {
 	Info *metainfo.Info
 	// Marks downloaded pieces for fast resuming. May be nil.
 	Bitfield *bitfield.Bitfield
+	// Initial stats from previous runs.
+	Stats resumer.Stats
 	// Config for downloading torrent. DefaultOptions will be used if nil.
 	Config *Config
 	// Optional DHT node
@@ -115,6 +117,7 @@ func (o *Options) NewTorrent(infoHash []byte, sto storage.Storage) (*Torrent, er
 		announcersStoppedC:        make(chan struct{}),
 		dhtNode:                   o.DHT,
 		pieceCache:                piececache.New(cfg.PieceCacheSize, cfg.PieceCacheTTL),
+		byteStats:                 o.Stats,
 	}
 	copy(t.peerID[:], peerIDPrefix)
 	t.piecePool.New = func() interface{} {
