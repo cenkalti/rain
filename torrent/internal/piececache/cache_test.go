@@ -230,3 +230,29 @@ func TestTTL(t *testing.T) {
 		t.FailNow()
 	}
 }
+
+func TestClear(t *testing.T) {
+	const ttl = 100 * time.Millisecond
+
+	c := New(10, ttl)
+
+	var loaded bool
+	fooLoader := func() ([]byte, error) {
+		loaded = true
+		return []byte("bar"), nil
+	}
+	val, err := c.Get("foo", fooLoader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !loaded {
+		t.FailNow()
+	}
+	if string(val) != "bar" {
+		t.FailNow()
+	}
+
+	c.Clear()
+
+	time.Sleep(ttl + 10*time.Millisecond)
+}

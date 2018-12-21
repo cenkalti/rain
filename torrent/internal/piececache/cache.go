@@ -27,6 +27,9 @@ func New(maxSize int64, ttl time.Duration) *Cache {
 func (c *Cache) Clear() {
 	c.m.Lock()
 	c.items = make(map[string]*item)
+	for _, i := range c.accessList {
+		i.timer.Stop()
+	}
 	c.accessList = nil
 	c.m.Unlock()
 }
@@ -110,12 +113,12 @@ func (c *Cache) updateAccessTime(i *item) {
 func (c *Cache) makeRoom(i *item) {
 	for c.maxSize-c.size < int64(len(i.value)) {
 		i := c.accessList[0]
-		i.timer.Stop()
 		c.removeItem(i)
 	}
 }
 
 func (c *Cache) removeItem(i *item) {
+	i.timer.Stop()
 	delete(c.items, i.key)
 	heap.Remove(&c.accessList, i.index)
 	c.size -= int64(len(i.value))
