@@ -359,7 +359,9 @@ func (c *Client) AddTorrent(r io.Reader) (*Torrent, error) {
 		Name:     opt.Name,
 		Trackers: opt.Trackers,
 		Info:     opt.Info.Bytes,
-		Bitfield: opt.Bitfield.Bytes(),
+	}
+	if opt.Bitfield != nil {
+		rspec.Bitfield = opt.Bitfield.Bytes()
 	}
 	err = opt.Resumer.(*boltdbresumer.Resumer).Write(rspec)
 	if err != nil {
