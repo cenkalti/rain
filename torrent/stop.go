@@ -31,7 +31,7 @@ func (t *Torrent) stop(err error) {
 	t.log.Debugln("stopping info downloaders")
 	t.stopInfoDownloaders()
 
-	if t.resume != nil {
+	if t.resume != nil && t.bitfield != nil {
 		t.writeBitfield(false)
 	}
 
