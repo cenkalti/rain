@@ -12,6 +12,8 @@ type AddrList struct {
 
 	// Contains peers not connected yet, keyed by addr string
 	peerAddrsMap map[string]*peerAddr
+
+	maxItems int
 }
 
 type peerAddr struct {
@@ -19,9 +21,10 @@ type peerAddr struct {
 	timestamp time.Time
 }
 
-func New() *AddrList {
+func New(maxItems int) *AddrList {
 	return &AddrList{
 		peerAddrsMap: make(map[string]*peerAddr),
+		maxItems:     maxItems,
 	}
 }
 
@@ -68,6 +71,15 @@ func (d *AddrList) Push(addrs []*net.TCPAddr, listenPort int) {
 			d.peerAddrs = append(d.peerAddrs, p)
 		}
 	}
-	// TODO limit max peer addresses to keep
 	sort.Slice(d.peerAddrs, func(i, j int) bool { return d.peerAddrs[i].timestamp.Before(d.peerAddrs[j].timestamp) })
+	if len(d.peerAddrs) > d.maxItems {
+		delta := len(d.peerAddrs) - d.maxItems
+		for i := 0; i < delta; i++ {
+			delete(d.peerAddrsMap, d.peerAddrs[i].String())
+		}
+		for i := delta; i < len(d.peerAddrs); i++ {
+			d.peerAddrs[i] = d.peerAddrs[i+delta]
+		}
+		d.peerAddrs = d.peerAddrs[:len(d.peerAddrs)-delta]
+	}
 }

@@ -63,6 +63,8 @@ type Config struct {
 	PieceCacheSize int64
 	// Read bytes for a piece part expires after duration.
 	PieceCacheTTL time.Duration
+	// Max number of peer addresses to keep in connect queue.
+	MaxPeerAddresses int
 }
 
 var DefaultConfig = Config{
@@ -90,4 +92,5 @@ var DefaultConfig = Config{
 	PieceReadSize:                    256 * 1024,
 	PieceCacheSize:                   50 * 256 * 1024,
 	PieceCacheTTL:                    5 * time.Minute,
+	MaxPeerAddresses:                 2000,
 }
