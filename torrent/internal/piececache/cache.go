@@ -31,6 +31,7 @@ func (c *Cache) Clear() {
 		i.timer.Stop()
 	}
 	c.accessList = nil
+	c.size = 0
 	c.m.Unlock()
 }
 
