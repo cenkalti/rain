@@ -163,12 +163,20 @@ func (p *PeerWriter) messageWriter() {
 			buf.Write(payload)
 			n, err := p.conn.Write(buf.Bytes())
 			p.countUploadBytes(msg, n)
+			if _, ok := err.(*net.OpError); ok {
+				p.log.Debugf("cannot write message [%v]: %s", msg.ID(), err.Error())
+				return
+			}
 			if err != nil {
 				p.log.Errorf("cannot write message [%v]: %s", msg.ID(), err.Error())
 				return
 			}
 		case <-keepAliveTicker.C:
 			_, err := p.conn.Write([]byte{0, 0, 0, 0})
+			if _, ok := err.(*net.OpError); ok {
+				p.log.Debugf("cannot write keepalive message: %s", err.Error())
+				return
+			}
 			if err != nil {
 				p.log.Errorf("cannot write keepalive message: %s", err.Error())
 				return
