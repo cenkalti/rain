@@ -22,14 +22,12 @@ type Stats struct {
 		// The number of total bytes of files in torrent.  Total = Complete + Incomplete
 		Total int64
 		// Downloaded is the number of bytes downloaded from swarm.
-		// Because some pieces may be downloaded more than once, this number may be greater than BytesCompleted returns.
-		// TODO put into resume
+		// Because some pieces may be downloaded more than once, this number may be greater than completed bytes.
 		Downloaded int64
-		// Protocol messages are not included, only piece data is counted.
-		Uploaded int64
-		Wasted   int64
 		// BytesUploaded is the number of bytes uploaded to the swarm.
-		// TODO BytesUploaded   int64
+		Uploaded int64
+		// Bytes downloaded due to duplicate/non-requested pieces.
+		Wasted int64
 	}
 	Peers struct {
 		// Number of peers that are connected, handshaked and ready to send and receive messages.

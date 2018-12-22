@@ -95,7 +95,6 @@ func (t *Torrent) run() {
 			go h.Run(t.peerID, t.getSKey, t.checkInfoHash, t.incomingHandshakerResultC, t.config.PeerHandshakeTimeout, ourExtensions, t.config.ForceIncomingEncryption)
 		case req := <-t.announcerRequestC:
 			tr := t.announcerFields()
-			// TODO set bytes uploaded/downloaded
 			select {
 			case req.Response <- announcer.Response{Torrent: tr}:
 			case <-req.Cancel:

@@ -42,7 +42,6 @@ type PieceMessage struct {
 func (m PieceMessage) ID() MessageID { return Piece }
 
 func (m PieceMessage) MarshalBinary() ([]byte, error) {
-	// TODO consider changing interface to io.WriterTo to reduce allocation
 	buf := bytes.NewBuffer(make([]byte, 0))
 	err := binary.Write(buf, binary.BigEndian, m)
 	return buf.Bytes(), err
