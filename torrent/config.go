@@ -1,6 +1,10 @@
 package torrent
 
-import "time"
+import (
+	"time"
+
+	"github.com/cenkalti/rain/internal/clientversion"
+)
 
 type Config struct {
 	// Number of unchoked peers.
@@ -48,6 +52,8 @@ type Config struct {
 	// Total time to wait for response to be read.
 	// This includes ConnectTimeout and TLSHandshakeTimeout.
 	HTTPTrackerTimeout time.Duration
+	// User agent sent when communicating with HTTP trackers.
+	HTTPTrackerUserAgent string
 	// DHT announce interval
 	DHTAnnounceInterval time.Duration
 	// Minimum announce interval when announcing to DHT.
@@ -85,6 +91,7 @@ var DefaultConfig = Config{
 	TrackerStopTimeout:               5 * time.Second,
 	MinAnnounceInterval:              time.Minute,
 	HTTPTrackerTimeout:               10 * time.Second,
+	HTTPTrackerUserAgent:             "Rain/" + clientversion.Version,
 	DHTAnnounceInterval:              30 * time.Minute,
 	MinDHTAnnounceInterval:           time.Minute,
 	BitfieldWriteInterval:            30 * time.Second,

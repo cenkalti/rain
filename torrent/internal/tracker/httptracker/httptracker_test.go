@@ -64,7 +64,7 @@ func TestHTTPTracker(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	trk := httptracker.New(rawURL, u, timeout, new(http.Transport))
+	trk := httptracker.New(rawURL, u, timeout, new(http.Transport), "Mozilla/5.0")
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()

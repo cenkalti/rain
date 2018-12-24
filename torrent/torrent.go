@@ -259,10 +259,10 @@ func (t *Torrent) InfoHashBytes() []byte {
 	return b
 }
 
-func parseTrackers(trackers []string, log logger.Logger, httpTimeout time.Duration) ([]tracker.Tracker, error) {
+func parseTrackers(trackers []string, log logger.Logger, httpTimeout time.Duration, httpUserAgent string) ([]tracker.Tracker, error) {
 	var ret []tracker.Tracker
 	for _, s := range trackers {
-		t, err := trackermanager.DefaultTrackerManager.Get(s, httpTimeout)
+		t, err := trackermanager.DefaultTrackerManager.Get(s, httpTimeout, httpUserAgent)
 		if err != nil {
 			log.Warningln("cannot parse tracker url:", err)
 			continue

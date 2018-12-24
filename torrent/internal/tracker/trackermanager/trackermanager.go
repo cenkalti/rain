@@ -35,7 +35,7 @@ func New() *TrackerManager {
 	}
 }
 
-func (m *TrackerManager) Get(s string, httpTimeout time.Duration) (tracker.Tracker, error) {
+func (m *TrackerManager) Get(s string, httpTimeout time.Duration, httpUserAgent string) (tracker.Tracker, error) {
 	u, err := url.Parse(s)
 	if err != nil {
 		return nil, err
@@ -50,7 +50,7 @@ func (m *TrackerManager) Get(s string, httpTimeout time.Duration) (tracker.Track
 			m.httpTransports[u.Host] = t
 		}
 		m.httpHostCount[u.Host]++
-		tr := httptracker.New(s, u, httpTimeout, t)
+		tr := httptracker.New(s, u, httpTimeout, t, httpUserAgent)
 		m.httpHosts[tr] = u.Host
 		return tr, nil
 	case "udp":

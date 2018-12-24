@@ -23,16 +23,18 @@ type HTTPTracker struct {
 	http      *http.Client
 	transport *http.Transport
 	trackerID string
+	userAgent string
 }
 
 var _ tracker.Tracker = (*HTTPTracker)(nil)
 
-func New(rawURL string, u *url.URL, timeout time.Duration, t *http.Transport) *HTTPTracker {
+func New(rawURL string, u *url.URL, timeout time.Duration, t *http.Transport, userAgent string) *HTTPTracker {
 	return &HTTPTracker{
 		rawURL:    rawURL,
 		url:       u,
 		log:       logger.New("tracker " + u.String()),
 		transport: t,
+		userAgent: userAgent,
 		http: &http.Client{
 			Timeout:   timeout,
 			Transport: t,
@@ -76,6 +78,8 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 		Host:       u.Host,
 	}
 	httpReq = httpReq.WithContext(ctx)
+
+	httpReq.Header.Set("User-Agent", t.userAgent)
 
 	doReq := func() ([]byte, error) {
 		resp, err := t.http.Do(httpReq)

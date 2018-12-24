@@ -127,7 +127,7 @@ func (o *Options) NewTorrent(infoHash []byte, sto storage.Storage) (*Torrent, er
 	if err != nil {
 		return nil, err
 	}
-	t.trackersInstances, err = parseTrackers(t.trackers, t.log, cfg.HTTPTrackerTimeout)
+	t.trackersInstances, err = parseTrackers(t.trackers, t.log, cfg.HTTPTrackerTimeout, cfg.HTTPTrackerUserAgent)
 	if err != nil {
 		return nil, err
 	}
