@@ -77,15 +77,17 @@ func (m *ExtensionMessage) UnmarshalBinary(data []byte) error {
 
 type ExtensionHandshakeMessage struct {
 	M            map[string]uint8 `bencode:"m"`
+	V            string           `bencode:"v"`
 	MetadataSize uint32           `bencode:"metadata_size,omitempty"`
 }
 
-func NewExtensionHandshake(metadataSize uint32) ExtensionHandshakeMessage {
+func NewExtensionHandshake(metadataSize uint32, version string) ExtensionHandshakeMessage {
 	return ExtensionHandshakeMessage{
 		M: map[string]uint8{
 			ExtensionKeyMetadata: ExtensionIDMetadata,
 			ExtensionKeyPEX:      ExtensionIDPEX,
 		},
+		V:            version,
 		MetadataSize: metadataSize,
 	}
 }
