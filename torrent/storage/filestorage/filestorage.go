@@ -32,6 +32,8 @@ func (s *FileStorage) Dest() string {
 }
 
 func (s *FileStorage) Open(name string, size int64) (f storage.File, exists bool, err error) {
+	name = filepath.Clean(name)
+
 	// All files are saved under dest.
 	name = filepath.Join(s.dest, name)
 
