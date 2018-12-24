@@ -3,6 +3,9 @@ package metainfo
 import (
 	"crypto/sha1" // nolint: gosec
 	"errors"
+	"fmt"
+	"path/filepath"
+	"strings"
 
 	"github.com/zeebo/bencode"
 )
@@ -39,6 +42,14 @@ func NewInfo(b []byte) (*Info, error) {
 	}
 	if uint32(len(i.Pieces))%sha1.Size != 0 {
 		return nil, errors.New("invalid piece data")
+	}
+	// ".." is not allowed in file names
+	for _, file := range i.Files {
+		for _, path := range file.Path {
+			if strings.TrimSpace(path) == ".." {
+				return nil, fmt.Errorf("invalid file name: %q", filepath.Join(file.Path...))
+			}
+		}
 	}
 	i.NumPieces = uint32(len(i.Pieces)) / sha1.Size
 	i.MultiFile = len(i.Files) != 0
