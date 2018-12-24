@@ -119,11 +119,11 @@ func (o *Options) NewTorrent(infoHash []byte, sto storage.Storage) (*Torrent, er
 		pieceCache:                piececache.New(cfg.PieceCacheSize, cfg.PieceCacheTTL),
 		byteStats:                 o.Stats,
 	}
-	copy(t.peerID[:], peerIDPrefix)
+	copy(t.peerID[:], []byte(cfg.PeerIDPrefix))
 	t.piecePool.New = func() interface{} {
 		return make([]byte, t.info.PieceLength)
 	}
-	_, err := rand.Read(t.peerID[len(peerIDPrefix):]) // nolint: gosec
+	_, err := rand.Read(t.peerID[len(cfg.PeerIDPrefix):]) // nolint: gosec
 	if err != nil {
 		return nil, err
 	}

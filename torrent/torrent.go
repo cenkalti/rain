@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cenkalti/rain/internal/clientversion"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent/bitfield"
 	"github.com/cenkalti/rain/torrent/dht"
@@ -33,9 +32,6 @@ import (
 )
 
 var (
-	// http://www.bittorrent.org/beps/bep_0020.html
-	peerIDPrefix = []byte("-RN" + clientversion.Version + "-")
-
 	// We send this in handshake tell supported extensions.
 	ourExtensions = bitfield.New(64)
 )

@@ -73,6 +73,8 @@ type Config struct {
 	MaxPeerAddresses int
 	// Client version that is sent in BEP 10 handshake message.
 	ExtensionHandshakeClientVersion string
+	// Peer id is prefixed with this string. See BEP 20. Remaining bytes of peer id will be randomized.
+	PeerIDPrefix string
 }
 
 var DefaultConfig = Config{
@@ -103,4 +105,5 @@ var DefaultConfig = Config{
 	PieceCacheTTL:                    5 * time.Minute,
 	MaxPeerAddresses:                 2000,
 	ExtensionHandshakeClientVersion:  "Rain " + clientversion.Version,
+	PeerIDPrefix:                     "-RN" + clientversion.Version + "-",
 }
