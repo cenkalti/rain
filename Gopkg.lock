@@ -2,14 +2,6 @@
 
 
 [[projects]]
-  digest = "1:d867dfa6751c8d7a435821ad3b736310c2ed68945d05b50fb9d23aee0540c8cc"
-  name = "github.com/Sirupsen/logrus"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "3e01752db0189b9157070a0e1668a620f9a85da2"
-  version = "v1.0.6"
-
-[[projects]]
   branch = "master"
   digest = "1:d6afaeed1502aa28e80a4ed0981d570ad91b2579193404256ce672ed0a609e0d"
   name = "github.com/beorn7/perks"
@@ -58,7 +50,8 @@
   revision = "e1cf6d40cbc30759a410e0552991897df9a91189"
 
 [[projects]]
-  digest = "1:77eb70fb114d55b487d84c84af6fd8edb1e2edbeb22d5eaa96fac197da4c3b4f"
+  branch = "master"
+  digest = "1:9440211ea0fcea7e3df3613e9008b4b65b925302a5cdb817c070b26c317c04cc"
   name = "github.com/chihaya/chihaya"
   packages = [
     "bittorrent",
@@ -68,13 +61,14 @@
     "frontend/udp",
     "frontend/udp/bytepool",
     "middleware",
+    "pkg/log",
     "pkg/stop",
+    "pkg/timecache",
     "storage",
     "storage/memory",
   ]
   pruneopts = "UT"
-  revision = "fa6dcddcb6f7e063fcd9baf36c43373aab459b1f"
-  version = "v2.0.0-rc.2"
+  revision = "b4b257c1515b6efdec22cb22526d2d421f3f9098"
 
 [[projects]]
   digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
@@ -171,6 +165,14 @@
   pruneopts = "UT"
   revision = "8c199fb6259ffc1af525cc3ad52ee60ba8359669"
   version = "v1.1"
+
+[[projects]]
+  digest = "1:0a69a1c0db3591fcefb47f115b224592c8dfa4368b7ba9fae509d5e16cdc95c8"
+  name = "github.com/konsorten/go-windows-terminal-sequences"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "5c8c8bd35d3832f5d134ae1e1e375b69a4d25242"
+  version = "v1.0.1"
 
 [[projects]]
   digest = "1:c658e84ad3916da105a761660dcaeb01e63416c8ec7bc62256a9b411a05fcd67"
@@ -300,6 +302,14 @@
   ]
   pruneopts = "UT"
   revision = "418d78d0b9a7b7de3a6bbc8a23def624cc977bb2"
+
+[[projects]]
+  digest = "1:69b1cc331fca23d702bd72f860c6a647afd0aa9fcbc1d0659b1365e26546dd70"
+  name = "github.com/sirupsen/logrus"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "bcd833dfe83d3cebad139e4a29ed79cb2318bf95"
+  version = "v1.2.0"
 
 [[projects]]
   digest = "1:c40d65817cdd41fac9aa7af8bed56927bb2d6d47e4fea566a74880f5c2b1c41e"
