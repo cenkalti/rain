@@ -17,39 +17,42 @@ import (
 const timeout = 2 * time.Second
 
 func trackerLogic(t *testing.T) *middleware.Logic {
-	responseConfig := middleware.Config{
-		AnnounceInterval:    time.Minute,
-		MaxNumWant:          200,
-		DefaultNumWant:      50,
-		MaxScrapeInfoHashes: 400,
+	responseConfig := middleware.ResponseConfig{
+		AnnounceInterval: time.Minute,
 	}
-	ps, err := storage.NewPeerStore("memory", map[string]interface{}{
-		"gc_interval":                   3 * time.Minute,
-		"peer_lifetime":                 31 * time.Minute,
-		"shard_count":                   1024,
-		"prometheus_reporting_interval": time.Second,
-	})
+	ps, err := storage.NewPeerStore("memory", map[string]interface{}{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return middleware.NewLogic(responseConfig, ps, nil, nil)
 }
 
-func startUDPTracker(t *testing.T, port int) {
+func startUDPTracker(t *testing.T, port int) func() {
 	lgc := trackerLogic(t)
-	_, err := udp.NewFrontend(lgc, udp.Config{
-		Addr:            "127.0.0.1:" + strconv.Itoa(port),
-		MaxClockSkew:    time.Minute,
-		AllowIPSpoofing: true,
-		PrivateKey:      "M4YlzP02iB0B46P2i3QLyMOW6nWXnVlYeJ91xIdtu8Ao7IIVKLZEaCEshTChmFrS",
+	fe, err := udp.NewFrontend(lgc, udp.Config{
+		Addr:         "127.0.0.1:" + strconv.Itoa(port),
+		MaxClockSkew: time.Minute,
+		PrivateKey:   "M4YlzP02iB0B46P2i3QLyMOW6nWXnVlYeJ91xIdtu8Ao7IIVKLZEaCEshTChmFrS",
+		ParseOptions: udp.ParseOptions{
+			MaxNumWant:          200,
+			DefaultNumWant:      50,
+			MaxScrapeInfoHashes: 400,
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
+	return func() {
+		errC := fe.Stop()
+		err := <-errC
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
 }
 
 func TestUDPTracker(t *testing.T) {
-	startUDPTracker(t, 5000) // TODO this does not get closed
+	defer startUDPTracker(t, 5000)()
 
 	const rawURL = "udp://127.0.0.1:5000/announce"
 
@@ -64,7 +67,6 @@ func TestUDPTracker(t *testing.T) {
 			Port:   1111,
 			PeerID: [20]byte{1},
 		},
-		Event: tracker.EventCompleted,
 	}
 	_, err := trk.Announce(ctx, req)
 	if err != nil {
@@ -77,7 +79,7 @@ func TestUDPTracker(t *testing.T) {
 			PeerID:    [20]byte{2},
 			BytesLeft: 1,
 		},
-		Event: tracker.EventStarted,
+		NumWant: 10,
 	}
 	resp, err := trk.Announce(ctx, req)
 	if err != nil {

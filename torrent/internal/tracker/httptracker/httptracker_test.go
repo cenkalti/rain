@@ -18,18 +18,10 @@ import (
 const timeout = 2 * time.Second
 
 func trackerLogic(t *testing.T) *middleware.Logic {
-	responseConfig := middleware.Config{
-		AnnounceInterval:    time.Minute,
-		MaxNumWant:          200,
-		DefaultNumWant:      50,
-		MaxScrapeInfoHashes: 400,
+	responseConfig := middleware.ResponseConfig{
+		AnnounceInterval: time.Minute,
 	}
-	ps, err := storage.NewPeerStore("memory", map[string]interface{}{
-		"gc_interval":                   3 * time.Minute,
-		"peer_lifetime":                 31 * time.Minute,
-		"shard_count":                   1024,
-		"prometheus_reporting_interval": time.Second,
-	})
+	ps, err := storage.NewPeerStore("memory", map[string]interface{}{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,16 +30,21 @@ func trackerLogic(t *testing.T) *middleware.Logic {
 
 func startHTTPTracker(t *testing.T) (stop func()) {
 	lgc := trackerLogic(t)
-	httpfe, err := fhttp.NewFrontend(lgc, fhttp.Config{
+	fe, err := fhttp.NewFrontend(lgc, fhttp.Config{
 		Addr:         "127.0.0.1:5000",
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
+		ReadTimeout:  time.Second,
+		WriteTimeout: time.Second,
+		ParseOptions: fhttp.ParseOptions{
+			MaxNumWant:          200,
+			DefaultNumWant:      50,
+			MaxScrapeInfoHashes: 400,
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return func() {
-		errC := httpfe.Stop()
+		errC := fe.Stop()
 		err := <-errC
 		if err != nil {
 			t.Fatal(err)
@@ -69,25 +66,29 @@ func TestHTTPTracker(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
+	// Seeder
 	req := tracker.AnnounceRequest{
 		Torrent: tracker.Torrent{
-			Port:   1111,
-			PeerID: [20]byte{1},
+			InfoHash:  [20]byte{6},
+			PeerID:    [20]byte{1},
+			Port:      1111,
+			BytesLeft: 0,
 		},
-		Event: tracker.EventCompleted,
 	}
 	_, err = trk.Announce(ctx, req)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	// Leecher
 	req = tracker.AnnounceRequest{
 		Torrent: tracker.Torrent{
-			Port:      2222,
+			InfoHash:  [20]byte{6},
 			PeerID:    [20]byte{2},
+			Port:      2222,
 			BytesLeft: 1,
 		},
-		Event: tracker.EventStarted,
+		NumWant: 10,
 	}
 	resp, err := trk.Announce(ctx, req)
 	if err != nil {
