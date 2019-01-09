@@ -8,7 +8,7 @@ import (
 	"io"
 	"net"
 
-	"github.com/cenkalti/rain/torrent/internal/blocklist/stree"
+	"github.com/cenkalti/rain/client/blocklist/stree"
 )
 
 type Blocklist struct {
