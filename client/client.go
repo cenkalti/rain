@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/boltdb/bolt"
+	"github.com/cenkalti/rain/client/blocklist"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent"
 	"github.com/cenkalti/rain/torrent/bitfield"
@@ -29,11 +30,12 @@ import (
 var mainBucket = []byte("torrents")
 
 type Client struct {
-	config Config
-	db     *bolt.DB
-	log    logger.Logger
-	dht    *dht.DHT
-	closeC chan struct{}
+	config    Config
+	db        *bolt.DB
+	log       logger.Logger
+	dht       *dht.DHT
+	blocklist *blocklist.Blocklist
+	closeC    chan struct{}
 
 	mPeerRequests   sync.Mutex
 	dhtPeerRequests map[dht.InfoHash]struct{}
@@ -71,6 +73,20 @@ func New(cfg Config) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	l := logger.New("client")
+	bl := blocklist.New()
+	if cfg.Blocklist != "" {
+		f, err2 := os.Open(cfg.Blocklist)
+		if err2 != nil {
+			return nil, err2
+		}
+		defer f.Close()
+		n, err2 := bl.Load(f)
+		if err2 != nil {
+			return nil, err2
+		}
+		l.Infof("Loaded %d rules from blocklist.", n)
+	}
 	db, err := bolt.Open(cfg.Database, 0640, &bolt.Options{Timeout: time.Second})
 	if err == bolt.ErrTimeout {
 		return nil, errors.New("resume database is locked by another process")
@@ -82,7 +98,6 @@ func New(cfg Config) (*Client, error) {
 			db.Close()
 		}
 	}()
-	l := logger.New("client")
 	var ids []uint64
 	err = db.Update(func(tx *bolt.Tx) error {
 		b, err2 := tx.CreateBucketIfNotExists(mainBucket)
@@ -120,6 +135,7 @@ func New(cfg Config) (*Client, error) {
 	c := &Client{
 		config:             cfg,
 		db:                 db,
+		blocklist:          bl,
 		log:                l,
 		torrents:           make(map[uint64]*Torrent),
 		torrentsByInfoHash: make(map[dht.InfoHash][]*Torrent),
@@ -218,11 +234,12 @@ func (c *Client) loadExistingTorrents(ids []uint64) error {
 			continue
 		}
 		opt := torrent.Options{
-			Name:     spec.Name,
-			Port:     spec.Port,
-			Trackers: spec.Trackers,
-			Resumer:  res,
-			Config:   &c.config.Torrent,
+			Name:      spec.Name,
+			Port:      spec.Port,
+			Trackers:  spec.Trackers,
+			Resumer:   res,
+			Blocklist: c.blocklist,
+			Config:    &c.config.Torrent,
 			Stats: resumer.Stats{
 				BytesDownloaded: spec.BytesDownloaded,
 				BytesUploaded:   spec.BytesUploaded,
@@ -442,9 +459,10 @@ func (c *Client) add() (*torrent.Options, *filestorage.FileStorage, uint64, erro
 		return nil, nil, 0, err
 	}
 	return &torrent.Options{
-		Port:    int(port),
-		Resumer: res,
-		Config:  &c.config.Torrent,
+		Port:      int(port),
+		Resumer:   res,
+		Blocklist: c.blocklist,
+		Config:    &c.config.Torrent,
 	}, sto, id, nil
 }
 

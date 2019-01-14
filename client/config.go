@@ -16,6 +16,8 @@ type Config struct {
 	DHTPort uint16
 	// At start, client will set max open files limit to this number. (like "ulimit -n" command)
 	MaxOpenFiles uint64
+	// Path to the blocklist file in CIDR format.
+	Blocklist string
 
 	Torrent torrent.Config
 }

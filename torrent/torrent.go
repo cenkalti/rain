@@ -9,6 +9,7 @@ import (
 
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent/bitfield"
+	"github.com/cenkalti/rain/torrent/blocklist"
 	"github.com/cenkalti/rain/torrent/dht"
 	"github.com/cenkalti/rain/torrent/internal/acceptor"
 	"github.com/cenkalti/rain/torrent/internal/addrlist"
@@ -231,6 +232,9 @@ type Torrent struct {
 
 	// To limit parallel disk reads.
 	readMutex sync.Mutex
+
+	// Optional list of IP addresses to block.
+	blocklist blocklist.Blocklist
 
 	log logger.Logger
 }

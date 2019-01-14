@@ -4,6 +4,8 @@ import (
 	"net"
 	"sort"
 	"time"
+
+	"github.com/cenkalti/rain/torrent/blocklist"
 )
 
 type AddrList struct {
@@ -13,7 +15,8 @@ type AddrList struct {
 	// Contains peers not connected yet, keyed by addr string
 	peerAddrsMap map[string]*peerAddr
 
-	maxItems int
+	maxItems  int
+	blocklist blocklist.Blocklist
 }
 
 type peerAddr struct {
@@ -21,10 +24,11 @@ type peerAddr struct {
 	timestamp time.Time
 }
 
-func New(maxItems int) *AddrList {
+func New(maxItems int, blocklist blocklist.Blocklist) *AddrList {
 	return &AddrList{
 		peerAddrsMap: make(map[string]*peerAddr),
 		maxItems:     maxItems,
+		blocklist:    blocklist,
 	}
 }
 
@@ -57,6 +61,9 @@ func (d *AddrList) Push(addrs []*net.TCPAddr, listenPort int) {
 		// Discard own client
 		// TODO discard IP reported by Tracker
 		if ad.IP.IsLoopback() && ad.Port == listenPort {
+			continue
+		}
+		if d.blocklist != nil && d.blocklist.Blocked(ad.IP) {
 			continue
 		}
 		key := ad.String()

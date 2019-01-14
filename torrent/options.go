@@ -7,6 +7,7 @@ import (
 
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent/bitfield"
+	"github.com/cenkalti/rain/torrent/blocklist"
 	"github.com/cenkalti/rain/torrent/dht"
 	"github.com/cenkalti/rain/torrent/internal/addrlist"
 	"github.com/cenkalti/rain/torrent/internal/allocator"
@@ -45,6 +46,8 @@ type Options struct {
 	Config *Config
 	// Optional DHT node
 	DHT dht.DHT
+	// Optional blocklist to prevent connection to blocked IP addresses.
+	Blocklist blocklist.Blocklist
 }
 
 // NewTorrent creates a new torrent that downloads the torrent with infoHash and saves the files to the storage.
@@ -99,7 +102,7 @@ func (o *Options) NewTorrent(infoHash []byte, sto storage.Storage) (*Torrent, er
 		notifyListenCommandC:      make(chan notifyListenCommand),
 		addPeersCommandC:          make(chan []*net.TCPAddr),
 		addrsFromTrackers:         make(chan []*net.TCPAddr),
-		addrList:                  addrlist.New(cfg.MaxPeerAddresses),
+		addrList:                  addrlist.New(cfg.MaxPeerAddresses, o.Blocklist),
 		peerIDs:                   make(map[[20]byte]struct{}),
 		incomingConnC:             make(chan net.Conn),
 		sKeyHash:                  mse.HashSKey(ih[:]),
@@ -118,6 +121,7 @@ func (o *Options) NewTorrent(infoHash []byte, sto storage.Storage) (*Torrent, er
 		dhtNode:                   o.DHT,
 		pieceCache:                piececache.New(cfg.PieceCacheSize, cfg.PieceCacheTTL),
 		byteStats:                 o.Stats,
+		blocklist:                 o.Blocklist,
 	}
 	copy(t.peerID[:], []byte(cfg.PeerIDPrefix))
 	t.piecePool.New = func() interface{} {

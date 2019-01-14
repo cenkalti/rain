@@ -83,15 +83,21 @@ func (t *Torrent) run() {
 				conn.Close()
 				break
 			}
-			ip := conn.RemoteAddr().(*net.TCPAddr).IP.String()
-			if _, ok := t.connectedPeerIPs[ip]; ok {
+			ip := conn.RemoteAddr().(*net.TCPAddr).IP
+			ipstr := ip.String()
+			if t.blocklist != nil && t.blocklist.Blocked(ip) {
+				t.log.Debugln("peer is blocked:", conn.RemoteAddr().String())
+				conn.Close()
+				break
+			}
+			if _, ok := t.connectedPeerIPs[ipstr]; ok {
 				t.log.Debugln("received duplicate connection from same IP: ", conn.RemoteAddr().String())
 				conn.Close()
 				break
 			}
 			h := incominghandshaker.New(conn)
 			t.incomingHandshakers[h] = struct{}{}
-			t.connectedPeerIPs[ip] = struct{}{}
+			t.connectedPeerIPs[ipstr] = struct{}{}
 			go h.Run(t.peerID, t.getSKey, t.checkInfoHash, t.incomingHandshakerResultC, t.config.PeerHandshakeTimeout, ourExtensions, t.config.ForceIncomingEncryption)
 		case req := <-t.announcerRequestC:
 			tr := t.announcerFields()

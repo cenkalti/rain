@@ -20,7 +20,7 @@ func New() *Blocklist {
 	return &Blocklist{}
 }
 
-func (b Blocklist) Contains(ip net.IP) bool {
+func (b Blocklist) Blocked(ip net.IP) bool {
 	ip = ip.To4()
 	if ip == nil {
 		return false

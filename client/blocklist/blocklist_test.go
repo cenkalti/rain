@@ -33,10 +33,10 @@ func TestContains(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("loaded %d values", n)
-	if !b.Contains(net.ParseIP("6.1.2.3")) {
+	if !b.Blocked(net.ParseIP("6.1.2.3")) {
 		t.Errorf("must contain")
 	}
-	if b.Contains(net.ParseIP("176.240.195.107")) {
+	if b.Blocked(net.ParseIP("176.240.195.107")) {
 		t.Errorf("must not contain")
 	}
 }
