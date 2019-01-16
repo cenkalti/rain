@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cenkalti/rain/client/trackermanager"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent/bitfield"
 	"github.com/cenkalti/rain/torrent/blocklist"
@@ -24,12 +25,11 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
 	"github.com/cenkalti/rain/torrent/internal/piecepicker"
 	"github.com/cenkalti/rain/torrent/internal/piecewriter"
-	"github.com/cenkalti/rain/torrent/internal/tracker"
-	"github.com/cenkalti/rain/torrent/internal/tracker/trackermanager"
 	"github.com/cenkalti/rain/torrent/internal/verifier"
 	"github.com/cenkalti/rain/torrent/metainfo"
 	"github.com/cenkalti/rain/torrent/resumer"
 	"github.com/cenkalti/rain/torrent/storage"
+	"github.com/cenkalti/rain/tracker"
 )
 
 var (
@@ -236,6 +236,8 @@ type Torrent struct {
 	// Optional list of IP addresses to block.
 	blocklist blocklist.Blocklist
 
+	trackerManager *trackermanager.TrackerManager
+
 	log logger.Logger
 }
 
@@ -259,10 +261,10 @@ func (t *Torrent) InfoHashBytes() []byte {
 	return b
 }
 
-func parseTrackers(trackers []string, log logger.Logger, httpTimeout time.Duration, httpUserAgent string) ([]tracker.Tracker, error) {
+func parseTrackers(trackerManager *trackermanager.TrackerManager, trackers []string, log logger.Logger, httpTimeout time.Duration, httpUserAgent string) ([]tracker.Tracker, error) {
 	var ret []tracker.Tracker
 	for _, s := range trackers {
-		t, err := trackermanager.DefaultTrackerManager.Get(s, httpTimeout, httpUserAgent)
+		t, err := trackerManager.Get(s, httpTimeout, httpUserAgent)
 		if err != nil {
 			log.Warningln("cannot parse tracker url:", err)
 			continue

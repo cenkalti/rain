@@ -12,8 +12,8 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/peerconn/peerwriter"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
 	"github.com/cenkalti/rain/torrent/internal/piecewriter"
-	"github.com/cenkalti/rain/torrent/internal/tracker"
 	"github.com/cenkalti/rain/torrent/metainfo"
+	"github.com/cenkalti/rain/tracker"
 )
 
 func (t *Torrent) handlePieceMessage(pm peer.PieceMessage) {

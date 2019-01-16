@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/torrent/internal/tracker"
+	"github.com/cenkalti/rain/tracker"
 )
 
 type UDPTracker struct {

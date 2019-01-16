@@ -4,7 +4,7 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/announcer"
 	"github.com/cenkalti/rain/torrent/internal/handshaker/incominghandshaker"
 	"github.com/cenkalti/rain/torrent/internal/handshaker/outgoinghandshaker"
-	"github.com/cenkalti/rain/torrent/internal/tracker"
+	"github.com/cenkalti/rain/tracker"
 )
 
 func (t *Torrent) stop(err error) {

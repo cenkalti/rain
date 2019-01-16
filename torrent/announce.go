@@ -3,7 +3,7 @@ package torrent
 import (
 	"math"
 
-	"github.com/cenkalti/rain/torrent/internal/tracker"
+	"github.com/cenkalti/rain/tracker"
 )
 
 func (t *Torrent) announcerFields() tracker.Torrent {

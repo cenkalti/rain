@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cenkalti/rain/torrent/internal/tracker"
-	"github.com/cenkalti/rain/torrent/internal/tracker/httptracker"
-	"github.com/cenkalti/rain/torrent/internal/tracker/udptracker"
+	"github.com/cenkalti/rain/tracker"
+	"github.com/cenkalti/rain/tracker/httptracker"
+	"github.com/cenkalti/rain/tracker/udptracker"
 )
 
 type TrackerManager struct {
@@ -21,8 +21,6 @@ type TrackerManager struct {
 	udpHosts       map[*udptracker.UDPTracker]string
 	m              sync.Mutex
 }
-
-var DefaultTrackerManager = New()
 
 func New() *TrackerManager {
 	return &TrackerManager{

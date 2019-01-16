@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"net"
 
+	"github.com/cenkalti/rain/client/trackermanager"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent/bitfield"
 	"github.com/cenkalti/rain/torrent/blocklist"
@@ -48,6 +49,8 @@ type Options struct {
 	DHT dht.DHT
 	// Optional blocklist to prevent connection to blocked IP addresses.
 	Blocklist blocklist.Blocklist
+
+	TrackerManager *trackermanager.TrackerManager
 }
 
 // NewTorrent creates a new torrent that downloads the torrent with infoHash and saves the files to the storage.
@@ -122,6 +125,7 @@ func (o *Options) NewTorrent(infoHash []byte, sto storage.Storage) (*Torrent, er
 		pieceCache:                piececache.New(cfg.PieceCacheSize, cfg.PieceCacheTTL),
 		byteStats:                 o.Stats,
 		blocklist:                 o.Blocklist,
+		trackerManager:            o.TrackerManager,
 	}
 	copy(t.peerID[:], []byte(cfg.PeerIDPrefix))
 	t.piecePool.New = func() interface{} {
@@ -131,7 +135,7 @@ func (o *Options) NewTorrent(infoHash []byte, sto storage.Storage) (*Torrent, er
 	if err != nil {
 		return nil, err
 	}
-	t.trackersInstances, err = parseTrackers(t.trackers, t.log, cfg.HTTPTrackerTimeout, cfg.HTTPTrackerUserAgent)
+	t.trackersInstances, err = parseTrackers(t.trackerManager, t.trackers, t.log, cfg.HTTPTrackerTimeout, cfg.HTTPTrackerUserAgent)
 	if err != nil {
 		return nil, err
 	}

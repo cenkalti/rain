@@ -15,6 +15,7 @@ import (
 
 	"github.com/boltdb/bolt"
 	"github.com/cenkalti/rain/client/blocklist"
+	"github.com/cenkalti/rain/client/trackermanager"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent"
 	"github.com/cenkalti/rain/torrent/bitfield"
@@ -30,12 +31,13 @@ import (
 var mainBucket = []byte("torrents")
 
 type Client struct {
-	config    Config
-	db        *bolt.DB
-	log       logger.Logger
-	dht       *dht.DHT
-	blocklist *blocklist.Blocklist
-	closeC    chan struct{}
+	config         Config
+	db             *bolt.DB
+	log            logger.Logger
+	dht            *dht.DHT
+	blocklist      *blocklist.Blocklist
+	trackerManager *trackermanager.TrackerManager
+	closeC         chan struct{}
 
 	mPeerRequests   sync.Mutex
 	dhtPeerRequests map[dht.InfoHash]struct{}
@@ -136,6 +138,7 @@ func New(cfg Config) (*Client, error) {
 		config:             cfg,
 		db:                 db,
 		blocklist:          bl,
+		trackerManager:     trackermanager.New(),
 		log:                l,
 		torrents:           make(map[uint64]*Torrent),
 		torrentsByInfoHash: make(map[dht.InfoHash][]*Torrent),
@@ -234,12 +237,13 @@ func (c *Client) loadExistingTorrents(ids []uint64) error {
 			continue
 		}
 		opt := torrent.Options{
-			Name:      spec.Name,
-			Port:      spec.Port,
-			Trackers:  spec.Trackers,
-			Resumer:   res,
-			Blocklist: c.blocklist,
-			Config:    &c.config.Torrent,
+			Name:           spec.Name,
+			Port:           spec.Port,
+			Trackers:       spec.Trackers,
+			Resumer:        res,
+			Blocklist:      c.blocklist,
+			TrackerManager: c.trackerManager,
+			Config:         &c.config.Torrent,
 			Stats: resumer.Stats{
 				BytesDownloaded: spec.BytesDownloaded,
 				BytesUploaded:   spec.BytesUploaded,
@@ -459,10 +463,11 @@ func (c *Client) add() (*torrent.Options, *filestorage.FileStorage, uint64, erro
 		return nil, nil, 0, err
 	}
 	return &torrent.Options{
-		Port:      int(port),
-		Resumer:   res,
-		Blocklist: c.blocklist,
-		Config:    &c.config.Torrent,
+		Port:           int(port),
+		Resumer:        res,
+		Blocklist:      c.blocklist,
+		TrackerManager: c.trackerManager,
+		Config:         &c.config.Torrent,
 	}, sto, id, nil
 }
 

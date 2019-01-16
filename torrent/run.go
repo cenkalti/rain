@@ -15,7 +15,6 @@ import (
 	"github.com/cenkalti/rain/torrent/internal/peerconn"
 	"github.com/cenkalti/rain/torrent/internal/peerprotocol"
 	"github.com/cenkalti/rain/torrent/internal/piecedownloader"
-	"github.com/cenkalti/rain/torrent/internal/tracker/trackermanager"
 )
 
 var errClosed = errors.New("torrent is closed")
@@ -31,7 +30,7 @@ func (t *Torrent) close() {
 
 	// Close open tracker connections.
 	for _, tr := range t.trackersInstances {
-		trackermanager.DefaultTrackerManager.Release(tr)
+		t.trackerManager.Release(tr)
 	}
 }
 

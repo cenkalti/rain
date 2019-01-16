@@ -4,7 +4,7 @@ import (
 	"net"
 	"strings"
 
-	"github.com/cenkalti/rain/torrent/internal/tracker"
+	"github.com/cenkalti/rain/tracker"
 )
 
 const (

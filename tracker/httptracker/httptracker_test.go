@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cenkalti/rain/torrent/internal/tracker"
-	"github.com/cenkalti/rain/torrent/internal/tracker/httptracker"
+	"github.com/cenkalti/rain/tracker"
+	"github.com/cenkalti/rain/tracker/httptracker"
 	fhttp "github.com/chihaya/chihaya/frontend/http"
 	"github.com/chihaya/chihaya/middleware"
 	"github.com/chihaya/chihaya/storage"

@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/cenkalti/rain/torrent/internal/tracker"
+	"github.com/cenkalti/rain/tracker"
 )
 
 type udpMessage interface {
