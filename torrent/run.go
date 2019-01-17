@@ -27,11 +27,6 @@ func (t *Torrent) close() {
 	if t.stoppedEventAnnouncer != nil {
 		t.stoppedEventAnnouncer.Close()
 	}
-
-	// Close open tracker connections.
-	for _, tr := range t.trackersInstances {
-		t.trackerManager.Release(tr)
-	}
 }
 
 // Torrent event loop

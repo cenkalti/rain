@@ -24,6 +24,7 @@ import (
 	"github.com/cenkalti/rain/torrent/resumer"
 	"github.com/cenkalti/rain/torrent/resumer/boltdbresumer"
 	"github.com/cenkalti/rain/torrent/storage/filestorage"
+	"github.com/cenkalti/rain/tracker"
 	"github.com/mitchellh/go-homedir"
 	"github.com/nictuku/dht"
 )
@@ -217,6 +218,19 @@ func parseDHTPeers(peers []string) []*net.TCPAddr {
 	return addrs
 }
 
+func (c *Client) parseTrackers(trackers []string) []tracker.Tracker {
+	var ret []tracker.Tracker
+	for _, s := range trackers {
+		t, err := c.trackerManager.Get(s, c.config.Torrent.HTTPTrackerTimeout, c.config.Torrent.HTTPTrackerUserAgent)
+		if err != nil {
+			c.log.Warningln("cannot parse tracker url:", err)
+			continue
+		}
+		ret = append(ret, t)
+	}
+	return ret
+}
+
 func (c *Client) loadExistingTorrents(ids []uint64) error {
 	var loaded int
 	var started []*Torrent
@@ -237,13 +251,12 @@ func (c *Client) loadExistingTorrents(ids []uint64) error {
 			continue
 		}
 		opt := torrent.Options{
-			Name:           spec.Name,
-			Port:           spec.Port,
-			Trackers:       spec.Trackers,
-			Resumer:        res,
-			Blocklist:      c.blocklist,
-			TrackerManager: c.trackerManager,
-			Config:         &c.config.Torrent,
+			Name:      spec.Name,
+			Port:      spec.Port,
+			Trackers:  c.parseTrackers(spec.Trackers),
+			Resumer:   res,
+			Blocklist: c.blocklist,
+			Config:    &c.config.Torrent,
 			Stats: resumer.Stats{
 				BytesDownloaded: spec.BytesDownloaded,
 				BytesUploaded:   spec.BytesUploaded,
@@ -357,7 +370,7 @@ func (c *Client) AddTorrent(r io.Reader) (*Torrent, error) {
 		}
 	}()
 	opt.Name = mi.Info.Name
-	opt.Trackers = mi.GetTrackers()
+	opt.Trackers = c.parseTrackers(mi.GetTrackers())
 	opt.Info = mi.Info
 	var ann *dhtAnnouncer
 	if mi.Info.Private != 1 {
@@ -378,7 +391,7 @@ func (c *Client) AddTorrent(r io.Reader) (*Torrent, error) {
 		Dest:     sto.Dest(),
 		Port:     opt.Port,
 		Name:     opt.Name,
-		Trackers: opt.Trackers,
+		Trackers: mi.GetTrackers(),
 		Info:     opt.Info.Bytes,
 	}
 	if opt.Bitfield != nil {
@@ -407,7 +420,7 @@ func (c *Client) AddMagnet(link string) (*Torrent, error) {
 		}
 	}()
 	opt.Name = ma.Name
-	opt.Trackers = ma.Trackers
+	opt.Trackers = c.parseTrackers(ma.Trackers)
 	ann := newDHTAnnouncer(c.dht, ma.InfoHash[:], opt.Port)
 	opt.DHT = ann
 	t, err := opt.NewTorrent(ma.InfoHash[:], sto)
@@ -463,11 +476,10 @@ func (c *Client) add() (*torrent.Options, *filestorage.FileStorage, uint64, erro
 		return nil, nil, 0, err
 	}
 	return &torrent.Options{
-		Port:           int(port),
-		Resumer:        res,
-		Blocklist:      c.blocklist,
-		TrackerManager: c.trackerManager,
-		Config:         &c.config.Torrent,
+		Port:      int(port),
+		Resumer:   res,
+		Blocklist: c.blocklist,
+		Config:    &c.config.Torrent,
 	}, sto, id, nil
 }
 

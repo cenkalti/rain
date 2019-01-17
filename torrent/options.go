@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"net"
 
-	"github.com/cenkalti/rain/client/trackermanager"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent/bitfield"
 	"github.com/cenkalti/rain/torrent/blocklist"
@@ -25,6 +24,7 @@ import (
 	"github.com/cenkalti/rain/torrent/metainfo"
 	"github.com/cenkalti/rain/torrent/resumer"
 	"github.com/cenkalti/rain/torrent/storage"
+	"github.com/cenkalti/rain/tracker"
 )
 
 // Options for creating a new Torrent.
@@ -34,7 +34,7 @@ type Options struct {
 	// Peer listen port. Random port will be picked if zero.
 	Port int
 	// HTTP and UDP trackers
-	Trackers []string
+	Trackers []tracker.Tracker
 	// Optional resumer that saves fast resume data.
 	Resumer resumer.Resumer
 	// Info dict of torrent file. May be nil for magnet links.
@@ -49,8 +49,6 @@ type Options struct {
 	DHT dht.DHT
 	// Optional blocklist to prevent connection to blocked IP addresses.
 	Blocklist blocklist.Blocklist
-
-	TrackerManager *trackermanager.TrackerManager
 }
 
 // NewTorrent creates a new torrent that downloads the torrent with infoHash and saves the files to the storage.
@@ -125,17 +123,12 @@ func (o *Options) NewTorrent(infoHash []byte, sto storage.Storage) (*Torrent, er
 		pieceCache:                piececache.New(cfg.PieceCacheSize, cfg.PieceCacheTTL),
 		byteStats:                 o.Stats,
 		blocklist:                 o.Blocklist,
-		trackerManager:            o.TrackerManager,
 	}
 	copy(t.peerID[:], []byte(cfg.PeerIDPrefix))
 	t.piecePool.New = func() interface{} {
 		return make([]byte, t.info.PieceLength)
 	}
 	_, err := rand.Read(t.peerID[len(cfg.PeerIDPrefix):]) // nolint: gosec
-	if err != nil {
-		return nil, err
-	}
-	t.trackersInstances, err = parseTrackers(t.trackerManager, t.trackers, t.log, cfg.HTTPTrackerTimeout, cfg.HTTPTrackerUserAgent)
 	if err != nil {
 		return nil, err
 	}

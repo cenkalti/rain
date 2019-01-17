@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cenkalti/rain/client/trackermanager"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/torrent/bitfield"
 	"github.com/cenkalti/rain/torrent/blocklist"
@@ -50,7 +49,7 @@ type Torrent struct {
 	infoHash [20]byte
 
 	// List of addresses to announce this torrent.
-	trackers []string
+	trackers []tracker.Tracker
 
 	// Name of the torrent.
 	name string
@@ -161,9 +160,6 @@ type Torrent struct {
 	// Special hash of info hash for encypted connection handshake.
 	sKeyHash [20]byte
 
-	// Tracker implementations for giving to announcers.
-	trackersInstances []tracker.Tracker
-
 	// Announces the status of torrent to trackers to get peer addresses periodically.
 	announcers []*announcer.PeriodicalAnnouncer
 
@@ -236,8 +232,6 @@ type Torrent struct {
 	// Optional list of IP addresses to block.
 	blocklist blocklist.Blocklist
 
-	trackerManager *trackermanager.TrackerManager
-
 	log logger.Logger
 }
 
@@ -259,17 +253,4 @@ func (t *Torrent) InfoHashBytes() []byte {
 	b := make([]byte, 20)
 	copy(b, t.infoHash[:])
 	return b
-}
-
-func parseTrackers(trackerManager *trackermanager.TrackerManager, trackers []string, log logger.Logger, httpTimeout time.Duration, httpUserAgent string) ([]tracker.Tracker, error) {
-	var ret []tracker.Tracker
-	for _, s := range trackers {
-		t, err := trackerManager.Get(s, httpTimeout, httpUserAgent)
-		if err != nil {
-			log.Warningln("cannot parse tracker url:", err)
-			continue
-		}
-		ret = append(ret, t)
-	}
-	return ret, nil
 }
