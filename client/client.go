@@ -139,7 +139,7 @@ func New(cfg Config) (*Client, error) {
 		config:             cfg,
 		db:                 db,
 		blocklist:          bl,
-		trackerManager:     trackermanager.New(),
+		trackerManager:     trackermanager.New(bl),
 		log:                l,
 		torrents:           make(map[uint64]*Torrent),
 		torrentsByInfoHash: make(map[dht.InfoHash][]*Torrent),
