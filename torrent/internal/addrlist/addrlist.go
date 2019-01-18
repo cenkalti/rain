@@ -84,7 +84,7 @@ func (d *AddrList) Push(addrs []*net.TCPAddr, listenPort int) {
 		for i := 0; i < delta; i++ {
 			delete(d.peerAddrsMap, d.peerAddrs[i].String())
 		}
-		for i := delta; i < len(d.peerAddrs); i++ {
+		for i := 0; i < len(d.peerAddrs)-delta; i++ {
 			d.peerAddrs[i] = d.peerAddrs[i+delta]
 		}
 		d.peerAddrs = d.peerAddrs[:len(d.peerAddrs)-delta]
