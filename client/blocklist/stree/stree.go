@@ -113,6 +113,9 @@ func (t Stree) Contains(value ValueType) bool {
 // query interval
 func (t Stree) query(from, to ValueType) []interval {
 	result := make(map[ValueType]interval)
+	if t.root == nil {
+		return nil
+	}
 	t.root.querySingle(from, to, result)
 	// transform map to slice
 	sl := make([]interval, 0, len(result))
