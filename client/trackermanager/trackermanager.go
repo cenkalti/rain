@@ -53,7 +53,7 @@ func (m *TrackerManager) Get(s string, httpTimeout time.Duration, httpUserAgent 
 		tr := httptracker.New(s, u, httpTimeout, m.httpTransport, httpUserAgent)
 		return tr, nil
 	case "udp":
-		tr := udptracker.New(u, m.udpTransport)
+		tr := udptracker.New(s, u, m.udpTransport)
 		return tr, nil
 	default:
 		return nil, fmt.Errorf("unsupported tracker scheme: %s", u.Scheme)
