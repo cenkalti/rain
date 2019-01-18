@@ -23,7 +23,7 @@ func ResolveHost(ctx context.Context, addr string, bl blocklist.Blocklist) (net.
 	if ip != nil {
 		ips = append(ips, ip)
 	} else {
-		addrs, err := net.DefaultResolver.LookupIPAddr(ctx, addr)
+		addrs, err := net.DefaultResolver.LookupIPAddr(ctx, host)
 		if err != nil {
 			return nil, 0, err
 		}

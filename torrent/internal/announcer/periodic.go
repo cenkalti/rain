@@ -155,11 +155,7 @@ func (a *PeriodicalAnnouncer) Run() {
 		case a.lastError = <-announcer.ErrorC:
 			announcer.announcing = false
 			a.status = NotWorking
-			if _, ok := a.lastError.(*net.OpError); ok {
-				a.log.Debugln("net operation error:", a.lastError)
-			} else {
-				a.log.Errorln("announce error:", a.lastError)
-			}
+			a.log.Debugln("announce error:", a.lastError)
 			setTimer(a.backoff.NextBackOff())
 		case needMorePeers = <-a.needMorePeersC:
 			if announcer.announcing {
