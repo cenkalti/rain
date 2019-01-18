@@ -1,8 +1,6 @@
 package udptracker
 
-import (
-	"time"
-)
+import "time"
 
 type udpBackOff int
 

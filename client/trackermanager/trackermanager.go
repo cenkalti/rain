@@ -2,12 +2,10 @@ package trackermanager
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"net/url"
-	"sync"
 	"time"
 
 	"github.com/cenkalti/rain/torrent/blocklist"
@@ -18,15 +16,14 @@ import (
 
 type TrackerManager struct {
 	httpTransport *http.Transport
-	udpTransports map[string]*udptracker.Transport
+	udpTransport  *udptracker.Transport
 	blocklist     blocklist.Blocklist
-	m             sync.Mutex
 }
 
 func New(bl blocklist.Blocklist) *TrackerManager {
 	m := &TrackerManager{
-		udpTransports: make(map[string]*udptracker.Transport),
-		blocklist:     bl,
+		blocklist:    bl,
+		udpTransport: udptracker.NewTransport(bl),
 	}
 
 	httpTransport := new(http.Transport)
@@ -37,26 +34,13 @@ func New(bl blocklist.Blocklist) *TrackerManager {
 }
 
 func (m *TrackerManager) dialContext(ctx context.Context, network, addr string) (net.Conn, error) {
-	var ips []net.IP
-	ip := net.ParseIP(addr)
-	if ip != nil {
-		ips = append(ips, ip)
-	} else {
-		addrs, err := net.DefaultResolver.LookupIPAddr(ctx, addr)
-		if err != nil {
-			return nil, err
-		}
-		for _, ia := range addrs {
-			ips = append(ips, ia.IP)
-		}
-	}
-	for _, ip := range ips {
-		if m.blocklist.Blocked(ip) {
-			return nil, errors.New("ip is blocked")
-		}
+	ip, port, err := tracker.ResolveHost(ctx, addr, m.blocklist)
+	if err != nil {
+		return nil, err
 	}
 	var d net.Dialer
-	return d.DialContext(ctx, network, ips[0].String())
+	taddr := &net.TCPAddr{IP: ip, Port: port}
+	return d.DialContext(ctx, network, taddr.String())
 }
 
 func (m *TrackerManager) Get(s string, httpTimeout time.Duration, httpUserAgent string) (tracker.Tracker, error) {
@@ -64,19 +48,12 @@ func (m *TrackerManager) Get(s string, httpTimeout time.Duration, httpUserAgent 
 	if err != nil {
 		return nil, err
 	}
-	m.m.Lock()
-	defer m.m.Unlock()
 	switch u.Scheme {
 	case "http", "https":
 		tr := httptracker.New(s, u, httpTimeout, m.httpTransport, httpUserAgent)
 		return tr, nil
 	case "udp":
-		t := m.udpTransports[u.Host]
-		if t == nil {
-			t = udptracker.NewTransport(u.Host)
-			m.udpTransports[u.Host] = t
-		}
-		tr := udptracker.New(s, u.RequestURI(), t)
+		tr := udptracker.New(u, m.udpTransport)
 		return tr, nil
 	default:
 		return nil, fmt.Errorf("unsupported tracker scheme: %s", u.Scheme)

@@ -2,6 +2,7 @@ package udptracker_test
 
 import (
 	"context"
+	"net/url"
 	"strconv"
 	"testing"
 	"time"
@@ -55,9 +56,12 @@ func TestUDPTracker(t *testing.T) {
 	defer startUDPTracker(t, 5000)()
 
 	const rawURL = "udp://127.0.0.1:5000/announce"
-
-	tr := udptracker.NewTransport("127.0.0.1:5000")
-	trk := udptracker.New(rawURL, "/announce", tr)
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tr := udptracker.NewTransport(nil)
+	trk := udptracker.New(u, tr)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -68,7 +72,7 @@ func TestUDPTracker(t *testing.T) {
 			PeerID: [20]byte{1},
 		},
 	}
-	_, err := trk.Announce(ctx, req)
+	_, err = trk.Announce(ctx, req)
 	if err != nil {
 		t.Fatal(err)
 	}

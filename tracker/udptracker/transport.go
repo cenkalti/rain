@@ -7,12 +7,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"errors"
 	"net"
 	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff"
 	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/torrent/blocklist"
 	"github.com/cenkalti/rain/tracker"
 )
 
@@ -20,53 +22,80 @@ const connectionIDMagic = 0x41727101980
 const connectionIDInterval = time.Minute
 
 type Transport struct {
-	host          string
-	log           logger.Logger
-	conn          net.Conn
-	dialMutex     sync.Mutex
-	connected     bool
-	transactions  map[int32]*transaction
-	transactionsM sync.Mutex // TODO remove udp tracker mutex
-	writeC        chan *transaction
-	closeC        chan struct{}
+	blocklist blocklist.Blocklist
+	conn      *net.UDPConn
+	log       logger.Logger
+
+	connections  map[string]*connection
+	transactions map[int32]*transaction
+	m            sync.Mutex
+
+	closeC chan struct{}
 }
 
-func NewTransport(host string) *Transport {
+type connection struct {
+	id        int64
+	timestamp time.Time
+	m         sync.Mutex
+}
+
+func NewTransport(bl blocklist.Blocklist) *Transport {
 	return &Transport{
-		host:         host,
-		log:          logger.New("udp tracker " + host),
+		blocklist:    bl,
+		log:          logger.New("udp tracker transport"),
+		connections:  make(map[string]*connection),
 		transactions: make(map[int32]*transaction),
-		writeC:       make(chan *transaction),
 		closeC:       make(chan struct{}),
 	}
 }
 
-func (t *Transport) Do(ctx context.Context, trx *transaction) ([]byte, error) {
-	err := t.maybeDial(ctx)
-	if err != nil {
-		return nil, err
+func (t *Transport) getConnection(addr string) *connection {
+	t.m.Lock()
+	defer t.m.Unlock()
+	conn, ok := t.connections[addr]
+	if !ok {
+		conn = new(connection)
+		t.connections[addr] = conn
 	}
-	f := func(trx *transaction) {
-		select {
-		case t.writeC <- trx:
-		case <-ctx.Done():
-		}
-	}
-	return t.retryTransaction(ctx, f, trx)
+	return conn
 }
 
-func (t *Transport) maybeDial(ctx context.Context) error {
-	t.dialMutex.Lock()
-	defer t.dialMutex.Unlock()
-	if t.connected {
-		return nil
-	}
-	err := t.dial(ctx)
+func (t *Transport) listen() error {
+	t.m.Lock()
+	defer t.m.Unlock()
+
+	var laddr net.UDPAddr
+	conn, err := net.ListenUDP("udp4", &laddr)
 	if err != nil {
 		return err
 	}
-	t.connected = true
+
+	t.conn = conn
+	go t.readLoop()
 	return nil
+}
+
+func (t *Transport) Do(ctx context.Context, trx *transaction) ([]byte, error) {
+	err := t.listen()
+	if err != nil {
+		return nil, err
+	}
+	ip, port, err := tracker.ResolveHost(ctx, trx.dest, t.blocklist)
+	if err != nil {
+		return nil, err
+	}
+	trx.addr = &net.UDPAddr{IP: ip, Port: port}
+
+	conn := t.getConnection(trx.addr.String())
+	if time.Since(conn.timestamp) > connectionIDInterval {
+		conn.id, err = t.connect(ctx, trx.addr)
+		if err != nil {
+			return nil, err
+		}
+		conn.timestamp = time.Now()
+	}
+	trx.request.SetConnectionID(conn.id)
+	return t.retryTransaction(ctx, t.writeTrx, trx)
 }
 
 // Close the tracker connection.
@@ -75,18 +104,6 @@ func (t *Transport) Close() error {
 	if t.conn != nil {
 		return t.conn.Close()
 	}
-	return nil
-}
-
-func (t *Transport) dial(ctx context.Context) error {
-	var dialer net.Dialer
-	var err error
-	t.conn, err = dialer.DialContext(ctx, "udp", t.host)
-	if err != nil {
-		return err
-	}
-	go t.readLoop()
-	go t.writeLoop()
 	return nil
 }
 
@@ -117,10 +134,10 @@ func (t *Transport) readLoop() {
 			continue
 		}
 
-		t.transactionsM.Lock()
+		t.m.Lock()
 		trx, ok := t.transactions[header.TransactionID]
 		delete(t.transactions, header.TransactionID)
-		t.transactionsM.Unlock()
+		t.m.Unlock()
 		if !ok {
 			t.log.Debugln("unexpected transaction_id:", header.TransactionID)
 			continue
@@ -141,40 +158,15 @@ func (t *Transport) readLoop() {
 	}
 }
 
-// writeLoop receives a request from t.transactionC, sets a random TransactionID
-// and sends it to the tracker.
-func (t *Transport) writeLoop() {
-	var connectionID int64
-	var connectionIDtime time.Time
-
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		<-t.closeC
-		cancel()
-	}()
-
-	for {
-		select {
-		case trx := <-t.writeC:
-			if time.Since(connectionIDtime) > connectionIDInterval {
-				var canceled bool
-				connectionID, canceled = t.connect(ctx)
-				if canceled {
-					return
-				}
-				connectionIDtime = time.Now()
-			}
-			trx.request.SetConnectionID(connectionID)
-			t.writeTrx(trx)
-		case <-t.closeC:
-			return
-		}
-	}
-}
-
 func (t *Transport) writeTrx(trx *transaction) {
 	t.log.Debugln("Writing transaction. ID:", trx.ID())
-	_, err := trx.request.WriteTo(t.conn)
+	var buf bytes.Buffer
+	_, err := trx.request.WriteTo(&buf)
+	if err != nil {
+		t.log.Error(err)
+		return
+	}
+	_, err = t.conn.WriteTo(buf.Bytes(), trx.addr)
 	if err != nil {
 		t.log.Error(err)
 	}
@@ -182,44 +174,40 @@ func (t *Transport) writeTrx(trx *transaction) {
 
 // connect sends a connectRequest and returns a ConnectionID given by the tracker.
 // On error, it backs off with the algorithm described in BEP15 and retries.
-// It does not return until tracker sends a ConnectionID.
-func (t *Transport) connect(ctx context.Context) (connectionID int64, canceled bool) {
+// It does not return until tracker sends a reply.
+func (t *Transport) connect(ctx context.Context, addr net.Addr) (connectionID int64, err error) {
 	req := new(connectRequest)
 	req.SetAction(actionConnect)
 	req.SetConnectionID(connectionIDMagic)
 
-	trx := newTransaction(req)
+	trx := newTransaction(req, "")
+	trx.addr = addr
 
 	for {
 		data, err := t.retryTransaction(ctx, t.writeTrx, trx) // Does not return until transaction is completed.
-		if err == context.Canceled {
-			return 0, true
-		} else if err != nil {
-			t.log.Error(err)
-			continue
+		if err != nil {
+			return 0, err
 		}
 
 		var response connectResponse
 		err = binary.Read(bytes.NewReader(data), binary.BigEndian, &response)
 		if err != nil {
-			t.log.Error(err)
-			continue
+			return 0, err
 		}
 
 		if response.Action != actionConnect {
-			t.log.Error("invalid action in connect response")
-			continue
+			return 0, errors.New("invalid action in connect response")
 		}
 
 		t.log.Debugf("connect Response: %#v\n", response)
-		return response.ConnectionID, false
+		return response.ConnectionID, nil
 	}
 }
 
 func (t *Transport) retryTransaction(ctx context.Context, f func(*transaction), trx *transaction) ([]byte, error) {
-	t.transactionsM.Lock()
+	t.m.Lock()
 	t.transactions[trx.ID()] = trx
-	t.transactionsM.Unlock()
+	t.m.Unlock()
 
 	ticker := backoff.NewTicker(new(udpBackOff))
 	defer ticker.Stop()
@@ -231,9 +219,9 @@ func (t *Transport) retryTransaction(ctx context.Context, f func(*transaction), 
 			// transaction is deleted in readLoop()
 			return trx.response, trx.err
 		case <-ctx.Done():
-			t.transactionsM.Lock()
+			t.m.Lock()
 			delete(t.transactions, trx.ID())
-			t.transactionsM.Unlock()
+			t.m.Unlock()
 			return nil, context.Canceled
 		}
 	}
