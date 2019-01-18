@@ -77,19 +77,6 @@ func New(cfg Config) (*Client, error) {
 		return nil, err
 	}
 	l := logger.New("client")
-	bl := blocklist.New()
-	if cfg.Blocklist != "" {
-		f, err2 := os.Open(cfg.Blocklist)
-		if err2 != nil {
-			return nil, err2
-		}
-		defer f.Close()
-		n, err2 := bl.Load(f)
-		if err2 != nil {
-			return nil, err2
-		}
-		l.Infof("Loaded %d rules from blocklist.", n)
-	}
 	db, err := bolt.Open(cfg.Database, 0640, &bolt.Options{Timeout: time.Second})
 	if err == bolt.ErrTimeout {
 		return nil, errors.New("resume database is locked by another process")
@@ -135,6 +122,7 @@ func New(cfg Config) (*Client, error) {
 	for p := cfg.PortBegin; p < cfg.PortEnd; p++ {
 		ports[p] = struct{}{}
 	}
+	bl := blocklist.New()
 	c := &Client{
 		config:             cfg,
 		db:                 db,
@@ -147,6 +135,10 @@ func New(cfg Config) (*Client, error) {
 		dht:                dhtNode,
 		dhtPeerRequests:    make(map[dht.InfoHash]struct{}),
 		closeC:             make(chan struct{}),
+	}
+	err = c.ReloadBlocklist()
+	if err != nil {
+		return nil, err
 	}
 	err = c.loadExistingTorrents(ids)
 	if err != nil {
@@ -538,4 +530,21 @@ func (c *Client) RemoveTorrent(id uint64) error {
 	return c.db.Update(func(tx *bolt.Tx) error {
 		return tx.Bucket(mainBucket).DeleteBucket([]byte(subBucket))
 	})
+}
+
+func (c *Client) ReloadBlocklist() error {
+	if c.config.Blocklist == "" {
+		return nil
+	}
+	f, err := os.Open(c.config.Blocklist)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	n, err := c.blocklist.Reload(f)
+	if err != nil {
+		return err
+	}
+	c.log.Infof("Loaded %d rules from blocklist.", n)
+	return nil
 }

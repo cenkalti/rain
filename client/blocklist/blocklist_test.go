@@ -28,7 +28,7 @@ func TestContains(t *testing.T) {
 		t.Fatal(err)
 	}
 	b := New()
-	n, err := b.Load(f)
+	n, err := b.Reload(f)
 	if err != nil {
 		t.Fatal(err)
 	}

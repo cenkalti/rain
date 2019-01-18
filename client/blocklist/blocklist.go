@@ -7,29 +7,48 @@ import (
 	"errors"
 	"io"
 	"net"
+	"sync"
 
 	"github.com/cenkalti/rain/client/blocklist/stree"
 )
 
 type Blocklist struct {
-	// Number of items in list. Updated after Load().
 	tree stree.Stree
+	m    sync.RWMutex
 }
 
 func New() *Blocklist {
 	return &Blocklist{}
 }
 
-func (b Blocklist) Blocked(ip net.IP) bool {
+func (b *Blocklist) Blocked(ip net.IP) bool {
+	b.m.RLock()
+	defer b.m.RUnlock()
+
 	ip = ip.To4()
 	if ip == nil {
 		return false
 	}
+
 	val := binary.BigEndian.Uint32(ip)
 	return b.tree.Contains(stree.ValueType(val))
 }
 
-func (b *Blocklist) Load(r io.Reader) (int, error) {
+func (b *Blocklist) Reload(r io.Reader) (int, error) {
+	b.m.Lock()
+	defer b.m.Unlock()
+
+	tree, n, err := load(r)
+	if err != nil {
+		return n, err
+	}
+
+	b.tree = tree
+	return n, nil
+}
+
+func load(r io.Reader) (stree.Stree, int, error) {
+	var tree stree.Stree
 	var n int
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
@@ -44,11 +63,11 @@ func (b *Blocklist) Load(r io.Reader) (int, error) {
 		if err != nil {
 			continue
 		}
-		b.tree.AddRange(stree.ValueType(r.first), stree.ValueType(r.last))
+		tree.AddRange(stree.ValueType(r.first), stree.ValueType(r.last))
 		n++
 	}
-	b.tree.Build()
-	return n, scanner.Err()
+	tree.Build()
+	return tree, n, scanner.Err()
 }
 
 type ipRange struct {
