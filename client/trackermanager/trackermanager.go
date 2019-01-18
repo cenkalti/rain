@@ -17,30 +17,23 @@ import (
 type TrackerManager struct {
 	httpTransport *http.Transport
 	udpTransport  *udptracker.Transport
-	blocklist     blocklist.Blocklist
 }
 
 func New(bl blocklist.Blocklist) *TrackerManager {
 	m := &TrackerManager{
-		blocklist:    bl,
-		udpTransport: udptracker.NewTransport(bl),
+		httpTransport: new(http.Transport),
+		udpTransport:  udptracker.NewTransport(bl),
 	}
-
-	httpTransport := new(http.Transport)
-	httpTransport.DialContext = m.dialContext
-
-	m.httpTransport = httpTransport
+	m.httpTransport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		ip, port, err := tracker.ResolveHost(ctx, addr, bl)
+		if err != nil {
+			return nil, err
+		}
+		var d net.Dialer
+		taddr := &net.TCPAddr{IP: ip, Port: port}
+		return d.DialContext(ctx, network, taddr.String())
+	}
 	return m
-}
-
-func (m *TrackerManager) dialContext(ctx context.Context, network, addr string) (net.Conn, error) {
-	ip, port, err := tracker.ResolveHost(ctx, addr, m.blocklist)
-	if err != nil {
-		return nil, err
-	}
-	var d net.Dialer
-	taddr := &net.TCPAddr{IP: ip, Port: port}
-	return d.DialContext(ctx, network, taddr.String())
 }
 
 func (m *TrackerManager) Get(s string, httpTimeout time.Duration, httpUserAgent string) (tracker.Tracker, error) {
