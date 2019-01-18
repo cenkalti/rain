@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/cenkalti/rain/internal/jsonutil"
+	"github.com/cenkalti/rain/internal/torrent"
 	"github.com/cenkalti/rain/rainrpc"
-	"github.com/cenkalti/rain/torrent"
 	"github.com/jroimartin/gocui"
 )
 

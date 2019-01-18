@@ -1,6 +1,6 @@
 package client
 
-import "github.com/cenkalti/rain/torrent"
+import "github.com/cenkalti/rain/internal/torrent"
 
 // Config for Client.
 type Config struct {

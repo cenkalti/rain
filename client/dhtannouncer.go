@@ -3,7 +3,7 @@ package client
 import (
 	"net"
 
-	"github.com/cenkalti/rain/torrent/dht"
+	"github.com/cenkalti/rain/internal/torrent/dht"
 	node "github.com/nictuku/dht"
 )
 

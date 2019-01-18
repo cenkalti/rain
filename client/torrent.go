@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"github.com/boltdb/bolt"
-	"github.com/cenkalti/rain/torrent"
+	"github.com/cenkalti/rain/internal/torrent"
 	"github.com/nictuku/dht"
 )
 

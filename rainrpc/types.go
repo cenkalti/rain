@@ -2,7 +2,7 @@
 package rainrpc
 
 import (
-	"github.com/cenkalti/rain/torrent"
+	"github.com/cenkalti/rain/internal/torrent"
 )
 
 type Torrent struct {
