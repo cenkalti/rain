@@ -64,6 +64,10 @@ func (t *Transport) listen() error {
 	t.m.Lock()
 	defer t.m.Unlock()
 
+	if t.conn != nil {
+		return nil
+	}
+
 	var laddr net.UDPAddr
 	conn, err := net.ListenUDP("udp4", &laddr)
 	if err != nil {
