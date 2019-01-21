@@ -148,16 +148,16 @@ func New(cfg Config) (*Session, error) {
 	return c, nil
 }
 
-func (c *Session) processDHTResults() {
+func (s *Session) processDHTResults() {
 	dhtLimiter := time.NewTicker(time.Second)
 	defer dhtLimiter.Stop()
 	for {
 		select {
 		case <-dhtLimiter.C:
-			c.handleDHTtick()
-		case res := <-c.dht.PeersRequestResults:
+			s.handleDHTtick()
+		case res := <-s.dht.PeersRequestResults:
 			for ih, peers := range res {
-				torrents, ok := c.torrentsByInfoHash[ih]
+				torrents, ok := s.torrentsByInfoHash[ih]
 				if !ok {
 					continue
 				}
@@ -169,29 +169,29 @@ func (c *Session) processDHTResults() {
 					}
 				}
 			}
-		case <-c.closeC:
+		case <-s.closeC:
 			return
 		}
 	}
 }
 
-func (c *Session) handleDHTtick() {
-	c.mPeerRequests.Lock()
-	defer c.mPeerRequests.Unlock()
-	if len(c.dhtPeerRequests) == 0 {
+func (s *Session) handleDHTtick() {
+	s.mPeerRequests.Lock()
+	defer s.mPeerRequests.Unlock()
+	if len(s.dhtPeerRequests) == 0 {
 		return
 	}
 	var ih dht.InfoHash
 	found := false
-	for ih = range c.dhtPeerRequests {
+	for ih = range s.dhtPeerRequests {
 		found = true
 		break
 	}
 	if !found {
 		return
 	}
-	c.dht.PeersRequest(string(ih), true)
-	delete(c.dhtPeerRequests, ih)
+	s.dht.PeersRequest(string(ih), true)
+	delete(s.dhtPeerRequests, ih)
 }
 
 func parseDHTPeers(peers []string) []*net.TCPAddr {
@@ -210,12 +210,12 @@ func parseDHTPeers(peers []string) []*net.TCPAddr {
 	return addrs
 }
 
-func (c *Session) parseTrackers(trackers []string) []tracker.Tracker {
+func (s *Session) parseTrackers(trackers []string) []tracker.Tracker {
 	var ret []tracker.Tracker
-	for _, s := range trackers {
-		t, err := c.trackerManager.Get(s, c.config.Torrent.HTTPTrackerTimeout, c.config.Torrent.HTTPTrackerUserAgent)
+	for _, tr := range trackers {
+		t, err := s.trackerManager.Get(tr, s.config.Torrent.HTTPTrackerTimeout, s.config.Torrent.HTTPTrackerUserAgent)
 		if err != nil {
-			c.log.Warningln("cannot parse tracker url:", err)
+			s.log.Warningln("cannot parse tracker url:", err)
 			continue
 		}
 		ret = append(ret, t)
@@ -223,32 +223,32 @@ func (c *Session) parseTrackers(trackers []string) []tracker.Tracker {
 	return ret
 }
 
-func (c *Session) loadExistingTorrents(ids []uint64) error {
+func (s *Session) loadExistingTorrents(ids []uint64) error {
 	var loaded int
 	var started []*Torrent
 	for _, id := range ids {
-		res, err := boltdbresumer.New(c.db, mainBucket, []byte(strconv.FormatUint(id, 10)))
+		res, err := boltdbresumer.New(s.db, mainBucket, []byte(strconv.FormatUint(id, 10)))
 		if err != nil {
-			c.log.Error(err)
+			s.log.Error(err)
 			continue
 		}
-		hasStarted, err := c.hasStarted(id)
+		hasStarted, err := s.hasStarted(id)
 		if err != nil {
-			c.log.Error(err)
+			s.log.Error(err)
 			continue
 		}
 		spec, err := res.Read()
 		if err != nil {
-			c.log.Error(err)
+			s.log.Error(err)
 			continue
 		}
 		opt := torrent.Options{
 			Name:      spec.Name,
 			Port:      spec.Port,
-			Trackers:  c.parseTrackers(spec.Trackers),
+			Trackers:  s.parseTrackers(spec.Trackers),
 			Resumer:   res,
-			Blocklist: c.blocklist,
-			Config:    &c.config.Torrent,
+			Blocklist: s.blocklist,
+			Config:    &s.config.Torrent,
 			Stats: resumer.Stats{
 				BytesDownloaded: spec.BytesDownloaded,
 				BytesUploaded:   spec.BytesUploaded,
@@ -260,7 +260,7 @@ func (c *Session) loadExistingTorrents(ids []uint64) error {
 		if len(spec.Info) > 0 {
 			info, err2 := metainfo.NewInfo(spec.Info)
 			if err2 != nil {
-				c.log.Error(err2)
+				s.log.Error(err2)
 				continue
 			}
 			opt.Info = info
@@ -268,46 +268,46 @@ func (c *Session) loadExistingTorrents(ids []uint64) error {
 			if len(spec.Bitfield) > 0 {
 				bf, err3 := bitfield.NewBytes(spec.Bitfield, info.NumPieces)
 				if err3 != nil {
-					c.log.Error(err3)
+					s.log.Error(err3)
 					continue
 				}
 				opt.Bitfield = bf
 			}
 		}
 		if !private {
-			ann = newDHTAnnouncer(c.dht, spec.InfoHash, spec.Port)
+			ann = newDHTAnnouncer(s.dht, spec.InfoHash, spec.Port)
 			opt.DHT = ann
 		}
 		sto, err := filestorage.New(spec.Dest)
 		if err != nil {
-			c.log.Error(err)
+			s.log.Error(err)
 			continue
 		}
 		t, err := opt.NewTorrent(spec.InfoHash, sto)
 		if err != nil {
-			c.log.Error(err)
+			s.log.Error(err)
 			continue
 		}
-		delete(c.availablePorts, uint16(spec.Port))
+		delete(s.availablePorts, uint16(spec.Port))
 
-		t2 := c.newTorrent(t, id, uint16(spec.Port), ann)
-		c.log.Debugf("loaded existing torrent: #%d %s", id, t.Name())
+		t2 := s.newTorrent(t, id, uint16(spec.Port), ann)
+		s.log.Debugf("loaded existing torrent: #%d %s", id, t.Name())
 		loaded++
 		if hasStarted {
 			started = append(started, t2)
 		}
 	}
-	c.log.Infof("loaded %d existing torrents", loaded)
+	s.log.Infof("loaded %d existing torrents", loaded)
 	for _, t := range started {
 		t.Start()
 	}
 	return nil
 }
 
-func (c *Session) hasStarted(id uint64) (bool, error) {
+func (s *Session) hasStarted(id uint64) (bool, error) {
 	subBucket := strconv.FormatUint(id, 10)
 	started := false
-	err := c.db.View(func(tx *bolt.Tx) error {
+	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(mainBucket).Bucket([]byte(subBucket))
 		val := b.Get([]byte("started"))
 		if bytes.Equal(val, []byte("1")) {
@@ -318,55 +318,55 @@ func (c *Session) hasStarted(id uint64) (bool, error) {
 	return started, err
 }
 
-func (c *Session) Close() error {
-	c.dht.Stop()
+func (s *Session) Close() error {
+	s.dht.Stop()
 
 	var wg sync.WaitGroup
-	c.m.Lock()
-	wg.Add(len(c.torrents))
-	for _, t := range c.torrents {
+	s.m.Lock()
+	wg.Add(len(s.torrents))
+	for _, t := range s.torrents {
 		go func(t *Torrent) {
 			t.torrent.Close()
 			wg.Done()
 		}(t)
 	}
 	wg.Wait()
-	c.torrents = nil
-	c.m.Unlock()
+	s.torrents = nil
+	s.m.Unlock()
 
-	return c.db.Close()
+	return s.db.Close()
 }
 
-func (c *Session) ListTorrents() []*Torrent {
-	c.m.RLock()
-	defer c.m.RUnlock()
-	torrents := make([]*Torrent, 0, len(c.torrents))
-	for _, t := range c.torrents {
+func (s *Session) ListTorrents() []*Torrent {
+	s.m.RLock()
+	defer s.m.RUnlock()
+	torrents := make([]*Torrent, 0, len(s.torrents))
+	for _, t := range s.torrents {
 		torrents = append(torrents, t)
 	}
 	return torrents
 }
 
-func (c *Session) AddTorrent(r io.Reader) (*Torrent, error) {
+func (s *Session) AddTorrent(r io.Reader) (*Torrent, error) {
 	mi, err := metainfo.New(r)
 	if err != nil {
 		return nil, err
 	}
-	opt, sto, id, err := c.add()
+	opt, sto, id, err := s.add()
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
 		if err != nil {
-			c.releasePort(uint16(opt.Port))
+			s.releasePort(uint16(opt.Port))
 		}
 	}()
 	opt.Name = mi.Info.Name
-	opt.Trackers = c.parseTrackers(mi.GetTrackers())
+	opt.Trackers = s.parseTrackers(mi.GetTrackers())
 	opt.Info = mi.Info
 	var ann *dhtAnnouncer
 	if mi.Info.Private != 1 {
-		ann = newDHTAnnouncer(c.dht, mi.Info.Hash[:], opt.Port)
+		ann = newDHTAnnouncer(s.dht, mi.Info.Hash[:], opt.Port)
 		opt.DHT = ann
 	}
 	t, err := opt.NewTorrent(mi.Info.Hash[:], sto)
@@ -393,27 +393,27 @@ func (c *Session) AddTorrent(r io.Reader) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
-	t2 := c.newTorrent(t, id, uint16(opt.Port), ann)
+	t2 := s.newTorrent(t, id, uint16(opt.Port), ann)
 	return t2, t2.Start()
 }
 
-func (c *Session) AddMagnet(link string) (*Torrent, error) {
+func (s *Session) AddMagnet(link string) (*Torrent, error) {
 	ma, err := magnet.New(link)
 	if err != nil {
 		return nil, err
 	}
-	opt, sto, id, err := c.add()
+	opt, sto, id, err := s.add()
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
 		if err != nil {
-			c.releasePort(uint16(opt.Port))
+			s.releasePort(uint16(opt.Port))
 		}
 	}()
 	opt.Name = ma.Name
-	opt.Trackers = c.parseTrackers(ma.Trackers)
-	ann := newDHTAnnouncer(c.dht, ma.InfoHash[:], opt.Port)
+	opt.Trackers = s.parseTrackers(ma.Trackers)
+	ann := newDHTAnnouncer(s.dht, ma.InfoHash[:], opt.Port)
 	opt.DHT = ann
 	t, err := opt.NewTorrent(ma.InfoHash[:], sto)
 	if err != nil {
@@ -435,22 +435,22 @@ func (c *Session) AddMagnet(link string) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
-	t2 := c.newTorrent(t, id, uint16(opt.Port), ann)
+	t2 := s.newTorrent(t, id, uint16(opt.Port), ann)
 	return t2, t2.Start()
 }
 
-func (c *Session) add() (*torrent.Options, *filestorage.FileStorage, uint64, error) {
-	port, err := c.getPort()
+func (s *Session) add() (*torrent.Options, *filestorage.FileStorage, uint64, error) {
+	port, err := s.getPort()
 	if err != nil {
 		return nil, nil, 0, err
 	}
 	defer func() {
 		if err != nil {
-			c.releasePort(port)
+			s.releasePort(port)
 		}
 	}()
 	var id uint64
-	err = c.db.Update(func(tx *bolt.Tx) error {
+	err = s.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(mainBucket)
 		id, err = bucket.NextSequence()
 		return err
@@ -458,11 +458,11 @@ func (c *Session) add() (*torrent.Options, *filestorage.FileStorage, uint64, err
 	if err != nil {
 		return nil, nil, 0, err
 	}
-	res, err := boltdbresumer.New(c.db, mainBucket, []byte(strconv.FormatUint(id, 10)))
+	res, err := boltdbresumer.New(s.db, mainBucket, []byte(strconv.FormatUint(id, 10)))
 	if err != nil {
 		return nil, nil, 0, err
 	}
-	dest := filepath.Join(c.config.DataDir, strconv.FormatUint(id, 10))
+	dest := filepath.Join(s.config.DataDir, strconv.FormatUint(id, 10))
 	sto, err := filestorage.New(dest)
 	if err != nil {
 		return nil, nil, 0, err
@@ -470,81 +470,81 @@ func (c *Session) add() (*torrent.Options, *filestorage.FileStorage, uint64, err
 	return &torrent.Options{
 		Port:      int(port),
 		Resumer:   res,
-		Blocklist: c.blocklist,
-		Config:    &c.config.Torrent,
+		Blocklist: s.blocklist,
+		Config:    &s.config.Torrent,
 	}, sto, id, nil
 }
 
-func (c *Session) newTorrent(t *torrent.Torrent, id uint64, port uint16, ann *dhtAnnouncer) *Torrent {
+func (s *Session) newTorrent(t *torrent.Torrent, id uint64, port uint16, ann *dhtAnnouncer) *Torrent {
 	t2 := &Torrent{
-		session:      c,
+		session:      s,
 		torrent:      t,
 		id:           id,
 		port:         port,
 		dhtAnnouncer: ann,
 		removed:      make(chan struct{}),
 	}
-	c.m.Lock()
-	defer c.m.Unlock()
-	c.torrents[id] = t2
+	s.m.Lock()
+	defer s.m.Unlock()
+	s.torrents[id] = t2
 	ih := dht.InfoHash(t.InfoHashBytes())
-	c.torrentsByInfoHash[ih] = append(c.torrentsByInfoHash[ih], t2)
+	s.torrentsByInfoHash[ih] = append(s.torrentsByInfoHash[ih], t2)
 	return t2
 }
 
-func (c *Session) getPort() (uint16, error) {
-	c.mPorts.Lock()
-	defer c.mPorts.Unlock()
-	for p := range c.availablePorts {
-		delete(c.availablePorts, p)
+func (s *Session) getPort() (uint16, error) {
+	s.mPorts.Lock()
+	defer s.mPorts.Unlock()
+	for p := range s.availablePorts {
+		delete(s.availablePorts, p)
 		return p, nil
 	}
 	return 0, errors.New("no free port")
 }
 
-func (c *Session) releasePort(port uint16) {
-	c.mPorts.Lock()
-	defer c.mPorts.Unlock()
-	c.availablePorts[port] = struct{}{}
+func (s *Session) releasePort(port uint16) {
+	s.mPorts.Lock()
+	defer s.mPorts.Unlock()
+	s.availablePorts[port] = struct{}{}
 }
 
-func (c *Session) GetTorrent(id uint64) *Torrent {
-	c.m.RLock()
-	defer c.m.RUnlock()
-	return c.torrents[id]
+func (s *Session) GetTorrent(id uint64) *Torrent {
+	s.m.RLock()
+	defer s.m.RUnlock()
+	return s.torrents[id]
 }
 
-func (c *Session) RemoveTorrent(id uint64) error {
-	c.m.Lock()
-	defer c.m.Unlock()
-	t, ok := c.torrents[id]
+func (s *Session) RemoveTorrent(id uint64) error {
+	s.m.Lock()
+	defer s.m.Unlock()
+	t, ok := s.torrents[id]
 	if !ok {
 		return nil
 	}
 	close(t.removed)
 	t.torrent.Close()
-	delete(c.torrents, id)
-	delete(c.torrentsByInfoHash, dht.InfoHash(t.torrent.InfoHashBytes()))
-	c.releasePort(t.port)
+	delete(s.torrents, id)
+	delete(s.torrentsByInfoHash, dht.InfoHash(t.torrent.InfoHashBytes()))
+	s.releasePort(t.port)
 	subBucket := strconv.FormatUint(id, 10)
-	return c.db.Update(func(tx *bolt.Tx) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
 		return tx.Bucket(mainBucket).DeleteBucket([]byte(subBucket))
 	})
 }
 
-func (c *Session) ReloadBlocklist() error {
-	if c.config.Blocklist == "" {
+func (s *Session) ReloadBlocklist() error {
+	if s.config.Blocklist == "" {
 		return nil
 	}
-	f, err := os.Open(c.config.Blocklist)
+	f, err := os.Open(s.config.Blocklist)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	n, err := c.blocklist.Reload(f)
+	n, err := s.blocklist.Reload(f)
 	if err != nil {
 		return err
 	}
-	c.log.Infof("Loaded %d rules from blocklist.", n)
+	s.log.Infof("Loaded %d rules from blocklist.", n)
 	return nil
 }
