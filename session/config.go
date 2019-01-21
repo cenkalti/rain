@@ -1,6 +1,9 @@
 package session
 
-import "github.com/cenkalti/rain/internal/torrent"
+import (
+	"github.com/cenkalti/rain/internal/torrent"
+	"time"
+)
 
 // Config for Session.
 type Config struct {
@@ -19,16 +22,23 @@ type Config struct {
 	// Path to the blocklist file in CIDR format.
 	Blocklist string
 
+	RPCHost            string
+	RPCPort            int
+	RPCShutdownTimeout time.Duration
+
 	Torrent torrent.Config
 }
 
 var DefaultConfig = Config{
-	Database:     "~/.rain/resume.db",
-	DataDir:      "~/rain-downloads",
-	PortBegin:    50000,
-	PortEnd:      60000,
-	DHTAddress:   "0.0.0.0",
-	DHTPort:      7246,
-	MaxOpenFiles: 1024 * 1024,
-	Torrent:      torrent.DefaultConfig,
+	Database:           "~/.rain/resume.db",
+	DataDir:            "~/rain-downloads",
+	PortBegin:          50000,
+	PortEnd:            60000,
+	DHTAddress:         "0.0.0.0",
+	DHTPort:            7246,
+	MaxOpenFiles:       1024 * 1024,
+	RPCHost:            "127.0.0.1",
+	RPCPort:            7246,
+	RPCShutdownTimeout: 5 * time.Second,
+	Torrent:            torrent.DefaultConfig,
 }

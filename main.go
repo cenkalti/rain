@@ -19,6 +19,7 @@ import (
 	"github.com/cenkalti/rain/internal/console"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/rainrpc"
+	"github.com/cenkalti/rain/session"
 	"github.com/hokaccha/go-prettyjson"
 	"github.com/mitchellh/go-homedir"
 	"github.com/urfave/cli"
@@ -86,7 +87,7 @@ func main() {
 				cli.StringFlag{
 					Name:  "url",
 					Usage: "URL of RPC server",
-					Value: "http://127.0.0.1:" + strconv.Itoa(rainrpc.DefaultServerConfig.Port),
+					Value: "http://127.0.0.1:" + strconv.Itoa(session.DefaultConfig.RPCPort),
 				},
 			},
 			Before: handleBeforeClient,
@@ -202,7 +203,7 @@ func handleAfterCommand(c *cli.Context) error {
 }
 
 func handleServer(c *cli.Context) error {
-	cfg := rainrpc.DefaultServerConfig
+	cfg := session.DefaultConfig
 
 	configPath := c.String("config")
 	if configPath != "" {
@@ -229,11 +230,7 @@ func handleServer(c *cli.Context) error {
 		}
 	}
 
-	srv, err := rainrpc.NewServer(cfg)
-	if err != nil {
-		return err
-	}
-	err = srv.Start()
+	ses, err := session.New(cfg)
 	if err != nil {
 		return err
 	}
@@ -258,7 +255,7 @@ func handleServer(c *cli.Context) error {
 		}
 	}
 
-	return srv.Stop()
+	return ses.Close()
 }
 
 func handleBeforeClient(c *cli.Context) error {

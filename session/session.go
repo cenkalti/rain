@@ -49,6 +49,8 @@ type Session struct {
 
 	mPorts         sync.Mutex
 	availablePorts map[uint16]struct{}
+
+	rpc *rpcServer
 }
 
 // New returns a pointer to new Rain BitTorrent client.
@@ -143,6 +145,13 @@ func New(cfg Config) (*Session, error) {
 	err = c.loadExistingTorrents(ids)
 	if err != nil {
 		return nil, err
+	}
+	if c.config.RPCHost != "" {
+		c.rpc = newRPCServer(c)
+		err = c.rpc.Start(c.config.RPCHost, c.config.RPCPort)
+		if err != nil {
+			return nil, err
+		}
 	}
 	go c.processDHTResults()
 	return c, nil
@@ -333,6 +342,13 @@ func (s *Session) Close() error {
 	wg.Wait()
 	s.torrents = nil
 	s.m.Unlock()
+
+	if s.rpc != nil {
+		err := s.rpc.Stop(s.config.RPCShutdownTimeout)
+		if err != nil {
+			s.log.Errorln("cannot stop RPC server:", err.Error())
+		}
+	}
 
 	return s.db.Close()
 }
