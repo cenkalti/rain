@@ -1,4 +1,4 @@
-package client
+package session
 
 import (
 	"strconv"
@@ -12,7 +12,7 @@ type Torrent struct {
 	id           uint64
 	port         uint16
 	dhtAnnouncer *dhtAnnouncer
-	client       *Client
+	session      *Session
 	torrent      *torrent.Torrent
 	removed      chan struct{}
 }
@@ -47,7 +47,7 @@ func (t *Torrent) Port() uint16 {
 
 func (t *Torrent) Start() error {
 	subBucket := strconv.FormatUint(t.id, 10)
-	err := t.client.db.Update(func(tx *bolt.Tx) error {
+	err := t.session.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(mainBucket).Bucket([]byte(subBucket))
 		return b.Put([]byte("started"), []byte("1"))
 	})
@@ -56,16 +56,16 @@ func (t *Torrent) Start() error {
 	}
 	t.torrent.Start()
 	if !t.torrent.Stats().Private {
-		t.client.mPeerRequests.Lock()
-		t.client.dhtPeerRequests[dht.InfoHash(t.torrent.InfoHashBytes())] = struct{}{}
-		t.client.mPeerRequests.Unlock()
+		t.session.mPeerRequests.Lock()
+		t.session.dhtPeerRequests[dht.InfoHash(t.torrent.InfoHashBytes())] = struct{}{}
+		t.session.mPeerRequests.Unlock()
 	}
 	return nil
 }
 
 func (t *Torrent) Stop() error {
 	subBucket := strconv.FormatUint(t.id, 10)
-	err := t.client.db.Update(func(tx *bolt.Tx) error {
+	err := t.session.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(mainBucket).Bucket([]byte(subBucket))
 		return b.Put([]byte("started"), []byte("0"))
 	})

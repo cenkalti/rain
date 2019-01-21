@@ -9,7 +9,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/cenkalti/rain/client/internal/blocklist/stree"
+	"github.com/cenkalti/rain/session/internal/blocklist/stree"
 )
 
 type Blocklist struct {

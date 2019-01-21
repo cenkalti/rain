@@ -1,5 +1,5 @@
-// Package client provides a BitTorrent client implementation that is capable of downlaoding multiple torrents in parallel.
-package client
+// Package session provides a BitTorrent client implementation that is capable of downlaoding multiple torrents in parallel.
+package session
 
 import (
 	"bytes"
@@ -14,8 +14,6 @@ import (
 	"time"
 
 	"github.com/boltdb/bolt"
-	"github.com/cenkalti/rain/client/internal/blocklist"
-	"github.com/cenkalti/rain/client/internal/trackermanager"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/torrent"
 	"github.com/cenkalti/rain/internal/torrent/bitfield"
@@ -25,13 +23,15 @@ import (
 	"github.com/cenkalti/rain/internal/torrent/resumer/boltdbresumer"
 	"github.com/cenkalti/rain/internal/torrent/storage/filestorage"
 	"github.com/cenkalti/rain/internal/tracker"
+	"github.com/cenkalti/rain/session/internal/blocklist"
+	"github.com/cenkalti/rain/session/internal/trackermanager"
 	"github.com/mitchellh/go-homedir"
 	"github.com/nictuku/dht"
 )
 
 var mainBucket = []byte("torrents")
 
-type Client struct {
+type Session struct {
 	config         Config
 	db             *bolt.DB
 	log            logger.Logger
@@ -52,7 +52,7 @@ type Client struct {
 }
 
 // New returns a pointer to new Rain BitTorrent client.
-func New(cfg Config) (*Client, error) {
+func New(cfg Config) (*Session, error) {
 	if cfg.PortBegin >= cfg.PortEnd {
 		return nil, errors.New("invalid port range")
 	}
@@ -76,7 +76,7 @@ func New(cfg Config) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	l := logger.New("client")
+	l := logger.New("session")
 	db, err := bolt.Open(cfg.Database, 0640, &bolt.Options{Timeout: time.Second})
 	if err == bolt.ErrTimeout {
 		return nil, errors.New("resume database is locked by another process")
@@ -123,7 +123,7 @@ func New(cfg Config) (*Client, error) {
 		ports[p] = struct{}{}
 	}
 	bl := blocklist.New()
-	c := &Client{
+	c := &Session{
 		config:             cfg,
 		db:                 db,
 		blocklist:          bl,
@@ -148,7 +148,7 @@ func New(cfg Config) (*Client, error) {
 	return c, nil
 }
 
-func (c *Client) processDHTResults() {
+func (c *Session) processDHTResults() {
 	dhtLimiter := time.NewTicker(time.Second)
 	defer dhtLimiter.Stop()
 	for {
@@ -175,7 +175,7 @@ func (c *Client) processDHTResults() {
 	}
 }
 
-func (c *Client) handleDHTtick() {
+func (c *Session) handleDHTtick() {
 	c.mPeerRequests.Lock()
 	defer c.mPeerRequests.Unlock()
 	if len(c.dhtPeerRequests) == 0 {
@@ -210,7 +210,7 @@ func parseDHTPeers(peers []string) []*net.TCPAddr {
 	return addrs
 }
 
-func (c *Client) parseTrackers(trackers []string) []tracker.Tracker {
+func (c *Session) parseTrackers(trackers []string) []tracker.Tracker {
 	var ret []tracker.Tracker
 	for _, s := range trackers {
 		t, err := c.trackerManager.Get(s, c.config.Torrent.HTTPTrackerTimeout, c.config.Torrent.HTTPTrackerUserAgent)
@@ -223,7 +223,7 @@ func (c *Client) parseTrackers(trackers []string) []tracker.Tracker {
 	return ret
 }
 
-func (c *Client) loadExistingTorrents(ids []uint64) error {
+func (c *Session) loadExistingTorrents(ids []uint64) error {
 	var loaded int
 	var started []*Torrent
 	for _, id := range ids {
@@ -304,7 +304,7 @@ func (c *Client) loadExistingTorrents(ids []uint64) error {
 	return nil
 }
 
-func (c *Client) hasStarted(id uint64) (bool, error) {
+func (c *Session) hasStarted(id uint64) (bool, error) {
 	subBucket := strconv.FormatUint(id, 10)
 	started := false
 	err := c.db.View(func(tx *bolt.Tx) error {
@@ -318,7 +318,7 @@ func (c *Client) hasStarted(id uint64) (bool, error) {
 	return started, err
 }
 
-func (c *Client) Close() error {
+func (c *Session) Close() error {
 	c.dht.Stop()
 
 	var wg sync.WaitGroup
@@ -337,7 +337,7 @@ func (c *Client) Close() error {
 	return c.db.Close()
 }
 
-func (c *Client) ListTorrents() []*Torrent {
+func (c *Session) ListTorrents() []*Torrent {
 	c.m.RLock()
 	defer c.m.RUnlock()
 	torrents := make([]*Torrent, 0, len(c.torrents))
@@ -347,7 +347,7 @@ func (c *Client) ListTorrents() []*Torrent {
 	return torrents
 }
 
-func (c *Client) AddTorrent(r io.Reader) (*Torrent, error) {
+func (c *Session) AddTorrent(r io.Reader) (*Torrent, error) {
 	mi, err := metainfo.New(r)
 	if err != nil {
 		return nil, err
@@ -397,7 +397,7 @@ func (c *Client) AddTorrent(r io.Reader) (*Torrent, error) {
 	return t2, t2.Start()
 }
 
-func (c *Client) AddMagnet(link string) (*Torrent, error) {
+func (c *Session) AddMagnet(link string) (*Torrent, error) {
 	ma, err := magnet.New(link)
 	if err != nil {
 		return nil, err
@@ -439,7 +439,7 @@ func (c *Client) AddMagnet(link string) (*Torrent, error) {
 	return t2, t2.Start()
 }
 
-func (c *Client) add() (*torrent.Options, *filestorage.FileStorage, uint64, error) {
+func (c *Session) add() (*torrent.Options, *filestorage.FileStorage, uint64, error) {
 	port, err := c.getPort()
 	if err != nil {
 		return nil, nil, 0, err
@@ -475,9 +475,9 @@ func (c *Client) add() (*torrent.Options, *filestorage.FileStorage, uint64, erro
 	}, sto, id, nil
 }
 
-func (c *Client) newTorrent(t *torrent.Torrent, id uint64, port uint16, ann *dhtAnnouncer) *Torrent {
+func (c *Session) newTorrent(t *torrent.Torrent, id uint64, port uint16, ann *dhtAnnouncer) *Torrent {
 	t2 := &Torrent{
-		client:       c,
+		session:      c,
 		torrent:      t,
 		id:           id,
 		port:         port,
@@ -492,7 +492,7 @@ func (c *Client) newTorrent(t *torrent.Torrent, id uint64, port uint16, ann *dht
 	return t2
 }
 
-func (c *Client) getPort() (uint16, error) {
+func (c *Session) getPort() (uint16, error) {
 	c.mPorts.Lock()
 	defer c.mPorts.Unlock()
 	for p := range c.availablePorts {
@@ -502,19 +502,19 @@ func (c *Client) getPort() (uint16, error) {
 	return 0, errors.New("no free port")
 }
 
-func (c *Client) releasePort(port uint16) {
+func (c *Session) releasePort(port uint16) {
 	c.mPorts.Lock()
 	defer c.mPorts.Unlock()
 	c.availablePorts[port] = struct{}{}
 }
 
-func (c *Client) GetTorrent(id uint64) *Torrent {
+func (c *Session) GetTorrent(id uint64) *Torrent {
 	c.m.RLock()
 	defer c.m.RUnlock()
 	return c.torrents[id]
 }
 
-func (c *Client) RemoveTorrent(id uint64) error {
+func (c *Session) RemoveTorrent(id uint64) error {
 	c.m.Lock()
 	defer c.m.Unlock()
 	t, ok := c.torrents[id]
@@ -532,7 +532,7 @@ func (c *Client) RemoveTorrent(id uint64) error {
 	})
 }
 
-func (c *Client) ReloadBlocklist() error {
+func (c *Session) ReloadBlocklist() error {
 	if c.config.Blocklist == "" {
 		return nil
 	}

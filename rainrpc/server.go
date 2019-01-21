@@ -11,14 +11,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cenkalti/rain/client"
 	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/session"
 	"github.com/powerman/rpc-codec/jsonrpc2"
 )
 
 type Server struct {
 	config     ServerConfig
-	client     *client.Client
+	session    *session.Session
 	rpcServer  *rpc.Server
 	httpServer http.Server
 	log        logger.Logger
@@ -28,27 +28,27 @@ type ServerConfig struct {
 	Host            string
 	Port            int
 	ShutdownTimeout time.Duration
-	Client          client.Config
+	Session         session.Config
 }
 
 var DefaultServerConfig = ServerConfig{
 	Host:            "127.0.0.1",
 	Port:            7246,
 	ShutdownTimeout: 5 * time.Second,
-	Client:          client.DefaultConfig,
+	Session:         session.DefaultConfig,
 }
 
 func NewServer(cfg ServerConfig) (*Server, error) {
-	clt, err := client.New(cfg.Client)
+	ses, err := session.New(cfg.Session)
 	if err != nil {
 		return nil, err
 	}
-	h := &handler{client: clt}
+	h := &handler{session: ses}
 	srv := rpc.NewServer()
 	srv.RegisterName("Client", h)
 	return &Server{
 		config:    cfg,
-		client:    clt,
+		session:   ses,
 		rpcServer: srv,
 		httpServer: http.Server{
 			Handler: jsonrpc2.HTTPHandler(srv),
@@ -83,16 +83,16 @@ func (s *Server) Stop() error {
 	if err != nil {
 		return err
 	}
-	s.client.Close()
+	s.session.Close()
 	return nil
 }
 
 type handler struct {
-	client *client.Client
+	session *session.Session
 }
 
 func (h *handler) ListTorrents(args *ListTorrentsRequest, reply *ListTorrentsResponse) error {
-	torrents := h.client.ListTorrents()
+	torrents := h.session.ListTorrents()
 	reply.Torrents = make([]Torrent, 0, len(torrents))
 	for _, t := range torrents {
 		reply.Torrents = append(reply.Torrents, newTorrent(t))
@@ -102,7 +102,7 @@ func (h *handler) ListTorrents(args *ListTorrentsRequest, reply *ListTorrentsRes
 
 func (h *handler) AddTorrent(args *AddTorrentRequest, reply *AddTorrentResponse) error {
 	r := base64.NewDecoder(base64.StdEncoding, strings.NewReader(args.Torrent))
-	t, err := h.client.AddTorrent(r)
+	t, err := h.session.AddTorrent(r)
 	if err != nil {
 		return err
 	}
@@ -111,7 +111,7 @@ func (h *handler) AddTorrent(args *AddTorrentRequest, reply *AddTorrentResponse)
 }
 
 func (h *handler) AddMagnet(args *AddMagnetRequest, reply *AddMagnetResponse) error {
-	t, err := h.client.AddMagnet(args.Magnet)
+	t, err := h.session.AddMagnet(args.Magnet)
 	if err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@ func (h *handler) AddMagnet(args *AddMagnetRequest, reply *AddMagnetResponse) er
 	return nil
 }
 
-func newTorrent(t *client.Torrent) Torrent {
+func newTorrent(t *session.Torrent) Torrent {
 	return Torrent{
 		ID:       t.ID(),
 		Name:     t.Name(),
@@ -129,12 +129,12 @@ func newTorrent(t *client.Torrent) Torrent {
 }
 
 func (h *handler) RemoveTorrent(args *RemoveTorrentRequest, reply *RemoveTorrentResponse) error {
-	h.client.RemoveTorrent(args.ID)
+	h.session.RemoveTorrent(args.ID)
 	return nil
 }
 
 func (h *handler) GetTorrentStats(args *GetTorrentStatsRequest, reply *GetTorrentStatsResponse) error {
-	t := h.client.GetTorrent(args.ID)
+	t := h.session.GetTorrent(args.ID)
 	if t == nil {
 		return errors.New("torrent not found")
 	}
@@ -143,7 +143,7 @@ func (h *handler) GetTorrentStats(args *GetTorrentStatsRequest, reply *GetTorren
 }
 
 func (h *handler) GetTorrentTrackers(args *GetTorrentTrackersRequest, reply *GetTorrentTrackersResponse) error {
-	t := h.client.GetTorrent(args.ID)
+	t := h.session.GetTorrent(args.ID)
 	if t == nil {
 		return errors.New("torrent not found")
 	}
@@ -152,7 +152,7 @@ func (h *handler) GetTorrentTrackers(args *GetTorrentTrackersRequest, reply *Get
 }
 
 func (h *handler) GetTorrentPeers(args *GetTorrentPeersRequest, reply *GetTorrentPeersResponse) error {
-	t := h.client.GetTorrent(args.ID)
+	t := h.session.GetTorrent(args.ID)
 	if t == nil {
 		return errors.New("torrent not found")
 	}
@@ -161,7 +161,7 @@ func (h *handler) GetTorrentPeers(args *GetTorrentPeersRequest, reply *GetTorren
 }
 
 func (h *handler) StartTorrent(args *StartTorrentRequest, reply *StartTorrentResponse) error {
-	t := h.client.GetTorrent(args.ID)
+	t := h.session.GetTorrent(args.ID)
 	if t == nil {
 		return errors.New("torrent not found")
 	}
@@ -170,7 +170,7 @@ func (h *handler) StartTorrent(args *StartTorrentRequest, reply *StartTorrentRes
 }
 
 func (h *handler) StopTorrent(args *StopTorrentRequest, reply *StopTorrentResponse) error {
-	t := h.client.GetTorrent(args.ID)
+	t := h.session.GetTorrent(args.ID)
 	if t == nil {
 		return errors.New("torrent not found")
 	}

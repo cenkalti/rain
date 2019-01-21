@@ -1,8 +1,8 @@
-package client
+package session
 
 import "github.com/cenkalti/rain/internal/torrent"
 
-// Config for Client.
+// Config for Session.
 type Config struct {
 	// Database file to save resume data.
 	Database string
