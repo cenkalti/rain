@@ -27,8 +27,8 @@ import (
 	"github.com/cenkalti/rain/session/storage"
 )
 
-// Options for creating a new Torrent.
-type Options struct {
+// options for creating a new Torrent.
+type options struct {
 	// Display name
 	Name string
 	// Peer listen port. Random port will be picked if zero.
@@ -52,7 +52,7 @@ type Options struct {
 }
 
 // NewTorrent creates a new torrent that downloads the torrent with infoHash and saves the files to the storage.
-func (o *Options) NewTorrent(infoHash []byte, sto storage.Storage) (*Torrent, error) {
+func (o *options) NewTorrent(infoHash []byte, sto storage.Storage) (*torrent, error) {
 	if len(infoHash) != 20 {
 		return nil, errors.New("invalid infoHash (must be 20 bytes)")
 	}
@@ -66,7 +66,7 @@ func (o *Options) NewTorrent(infoHash []byte, sto storage.Storage) (*Torrent, er
 	}
 	var ih [20]byte
 	copy(ih[:], infoHash)
-	t := &Torrent{
+	t := &torrent{
 		config:                    *cfg,
 		infoHash:                  ih,
 		trackers:                  o.Trackers,

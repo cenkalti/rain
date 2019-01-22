@@ -9,7 +9,7 @@ import (
 	"github.com/cenkalti/rain/session/internal/piecepicker"
 )
 
-func (t *Torrent) handleAllocationDone(al *allocator.Allocator) {
+func (t *torrent) handleAllocationDone(al *allocator.Allocator) {
 	if t.allocator != al {
 		panic("invalid allocator")
 	}

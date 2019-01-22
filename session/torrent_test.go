@@ -52,7 +52,7 @@ func TestDownloadMagnet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	opt1 := Options{
+	opt1 := options{
 		Info: mi.Info,
 	}
 	t1, err := opt1.NewTorrent(mi.Info.Hash[:], newFileStorage(t, torrentDataDir))
@@ -61,7 +61,7 @@ func TestDownloadMagnet(t *testing.T) {
 	}
 	defer t1.Close()
 
-	opt2 := Options{}
+	opt2 := options{}
 	ih, err := hex.DecodeString(torrentInfoHashString)
 	if err != nil {
 		t.Fatal(err)

@@ -1,4 +1,3 @@
-// Package torrent provides a BitTorrent client implementation for downlaoding a single torrent.
 package session
 
 import (
@@ -41,8 +40,8 @@ func init() {
 	ourExtensions.Set(43) // Extension Protocol (BEP 10)
 }
 
-// Torrent connects to peers and downloads files from swarm.
-type Torrent struct {
+// torrent connects to peers and downloads files from swarm.
+type torrent struct {
 	config Config
 
 	// Identifies the torrent being downloaded.
@@ -238,18 +237,18 @@ type Torrent struct {
 // Name of the torrent.
 // For magnet downloads name can change after metadata is downloaded but this method still returns the initial name.
 // Use Stats() method to get name in info dictionary.
-func (t *Torrent) Name() string {
+func (t *torrent) Name() string {
 	return t.name
 }
 
 // InfoHash string encoded in hex as 40 charachters.
 // InfoHash is a unique value that identifies the files in torrent.
-func (t *Torrent) InfoHash() string {
+func (t *torrent) InfoHash() string {
 	return hex.EncodeToString(t.infoHash[:])
 }
 
 // InfoHashBytes return info hash as 20 bytes.
-func (t *Torrent) InfoHashBytes() []byte {
+func (t *torrent) InfoHashBytes() []byte {
 	b := make([]byte, 20)
 	copy(b, t.infoHash[:])
 	return b

@@ -7,7 +7,7 @@ import (
 	"github.com/cenkalti/rain/session/internal/peer"
 )
 
-func (t *Torrent) tickUnchoke() {
+func (t *torrent) tickUnchoke() {
 	peers := make([]*peer.Peer, 0, len(t.peers))
 	for pe := range t.peers {
 		if pe.PeerInterested && !pe.OptimisticUnchoked {
@@ -41,7 +41,7 @@ func (t *Torrent) tickUnchoke() {
 	}
 }
 
-func (t *Torrent) tickOptimisticUnchoke() {
+func (t *torrent) tickOptimisticUnchoke() {
 	peers := make([]*peer.Peer, 0, len(t.peers))
 	for pe := range t.peers {
 		if pe.PeerInterested && !pe.OptimisticUnchoked && pe.AmChoking {

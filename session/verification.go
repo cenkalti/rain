@@ -7,7 +7,7 @@ import (
 	"github.com/cenkalti/rain/session/internal/verifier"
 )
 
-func (t *Torrent) handleVerificationDone(ve *verifier.Verifier) {
+func (t *torrent) handleVerificationDone(ve *verifier.Verifier) {
 	if t.verifier != ve {
 		panic("invalid verifier")
 	}

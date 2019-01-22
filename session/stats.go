@@ -73,7 +73,7 @@ type Stats struct {
 	PieceLength uint32
 }
 
-func (t *Torrent) stats() Stats {
+func (t *torrent) stats() Stats {
 	var s Stats
 	s.Status = t.status()
 	if t.lastError != nil {
@@ -124,14 +124,14 @@ func (t *Torrent) stats() Stats {
 	return s
 }
 
-func (t *Torrent) avaliablePieceCount() uint32 {
+func (t *torrent) avaliablePieceCount() uint32 {
 	if t.piecePicker == nil {
 		return 0
 	}
 	return t.piecePicker.Available()
 }
 
-func (t *Torrent) bytesComplete() int64 {
+func (t *torrent) bytesComplete() int64 {
 	if t.bitfield == nil || len(t.pieces) == 0 {
 		return 0
 	}
@@ -143,7 +143,7 @@ func (t *Torrent) bytesComplete() int64 {
 	return n
 }
 
-func (t *Torrent) getTrackers() []Tracker {
+func (t *torrent) getTrackers() []Tracker {
 	var trackers []Tracker
 	for _, an := range t.announcers {
 		st := an.Stats()
@@ -159,7 +159,7 @@ func (t *Torrent) getTrackers() []Tracker {
 	return trackers
 }
 
-func (t *Torrent) getPeers() []Peer {
+func (t *torrent) getPeers() []Peer {
 	var peers []Peer
 	for pe := range t.peers {
 		p := Peer{

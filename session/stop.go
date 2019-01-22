@@ -7,7 +7,7 @@ import (
 	"github.com/cenkalti/rain/session/internal/handshaker/outgoinghandshaker"
 )
 
-func (t *Torrent) stop(err error) {
+func (t *torrent) stop(err error) {
 	s := t.status()
 	if s == Stopping || s == Stopped {
 		return
@@ -92,27 +92,27 @@ func (t *Torrent) stop(err error) {
 	t.addrList.Reset()
 }
 
-func (t *Torrent) stopStatsWriter() {
+func (t *torrent) stopStatsWriter() {
 	t.statsWriteTicker.Stop()
 	t.statsWriteTicker = nil
 	t.statsWriteTickerC = nil
 }
 
-func (t *Torrent) stopOutgoingHandshakers() {
+func (t *torrent) stopOutgoingHandshakers() {
 	for oh := range t.outgoingHandshakers {
 		oh.Close()
 	}
 	t.outgoingHandshakers = make(map[*outgoinghandshaker.OutgoingHandshaker]struct{})
 }
 
-func (t *Torrent) stopIncomingHandshakers() {
+func (t *torrent) stopIncomingHandshakers() {
 	for ih := range t.incomingHandshakers {
 		ih.Close()
 	}
 	t.incomingHandshakers = make(map[*incominghandshaker.IncomingHandshaker]struct{})
 }
 
-func (t *Torrent) closeData() {
+func (t *torrent) closeData() {
 	for _, f := range t.files {
 		err := f.Close()
 		if err != nil {
@@ -124,7 +124,7 @@ func (t *Torrent) closeData() {
 	t.piecePicker = nil
 }
 
-func (t *Torrent) stopPeriodicalAnnouncers() {
+func (t *torrent) stopPeriodicalAnnouncers() {
 	for _, an := range t.announcers {
 		an.Close()
 	}
@@ -135,20 +135,20 @@ func (t *Torrent) stopPeriodicalAnnouncers() {
 	}
 }
 
-func (t *Torrent) stopAcceptor() {
+func (t *torrent) stopAcceptor() {
 	if t.acceptor != nil {
 		t.acceptor.Close()
 	}
 	t.acceptor = nil
 }
 
-func (t *Torrent) stopPeers() {
+func (t *torrent) stopPeers() {
 	for p := range t.peers {
 		t.closePeer(p)
 	}
 }
 
-func (t *Torrent) stopUnchokeTimers() {
+func (t *torrent) stopUnchokeTimers() {
 	if t.unchokeTimer != nil {
 		t.unchokeTimer.Stop()
 		t.unchokeTimer = nil
@@ -161,13 +161,13 @@ func (t *Torrent) stopUnchokeTimers() {
 	}
 }
 
-func (t *Torrent) stopInfoDownloaders() {
+func (t *torrent) stopInfoDownloaders() {
 	for _, id := range t.infoDownloaders {
 		t.closeInfoDownloader(id)
 	}
 }
 
-func (t *Torrent) stopPiecedownloaders() {
+func (t *torrent) stopPiecedownloaders() {
 	for _, pd := range t.pieceDownloaders {
 		t.closePieceDownloader(pd)
 	}

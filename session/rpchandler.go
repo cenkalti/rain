@@ -40,7 +40,7 @@ func (h *rpcHandler) AddMagnet(args *rainrpc.AddMagnetRequest, reply *rainrpc.Ad
 	return nil
 }
 
-func newTorrent(t *SessionTorrent) rainrpc.Torrent {
+func newTorrent(t *Torrent) rainrpc.Torrent {
 	return rainrpc.Torrent{
 		ID:       t.ID(),
 		Name:     t.Name(),

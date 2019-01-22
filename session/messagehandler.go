@@ -16,7 +16,7 @@ import (
 	"github.com/cenkalti/rain/session/metainfo"
 )
 
-func (t *Torrent) handlePieceMessage(pm peer.PieceMessage) {
+func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 	msg := pm.Piece
 	pe := pm.Peer
 	if t.pieces == nil || t.bitfield == nil {
@@ -95,7 +95,7 @@ func (t *Torrent) handlePieceMessage(pm peer.PieceMessage) {
 	t.startPieceDownloaders()
 }
 
-func (t *Torrent) handlePeerMessage(pm peer.Message) {
+func (t *torrent) handlePeerMessage(pm peer.Message) {
 	pe := pm.Peer
 	switch msg := pm.Message.(type) {
 	case peerprotocol.HaveMessage:
@@ -373,7 +373,7 @@ func (t *Torrent) handlePeerMessage(pm peer.Message) {
 	}
 }
 
-func (t *Torrent) updateInterestedState(pe *peer.Peer) {
+func (t *torrent) updateInterestedState(pe *peer.Peer) {
 	if t.pieces == nil || t.bitfield == nil {
 		return
 	}
@@ -402,7 +402,7 @@ func (t *Torrent) updateInterestedState(pe *peer.Peer) {
 	}
 }
 
-func (t *Torrent) sendMetadataReject(pe *peer.Peer, i uint32, msgID uint8) {
+func (t *torrent) sendMetadataReject(pe *peer.Peer, i uint32, msgID uint8) {
 	dataMsg := peerprotocol.ExtensionMetadataMessage{
 		Type:  peerprotocol.ExtensionMetadataMessageTypeReject,
 		Piece: i,

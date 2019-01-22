@@ -12,7 +12,7 @@ const (
 	Stopping                   = "Stopping"
 )
 
-func (t *Torrent) status() Status {
+func (t *torrent) status() Status {
 	if t.errC == nil {
 		return Stopped
 	}

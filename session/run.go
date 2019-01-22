@@ -19,7 +19,7 @@ import (
 
 var errClosed = errors.New("torrent is closed")
 
-func (t *Torrent) close() {
+func (t *torrent) close() {
 	// Stop if running.
 	t.stop(errClosed)
 
@@ -30,7 +30,7 @@ func (t *Torrent) close() {
 }
 
 // Torrent event loop
-func (t *Torrent) run() {
+func (t *torrent) run() {
 	for {
 		select {
 		case doneC := <-t.closeC:
@@ -183,14 +183,14 @@ func (t *Torrent) run() {
 	}
 }
 
-func (t *Torrent) deferWriteBitfield() {
+func (t *torrent) deferWriteBitfield() {
 	if t.resumeWriteTimer == nil {
 		t.resumeWriteTimer = time.NewTimer(t.config.BitfieldWriteInterval)
 		t.resumeWriteTimerC = t.resumeWriteTimer.C
 	}
 }
 
-func (t *Torrent) writeBitfield(stopOnError bool) {
+func (t *torrent) writeBitfield(stopOnError bool) {
 	if t.resumeWriteTimer != nil {
 		t.resumeWriteTimer.Stop()
 		t.resumeWriteTimer = nil
@@ -206,7 +206,7 @@ func (t *Torrent) writeBitfield(stopOnError bool) {
 	}
 }
 
-func (t *Torrent) closePeer(pe *peer.Peer) {
+func (t *torrent) closePeer(pe *peer.Peer) {
 	pe.Close()
 	if pd, ok := t.pieceDownloaders[pe]; ok {
 		t.closePieceDownloader(pd)
@@ -227,7 +227,7 @@ func (t *Torrent) closePeer(pe *peer.Peer) {
 	t.dialAddresses()
 }
 
-func (t *Torrent) closePieceDownloader(pd *piecedownloader.PieceDownloader) {
+func (t *torrent) closePieceDownloader(pd *piecedownloader.PieceDownloader) {
 	delete(t.pieceDownloaders, pd.Peer)
 	delete(t.pieceDownloadersSnubbed, pd.Peer)
 	delete(t.pieceDownloadersChoked, pd.Peer)
@@ -237,12 +237,12 @@ func (t *Torrent) closePieceDownloader(pd *piecedownloader.PieceDownloader) {
 	pd.Peer.Downloading = false
 }
 
-func (t *Torrent) closeInfoDownloader(id *infodownloader.InfoDownloader) {
+func (t *torrent) closeInfoDownloader(id *infodownloader.InfoDownloader) {
 	delete(t.infoDownloaders, id.Peer)
 	delete(t.infoDownloadersSnubbed, id.Peer)
 }
 
-func (t *Torrent) handleNewPeers(addrs []*net.TCPAddr, source string) {
+func (t *torrent) handleNewPeers(addrs []*net.TCPAddr, source string) {
 	t.log.Debugf("received %d peers from %s", len(addrs), source)
 	t.setNeedMorePeers(false)
 	if !t.completed {
@@ -251,7 +251,7 @@ func (t *Torrent) handleNewPeers(addrs []*net.TCPAddr, source string) {
 	}
 }
 
-func (t *Torrent) dialAddresses() {
+func (t *torrent) dialAddresses() {
 	if t.completed {
 		return
 	}
@@ -272,7 +272,7 @@ func (t *Torrent) dialAddresses() {
 	}
 }
 
-func (t *Torrent) setNeedMorePeers(val bool) {
+func (t *torrent) setNeedMorePeers(val bool) {
 	for _, an := range t.announcers {
 		an.NeedMorePeers(val)
 	}
@@ -282,7 +282,7 @@ func (t *Torrent) setNeedMorePeers(val bool) {
 }
 
 // Process messages received while we don't have metadata yet.
-func (t *Torrent) processQueuedMessages() {
+func (t *torrent) processQueuedMessages() {
 	for pe := range t.peers {
 		for _, msg := range pe.Messages {
 			pm := peer.Message{Peer: pe, Message: msg}
@@ -291,7 +291,7 @@ func (t *Torrent) processQueuedMessages() {
 	}
 }
 
-func (t *Torrent) startPeer(p *peerconn.Conn, peers map[*peer.Peer]struct{}) {
+func (t *torrent) startPeer(p *peerconn.Conn, peers map[*peer.Peer]struct{}) {
 	t.pexAddPeer(p.Addr())
 	_, ok := t.peerIDs[p.ID()]
 	if ok {
@@ -314,7 +314,7 @@ func (t *Torrent) startPeer(p *peerconn.Conn, peers map[*peer.Peer]struct{}) {
 	}
 }
 
-func (t *Torrent) pexAddPeer(addr *net.TCPAddr) {
+func (t *torrent) pexAddPeer(addr *net.TCPAddr) {
 	for pe := range t.peers {
 		if pe.PEX != nil {
 			pe.PEX.Add(addr)
@@ -322,7 +322,7 @@ func (t *Torrent) pexAddPeer(addr *net.TCPAddr) {
 	}
 }
 
-func (t *Torrent) pexDropPeer(addr *net.TCPAddr) {
+func (t *torrent) pexDropPeer(addr *net.TCPAddr) {
 	for pe := range t.peers {
 		if pe.PEX != nil {
 			pe.PEX.Drop(addr)
@@ -330,7 +330,7 @@ func (t *Torrent) pexDropPeer(addr *net.TCPAddr) {
 	}
 }
 
-func (t *Torrent) sendFirstMessage(p *peer.Peer) {
+func (t *torrent) sendFirstMessage(p *peer.Peer) {
 	bf := t.bitfield
 	if p.FastExtension && bf != nil && bf.All() {
 		msg := peerprotocol.HaveAllMessage{}
@@ -356,7 +356,7 @@ func (t *Torrent) sendFirstMessage(p *peer.Peer) {
 	p.SendMessage(msg)
 }
 
-func (t *Torrent) chokePeer(pe *peer.Peer) {
+func (t *torrent) chokePeer(pe *peer.Peer) {
 	if !pe.AmChoking {
 		pe.AmChoking = true
 		msg := peerprotocol.ChokeMessage{}
@@ -364,7 +364,7 @@ func (t *Torrent) chokePeer(pe *peer.Peer) {
 	}
 }
 
-func (t *Torrent) unchokePeer(pe *peer.Peer) {
+func (t *torrent) unchokePeer(pe *peer.Peer) {
 	if pe.AmChoking {
 		pe.AmChoking = false
 		msg := peerprotocol.UnchokeMessage{}
@@ -372,7 +372,7 @@ func (t *Torrent) unchokePeer(pe *peer.Peer) {
 	}
 }
 
-func (t *Torrent) checkCompletion() bool {
+func (t *torrent) checkCompletion() bool {
 	if t.completed {
 		return true
 	}

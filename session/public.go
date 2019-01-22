@@ -6,7 +6,7 @@ import (
 
 // Start downloading.
 // After all files are downloaded, seeding continues until the torrent is stopped.
-func (t *Torrent) Start() {
+func (t *torrent) Start() {
 	select {
 	case t.startCommandC <- struct{}{}:
 	case <-t.closeC:
@@ -15,7 +15,7 @@ func (t *Torrent) Start() {
 
 // Stop downloading and seeding.
 // Stop closes all peer connections.
-func (t *Torrent) Stop() {
+func (t *torrent) Stop() {
 	select {
 	case t.stopCommandC <- struct{}{}:
 	case <-t.closeC:
@@ -24,7 +24,7 @@ func (t *Torrent) Stop() {
 
 // Close this torrent and release all resources.
 // Close must be called before discarding the torrent.
-func (t *Torrent) Close() {
+func (t *torrent) Close() {
 	doneC := make(chan struct{})
 	select {
 	case t.closeC <- doneC:
@@ -35,7 +35,7 @@ func (t *Torrent) Close() {
 
 // NotifyComplete returns a channel for notifying completion.
 // The channel is closed once all pieces are downloaded successfully.
-func (t *Torrent) NotifyComplete() <-chan struct{} {
+func (t *torrent) NotifyComplete() <-chan struct{} {
 	return t.completeC
 }
 
@@ -46,7 +46,7 @@ type notifyErrorCommand struct {
 // NotifyError returns a new channel for notifying fatal errors.
 // When an error is sent to the channel, torrent is stopped automatically.
 // NotifyError must be called after calling Start().
-func (t *Torrent) NotifyError() <-chan error {
+func (t *torrent) NotifyError() <-chan error {
 	cmd := notifyErrorCommand{errCC: make(chan chan error)}
 	select {
 	case t.notifyErrorCommandC <- cmd:
@@ -62,7 +62,7 @@ type notifyListenCommand struct {
 
 // NotifyListen returns a new channel that is signalled after torrent has started to listen on peer port.
 // NotifyListen must be called after calling Start().
-func (t *Torrent) NotifyListen() <-chan int {
+func (t *torrent) NotifyListen() <-chan int {
 	cmd := notifyListenCommand{portCC: make(chan chan int)}
 	select {
 	case t.notifyListenCommandC <- cmd:
@@ -77,7 +77,7 @@ type statsRequest struct {
 }
 
 // Stats returns statistics about the Torrent.
-func (t *Torrent) Stats() Stats {
+func (t *torrent) Stats() Stats {
 	var stats Stats
 	req := statsRequest{Response: make(chan Stats, 1)}
 	select {
@@ -91,7 +91,7 @@ func (t *Torrent) Stats() Stats {
 	return stats
 }
 
-func (t *Torrent) AddPeers(peers []*net.TCPAddr) {
+func (t *torrent) AddPeers(peers []*net.TCPAddr) {
 	select {
 	case t.addPeersCommandC <- peers:
 	case <-t.closeC:
@@ -110,7 +110,7 @@ type trackersRequest struct {
 	Response chan []Tracker
 }
 
-func (t *Torrent) Trackers() []Tracker {
+func (t *torrent) Trackers() []Tracker {
 	var trackers []Tracker
 	req := trackersRequest{Response: make(chan []Tracker, 1)}
 	select {
@@ -132,7 +132,7 @@ type peersRequest struct {
 	Response chan []Peer
 }
 
-func (t *Torrent) Peers() []Peer {
+func (t *torrent) Peers() []Peer {
 	var peers []Peer
 	req := peersRequest{Response: make(chan []Peer, 1)}
 	select {

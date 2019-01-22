@@ -11,7 +11,7 @@ import (
 	"github.com/cenkalti/rain/session/internal/verifier"
 )
 
-func (t *Torrent) start() {
+func (t *torrent) start() {
 	// Do not start if already started.
 	if t.errC != nil {
 		return
@@ -50,7 +50,7 @@ func (t *Torrent) start() {
 	t.startStatsWriter()
 }
 
-func (t *Torrent) startStatsWriter() {
+func (t *torrent) startStatsWriter() {
 	if t.statsWriteTicker != nil {
 		return
 	}
@@ -58,7 +58,7 @@ func (t *Torrent) startStatsWriter() {
 	t.statsWriteTickerC = t.statsWriteTicker.C
 }
 
-func (t *Torrent) startVerifier() {
+func (t *torrent) startVerifier() {
 	if t.verifier != nil {
 		panic("verifier exists")
 	}
@@ -66,7 +66,7 @@ func (t *Torrent) startVerifier() {
 	go t.verifier.Run(t.pieces, t.verifierProgressC, t.verifierResultC)
 }
 
-func (t *Torrent) startAllocator() {
+func (t *torrent) startAllocator() {
 	if t.allocator != nil {
 		panic("allocator exists")
 	}
@@ -74,7 +74,7 @@ func (t *Torrent) startAllocator() {
 	go t.allocator.Run(t.info, t.storage, t.allocatorProgressC, t.allocatorResultC)
 }
 
-func (t *Torrent) startAnnouncers() {
+func (t *torrent) startAnnouncers() {
 	if len(t.announcers) > 0 {
 		return
 	}
@@ -89,7 +89,7 @@ func (t *Torrent) startAnnouncers() {
 	}
 }
 
-func (t *Torrent) startAcceptor() {
+func (t *torrent) startAcceptor() {
 	if t.acceptor != nil {
 		return
 	}
@@ -105,7 +105,7 @@ func (t *Torrent) startAcceptor() {
 	}
 }
 
-func (t *Torrent) startUnchokeTimers() {
+func (t *torrent) startUnchokeTimers() {
 	if t.unchokeTimer == nil {
 		t.unchokeTimer = time.NewTicker(10 * time.Second)
 		t.unchokeTimerC = t.unchokeTimer.C
@@ -116,7 +116,7 @@ func (t *Torrent) startUnchokeTimers() {
 	}
 }
 
-func (t *Torrent) startInfoDownloaders() {
+func (t *torrent) startInfoDownloaders() {
 	if t.info != nil {
 		return
 	}
@@ -132,7 +132,7 @@ func (t *Torrent) startInfoDownloaders() {
 	}
 }
 
-func (t *Torrent) startPieceDownloaders() {
+func (t *torrent) startPieceDownloaders() {
 	if t.bitfield == nil {
 		return
 	}

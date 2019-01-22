@@ -15,7 +15,7 @@ type cachedPiece struct {
 	m        *sync.Mutex
 }
 
-func (t *Torrent) cachedPiece(pi *piece.Piece) *cachedPiece {
+func (t *torrent) cachedPiece(pi *piece.Piece) *cachedPiece {
 	return &cachedPiece{
 		pi:       pi,
 		cache:    t.pieceCache,

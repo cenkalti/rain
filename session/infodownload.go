@@ -5,7 +5,7 @@ import (
 	"github.com/cenkalti/rain/session/internal/peerprotocol"
 )
 
-func (t *Torrent) nextInfoDownload() *infodownloader.InfoDownloader {
+func (t *torrent) nextInfoDownload() *infodownloader.InfoDownloader {
 	for pe := range t.peers {
 		if _, ok := t.infoDownloaders[pe]; ok {
 			continue

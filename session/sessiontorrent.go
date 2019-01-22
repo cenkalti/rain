@@ -7,44 +7,44 @@ import (
 	"github.com/nictuku/dht"
 )
 
-type SessionTorrent struct {
+type Torrent struct {
 	id           uint64
 	port         uint16
 	dhtAnnouncer *dhtAnnouncer
 	session      *Session
-	torrent      *Torrent
+	torrent      *torrent
 	removed      chan struct{}
 }
 
-func (t *SessionTorrent) ID() uint64 {
+func (t *Torrent) ID() uint64 {
 	return t.id
 }
 
-func (t *SessionTorrent) Name() string {
+func (t *Torrent) Name() string {
 	return t.torrent.Name()
 }
 
-func (t *SessionTorrent) InfoHash() string {
+func (t *Torrent) InfoHash() string {
 	return t.torrent.InfoHash()
 }
 
-func (t *SessionTorrent) Stats() Stats {
+func (t *Torrent) Stats() Stats {
 	return t.torrent.Stats()
 }
 
-func (t *SessionTorrent) Trackers() []Tracker {
+func (t *Torrent) Trackers() []Tracker {
 	return t.torrent.Trackers()
 }
 
-func (t *SessionTorrent) Peers() []Peer {
+func (t *Torrent) Peers() []Peer {
 	return t.torrent.Peers()
 }
 
-func (t *SessionTorrent) Port() uint16 {
+func (t *Torrent) Port() uint16 {
 	return t.port
 }
 
-func (t *SessionTorrent) Start() error {
+func (t *Torrent) Start() error {
 	subBucket := strconv.FormatUint(t.id, 10)
 	err := t.session.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(torrentsBucket).Bucket([]byte(subBucket))
@@ -62,7 +62,7 @@ func (t *SessionTorrent) Start() error {
 	return nil
 }
 
-func (t *SessionTorrent) Stop() error {
+func (t *Torrent) Stop() error {
 	subBucket := strconv.FormatUint(t.id, 10)
 	err := t.session.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(torrentsBucket).Bucket([]byte(subBucket))
