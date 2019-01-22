@@ -15,16 +15,15 @@ import (
 
 	"github.com/boltdb/bolt"
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/torrent"
-	"github.com/cenkalti/rain/internal/torrent/bitfield"
-	"github.com/cenkalti/rain/internal/torrent/magnet"
-	"github.com/cenkalti/rain/internal/torrent/metainfo"
-	"github.com/cenkalti/rain/internal/torrent/resumer"
-	"github.com/cenkalti/rain/internal/torrent/resumer/boltdbresumer"
-	"github.com/cenkalti/rain/internal/torrent/storage/filestorage"
 	"github.com/cenkalti/rain/internal/tracker"
+	"github.com/cenkalti/rain/session/bitfield"
 	"github.com/cenkalti/rain/session/internal/blocklist"
 	"github.com/cenkalti/rain/session/internal/trackermanager"
+	"github.com/cenkalti/rain/session/magnet"
+	"github.com/cenkalti/rain/session/metainfo"
+	"github.com/cenkalti/rain/session/resumer"
+	"github.com/cenkalti/rain/session/resumer/boltdbresumer"
+	"github.com/cenkalti/rain/session/storage/filestorage"
 	"github.com/mitchellh/go-homedir"
 	"github.com/nictuku/dht"
 )
@@ -49,8 +48,8 @@ type Session struct {
 	dhtPeerRequests map[dht.InfoHash]struct{}
 
 	m                  sync.RWMutex
-	torrents           map[uint64]*Torrent
-	torrentsByInfoHash map[dht.InfoHash][]*Torrent
+	torrents           map[uint64]*SessionTorrent
+	torrentsByInfoHash map[dht.InfoHash][]*SessionTorrent
 
 	mPorts         sync.Mutex
 	availablePorts map[uint16]struct{}
@@ -140,8 +139,8 @@ func New(cfg Config) (*Session, error) {
 		blocklist:          bl,
 		trackerManager:     trackermanager.New(bl),
 		log:                l,
-		torrents:           make(map[uint64]*Torrent),
-		torrentsByInfoHash: make(map[dht.InfoHash][]*Torrent),
+		torrents:           make(map[uint64]*SessionTorrent),
+		torrentsByInfoHash: make(map[dht.InfoHash][]*SessionTorrent),
 		availablePorts:     ports,
 		dht:                dhtNode,
 		dhtPeerRequests:    make(map[dht.InfoHash]struct{}),
@@ -231,7 +230,7 @@ func parseDHTPeers(peers []string) []*net.TCPAddr {
 func (s *Session) parseTrackers(trackers []string) []tracker.Tracker {
 	var ret []tracker.Tracker
 	for _, tr := range trackers {
-		t, err := s.trackerManager.Get(tr, s.config.Torrent.HTTPTrackerTimeout, s.config.Torrent.HTTPTrackerUserAgent)
+		t, err := s.trackerManager.Get(tr, s.config.HTTPTrackerTimeout, s.config.HTTPTrackerUserAgent)
 		if err != nil {
 			s.log.Warningln("cannot parse tracker url:", err)
 			continue
@@ -243,7 +242,7 @@ func (s *Session) parseTrackers(trackers []string) []tracker.Tracker {
 
 func (s *Session) loadExistingTorrents(ids []uint64) error {
 	var loaded int
-	var started []*Torrent
+	var started []*SessionTorrent
 	for _, id := range ids {
 		res, err := boltdbresumer.New(s.db, torrentsBucket, []byte(strconv.FormatUint(id, 10)))
 		if err != nil {
@@ -260,13 +259,13 @@ func (s *Session) loadExistingTorrents(ids []uint64) error {
 			s.log.Error(err)
 			continue
 		}
-		opt := torrent.Options{
+		opt := Options{
 			Name:      spec.Name,
 			Port:      spec.Port,
 			Trackers:  s.parseTrackers(spec.Trackers),
 			Resumer:   res,
 			Blocklist: s.blocklist,
-			Config:    &s.config.Torrent,
+			Config:    &s.config,
 			Stats: resumer.Stats{
 				BytesDownloaded: spec.BytesDownloaded,
 				BytesUploaded:   spec.BytesUploaded,
@@ -343,7 +342,7 @@ func (s *Session) Close() error {
 	s.m.Lock()
 	wg.Add(len(s.torrents))
 	for _, t := range s.torrents {
-		go func(t *Torrent) {
+		go func(t *SessionTorrent) {
 			t.torrent.Close()
 			wg.Done()
 		}(t)
@@ -362,17 +361,17 @@ func (s *Session) Close() error {
 	return s.db.Close()
 }
 
-func (s *Session) ListTorrents() []*Torrent {
+func (s *Session) ListTorrents() []*SessionTorrent {
 	s.m.RLock()
 	defer s.m.RUnlock()
-	torrents := make([]*Torrent, 0, len(s.torrents))
+	torrents := make([]*SessionTorrent, 0, len(s.torrents))
 	for _, t := range s.torrents {
 		torrents = append(torrents, t)
 	}
 	return torrents
 }
 
-func (s *Session) AddTorrent(r io.Reader) (*Torrent, error) {
+func (s *Session) AddTorrent(r io.Reader) (*SessionTorrent, error) {
 	mi, err := metainfo.New(r)
 	if err != nil {
 		return nil, err
@@ -422,7 +421,7 @@ func (s *Session) AddTorrent(r io.Reader) (*Torrent, error) {
 	return t2, t2.Start()
 }
 
-func (s *Session) AddMagnet(link string) (*Torrent, error) {
+func (s *Session) AddMagnet(link string) (*SessionTorrent, error) {
 	ma, err := magnet.New(link)
 	if err != nil {
 		return nil, err
@@ -464,7 +463,7 @@ func (s *Session) AddMagnet(link string) (*Torrent, error) {
 	return t2, t2.Start()
 }
 
-func (s *Session) add() (*torrent.Options, *filestorage.FileStorage, uint64, error) {
+func (s *Session) add() (*Options, *filestorage.FileStorage, uint64, error) {
 	port, err := s.getPort()
 	if err != nil {
 		return nil, nil, 0, err
@@ -492,16 +491,16 @@ func (s *Session) add() (*torrent.Options, *filestorage.FileStorage, uint64, err
 	if err != nil {
 		return nil, nil, 0, err
 	}
-	return &torrent.Options{
+	return &Options{
 		Port:      int(port),
 		Resumer:   res,
 		Blocklist: s.blocklist,
-		Config:    &s.config.Torrent,
+		Config:    &s.config,
 	}, sto, id, nil
 }
 
-func (s *Session) newTorrent(t *torrent.Torrent, id uint64, port uint16, ann *dhtAnnouncer) *Torrent {
-	t2 := &Torrent{
+func (s *Session) newTorrent(t *Torrent, id uint64, port uint16, ann *dhtAnnouncer) *SessionTorrent {
+	t2 := &SessionTorrent{
 		session:      s,
 		torrent:      t,
 		id:           id,
@@ -533,7 +532,7 @@ func (s *Session) releasePort(port uint16) {
 	s.availablePorts[port] = struct{}{}
 }
 
-func (s *Session) GetTorrent(id uint64) *Torrent {
+func (s *Session) GetTorrent(id uint64) *SessionTorrent {
 	s.m.RLock()
 	defer s.m.RUnlock()
 	return s.torrents[id]

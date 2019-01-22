@@ -14,8 +14,8 @@ import (
 
 	"github.com/cenkalti/backoff"
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/torrent/blocklist"
 	"github.com/cenkalti/rain/internal/tracker"
+	"github.com/cenkalti/rain/session/blocklist"
 )
 
 const connectionIDMagic = 0x41727101980

@@ -3,7 +3,7 @@ package session
 import (
 	"net"
 
-	"github.com/cenkalti/rain/internal/torrent/dht"
+	"github.com/cenkalti/rain/session/dht"
 	node "github.com/nictuku/dht"
 )
 

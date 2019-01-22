@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/cenkalti/rain/internal/jsonutil"
-	"github.com/cenkalti/rain/internal/torrent"
 	"github.com/cenkalti/rain/rainrpc"
 	"github.com/jroimartin/gocui"
 )
@@ -27,9 +26,9 @@ type Console struct {
 	errTorrents     error
 	selectedID      uint64
 	selectedTab     int
-	stats           torrent.Stats
-	trackers        []torrent.Tracker
-	peers           []torrent.Peer
+	stats           rainrpc.Stats
+	trackers        []rainrpc.Tracker
+	peers           []rainrpc.Peer
 	errDetails      error
 	updatingDetails bool
 	m               sync.Mutex

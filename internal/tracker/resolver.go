@@ -6,7 +6,7 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/cenkalti/rain/internal/torrent/blocklist"
+	"github.com/cenkalti/rain/session/blocklist"
 )
 
 func ResolveHost(ctx context.Context, addr string, bl blocklist.Blocklist) (net.IP, int, error) {

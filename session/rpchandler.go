@@ -40,7 +40,7 @@ func (h *rpcHandler) AddMagnet(args *rainrpc.AddMagnetRequest, reply *rainrpc.Ad
 	return nil
 }
 
-func newTorrent(t *Torrent) rainrpc.Torrent {
+func newTorrent(t *SessionTorrent) rainrpc.Torrent {
 	return rainrpc.Torrent{
 		ID:       t.ID(),
 		Name:     t.Name(),
@@ -59,7 +59,79 @@ func (h *rpcHandler) GetTorrentStats(args *rainrpc.GetTorrentStatsRequest, reply
 	if t == nil {
 		return errors.New("torrent not found")
 	}
-	reply.Stats = t.Stats()
+	s := t.Stats()
+	reply.Stats = rainrpc.Stats{
+		Status: string(s.Status),
+		Error:  s.Error,
+		Pieces: struct {
+			Have      uint32
+			Missing   uint32
+			Available uint32
+			Total     uint32
+		}{
+			Have:      s.Pieces.Have,
+			Missing:   s.Pieces.Missing,
+			Available: s.Pieces.Available,
+			Total:     s.Pieces.Total,
+		},
+		Bytes: struct {
+			Complete   int64
+			Incomplete int64
+			Total      int64
+			Downloaded int64
+			Uploaded   int64
+			Wasted     int64
+		}{
+			Complete:   s.Bytes.Complete,
+			Incomplete: s.Bytes.Incomplete,
+			Total:      s.Bytes.Total,
+			Downloaded: s.Bytes.Downloaded,
+			Uploaded:   s.Bytes.Uploaded,
+			Wasted:     s.Bytes.Wasted,
+		},
+		Peers: struct {
+			Total    int
+			Incoming int
+			Outgoing int
+		}{
+			Total:    s.Peers.Total,
+			Incoming: s.Peers.Incoming,
+			Outgoing: s.Peers.Outgoing,
+		},
+		Handshakes: struct {
+			Total    int
+			Incoming int
+			Outgoing int
+		}{
+			Total:    s.Handshakes.Total,
+			Incoming: s.Handshakes.Incoming,
+			Outgoing: s.Handshakes.Outgoing,
+		},
+		ReadyAddresses: s.ReadyAddresses,
+		Downloads: struct {
+			Total   int
+			Running int
+			Snubbed int
+			Choked  int
+		}{
+			Total:   s.Downloads.Total,
+			Running: s.Downloads.Running,
+			Snubbed: s.Downloads.Snubbed,
+			Choked:  s.Downloads.Choked,
+		},
+		MetadataDownloads: struct {
+			Total   int
+			Snubbed int
+			Running int
+		}{
+			Total:   s.MetadataDownloads.Total,
+			Snubbed: s.MetadataDownloads.Snubbed,
+			Running: s.MetadataDownloads.Running,
+		},
+		Name:        s.Name,
+		Private:     s.Private,
+		PieceLength: s.PieceLength,
+	}
 	return nil
 }
 
@@ -68,7 +140,17 @@ func (h *rpcHandler) GetTorrentTrackers(args *rainrpc.GetTorrentTrackersRequest,
 	if t == nil {
 		return errors.New("torrent not found")
 	}
-	reply.Trackers = t.Trackers()
+	trackers := t.Trackers()
+	reply.Trackers = make([]rainrpc.Tracker, len(trackers))
+	for i, t := range trackers {
+		reply.Trackers[i] = rainrpc.Tracker{
+			URL:      t.URL,
+			Status:   t.Status,
+			Leechers: t.Leechers,
+			Seeders:  t.Seeders,
+			Error:    t.Error,
+		}
+	}
 	return nil
 }
 
@@ -77,7 +159,13 @@ func (h *rpcHandler) GetTorrentPeers(args *rainrpc.GetTorrentPeersRequest, reply
 	if t == nil {
 		return errors.New("torrent not found")
 	}
-	reply.Peers = t.Peers()
+	peers := t.Peers()
+	reply.Peers = make([]rainrpc.Peer, len(peers))
+	for i, p := range peers {
+		reply.Peers[i] = rainrpc.Peer{
+			Addr: p.Addr,
+		}
+	}
 	return nil
 }
 
