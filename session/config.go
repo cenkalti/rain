@@ -19,11 +19,15 @@ type Config struct {
 	DHTPort uint16
 	// At start, client will set max open files limit to this number. (like "ulimit -n" command)
 	MaxOpenFiles uint64
-	// Path to the blocklist file in CIDR format.
-	Blocklist string
-
-	RPCHost            string
-	RPCPort            int
+	// URL to the blocklist file in CIDR format.
+	BlocklistURL string
+	// When to refresh blocklist
+	BlocklistUpdateInterval time.Duration
+	// Host to listen for RPC server
+	RPCHost string
+	// Listen port for RPC server
+	RPCPort int
+	// Time to wait for ongoing requests before shutting down RPC HTTP server.
 	RPCShutdownTimeout time.Duration
 
 	Torrent torrent.Config

@@ -29,7 +29,12 @@ import (
 	"github.com/nictuku/dht"
 )
 
-var mainBucket = []byte("torrents")
+var (
+	sessionBucket         = []byte("session")
+	torrentsBucket        = []byte("torrents")
+	blocklistKey          = []byte("blocklist")
+	blocklistTimestampKey = []byte("blocklist-timestamp")
+)
 
 type Session struct {
 	config         Config
@@ -92,7 +97,11 @@ func New(cfg Config) (*Session, error) {
 	}()
 	var ids []uint64
 	err = db.Update(func(tx *bolt.Tx) error {
-		b, err2 := tx.CreateBucketIfNotExists(mainBucket)
+		b, err2 := tx.CreateBucketIfNotExists(sessionBucket)
+		if err2 != nil {
+			return err2
+		}
+		b, err2 = tx.CreateBucketIfNotExists(torrentsBucket)
 		if err2 != nil {
 			return err2
 		}
@@ -138,7 +147,7 @@ func New(cfg Config) (*Session, error) {
 		dhtPeerRequests:    make(map[dht.InfoHash]struct{}),
 		closeC:             make(chan struct{}),
 	}
-	err = c.ReloadBlocklist()
+	err = c.startBlocklistReloader()
 	if err != nil {
 		return nil, err
 	}
@@ -236,7 +245,7 @@ func (s *Session) loadExistingTorrents(ids []uint64) error {
 	var loaded int
 	var started []*Torrent
 	for _, id := range ids {
-		res, err := boltdbresumer.New(s.db, mainBucket, []byte(strconv.FormatUint(id, 10)))
+		res, err := boltdbresumer.New(s.db, torrentsBucket, []byte(strconv.FormatUint(id, 10)))
 		if err != nil {
 			s.log.Error(err)
 			continue
@@ -317,7 +326,7 @@ func (s *Session) hasStarted(id uint64) (bool, error) {
 	subBucket := strconv.FormatUint(id, 10)
 	started := false
 	err := s.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(mainBucket).Bucket([]byte(subBucket))
+		b := tx.Bucket(torrentsBucket).Bucket([]byte(subBucket))
 		val := b.Get([]byte("started"))
 		if bytes.Equal(val, []byte("1")) {
 			started = true
@@ -467,14 +476,14 @@ func (s *Session) add() (*torrent.Options, *filestorage.FileStorage, uint64, err
 	}()
 	var id uint64
 	err = s.db.Update(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(mainBucket)
+		bucket := tx.Bucket(torrentsBucket)
 		id, err = bucket.NextSequence()
 		return err
 	})
 	if err != nil {
 		return nil, nil, 0, err
 	}
-	res, err := boltdbresumer.New(s.db, mainBucket, []byte(strconv.FormatUint(id, 10)))
+	res, err := boltdbresumer.New(s.db, torrentsBucket, []byte(strconv.FormatUint(id, 10)))
 	if err != nil {
 		return nil, nil, 0, err
 	}
@@ -544,23 +553,6 @@ func (s *Session) RemoveTorrent(id uint64) error {
 	s.releasePort(t.port)
 	subBucket := strconv.FormatUint(id, 10)
 	return s.db.Update(func(tx *bolt.Tx) error {
-		return tx.Bucket(mainBucket).DeleteBucket([]byte(subBucket))
+		return tx.Bucket(torrentsBucket).DeleteBucket([]byte(subBucket))
 	})
-}
-
-func (s *Session) ReloadBlocklist() error {
-	if s.config.Blocklist == "" {
-		return nil
-	}
-	f, err := os.Open(s.config.Blocklist)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	n, err := s.blocklist.Reload(f)
-	if err != nil {
-		return err
-	}
-	s.log.Infof("Loaded %d rules from blocklist.", n)
-	return nil
 }

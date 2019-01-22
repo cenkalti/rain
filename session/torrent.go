@@ -48,7 +48,7 @@ func (t *Torrent) Port() uint16 {
 func (t *Torrent) Start() error {
 	subBucket := strconv.FormatUint(t.id, 10)
 	err := t.session.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(mainBucket).Bucket([]byte(subBucket))
+		b := tx.Bucket(torrentsBucket).Bucket([]byte(subBucket))
 		return b.Put([]byte("started"), []byte("1"))
 	})
 	if err != nil {
@@ -66,7 +66,7 @@ func (t *Torrent) Start() error {
 func (t *Torrent) Stop() error {
 	subBucket := strconv.FormatUint(t.id, 10)
 	err := t.session.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(mainBucket).Bucket([]byte(subBucket))
+		b := tx.Bucket(torrentsBucket).Bucket([]byte(subBucket))
 		return b.Put([]byte("started"), []byte("0"))
 	})
 	if err != nil {
