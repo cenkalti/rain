@@ -8,6 +8,10 @@ import (
 	"github.com/nictuku/dht"
 )
 
+type TorrentStats = torrent.Stats
+type Tracker = torrent.Tracker
+type Peer = torrent.Peer
+
 type Torrent struct {
 	id           uint64
 	port         uint16
@@ -29,15 +33,15 @@ func (t *Torrent) InfoHash() string {
 	return t.torrent.InfoHash()
 }
 
-func (t *Torrent) Stats() torrent.Stats {
+func (t *Torrent) Stats() TorrentStats {
 	return t.torrent.Stats()
 }
 
-func (t *Torrent) Trackers() []torrent.Tracker {
+func (t *Torrent) Trackers() []Tracker {
 	return t.torrent.Trackers()
 }
 
-func (t *Torrent) Peers() []torrent.Peer {
+func (t *Torrent) Peers() []Peer {
 	return t.torrent.Peers()
 }
 
