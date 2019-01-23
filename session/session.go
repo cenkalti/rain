@@ -561,7 +561,11 @@ func (s *Session) RemoveTorrent(id uint64) error {
 	delete(s.torrentsByInfoHash, dht.InfoHash(t.torrent.InfoHashBytes()))
 	s.releasePort(t.port)
 	subBucket := strconv.FormatUint(id, 10)
-	return s.db.Update(func(tx *bolt.Tx) error {
+	err := s.db.Update(func(tx *bolt.Tx) error {
 		return tx.Bucket(torrentsBucket).DeleteBucket([]byte(subBucket))
 	})
+	if err != nil {
+		return err
+	}
+	return os.RemoveAll(t.torrent.storage.(*filestorage.FileStorage).Dest())
 }
