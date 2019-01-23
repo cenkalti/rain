@@ -15,7 +15,6 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/cenkalti/boltbrowser/boltbrowser"
 	clog "github.com/cenkalti/log"
-	"github.com/cenkalti/rain/internal/clientversion"
 	"github.com/cenkalti/rain/internal/console"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/rainrpc"
@@ -33,7 +32,7 @@ var (
 )
 
 func main() {
-	app.Version = clientversion.Version
+	app.Version = session.Version
 	app.Usage = "BitTorrent client"
 	app.Flags = []cli.Flag{
 		cli.StringFlag{

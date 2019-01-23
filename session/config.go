@@ -1,10 +1,6 @@
 package session
 
-import (
-	"time"
-
-	"github.com/cenkalti/rain/internal/clientversion"
-)
+import "time"
 
 // Config for Session.
 type Config struct {
@@ -130,7 +126,7 @@ var DefaultConfig = Config{
 	TrackerStopTimeout:               5 * time.Second,
 	MinAnnounceInterval:              time.Minute,
 	HTTPTrackerTimeout:               10 * time.Second,
-	HTTPTrackerUserAgent:             "Rain/" + clientversion.Version,
+	HTTPTrackerUserAgent:             "Rain/" + Version,
 	DHTAnnounceInterval:              30 * time.Minute,
 	MinDHTAnnounceInterval:           time.Minute,
 	BitfieldWriteInterval:            30 * time.Second,
@@ -139,6 +135,6 @@ var DefaultConfig = Config{
 	PieceCacheSize:                   50 * 256 * 1024,
 	PieceCacheTTL:                    5 * time.Minute,
 	MaxPeerAddresses:                 2000,
-	ExtensionHandshakeClientVersion:  "Rain " + clientversion.Version,
-	PeerIDPrefix:                     "-RN" + clientversion.Version + "-",
+	ExtensionHandshakeClientVersion:  "Rain " + Version,
+	PeerIDPrefix:                     "-RN" + Version + "-",
 }
