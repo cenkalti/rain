@@ -5,9 +5,9 @@ import "math"
 // Stats contains statistics about Torrent.
 type Stats struct {
 	// Status of the torrent.
-	Status Status
+	Status TorrentStatus
 	// Contains the error message if torrent is stopped unexpectedly.
-	Error  *string
+	Error  error
 	Pieces struct {
 		Have      uint32
 		Missing   uint32
@@ -76,12 +76,7 @@ type Stats struct {
 func (t *torrent) stats() Stats {
 	var s Stats
 	s.Status = t.status()
-	if t.lastError != nil {
-		errStr := t.lastError.Error()
-		s.Error = &errStr
-	} else {
-		s.Error = nil
-	}
+	s.Error = t.lastError
 	// TODO breakdown ready addresses by source
 	s.ReadyAddresses = t.addrList.Len()
 	s.Handshakes.Incoming = len(t.incomingHandshakers)
@@ -149,7 +144,7 @@ func (t *torrent) getTrackers() []Tracker {
 		st := an.Stats()
 		t := Tracker{
 			URL:      an.Tracker.URL(),
-			Status:   st.Status,
+			Status:   TrackerStatus(st.Status),
 			Seeders:  st.Seeders,
 			Leechers: st.Leechers,
 			Error:    st.Error,
@@ -163,7 +158,7 @@ func (t *torrent) getPeers() []Peer {
 	var peers []Peer
 	for pe := range t.peers {
 		p := Peer{
-			Addr: pe.Addr().String(),
+			Addr: pe.Addr(),
 		}
 		peers = append(peers, p)
 	}

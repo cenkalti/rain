@@ -10,16 +10,18 @@ import (
 	"github.com/cenkalti/rain/internal/tracker"
 )
 
+type Status int
+
 const (
-	NotContactedYet string = "Not contacted yet"
-	Contacting             = "Contacting"
-	Working                = "Working"
-	NotWorking             = "Not working"
+	NotContactedYet Status = iota
+	Contacting
+	Working
+	NotWorking
 )
 
 type PeriodicalAnnouncer struct {
 	Tracker        tracker.Tracker
-	status         string
+	status         Status
 	statsCommandC  chan statsRequest
 	numWant        int
 	interval       time.Duration
@@ -183,23 +185,19 @@ func (a *PeriodicalAnnouncer) Run() {
 }
 
 type Stats struct {
-	Status   string
-	Error    *string
+	Status   Status
+	Error    error
 	Seeders  int
 	Leechers int
 }
 
 func (a *PeriodicalAnnouncer) stats() Stats {
-	st := Stats{
+	return Stats{
 		Status:   a.status,
+		Error:    a.lastError,
 		Seeders:  a.seeders,
 		Leechers: a.leechers,
 	}
-	if a.lastError != nil {
-		s := a.lastError.Error()
-		st.Error = &s
-	}
-	return st
 }
 
 type announcer struct {

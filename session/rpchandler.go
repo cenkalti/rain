@@ -61,8 +61,7 @@ func (h *rpcHandler) GetTorrentStats(args *rainrpc.GetTorrentStatsRequest, reply
 	}
 	s := t.Stats()
 	reply.Stats = rainrpc.Stats{
-		Status: string(s.Status),
-		Error:  s.Error,
+		Status: torrentStatusToString(s.Status),
 		Pieces: struct {
 			Have      uint32
 			Missing   uint32
@@ -132,6 +131,10 @@ func (h *rpcHandler) GetTorrentStats(args *rainrpc.GetTorrentStatsRequest, reply
 		Private:     s.Private,
 		PieceLength: s.PieceLength,
 	}
+	if s.Error != nil {
+		errStr := s.Error.Error()
+		reply.Stats.Error = &errStr
+	}
 	return nil
 }
 
@@ -145,10 +148,13 @@ func (h *rpcHandler) GetTorrentTrackers(args *rainrpc.GetTorrentTrackersRequest,
 	for i, t := range trackers {
 		reply.Trackers[i] = rainrpc.Tracker{
 			URL:      t.URL,
-			Status:   t.Status,
+			Status:   trackerStatusToString(t.Status),
 			Leechers: t.Leechers,
 			Seeders:  t.Seeders,
-			Error:    t.Error,
+		}
+		if t.Error != nil {
+			errStr := t.Error.Error()
+			reply.Trackers[i].Error = &errStr
 		}
 	}
 	return nil
@@ -163,7 +169,7 @@ func (h *rpcHandler) GetTorrentPeers(args *rainrpc.GetTorrentPeersRequest, reply
 	reply.Peers = make([]rainrpc.Peer, len(peers))
 	for i, p := range peers {
 		reply.Peers[i] = rainrpc.Peer{
-			Addr: p.Addr,
+			Addr: p.Addr.String(),
 		}
 	}
 	return nil

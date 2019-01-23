@@ -98,12 +98,31 @@ func (t *torrent) AddPeers(peers []*net.TCPAddr) {
 	}
 }
 
+type TrackerStatus int
+
+const (
+	NotContactedYet TrackerStatus = iota
+	Contacting
+	Working
+	NotWorking
+)
+
+func trackerStatusToString(s TrackerStatus) string {
+	m := map[TrackerStatus]string{
+		NotContactedYet: "Not contacted yet",
+		Contacting:      "Contacting",
+		Working:         "Working",
+		NotWorking:      "Not working",
+	}
+	return m[s]
+}
+
 type Tracker struct {
 	URL      string
-	Status   string
+	Status   TrackerStatus
 	Leechers int
 	Seeders  int
-	Error    *string
+	Error    error
 }
 
 type trackersRequest struct {
@@ -125,7 +144,7 @@ func (t *torrent) Trackers() []Tracker {
 }
 
 type Peer struct {
-	Addr string
+	Addr net.Addr
 }
 
 type peersRequest struct {
