@@ -10,7 +10,6 @@ import (
 	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/session/bitfield"
 	"github.com/cenkalti/rain/session/blocklist"
-	"github.com/cenkalti/rain/session/dht"
 	"github.com/cenkalti/rain/session/internal/acceptor"
 	"github.com/cenkalti/rain/session/internal/addrlist"
 	"github.com/cenkalti/rain/session/internal/allocator"
@@ -167,7 +166,7 @@ type torrent struct {
 	stoppedEventAnnouncer *announcer.StopAnnouncer
 
 	// If not nil, torrent is announced to DHT periodically.
-	dhtNode      dht.DHT
+	dhtNode      DHT
 	dhtAnnouncer *announcer.DHTAnnouncer
 	dhtPeersC    chan []*net.TCPAddr
 

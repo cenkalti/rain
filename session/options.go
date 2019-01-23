@@ -9,7 +9,6 @@ import (
 	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/session/bitfield"
 	"github.com/cenkalti/rain/session/blocklist"
-	"github.com/cenkalti/rain/session/dht"
 	"github.com/cenkalti/rain/session/internal/addrlist"
 	"github.com/cenkalti/rain/session/internal/allocator"
 	"github.com/cenkalti/rain/session/internal/announcer"
@@ -46,9 +45,17 @@ type options struct {
 	// Config for downloading torrent. DefaultOptions will be used if nil.
 	Config *Config
 	// Optional DHT node
-	DHT dht.DHT
+	DHT DHT
 	// Optional blocklist to prevent connection to blocked IP addresses.
 	Blocklist blocklist.Blocklist
+}
+
+type DHT interface {
+	// Announce must request new peers from DHT.
+	// Announce is called by torrent periodically or when more peers are needed.
+	Announce()
+	// Peers must return a channel for peer addresses returned in response to Announce call.
+	Peers() chan []*net.TCPAddr
 }
 
 // NewTorrent creates a new torrent that downloads the torrent with infoHash and saves the files to the storage.

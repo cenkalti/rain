@@ -3,7 +3,6 @@ package session
 import (
 	"net"
 
-	"github.com/cenkalti/rain/session/dht"
 	node "github.com/nictuku/dht"
 )
 
@@ -14,7 +13,7 @@ type dhtAnnouncer struct {
 	peersC   chan []*net.TCPAddr
 }
 
-var _ dht.DHT = (*dhtAnnouncer)(nil)
+var _ DHT = (*dhtAnnouncer)(nil)
 
 func newDHTAnnouncer(node *node.DHT, infoHash []byte, port int) *dhtAnnouncer {
 	return &dhtAnnouncer{
