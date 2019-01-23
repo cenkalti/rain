@@ -1,10 +1,10 @@
 package session
 
 import (
+	"github.com/cenkalti/rain/internal/announcer"
+	"github.com/cenkalti/rain/internal/handshaker/incominghandshaker"
+	"github.com/cenkalti/rain/internal/handshaker/outgoinghandshaker"
 	"github.com/cenkalti/rain/internal/tracker"
-	"github.com/cenkalti/rain/session/internal/announcer"
-	"github.com/cenkalti/rain/session/internal/handshaker/incominghandshaker"
-	"github.com/cenkalti/rain/session/internal/handshaker/outgoinghandshaker"
 )
 
 func (t *torrent) stop(err error) {

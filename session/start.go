@@ -4,11 +4,11 @@ import (
 	"net"
 	"time"
 
-	"github.com/cenkalti/rain/session/internal/acceptor"
-	"github.com/cenkalti/rain/session/internal/allocator"
-	"github.com/cenkalti/rain/session/internal/announcer"
-	"github.com/cenkalti/rain/session/internal/piecedownloader"
-	"github.com/cenkalti/rain/session/internal/verifier"
+	"github.com/cenkalti/rain/internal/acceptor"
+	"github.com/cenkalti/rain/internal/allocator"
+	"github.com/cenkalti/rain/internal/announcer"
+	"github.com/cenkalti/rain/internal/piecedownloader"
+	"github.com/cenkalti/rain/internal/verifier"
 )
 
 func (t *torrent) start() {

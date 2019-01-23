@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"sort"
 
-	"github.com/cenkalti/rain/session/internal/peer"
+	"github.com/cenkalti/rain/internal/peer"
 )
 
 func (t *torrent) tickUnchoke() {

@@ -3,10 +3,10 @@ package session
 import (
 	"fmt"
 
+	"github.com/cenkalti/rain/internal/allocator"
+	"github.com/cenkalti/rain/internal/piece"
+	"github.com/cenkalti/rain/internal/piecepicker"
 	"github.com/cenkalti/rain/session/bitfield"
-	"github.com/cenkalti/rain/session/internal/allocator"
-	"github.com/cenkalti/rain/session/internal/piece"
-	"github.com/cenkalti/rain/session/internal/piecepicker"
 )
 
 func (t *torrent) handleAllocationDone(al *allocator.Allocator) {

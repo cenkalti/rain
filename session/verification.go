@@ -3,8 +3,8 @@ package session
 import (
 	"fmt"
 
-	"github.com/cenkalti/rain/session/internal/peerprotocol"
-	"github.com/cenkalti/rain/session/internal/verifier"
+	"github.com/cenkalti/rain/internal/peerprotocol"
+	"github.com/cenkalti/rain/internal/verifier"
 )
 
 func (t *torrent) handleVerificationDone(ve *verifier.Verifier) {

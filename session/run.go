@@ -6,15 +6,15 @@ import (
 	"net"
 	"time"
 
+	"github.com/cenkalti/rain/internal/announcer"
+	"github.com/cenkalti/rain/internal/handshaker/incominghandshaker"
+	"github.com/cenkalti/rain/internal/handshaker/outgoinghandshaker"
+	"github.com/cenkalti/rain/internal/infodownloader"
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/session/internal/announcer"
-	"github.com/cenkalti/rain/session/internal/handshaker/incominghandshaker"
-	"github.com/cenkalti/rain/session/internal/handshaker/outgoinghandshaker"
-	"github.com/cenkalti/rain/session/internal/infodownloader"
-	"github.com/cenkalti/rain/session/internal/peer"
-	"github.com/cenkalti/rain/session/internal/peerconn"
-	"github.com/cenkalti/rain/session/internal/peerprotocol"
-	"github.com/cenkalti/rain/session/internal/piecedownloader"
+	"github.com/cenkalti/rain/internal/peer"
+	"github.com/cenkalti/rain/internal/peerconn"
+	"github.com/cenkalti/rain/internal/peerprotocol"
+	"github.com/cenkalti/rain/internal/piecedownloader"
 )
 
 var errClosed = errors.New("torrent is closed")

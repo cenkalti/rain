@@ -1,8 +1,8 @@
 package session
 
 import (
-	"github.com/cenkalti/rain/session/internal/infodownloader"
-	"github.com/cenkalti/rain/session/internal/peerprotocol"
+	"github.com/cenkalti/rain/internal/infodownloader"
+	"github.com/cenkalti/rain/internal/peerprotocol"
 )
 
 func (t *torrent) nextInfoDownload() *infodownloader.InfoDownloader {

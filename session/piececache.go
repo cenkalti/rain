@@ -4,8 +4,8 @@ import (
 	"encoding/binary"
 	"sync"
 
-	"github.com/cenkalti/rain/session/internal/piece"
-	"github.com/cenkalti/rain/session/internal/piececache"
+	"github.com/cenkalti/rain/internal/piece"
+	"github.com/cenkalti/rain/internal/piececache"
 )
 
 type cachedPiece struct {

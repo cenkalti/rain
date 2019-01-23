@@ -14,11 +14,11 @@ import (
 	"time"
 
 	"github.com/boltdb/bolt"
+	"github.com/cenkalti/rain/internal/blocklist"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/tracker"
+	"github.com/cenkalti/rain/internal/trackermanager"
 	"github.com/cenkalti/rain/session/bitfield"
-	"github.com/cenkalti/rain/session/internal/blocklist"
-	"github.com/cenkalti/rain/session/internal/trackermanager"
 	"github.com/cenkalti/rain/session/magnet"
 	"github.com/cenkalti/rain/session/metainfo"
 	"github.com/cenkalti/rain/session/resumer"
