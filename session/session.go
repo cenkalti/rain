@@ -235,7 +235,7 @@ func parseDHTPeers(peers []string) []*net.TCPAddr {
 func (s *Session) parseTrackers(trackers []string) []tracker.Tracker {
 	var ret []tracker.Tracker
 	for _, tr := range trackers {
-		t, err := s.trackerManager.Get(tr, s.config.HTTPTrackerTimeout, s.config.HTTPTrackerUserAgent)
+		t, err := s.trackerManager.Get(tr, s.config.TrackerHTTPTimeout, s.config.TrackerHTTPUserAgent)
 		if err != nil {
 			s.log.Warningln("cannot parse tracker url:", err)
 			continue

@@ -79,7 +79,7 @@ func (t *torrent) startAnnouncers() {
 		return
 	}
 	for _, tr := range t.trackers {
-		an := announcer.NewPeriodicalAnnouncer(tr, t.config.TrackerNumWant, t.config.MinAnnounceInterval, t.announcerRequestC, t.completeC, t.addrsFromTrackers, t.log)
+		an := announcer.NewPeriodicalAnnouncer(tr, t.config.TrackerNumWant, t.config.TrackerMinAnnounceInterval, t.announcerRequestC, t.completeC, t.addrsFromTrackers, t.log)
 		t.announcers = append(t.announcers, an)
 		go an.Run()
 	}
