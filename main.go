@@ -311,7 +311,7 @@ func handleRemove(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	_, err = clt.RemoveTorrent(id)
+	err = clt.RemoveTorrent(id)
 	return err
 }
 
@@ -374,7 +374,7 @@ func handleStart(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	_, err = clt.StartTorrent(id)
+	err = clt.StartTorrent(id)
 	return err
 }
 
@@ -383,7 +383,7 @@ func handleStop(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	_, err = clt.StopTorrent(id)
+	err = clt.StopTorrent(id)
 	return err
 }
 

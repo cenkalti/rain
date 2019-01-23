@@ -20,59 +20,59 @@ func (c *Client) Close() error {
 	return c.client.Close()
 }
 
-func (c *Client) ListTorrents() (*ListTorrentsResponse, error) {
+func (c *Client) ListTorrents() ([]Torrent, error) {
 	var reply ListTorrentsResponse
-	return &reply, c.client.Call("Session.ListTorrents", nil, &reply)
+	return reply.Torrents, c.client.Call("Session.ListTorrents", nil, &reply)
 }
 
-func (c *Client) AddTorrent(f io.Reader) (*AddTorrentResponse, error) {
+func (c *Client) AddTorrent(f io.Reader) (*Torrent, error) {
 	b, err := ioutil.ReadAll(f)
 	if err != nil {
 		return nil, err
 	}
 	args := AddTorrentRequest{Torrent: base64.StdEncoding.EncodeToString(b)}
 	var reply AddTorrentResponse
-	return &reply, c.client.Call("Session.AddTorrent", args, &reply)
+	return &reply.Torrent, c.client.Call("Session.AddTorrent", args, &reply)
 }
 
-func (c *Client) AddMagnet(magnet string) (*AddMagnetResponse, error) {
+func (c *Client) AddMagnet(magnet string) (*Torrent, error) {
 	args := AddMagnetRequest{Magnet: magnet}
 	var reply AddMagnetResponse
-	return &reply, c.client.Call("Session.AddMagnet", args, &reply)
+	return &reply.Torrent, c.client.Call("Session.AddMagnet", args, &reply)
 }
 
-func (c *Client) RemoveTorrent(id uint64) (*RemoveTorrentResponse, error) {
+func (c *Client) RemoveTorrent(id uint64) error {
 	args := RemoveTorrentRequest{ID: id}
 	var reply RemoveTorrentResponse
-	return &reply, c.client.Call("Session.RemoveTorrent", args, &reply)
+	return c.client.Call("Session.RemoveTorrent", args, &reply)
 }
 
-func (c *Client) GetTorrentStats(id uint64) (*GetTorrentStatsResponse, error) {
+func (c *Client) GetTorrentStats(id uint64) (*Stats, error) {
 	args := GetTorrentStatsRequest{ID: id}
 	var reply GetTorrentStatsResponse
-	return &reply, c.client.Call("Session.GetTorrentStats", args, &reply)
+	return &reply.Stats, c.client.Call("Session.GetTorrentStats", args, &reply)
 }
 
-func (c *Client) GetTorrentTrackers(id uint64) (*GetTorrentTrackersResponse, error) {
+func (c *Client) GetTorrentTrackers(id uint64) ([]Tracker, error) {
 	args := GetTorrentTrackersRequest{ID: id}
 	var reply GetTorrentTrackersResponse
-	return &reply, c.client.Call("Session.GetTorrentTrackers", args, &reply)
+	return reply.Trackers, c.client.Call("Session.GetTorrentTrackers", args, &reply)
 }
 
-func (c *Client) GetTorrentPeers(id uint64) (*GetTorrentPeersResponse, error) {
+func (c *Client) GetTorrentPeers(id uint64) ([]Peer, error) {
 	args := GetTorrentPeersRequest{ID: id}
 	var reply GetTorrentPeersResponse
-	return &reply, c.client.Call("Session.GetTorrentPeers", args, &reply)
+	return reply.Peers, c.client.Call("Session.GetTorrentPeers", args, &reply)
 }
 
-func (c *Client) StartTorrent(id uint64) (*StartTorrentResponse, error) {
+func (c *Client) StartTorrent(id uint64) error {
 	args := StartTorrentRequest{ID: id}
 	var reply StartTorrentResponse
-	return &reply, c.client.Call("Session.StartTorrent", args, &reply)
+	return c.client.Call("Session.StartTorrent", args, &reply)
 }
 
-func (c *Client) StopTorrent(id uint64) (*StopTorrentResponse, error) {
+func (c *Client) StopTorrent(id uint64) error {
 	args := StopTorrentRequest{ID: id}
 	var reply StopTorrentResponse
-	return &reply, c.client.Call("Session.StopTorrent", args, &reply)
+	return c.client.Call("Session.StopTorrent", args, &reply)
 }

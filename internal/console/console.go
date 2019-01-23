@@ -182,12 +182,12 @@ func (c *Console) updateLoop(g *gocui.Gui) {
 }
 
 func (c *Console) updateTorrents(g *gocui.Gui) {
-	resp, err := c.client.ListTorrents()
+	torrents, err := c.client.ListTorrents()
 
-	sort.Slice(resp.Torrents, func(i, j int) bool { return resp.Torrents[i].ID < resp.Torrents[j].ID })
+	sort.Slice(torrents, func(i, j int) bool { return torrents[i].ID < torrents[j].ID })
 
 	c.m.Lock()
-	c.torrents = resp.Torrents
+	c.torrents = torrents
 	c.errTorrents = err
 	if len(c.torrents) == 0 {
 		c.setSelectedID(0)
@@ -207,23 +207,23 @@ func (c *Console) updateDetails(g *gocui.Gui) {
 	if selectedID != 0 {
 		switch c.selectedTab {
 		case general:
-			resp, err := c.client.GetTorrentStats(selectedID)
+			stats, err := c.client.GetTorrentStats(selectedID)
 			c.m.Lock()
-			c.stats = resp.Stats
+			c.stats = *stats
 			c.errDetails = err
 			c.m.Unlock()
 		case trackers:
-			resp, err := c.client.GetTorrentTrackers(selectedID)
-			sort.Slice(resp.Trackers, func(i, j int) bool { return strings.Compare(resp.Trackers[i].URL, resp.Trackers[j].URL) < 0 })
+			trackers, err := c.client.GetTorrentTrackers(selectedID)
+			sort.Slice(trackers, func(i, j int) bool { return strings.Compare(trackers[i].URL, trackers[j].URL) < 0 })
 			c.m.Lock()
-			c.trackers = resp.Trackers
+			c.trackers = trackers
 			c.errDetails = err
 			c.m.Unlock()
 		case peers:
-			resp, err := c.client.GetTorrentPeers(selectedID)
-			sort.Slice(resp.Peers, func(i, j int) bool { return strings.Compare(resp.Peers[i].Addr, resp.Peers[j].Addr) < 0 })
+			peers, err := c.client.GetTorrentPeers(selectedID)
+			sort.Slice(peers, func(i, j int) bool { return strings.Compare(peers[i].Addr, peers[j].Addr) < 0 })
 			c.m.Lock()
-			c.peers = resp.Peers
+			c.peers = peers
 			c.errDetails = err
 			c.m.Unlock()
 		}
@@ -292,7 +292,7 @@ func (c *Console) removeTorrent(g *gocui.Gui, v *gocui.View) error {
 	id := c.selectedID
 	c.m.Unlock()
 
-	_, err := c.client.RemoveTorrent(id)
+	err := c.client.RemoveTorrent(id)
 	if err != nil {
 		return err
 	}
@@ -313,7 +313,7 @@ func (c *Console) startTorrent(g *gocui.Gui, v *gocui.View) error {
 	id := c.selectedID
 	c.m.Unlock()
 
-	_, err := c.client.StartTorrent(id)
+	err := c.client.StartTorrent(id)
 	if err != nil {
 		return err
 	}
@@ -326,7 +326,7 @@ func (c *Console) stopTorrent(g *gocui.Gui, v *gocui.View) error {
 	id := c.selectedID
 	c.m.Unlock()
 
-	_, err := c.client.StopTorrent(id)
+	err := c.client.StopTorrent(id)
 	if err != nil {
 		return err
 	}
