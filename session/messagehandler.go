@@ -258,9 +258,11 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 		if _, ok := msg.M[peerprotocol.ExtensionKeyMetadata]; ok {
 			t.startInfoDownloaders()
 		}
-		if _, ok := msg.M[peerprotocol.ExtensionKeyPEX]; ok {
-			if t.info != nil && t.info.Private != 1 {
-				pe.StartPEX(t.peers)
+		if t.config.PEXEnabled {
+			if _, ok := msg.M[peerprotocol.ExtensionKeyPEX]; ok {
+				if t.info != nil && t.info.Private != 1 {
+					pe.StartPEX(t.peers)
+				}
 			}
 		}
 	case peerprotocol.ExtensionMetadataMessage:
@@ -362,6 +364,9 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			}
 		}
 	case peerprotocol.ExtensionPEXMessage:
+		if !t.config.PEXEnabled {
+			break
+		}
 		addrs, err := tracker.DecodePeersCompact([]byte(msg.Added))
 		if err != nil {
 			t.log.Error(err)

@@ -315,6 +315,9 @@ func (t *torrent) startPeer(p *peerconn.Conn, peers map[*peer.Peer]struct{}) {
 }
 
 func (t *torrent) pexAddPeer(addr *net.TCPAddr) {
+	if !t.config.PEXEnabled {
+		return
+	}
 	for pe := range t.peers {
 		if pe.PEX != nil {
 			pe.PEX.Add(addr)
@@ -323,6 +326,9 @@ func (t *torrent) pexAddPeer(addr *net.TCPAddr) {
 }
 
 func (t *torrent) pexDropPeer(addr *net.TCPAddr) {
+	if !t.config.PEXEnabled {
+		return
+	}
 	for pe := range t.peers {
 		if pe.PEX != nil {
 			pe.PEX.Drop(addr)
