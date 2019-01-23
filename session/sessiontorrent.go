@@ -54,7 +54,7 @@ func (t *Torrent) Start() error {
 		return err
 	}
 	t.torrent.Start()
-	if !t.torrent.Stats().Private {
+	if t.session.config.DHTEnabled && !t.torrent.Stats().Private {
 		t.session.mPeerRequests.Lock()
 		t.session.dhtPeerRequests[dht.InfoHash(t.torrent.InfoHashBytes())] = struct{}{}
 		t.session.mPeerRequests.Unlock()

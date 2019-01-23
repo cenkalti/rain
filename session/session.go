@@ -117,16 +117,19 @@ func New(cfg Config) (*Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	dhtConfig := dht.NewConfig()
-	dhtConfig.Address = cfg.DHTAddress
-	dhtConfig.Port = int(cfg.DHTPort)
-	dhtNode, err := dht.New(dhtConfig)
-	if err != nil {
-		return nil, err
-	}
-	err = dhtNode.Start()
-	if err != nil {
-		return nil, err
+	var dhtNode *dht.DHT
+	if cfg.DHTEnabled {
+		dhtConfig := dht.NewConfig()
+		dhtConfig.Address = cfg.DHTAddress
+		dhtConfig.Port = int(cfg.DHTPort)
+		dhtNode, err = dht.New(dhtConfig)
+		if err != nil {
+			return nil, err
+		}
+		err = dhtNode.Start()
+		if err != nil {
+			return nil, err
+		}
 	}
 	ports := make(map[uint16]struct{})
 	for p := cfg.PortBegin; p < cfg.PortEnd; p++ {
@@ -143,7 +146,6 @@ func New(cfg Config) (*Session, error) {
 		torrentsByInfoHash: make(map[dht.InfoHash][]*Torrent),
 		availablePorts:     ports,
 		dht:                dhtNode,
-		dhtPeerRequests:    make(map[dht.InfoHash]struct{}),
 		closeC:             make(chan struct{}),
 	}
 	err = c.startBlocklistReloader()
@@ -161,7 +163,10 @@ func New(cfg Config) (*Session, error) {
 			return nil, err
 		}
 	}
-	go c.processDHTResults()
+	if cfg.DHTEnabled {
+		c.dhtPeerRequests = make(map[dht.InfoHash]struct{})
+		go c.processDHTResults()
+	}
 	return c, nil
 }
 
@@ -291,7 +296,7 @@ func (s *Session) loadExistingTorrents(ids []uint64) error {
 				opt.Bitfield = bf
 			}
 		}
-		if !private {
+		if s.config.DHTEnabled && !private {
 			ann = newDHTAnnouncer(s.dht, spec.InfoHash, spec.Port)
 			opt.DHT = ann
 		}
@@ -336,7 +341,9 @@ func (s *Session) hasStarted(id uint64) (bool, error) {
 }
 
 func (s *Session) Close() error {
-	s.dht.Stop()
+	if s.config.DHTEnabled {
+		s.dht.Stop()
+	}
 
 	var wg sync.WaitGroup
 	s.m.Lock()
@@ -389,7 +396,7 @@ func (s *Session) AddTorrent(r io.Reader) (*Torrent, error) {
 	opt.Trackers = s.parseTrackers(mi.GetTrackers())
 	opt.Info = mi.Info
 	var ann *dhtAnnouncer
-	if mi.Info.Private != 1 {
+	if s.config.DHTEnabled && mi.Info.Private != 1 {
 		ann = newDHTAnnouncer(s.dht, mi.Info.Hash[:], opt.Port)
 		opt.DHT = ann
 	}
@@ -437,8 +444,11 @@ func (s *Session) AddMagnet(link string) (*Torrent, error) {
 	}()
 	opt.Name = ma.Name
 	opt.Trackers = s.parseTrackers(ma.Trackers)
-	ann := newDHTAnnouncer(s.dht, ma.InfoHash[:], opt.Port)
-	opt.DHT = ann
+	var ann *dhtAnnouncer
+	if s.config.DHTEnabled {
+		ann = newDHTAnnouncer(s.dht, ma.InfoHash[:], opt.Port)
+		opt.DHT = ann
+	}
 	t, err := opt.NewTorrent(ma.InfoHash[:], sto)
 	if err != nil {
 		return nil, err

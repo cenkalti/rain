@@ -10,10 +10,16 @@ type Config struct {
 	DataDir string
 	// New torrents will be listened at selected port in this range.
 	PortBegin, PortEnd uint16
+	// Enable DHT node.
+	DHTEnabled bool
 	// DHT node will listen on this IP.
 	DHTAddress string
 	// DHT node will listen on this UDP port.
 	DHTPort uint16
+	// DHT announce interval
+	DHTAnnounceInterval time.Duration
+	// Minimum announce interval when announcing to DHT.
+	DHTMinAnnounceInterval time.Duration
 	// At start, client will set max open files limit to this number. (like "ulimit -n" command)
 	MaxOpenFiles uint64
 	// URL to the blocklist file in CIDR format.
@@ -74,10 +80,6 @@ type Config struct {
 	HTTPTrackerTimeout time.Duration
 	// User agent sent when communicating with HTTP trackers.
 	HTTPTrackerUserAgent string
-	// DHT announce interval
-	DHTAnnounceInterval time.Duration
-	// Minimum announce interval when announcing to DHT.
-	MinDHTAnnounceInterval time.Duration
 	// Bitfield is saved to disk for fast resume without hash checking.
 	// There is an interval to keep IO lower.
 	BitfieldWriteInterval time.Duration
@@ -102,12 +104,16 @@ var DefaultConfig = Config{
 	DataDir:            "~/rain/data",
 	PortBegin:          50000,
 	PortEnd:            60000,
-	DHTAddress:         "0.0.0.0",
-	DHTPort:            7246,
 	MaxOpenFiles:       1024 * 1024,
 	RPCHost:            "127.0.0.1",
 	RPCPort:            7246,
 	RPCShutdownTimeout: 5 * time.Second,
+
+	DHTEnabled:             true,
+	DHTAddress:             "0.0.0.0",
+	DHTPort:                7246,
+	DHTAnnounceInterval:    30 * time.Minute,
+	DHTMinAnnounceInterval: time.Minute,
 
 	UnchokedPeers:                    3,
 	OptimisticUnchokedPeers:          1,
@@ -127,8 +133,6 @@ var DefaultConfig = Config{
 	MinAnnounceInterval:              time.Minute,
 	HTTPTrackerTimeout:               10 * time.Second,
 	HTTPTrackerUserAgent:             "Rain/" + Version,
-	DHTAnnounceInterval:              30 * time.Minute,
-	MinDHTAnnounceInterval:           time.Minute,
 	BitfieldWriteInterval:            30 * time.Second,
 	StatsWriteInterval:               30 * time.Second,
 	PieceReadSize:                    256 * 1024,

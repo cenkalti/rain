@@ -85,7 +85,7 @@ func (t *torrent) startAnnouncers() {
 	}
 	if t.dhtNode != nil && t.dhtAnnouncer == nil {
 		t.dhtAnnouncer = announcer.NewDHTAnnouncer()
-		go t.dhtAnnouncer.Run(t.dhtNode.Announce, t.config.DHTAnnounceInterval, t.config.MinDHTAnnounceInterval, t.log)
+		go t.dhtAnnouncer.Run(t.dhtNode.Announce, t.config.DHTAnnounceInterval, t.config.DHTMinAnnounceInterval, t.log)
 	}
 }
 
