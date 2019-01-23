@@ -12,8 +12,8 @@ import (
 
 	"github.com/cenkalti/log"
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/session/metainfo"
-	"github.com/cenkalti/rain/session/storage/filestorage"
+	"github.com/cenkalti/rain/internal/metainfo"
+	"github.com/cenkalti/rain/internal/storage/filestorage"
 )
 
 var (

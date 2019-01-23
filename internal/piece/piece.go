@@ -5,8 +5,8 @@ import (
 	"hash"
 
 	"github.com/cenkalti/rain/internal/filesection"
-	"github.com/cenkalti/rain/session/metainfo"
-	"github.com/cenkalti/rain/session/storage"
+	"github.com/cenkalti/rain/internal/metainfo"
+	"github.com/cenkalti/rain/internal/storage"
 )
 
 // Piece of a torrent.

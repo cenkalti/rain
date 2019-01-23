@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"github.com/boltdb/bolt"
-	"github.com/cenkalti/rain/session/resumer"
+	"github.com/cenkalti/rain/internal/resumer"
 )
 
 var (

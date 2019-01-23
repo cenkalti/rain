@@ -3,8 +3,8 @@ package verifier
 import (
 	"crypto/sha1" // nolint: gosec
 
+	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/piece"
-	"github.com/cenkalti/rain/session/bitfield"
 )
 
 type Verifier struct {

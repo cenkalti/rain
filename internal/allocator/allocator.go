@@ -3,8 +3,8 @@ package allocator
 import (
 	"path/filepath"
 
-	"github.com/cenkalti/rain/session/metainfo"
-	"github.com/cenkalti/rain/session/storage"
+	"github.com/cenkalti/rain/internal/metainfo"
+	"github.com/cenkalti/rain/internal/storage"
 )
 
 type Allocator struct {

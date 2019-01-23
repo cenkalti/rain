@@ -6,14 +6,14 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/cenkalti/rain/internal/bitfield"
+	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peerconn/peerreader"
 	"github.com/cenkalti/rain/internal/peerconn/peerwriter"
 	"github.com/cenkalti/rain/internal/peerprotocol"
 	"github.com/cenkalti/rain/internal/piecewriter"
 	"github.com/cenkalti/rain/internal/tracker"
-	"github.com/cenkalti/rain/session/bitfield"
-	"github.com/cenkalti/rain/session/metainfo"
 )
 
 func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {

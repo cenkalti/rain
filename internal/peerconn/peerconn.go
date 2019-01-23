@@ -5,11 +5,11 @@ import (
 	"net"
 	"time"
 
+	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/peerconn/peerreader"
 	"github.com/cenkalti/rain/internal/peerconn/peerwriter"
 	"github.com/cenkalti/rain/internal/peerprotocol"
-	"github.com/cenkalti/rain/session/bitfield"
 )
 
 type Conn struct {

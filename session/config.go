@@ -20,6 +20,8 @@ type Config struct {
 	DHTAnnounceInterval time.Duration
 	// Minimum announce interval when announcing to DHT.
 	DHTMinAnnounceInterval time.Duration
+	// Enable peer exchange protocol.
+	PEXEnabled bool
 	// At start, client will set max open files limit to this number. (like "ulimit -n" command)
 	MaxOpenFiles uint64
 	// URL to the blocklist file in CIDR format.
@@ -114,6 +116,8 @@ var DefaultConfig = Config{
 	DHTPort:                7246,
 	DHTAnnounceInterval:    30 * time.Minute,
 	DHTMinAnnounceInterval: time.Minute,
+
+	PEXEnabled: true,
 
 	UnchokedPeers:                    3,
 	OptimisticUnchokedPeers:          1,

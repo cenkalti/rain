@@ -5,9 +5,9 @@ import (
 	"net"
 	"time"
 
+	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/btconn"
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/session/bitfield"
 )
 
 type OutgoingHandshaker struct {
