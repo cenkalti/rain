@@ -8,10 +8,10 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/cenkalti/rain/internal/blocklist"
 	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/internal/tracker/httptracker"
 	"github.com/cenkalti/rain/internal/tracker/udptracker"
-	"github.com/cenkalti/rain/session/blocklist"
 )
 
 type TrackerManager struct {
@@ -19,7 +19,7 @@ type TrackerManager struct {
 	udpTransport  *udptracker.Transport
 }
 
-func New(bl blocklist.Blocklist) *TrackerManager {
+func New(bl *blocklist.Blocklist) *TrackerManager {
 	m := &TrackerManager{
 		httpTransport: new(http.Transport),
 		udpTransport:  udptracker.NewTransport(bl),

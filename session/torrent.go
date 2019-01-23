@@ -10,6 +10,7 @@ import (
 	"github.com/cenkalti/rain/internal/addrlist"
 	"github.com/cenkalti/rain/internal/allocator"
 	"github.com/cenkalti/rain/internal/announcer"
+	"github.com/cenkalti/rain/internal/blocklist"
 	"github.com/cenkalti/rain/internal/handshaker/incominghandshaker"
 	"github.com/cenkalti/rain/internal/handshaker/outgoinghandshaker"
 	"github.com/cenkalti/rain/internal/infodownloader"
@@ -23,7 +24,6 @@ import (
 	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/internal/verifier"
 	"github.com/cenkalti/rain/session/bitfield"
-	"github.com/cenkalti/rain/session/blocklist"
 	"github.com/cenkalti/rain/session/metainfo"
 	"github.com/cenkalti/rain/session/resumer"
 	"github.com/cenkalti/rain/session/storage"
@@ -228,7 +228,7 @@ type torrent struct {
 	readMutex sync.Mutex
 
 	// Optional list of IP addresses to block.
-	blocklist blocklist.Blocklist
+	blocklist *blocklist.Blocklist
 
 	log logger.Logger
 }

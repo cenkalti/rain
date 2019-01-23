@@ -6,10 +6,10 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/cenkalti/rain/session/blocklist"
+	"github.com/cenkalti/rain/internal/blocklist"
 )
 
-func ResolveHost(ctx context.Context, addr string, bl blocklist.Blocklist) (net.IP, int, error) {
+func ResolveHost(ctx context.Context, addr string, bl *blocklist.Blocklist) (net.IP, int, error) {
 	host, portStr, err := net.SplitHostPort(addr)
 	if err != nil {
 		return nil, 0, err

@@ -5,7 +5,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/cenkalti/rain/session/blocklist"
+	"github.com/cenkalti/rain/internal/blocklist"
 )
 
 type AddrList struct {
@@ -16,7 +16,7 @@ type AddrList struct {
 	peerAddrsMap map[string]*peerAddr
 
 	maxItems  int
-	blocklist blocklist.Blocklist
+	blocklist *blocklist.Blocklist
 }
 
 type peerAddr struct {
@@ -24,7 +24,7 @@ type peerAddr struct {
 	timestamp time.Time
 }
 
-func New(maxItems int, blocklist blocklist.Blocklist) *AddrList {
+func New(maxItems int, blocklist *blocklist.Blocklist) *AddrList {
 	return &AddrList{
 		peerAddrsMap: make(map[string]*peerAddr),
 		maxItems:     maxItems,

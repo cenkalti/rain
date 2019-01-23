@@ -13,16 +13,16 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff"
+	"github.com/cenkalti/rain/internal/blocklist"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/tracker"
-	"github.com/cenkalti/rain/session/blocklist"
 )
 
 const connectionIDMagic = 0x41727101980
 const connectionIDInterval = time.Minute
 
 type Transport struct {
-	blocklist blocklist.Blocklist
+	blocklist *blocklist.Blocklist
 	conn      *net.UDPConn
 	log       logger.Logger
 
@@ -39,7 +39,7 @@ type connection struct {
 	m         sync.Mutex
 }
 
-func NewTransport(bl blocklist.Blocklist) *Transport {
+func NewTransport(bl *blocklist.Blocklist) *Transport {
 	return &Transport{
 		blocklist:    bl,
 		log:          logger.New("udp tracker transport"),
