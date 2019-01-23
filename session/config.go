@@ -23,7 +23,6 @@ type Config struct {
 	PeerIDPrefix string
 	// Client version that is sent in BEP 10 handshake message.
 	ExtensionHandshakeClientVersion string
-
 	// URL to the blocklist file in CIDR format.
 	BlocklistURL string
 	// When to refresh blocklist
@@ -119,6 +118,7 @@ var DefaultConfig = Config{
 	StatsWriteInterval:              30 * time.Second,
 	PeerIDPrefix:                    "-RN" + Version + "-",
 	ExtensionHandshakeClientVersion: "Rain " + Version,
+	BlocklistUpdateInterval:         24 * time.Hour,
 
 	// RPC Server
 	RPCHost:            "127.0.0.1",
