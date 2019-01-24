@@ -45,12 +45,12 @@ type options struct {
 	// Config for downloading torrent. DefaultOptions will be used if nil.
 	Config *Config
 	// Optional DHT node
-	DHT DHT
+	DHT torrentDHT
 	// Optional blocklist to prevent connection to blocked IP addresses.
 	Blocklist *blocklist.Blocklist
 }
 
-type DHT interface {
+type torrentDHT interface {
 	// Announce must request new peers from DHT.
 	// Announce is called by torrent periodically or when more peers are needed.
 	Announce()

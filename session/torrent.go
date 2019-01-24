@@ -166,7 +166,7 @@ type torrent struct {
 	stoppedEventAnnouncer *announcer.StopAnnouncer
 
 	// If not nil, torrent is announced to DHT periodically.
-	dhtNode      DHT
+	dhtNode      torrentDHT
 	dhtAnnouncer *announcer.DHTAnnouncer
 	dhtPeersC    chan []*net.TCPAddr
 

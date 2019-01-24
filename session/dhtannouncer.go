@@ -13,7 +13,7 @@ type dhtAnnouncer struct {
 	peersC   chan []*net.TCPAddr
 }
 
-var _ DHT = (*dhtAnnouncer)(nil)
+var _ torrentDHT = (*dhtAnnouncer)(nil)
 
 func newDHTAnnouncer(node *node.DHT, infoHash []byte, port int) *dhtAnnouncer {
 	return &dhtAnnouncer{
