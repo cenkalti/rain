@@ -280,8 +280,8 @@ func handleAdd(c *cli.Context) error {
 	var b []byte
 	var marshalErr error
 	arg := c.Args().Get(0)
-	if strings.HasPrefix(arg, "magnet:") {
-		resp, err := clt.AddMagnet(arg)
+	if strings.HasPrefix(arg, "magnet:") || strings.HasPrefix(arg, "http://") || strings.HasPrefix(arg, "https://") {
+		resp, err := clt.AddURI(arg)
 		if err != nil {
 			return err
 		}

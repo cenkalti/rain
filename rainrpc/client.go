@@ -35,10 +35,10 @@ func (c *Client) AddTorrent(f io.Reader) (*Torrent, error) {
 	return &reply.Torrent, c.client.Call("Session.AddTorrent", args, &reply)
 }
 
-func (c *Client) AddMagnet(magnet string) (*Torrent, error) {
-	args := AddMagnetRequest{Magnet: magnet}
-	var reply AddMagnetResponse
-	return &reply.Torrent, c.client.Call("Session.AddMagnet", args, &reply)
+func (c *Client) AddURI(uri string) (*Torrent, error) {
+	args := AddURIRequest{URI: uri}
+	var reply AddURIResponse
+	return &reply.Torrent, c.client.Call("Session.AddURI", args, &reply)
 }
 
 func (c *Client) RemoveTorrent(id uint64) error {

@@ -6,6 +6,8 @@ import (
 	"errors"
 	"io"
 	"net"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -423,7 +425,32 @@ func (s *Session) AddTorrent(r io.Reader) (*Torrent, error) {
 	return t2, t2.Start()
 }
 
-func (s *Session) AddMagnet(link string) (*Torrent, error) {
+func (s *Session) AddURI(uri string) (*Torrent, error) {
+	u, err := url.Parse(uri)
+	if err != nil {
+		return nil, err
+	}
+	switch u.Scheme {
+	case "http", "https":
+		return s.addURL(uri)
+	case "magnet":
+		return s.addMagnet(uri)
+	default:
+		return nil, errors.New("unsupported uri scheme: " + u.Scheme)
+	}
+}
+
+func (s *Session) addURL(u string) (*Torrent, error) {
+	resp, err := http.Get(u)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	return s.AddTorrent(resp.Body)
+}
+
+func (s *Session) addMagnet(link string) (*Torrent, error) {
 	ma, err := magnet.New(link)
 	if err != nil {
 		return nil, err

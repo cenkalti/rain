@@ -31,8 +31,8 @@ func (h *rpcHandler) AddTorrent(args *rainrpc.AddTorrentRequest, reply *rainrpc.
 	return nil
 }
 
-func (h *rpcHandler) AddMagnet(args *rainrpc.AddMagnetRequest, reply *rainrpc.AddMagnetResponse) error {
-	t, err := h.session.AddMagnet(args.Magnet)
+func (h *rpcHandler) AddURI(args *rainrpc.AddURIRequest, reply *rainrpc.AddURIResponse) error {
+	t, err := h.session.AddURI(args.URI)
 	if err != nil {
 		return err
 	}

@@ -79,11 +79,11 @@ type AddTorrentResponse struct {
 	Torrent Torrent
 }
 
-type AddMagnetRequest struct {
-	Magnet string
+type AddURIRequest struct {
+	URI string
 }
 
-type AddMagnetResponse struct {
+type AddURIResponse struct {
 	Torrent Torrent
 }
 
