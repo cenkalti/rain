@@ -4,10 +4,10 @@ package session
 
 import "syscall"
 
-func setRLimit(limit int, value uint64) error {
+func setNoFile(value uint64) error {
 	rLimit := syscall.Rlimit{
 		Cur: value,
 		Max: value,
 	}
-	return syscall.Setrlimit(limit, &rLimit)
+	return syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rLimit)
 }
