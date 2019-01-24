@@ -62,11 +62,7 @@ func New(cfg Config) (*Session, error) {
 	if cfg.PortBegin >= cfg.PortEnd {
 		return nil, errors.New("invalid port range")
 	}
-	rLimit := syscall.Rlimit{
-		Cur: cfg.MaxOpenFiles,
-		Max: cfg.MaxOpenFiles,
-	}
-	err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rLimit)
+	err := setRLimit(syscall.RLIMIT_NOFILE, cfg.MaxOpenFiles)
 	if err != nil {
 		return nil, err
 	}
