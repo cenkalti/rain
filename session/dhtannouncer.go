@@ -3,7 +3,7 @@ package session
 import (
 	"net"
 
-	node "github.com/nictuku/dht"
+	node "github.com/cenkalti/dht"
 )
 
 type dhtAnnouncer struct {

@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"github.com/boltdb/bolt"
-	"github.com/nictuku/dht"
+	"github.com/cenkalti/dht"
 )
 
 type Torrent struct {

@@ -51,8 +51,8 @@
   name = "github.com/cenkalti/boltbrowser"
 
 [[constraint]]
-  branch = "master"
-  name = "github.com/nictuku/dht"
+  branch = "logging2"
+  name = "github.com/cenkalti/dht"
 
 [[constraint]]
   name = "github.com/powerman/rpc-codec"
