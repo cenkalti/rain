@@ -45,17 +45,9 @@ type options struct {
 	// Config for downloading torrent. DefaultOptions will be used if nil.
 	Config *Config
 	// Optional DHT node
-	DHT torrentDHT
+	DHT *dhtAnnouncer
 	// Optional blocklist to prevent connection to blocked IP addresses.
 	Blocklist *blocklist.Blocklist
-}
-
-type torrentDHT interface {
-	// Announce must request new peers from DHT.
-	// Announce is called by torrent periodically or when more peers are needed.
-	Announce()
-	// Peers must return a channel for peer addresses returned in response to Announce call.
-	Peers() chan []*net.TCPAddr
 }
 
 // NewTorrent creates a new torrent that downloads the torrent with infoHash and saves the files to the storage.
