@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/boltdb/bolt"
 	"github.com/cenkalti/rain/internal/resumer"
@@ -18,6 +19,7 @@ var (
 	destKey            = []byte("dest")
 	infoKey            = []byte("info")
 	bitfieldKey        = []byte("bitfield")
+	createdAtKey       = []byte("created_at")
 	bytesDownloadedKey = []byte("bytes_downloaded")
 	bytesUploadedKey   = []byte("bytes_uploaded")
 	bytesWastedKey     = []byte("bytes_wasted")
@@ -63,6 +65,7 @@ func (r *Resumer) Write(spec *Spec) error {
 		b.Put(trackersKey, trackers)
 		b.Put(infoKey, spec.Info)
 		b.Put(bitfieldKey, spec.Bitfield)
+		b.Put(createdAtKey, []byte(spec.CreatedAt.Format(time.RFC3339)))
 		b.Put(bytesDownloadedKey, []byte(strconv.FormatInt(spec.BytesDownloaded, 10)))
 		b.Put(bytesUploadedKey, []byte(strconv.FormatInt(spec.BytesUploaded, 10)))
 		b.Put(bytesWastedKey, []byte(strconv.FormatInt(spec.BytesWasted, 10)))
@@ -137,6 +140,12 @@ func (r *Resumer) Read() (*Spec, error) {
 		value = b.Get(bitfieldKey)
 		spec.Bitfield = make([]byte, len(value))
 		copy(spec.Bitfield, value)
+
+		value = b.Get(createdAtKey)
+		spec.CreatedAt, err = time.Parse(time.RFC3339, string(value))
+		if err != nil {
+			return err
+		}
 
 		value = b.Get(bytesDownloadedKey)
 		spec.BytesDownloaded, err = strconv.ParseInt(string(value), 10, 64)

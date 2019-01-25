@@ -1,12 +1,15 @@
 package session
 
 import (
+	"time"
+
 	"github.com/boltdb/bolt"
 	"github.com/cenkalti/dht"
 )
 
 type Torrent struct {
 	id           string
+	createdAt    time.Time
 	port         uint16
 	dhtAnnouncer *dhtAnnouncer
 	session      *Session
@@ -24,6 +27,10 @@ func (t *Torrent) Name() string {
 
 func (t *Torrent) InfoHash() string {
 	return t.torrent.InfoHash()
+}
+
+func (t *Torrent) CreatedAt() time.Time {
+	return t.createdAt
 }
 
 func (t *Torrent) Stats() Stats {

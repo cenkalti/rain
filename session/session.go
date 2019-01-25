@@ -305,7 +305,7 @@ func (s *Session) loadExistingTorrents(ids []string) error {
 		}
 		delete(s.availablePorts, uint16(spec.Port))
 
-		t2 := s.newTorrent(t, id, uint16(spec.Port), ann)
+		t2 := s.newTorrent(t, id, uint16(spec.Port), spec.CreatedAt, ann)
 		s.log.Debugf("loaded existing torrent: #%d %s", id, t.Name())
 		loaded++
 		if hasStarted {
@@ -403,12 +403,13 @@ func (s *Session) AddTorrent(r io.Reader) (*Torrent, error) {
 		}
 	}()
 	rspec := &boltdbresumer.Spec{
-		InfoHash: t.InfoHashBytes(),
-		Dest:     sto.Dest(),
-		Port:     opt.Port,
-		Name:     opt.Name,
-		Trackers: mi.GetTrackers(),
-		Info:     opt.Info.Bytes,
+		InfoHash:  t.InfoHashBytes(),
+		Dest:      sto.Dest(),
+		Port:      opt.Port,
+		Name:      opt.Name,
+		Trackers:  mi.GetTrackers(),
+		Info:      opt.Info.Bytes,
+		CreatedAt: time.Now().UTC(),
 	}
 	if opt.Bitfield != nil {
 		rspec.Bitfield = opt.Bitfield.Bytes()
@@ -417,7 +418,7 @@ func (s *Session) AddTorrent(r io.Reader) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
-	t2 := s.newTorrent(t, id, uint16(opt.Port), ann)
+	t2 := s.newTorrent(t, id, uint16(opt.Port), rspec.CreatedAt, ann)
 	return t2, t2.Start()
 }
 
@@ -477,17 +478,18 @@ func (s *Session) addMagnet(link string) (*Torrent, error) {
 		}
 	}()
 	rspec := &boltdbresumer.Spec{
-		InfoHash: ma.InfoHash[:],
-		Dest:     sto.Dest(),
-		Port:     opt.Port,
-		Name:     opt.Name,
-		Trackers: ma.Trackers,
+		InfoHash:  ma.InfoHash[:],
+		Dest:      sto.Dest(),
+		Port:      opt.Port,
+		Name:      opt.Name,
+		Trackers:  ma.Trackers,
+		CreatedAt: time.Now().UTC(),
 	}
 	err = opt.Resumer.(*boltdbresumer.Resumer).Write(rspec)
 	if err != nil {
 		return nil, err
 	}
-	t2 := s.newTorrent(t, id, uint16(opt.Port), ann)
+	t2 := s.newTorrent(t, id, uint16(opt.Port), rspec.CreatedAt, ann)
 	return t2, t2.Start()
 }
 
@@ -520,12 +522,13 @@ func (s *Session) add() (*options, *filestorage.FileStorage, string, error) {
 	}, sto, id, nil
 }
 
-func (s *Session) newTorrent(t *torrent, id string, port uint16, ann *dhtAnnouncer) *Torrent {
+func (s *Session) newTorrent(t *torrent, id string, port uint16, createdAt time.Time, ann *dhtAnnouncer) *Torrent {
 	t2 := &Torrent{
 		session:      s,
 		torrent:      t,
 		id:           id,
 		port:         port,
+		createdAt:    createdAt,
 		dhtAnnouncer: ann,
 		removed:      make(chan struct{}),
 	}
