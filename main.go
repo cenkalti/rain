@@ -307,19 +307,12 @@ func handleAdd(c *cli.Context) error {
 }
 
 func handleRemove(c *cli.Context) error {
-	id, err := strconv.ParseUint(c.Args().Get(0), 10, 64)
-	if err != nil {
-		return err
-	}
-	err = clt.RemoveTorrent(id)
-	return err
+	id := c.Args().Get(0)
+	return clt.RemoveTorrent(id)
 }
 
 func handleStats(c *cli.Context) error {
-	id, err := strconv.ParseUint(c.Args().Get(0), 10, 64)
-	if err != nil {
-		return err
-	}
+	id := c.Args().Get(0)
 	resp, err := clt.GetTorrentStats(id)
 	if err != nil {
 		return err
@@ -334,10 +327,7 @@ func handleStats(c *cli.Context) error {
 }
 
 func handleTrackers(c *cli.Context) error {
-	id, err := strconv.ParseUint(c.Args().Get(0), 10, 64)
-	if err != nil {
-		return err
-	}
+	id := c.Args().Get(0)
 	resp, err := clt.GetTorrentTrackers(id)
 	if err != nil {
 		return err
@@ -352,10 +342,7 @@ func handleTrackers(c *cli.Context) error {
 }
 
 func handlePeers(c *cli.Context) error {
-	id, err := strconv.ParseUint(c.Args().Get(0), 10, 64)
-	if err != nil {
-		return err
-	}
+	id := c.Args().Get(0)
 	resp, err := clt.GetTorrentPeers(id)
 	if err != nil {
 		return err
@@ -370,21 +357,13 @@ func handlePeers(c *cli.Context) error {
 }
 
 func handleStart(c *cli.Context) error {
-	id, err := strconv.ParseUint(c.Args().Get(0), 10, 64)
-	if err != nil {
-		return err
-	}
-	err = clt.StartTorrent(id)
-	return err
+	id := c.Args().Get(0)
+	return clt.StartTorrent(id)
 }
 
 func handleStop(c *cli.Context) error {
-	id, err := strconv.ParseUint(c.Args().Get(0), 10, 64)
-	if err != nil {
-		return err
-	}
-	err = clt.StopTorrent(id)
-	return err
+	id := c.Args().Get(0)
+	return clt.StopTorrent(id)
 }
 
 func handleConsole(c *cli.Context) error {

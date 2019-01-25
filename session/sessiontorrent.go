@@ -1,14 +1,12 @@
 package session
 
 import (
-	"strconv"
-
 	"github.com/boltdb/bolt"
 	"github.com/cenkalti/dht"
 )
 
 type Torrent struct {
-	id           uint64
+	id           string
 	port         uint16
 	dhtAnnouncer *dhtAnnouncer
 	session      *Session
@@ -16,7 +14,7 @@ type Torrent struct {
 	removed      chan struct{}
 }
 
-func (t *Torrent) ID() uint64 {
+func (t *Torrent) ID() string {
 	return t.id
 }
 
@@ -45,7 +43,7 @@ func (t *Torrent) Port() uint16 {
 }
 
 func (t *Torrent) Start() error {
-	subBucket := strconv.FormatUint(t.id, 10)
+	subBucket := t.id
 	err := t.session.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(torrentsBucket).Bucket([]byte(subBucket))
 		return b.Put([]byte("started"), []byte("1"))
@@ -63,7 +61,7 @@ func (t *Torrent) Start() error {
 }
 
 func (t *Torrent) Stop() error {
-	subBucket := strconv.FormatUint(t.id, 10)
+	subBucket := t.id
 	err := t.session.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(torrentsBucket).Bucket([]byte(subBucket))
 		return b.Put([]byte("started"), []byte("0"))

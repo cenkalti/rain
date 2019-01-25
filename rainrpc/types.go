@@ -2,7 +2,7 @@
 package rainrpc
 
 type Torrent struct {
-	ID       uint64
+	ID       string
 	Name     string
 	InfoHash string
 	Port     uint16
@@ -88,14 +88,14 @@ type AddURIResponse struct {
 }
 
 type RemoveTorrentRequest struct {
-	ID uint64
+	ID string
 }
 
 type RemoveTorrentResponse struct {
 }
 
 type GetTorrentStatsRequest struct {
-	ID uint64
+	ID string
 }
 
 type GetTorrentStatsResponse struct {
@@ -103,7 +103,7 @@ type GetTorrentStatsResponse struct {
 }
 
 type GetTorrentTrackersRequest struct {
-	ID uint64
+	ID string
 }
 
 type GetTorrentTrackersResponse struct {
@@ -111,7 +111,7 @@ type GetTorrentTrackersResponse struct {
 }
 
 type GetTorrentPeersRequest struct {
-	ID uint64
+	ID string
 }
 
 type GetTorrentPeersResponse struct {
@@ -119,14 +119,14 @@ type GetTorrentPeersResponse struct {
 }
 
 type StartTorrentRequest struct {
-	ID uint64
+	ID string
 }
 
 type StartTorrentResponse struct {
 }
 
 type StopTorrentRequest struct {
-	ID uint64
+	ID string
 }
 
 type StopTorrentResponse struct {

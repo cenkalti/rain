@@ -296,6 +296,14 @@
   revision = "418d78d0b9a7b7de3a6bbc8a23def624cc977bb2"
 
 [[projects]]
+  digest = "1:274f67cb6fed9588ea2521ecdac05a6d62a8c51c074c1fccc6a49a40ba80e925"
+  name = "github.com/satori/go.uuid"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "f58768cc1a7a7e77a3bd49e98cdd21419399b6a3"
+  version = "v1.2.0"
+
+[[projects]]
   digest = "1:69b1cc331fca23d702bd72f860c6a647afd0aa9fcbc1d0659b1365e26546dd70"
   name = "github.com/sirupsen/logrus"
   packages = ["."]
@@ -384,6 +392,7 @@
     "github.com/jroimartin/gocui",
     "github.com/mitchellh/go-homedir",
     "github.com/powerman/rpc-codec/jsonrpc2",
+    "github.com/satori/go.uuid",
     "github.com/urfave/cli",
     "github.com/zeebo/bencode",
     "gopkg.in/yaml.v2",

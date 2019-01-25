@@ -3,6 +3,7 @@ package session
 
 import (
 	"bytes"
+	"encoding/base64"
 	"errors"
 	"io"
 	"net"
@@ -10,7 +11,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strconv"
 	"sync"
 	"time"
 
@@ -27,6 +27,7 @@ import (
 	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/internal/trackermanager"
 	"github.com/mitchellh/go-homedir"
+	"github.com/satori/go.uuid"
 )
 
 var (
@@ -49,7 +50,7 @@ type Session struct {
 	dhtPeerRequests map[dht.InfoHash]struct{}
 
 	m                  sync.RWMutex
-	torrents           map[uint64]*Torrent
+	torrents           map[string]*Torrent
 	torrentsByInfoHash map[dht.InfoHash][]*Torrent
 
 	mPorts         sync.Mutex
@@ -91,7 +92,7 @@ func New(cfg Config) (*Session, error) {
 			db.Close()
 		}
 	}()
-	var ids []uint64
+	var ids []string
 	err = db.Update(func(tx *bolt.Tx) error {
 		b, err2 := tx.CreateBucketIfNotExists(sessionBucket)
 		if err2 != nil {
@@ -102,12 +103,7 @@ func New(cfg Config) (*Session, error) {
 			return err2
 		}
 		return b.ForEach(func(k, _ []byte) error {
-			id, err3 := strconv.ParseUint(string(k), 10, 64)
-			if err3 != nil {
-				l.Error(err3)
-				return nil
-			}
-			ids = append(ids, id)
+			ids = append(ids, string(k))
 			return nil
 		})
 	})
@@ -139,7 +135,7 @@ func New(cfg Config) (*Session, error) {
 		blocklist:          bl,
 		trackerManager:     trackermanager.New(bl),
 		log:                l,
-		torrents:           make(map[uint64]*Torrent),
+		torrents:           make(map[string]*Torrent),
 		torrentsByInfoHash: make(map[dht.InfoHash][]*Torrent),
 		availablePorts:     ports,
 		dht:                dhtNode,
@@ -242,11 +238,11 @@ func (s *Session) parseTrackers(trackers []string) []tracker.Tracker {
 	return ret
 }
 
-func (s *Session) loadExistingTorrents(ids []uint64) error {
+func (s *Session) loadExistingTorrents(ids []string) error {
 	var loaded int
 	var started []*Torrent
 	for _, id := range ids {
-		res, err := boltdbresumer.New(s.db, torrentsBucket, []byte(strconv.FormatUint(id, 10)))
+		res, err := boltdbresumer.New(s.db, torrentsBucket, []byte(id))
 		if err != nil {
 			s.log.Error(err)
 			continue
@@ -323,8 +319,8 @@ func (s *Session) loadExistingTorrents(ids []uint64) error {
 	return nil
 }
 
-func (s *Session) hasStarted(id uint64) (bool, error) {
-	subBucket := strconv.FormatUint(id, 10)
+func (s *Session) hasStarted(id string) (bool, error) {
+	subBucket := id
 	started := false
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(torrentsBucket).Bucket([]byte(subBucket))
@@ -495,33 +491,26 @@ func (s *Session) addMagnet(link string) (*Torrent, error) {
 	return t2, t2.Start()
 }
 
-func (s *Session) add() (*options, *filestorage.FileStorage, uint64, error) {
+func (s *Session) add() (*options, *filestorage.FileStorage, string, error) {
 	port, err := s.getPort()
 	if err != nil {
-		return nil, nil, 0, err
+		return nil, nil, "", err
 	}
 	defer func() {
 		if err != nil {
 			s.releasePort(port)
 		}
 	}()
-	var id uint64
-	err = s.db.Update(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(torrentsBucket)
-		id, err = bucket.NextSequence()
-		return err
-	})
+	u1 := uuid.NewV1()
+	id := base64.RawURLEncoding.EncodeToString(u1[:])
+	res, err := boltdbresumer.New(s.db, torrentsBucket, []byte(id))
 	if err != nil {
-		return nil, nil, 0, err
+		return nil, nil, "", err
 	}
-	res, err := boltdbresumer.New(s.db, torrentsBucket, []byte(strconv.FormatUint(id, 10)))
-	if err != nil {
-		return nil, nil, 0, err
-	}
-	dest := filepath.Join(s.config.DataDir, strconv.FormatUint(id, 10))
+	dest := filepath.Join(s.config.DataDir, id)
 	sto, err := filestorage.New(dest)
 	if err != nil {
-		return nil, nil, 0, err
+		return nil, nil, "", err
 	}
 	return &options{
 		Port:      int(port),
@@ -531,7 +520,7 @@ func (s *Session) add() (*options, *filestorage.FileStorage, uint64, error) {
 	}, sto, id, nil
 }
 
-func (s *Session) newTorrent(t *torrent, id uint64, port uint16, ann *dhtAnnouncer) *Torrent {
+func (s *Session) newTorrent(t *torrent, id string, port uint16, ann *dhtAnnouncer) *Torrent {
 	t2 := &Torrent{
 		session:      s,
 		torrent:      t,
@@ -564,13 +553,13 @@ func (s *Session) releasePort(port uint16) {
 	s.availablePorts[port] = struct{}{}
 }
 
-func (s *Session) GetTorrent(id uint64) *Torrent {
+func (s *Session) GetTorrent(id string) *Torrent {
 	s.m.RLock()
 	defer s.m.RUnlock()
 	return s.torrents[id]
 }
 
-func (s *Session) RemoveTorrent(id uint64) error {
+func (s *Session) RemoveTorrent(id string) error {
 	s.m.Lock()
 	defer s.m.Unlock()
 	t, ok := s.torrents[id]
@@ -582,7 +571,7 @@ func (s *Session) RemoveTorrent(id uint64) error {
 	delete(s.torrents, id)
 	delete(s.torrentsByInfoHash, dht.InfoHash(t.torrent.InfoHashBytes()))
 	s.releasePort(t.port)
-	subBucket := strconv.FormatUint(id, 10)
+	subBucket := id
 	err := s.db.Update(func(tx *bolt.Tx) error {
 		return tx.Bucket(torrentsBucket).DeleteBucket([]byte(subBucket))
 	})

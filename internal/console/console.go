@@ -24,7 +24,7 @@ type Console struct {
 	client          *rainrpc.Client
 	torrents        []rainrpc.Torrent
 	errTorrents     error
-	selectedID      uint64
+	selectedID      string
 	selectedTab     int
 	stats           rainrpc.Stats
 	trackers        []rainrpc.Tracker
@@ -104,10 +104,10 @@ func (c *Console) drawTorrents(g *gocui.Gui) error {
 		v.Clear()
 		if c.errTorrents != nil {
 			fmt.Fprintln(v, "error:", c.errTorrents)
-			c.selectedID = 0
+			c.selectedID = ""
 		} else {
 			for _, t := range c.torrents {
-				fmt.Fprintf(v, "%5d %s %5d %s\n", t.ID, t.InfoHash, t.Port, t.Name)
+				fmt.Fprintf(v, "%s %s %5d %s\n", t.ID, t.InfoHash, t.Port, t.Name)
 			}
 			_, cy := v.Cursor()
 			_, oy := v.Origin()
@@ -190,8 +190,8 @@ func (c *Console) updateTorrents(g *gocui.Gui) {
 	c.torrents = torrents
 	c.errTorrents = err
 	if len(c.torrents) == 0 {
-		c.setSelectedID(0)
-	} else if c.selectedID == 0 {
+		c.setSelectedID("")
+	} else if c.selectedID == "" {
 		c.setSelectedID(c.torrents[0].ID)
 	}
 	c.m.Unlock()
@@ -204,7 +204,7 @@ func (c *Console) updateDetails(g *gocui.Gui) {
 	selectedID := c.selectedID
 	c.m.Unlock()
 
-	if selectedID != 0 {
+	if selectedID != "" {
 		switch c.selectedTab {
 		case general:
 			stats, err := c.client.GetTorrentStats(selectedID)
@@ -300,7 +300,7 @@ func (c *Console) removeTorrent(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-func (c *Console) setSelectedID(id uint64) {
+func (c *Console) setSelectedID(id string) {
 	changed := id != c.selectedID
 	c.selectedID = id
 	if changed {
