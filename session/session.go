@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/boltdb/bolt"
-	"github.com/cenkalti/dht"
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/blocklist"
 	"github.com/cenkalti/rain/internal/logger"
@@ -27,6 +26,7 @@ import (
 	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/internal/trackermanager"
 	"github.com/mitchellh/go-homedir"
+	"github.com/nictuku/dht"
 	"github.com/satori/go.uuid"
 )
 

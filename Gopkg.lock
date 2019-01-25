@@ -42,14 +42,6 @@
   revision = "9fca9dd713b34ebfc302fb1bfc56516b997a4674"
 
 [[projects]]
-  branch = "logging2"
-  digest = "1:5b7f4080aedff59e689842af18d7ea45dcf7b293c5659e3f3b27a83c78488fce"
-  name = "github.com/cenkalti/dht"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "3b70249c58b787a40cb9c45f6a7cae529f34845d"
-
-[[projects]]
   branch = "master"
   digest = "1:402a67c6210dea95b32f6d3cb07dce7197d2c30b04f943dee44035c6c0aec18a"
   name = "github.com/cenkalti/log"
@@ -224,6 +216,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:5b7f4080aedff59e689842af18d7ea45dcf7b293c5659e3f3b27a83c78488fce"
+  name = "github.com/nictuku/dht"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "cd9a716ed885baee4ae53ca076b860e31a211acc"
+
+[[projects]]
+  branch = "master"
   digest = "1:d6de459c94b005e4b829552de4fcec44712d0c2274b3b99332099415ac9057ae"
   name = "github.com/nictuku/nettools"
   packages = ["."]
@@ -380,7 +380,6 @@
     "github.com/boltdb/bolt",
     "github.com/cenkalti/backoff",
     "github.com/cenkalti/boltbrowser/boltbrowser",
-    "github.com/cenkalti/dht",
     "github.com/cenkalti/log",
     "github.com/chihaya/chihaya/frontend/http",
     "github.com/chihaya/chihaya/frontend/udp",
@@ -391,6 +390,7 @@
     "github.com/hokaccha/go-prettyjson",
     "github.com/jroimartin/gocui",
     "github.com/mitchellh/go-homedir",
+    "github.com/nictuku/dht",
     "github.com/powerman/rpc-codec/jsonrpc2",
     "github.com/satori/go.uuid",
     "github.com/urfave/cli",

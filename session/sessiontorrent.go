@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/boltdb/bolt"
-	"github.com/cenkalti/dht"
+	"github.com/nictuku/dht"
 )
 
 type Torrent struct {
