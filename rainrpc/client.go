@@ -1,3 +1,4 @@
+// Package rainrpc provides a RPC client implementation for communicating with Rain session.
 package rainrpc
 
 import (

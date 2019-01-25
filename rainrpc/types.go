@@ -1,11 +1,11 @@
-// Package rainrpc provides a RPC client implementation for communicating with Rain session.
 package rainrpc
 
 type Torrent struct {
-	ID       string
-	Name     string
-	InfoHash string
-	Port     uint16
+	ID        string
+	Name      string
+	InfoHash  string
+	Port      uint16
+	CreatedAt Time
 }
 
 type Peer struct {

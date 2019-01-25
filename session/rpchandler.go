@@ -42,10 +42,11 @@ func (h *rpcHandler) AddURI(args *rainrpc.AddURIRequest, reply *rainrpc.AddURIRe
 
 func newTorrent(t *Torrent) rainrpc.Torrent {
 	return rainrpc.Torrent{
-		ID:       t.ID(),
-		Name:     t.Name(),
-		InfoHash: t.InfoHash(),
-		Port:     t.Port(),
+		ID:        t.ID(),
+		Name:      t.Name(),
+		InfoHash:  t.InfoHash(),
+		Port:      t.Port(),
+		CreatedAt: rainrpc.Time{Time: t.CreatedAt()},
 	}
 }
 
