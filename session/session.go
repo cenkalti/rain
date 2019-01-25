@@ -145,6 +145,10 @@ func New(cfg Config) (*Session, error) {
 	if err != nil {
 		return nil, err
 	}
+	if cfg.DHTEnabled {
+		c.dhtPeerRequests = make(map[dht.InfoHash]struct{})
+		go c.processDHTResults()
+	}
 	err = c.loadExistingTorrents(ids)
 	if err != nil {
 		return nil, err
@@ -155,10 +159,6 @@ func New(cfg Config) (*Session, error) {
 		if err != nil {
 			return nil, err
 		}
-	}
-	if cfg.DHTEnabled {
-		c.dhtPeerRequests = make(map[dht.InfoHash]struct{})
-		go c.processDHTResults()
 	}
 	return c, nil
 }
