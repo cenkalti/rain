@@ -16,15 +16,13 @@ Features
 - [x] [Multiple trackers](http://bittorrent.org/beps/bep_0012.html)
 - [x] [UDP trackers](http://bittorrent.org/beps/bep_0015.html)
 - [x] [DHT protocol](http://bittorrent.org/beps/bep_0005.html)
-- [ ] [WebSeed](http://bittorrent.org/beps/bep_0019.html)
-- [x] [Message stream encryption](http://wiki.vuze.com/w/Message_Stream_Encryption)
-- [ ] [uTP](http://bittorrent.org/beps/bep_0029.html)
 - [x] [PEX](http://bittorrent.org/beps/bep_0011.html)
+- [x] [Message stream encryption](http://wiki.vuze.com/w/Message_Stream_Encryption)
 - [x] Fast resuming
-- [x] Custom storage
-- [x] CLI
+- [x] IP blocklist
 - [x] RPC server
-- [ ] IP blocklist
+- [x] Console UI
+- [ ] [WebSeed](http://bittorrent.org/beps/bep_0019.html)
 
 Installing
 ----------
@@ -36,10 +34,8 @@ Get the latest binary from [releases page](https://github.com/cenkalti/rain/rele
 Usage
 -----
 
-To download a single torrent:
+- `rain server` command runs a RPC server.
+- `rain client add <magnet_or_torrent>` adds a torrent and print it's ID.
+- `rain client stats <ID>` prints the stats of the torrent.
 
-`rain download <torrent file or magnet link>`
-
-or see other options:
-
-`rain help`
+Run `rain help` to see other commands.
