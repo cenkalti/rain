@@ -1,4 +1,4 @@
-package rainrpc
+package rpctypes
 
 import (
 	"encoding/json"

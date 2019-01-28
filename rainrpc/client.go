@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 
+	"github.com/cenkalti/rain/internal/rpctypes"
 	"github.com/powerman/rpc-codec/jsonrpc2"
 )
 
@@ -21,59 +22,59 @@ func (c *Client) Close() error {
 	return c.client.Close()
 }
 
-func (c *Client) ListTorrents() ([]Torrent, error) {
-	var reply ListTorrentsResponse
+func (c *Client) ListTorrents() ([]rpctypes.Torrent, error) {
+	var reply rpctypes.ListTorrentsResponse
 	return reply.Torrents, c.client.Call("Session.ListTorrents", nil, &reply)
 }
 
-func (c *Client) AddTorrent(f io.Reader) (*Torrent, error) {
+func (c *Client) AddTorrent(f io.Reader) (*rpctypes.Torrent, error) {
 	b, err := ioutil.ReadAll(f)
 	if err != nil {
 		return nil, err
 	}
-	args := AddTorrentRequest{Torrent: base64.StdEncoding.EncodeToString(b)}
-	var reply AddTorrentResponse
+	args := rpctypes.AddTorrentRequest{Torrent: base64.StdEncoding.EncodeToString(b)}
+	var reply rpctypes.AddTorrentResponse
 	return &reply.Torrent, c.client.Call("Session.AddTorrent", args, &reply)
 }
 
-func (c *Client) AddURI(uri string) (*Torrent, error) {
-	args := AddURIRequest{URI: uri}
-	var reply AddURIResponse
+func (c *Client) AddURI(uri string) (*rpctypes.Torrent, error) {
+	args := rpctypes.AddURIRequest{URI: uri}
+	var reply rpctypes.AddURIResponse
 	return &reply.Torrent, c.client.Call("Session.AddURI", args, &reply)
 }
 
 func (c *Client) RemoveTorrent(id string) error {
-	args := RemoveTorrentRequest{ID: id}
-	var reply RemoveTorrentResponse
+	args := rpctypes.RemoveTorrentRequest{ID: id}
+	var reply rpctypes.RemoveTorrentResponse
 	return c.client.Call("Session.RemoveTorrent", args, &reply)
 }
 
-func (c *Client) GetTorrentStats(id string) (*Stats, error) {
-	args := GetTorrentStatsRequest{ID: id}
-	var reply GetTorrentStatsResponse
+func (c *Client) GetTorrentStats(id string) (*rpctypes.Stats, error) {
+	args := rpctypes.GetTorrentStatsRequest{ID: id}
+	var reply rpctypes.GetTorrentStatsResponse
 	return &reply.Stats, c.client.Call("Session.GetTorrentStats", args, &reply)
 }
 
-func (c *Client) GetTorrentTrackers(id string) ([]Tracker, error) {
-	args := GetTorrentTrackersRequest{ID: id}
-	var reply GetTorrentTrackersResponse
+func (c *Client) GetTorrentTrackers(id string) ([]rpctypes.Tracker, error) {
+	args := rpctypes.GetTorrentTrackersRequest{ID: id}
+	var reply rpctypes.GetTorrentTrackersResponse
 	return reply.Trackers, c.client.Call("Session.GetTorrentTrackers", args, &reply)
 }
 
-func (c *Client) GetTorrentPeers(id string) ([]Peer, error) {
-	args := GetTorrentPeersRequest{ID: id}
-	var reply GetTorrentPeersResponse
+func (c *Client) GetTorrentPeers(id string) ([]rpctypes.Peer, error) {
+	args := rpctypes.GetTorrentPeersRequest{ID: id}
+	var reply rpctypes.GetTorrentPeersResponse
 	return reply.Peers, c.client.Call("Session.GetTorrentPeers", args, &reply)
 }
 
 func (c *Client) StartTorrent(id string) error {
-	args := StartTorrentRequest{ID: id}
-	var reply StartTorrentResponse
+	args := rpctypes.StartTorrentRequest{ID: id}
+	var reply rpctypes.StartTorrentResponse
 	return c.client.Call("Session.StartTorrent", args, &reply)
 }
 
 func (c *Client) StopTorrent(id string) error {
-	args := StopTorrentRequest{ID: id}
-	var reply StopTorrentResponse
+	args := rpctypes.StopTorrentRequest{ID: id}
+	var reply rpctypes.StopTorrentResponse
 	return c.client.Call("Session.StopTorrent", args, &reply)
 }

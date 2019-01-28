@@ -5,23 +5,23 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/cenkalti/rain/rainrpc"
+	"github.com/cenkalti/rain/internal/rpctypes"
 )
 
 type rpcHandler struct {
 	session *Session
 }
 
-func (h *rpcHandler) ListTorrents(args *rainrpc.ListTorrentsRequest, reply *rainrpc.ListTorrentsResponse) error {
+func (h *rpcHandler) ListTorrents(args *rpctypes.ListTorrentsRequest, reply *rpctypes.ListTorrentsResponse) error {
 	torrents := h.session.ListTorrents()
-	reply.Torrents = make([]rainrpc.Torrent, 0, len(torrents))
+	reply.Torrents = make([]rpctypes.Torrent, 0, len(torrents))
 	for _, t := range torrents {
 		reply.Torrents = append(reply.Torrents, newTorrent(t))
 	}
 	return nil
 }
 
-func (h *rpcHandler) AddTorrent(args *rainrpc.AddTorrentRequest, reply *rainrpc.AddTorrentResponse) error {
+func (h *rpcHandler) AddTorrent(args *rpctypes.AddTorrentRequest, reply *rpctypes.AddTorrentResponse) error {
 	r := base64.NewDecoder(base64.StdEncoding, strings.NewReader(args.Torrent))
 	t, err := h.session.AddTorrent(r)
 	if err != nil {
@@ -31,7 +31,7 @@ func (h *rpcHandler) AddTorrent(args *rainrpc.AddTorrentRequest, reply *rainrpc.
 	return nil
 }
 
-func (h *rpcHandler) AddURI(args *rainrpc.AddURIRequest, reply *rainrpc.AddURIResponse) error {
+func (h *rpcHandler) AddURI(args *rpctypes.AddURIRequest, reply *rpctypes.AddURIResponse) error {
 	t, err := h.session.AddURI(args.URI)
 	if err != nil {
 		return err
@@ -40,28 +40,28 @@ func (h *rpcHandler) AddURI(args *rainrpc.AddURIRequest, reply *rainrpc.AddURIRe
 	return nil
 }
 
-func newTorrent(t *Torrent) rainrpc.Torrent {
-	return rainrpc.Torrent{
+func newTorrent(t *Torrent) rpctypes.Torrent {
+	return rpctypes.Torrent{
 		ID:        t.ID(),
 		Name:      t.Name(),
 		InfoHash:  t.InfoHash().String(),
 		Port:      t.Port(),
-		CreatedAt: rainrpc.Time{Time: t.CreatedAt()},
+		CreatedAt: rpctypes.Time{Time: t.CreatedAt()},
 	}
 }
 
-func (h *rpcHandler) RemoveTorrent(args *rainrpc.RemoveTorrentRequest, reply *rainrpc.RemoveTorrentResponse) error {
+func (h *rpcHandler) RemoveTorrent(args *rpctypes.RemoveTorrentRequest, reply *rpctypes.RemoveTorrentResponse) error {
 	h.session.RemoveTorrent(args.ID)
 	return nil
 }
 
-func (h *rpcHandler) GetTorrentStats(args *rainrpc.GetTorrentStatsRequest, reply *rainrpc.GetTorrentStatsResponse) error {
+func (h *rpcHandler) GetTorrentStats(args *rpctypes.GetTorrentStatsRequest, reply *rpctypes.GetTorrentStatsResponse) error {
 	t := h.session.GetTorrent(args.ID)
 	if t == nil {
 		return errors.New("torrent not found")
 	}
 	s := t.Stats()
-	reply.Stats = rainrpc.Stats{
+	reply.Stats = rpctypes.Stats{
 		Status: torrentStatusToString(s.Status),
 		Pieces: struct {
 			Checked   uint32
@@ -153,15 +153,15 @@ func (h *rpcHandler) GetTorrentStats(args *rainrpc.GetTorrentStatsRequest, reply
 	return nil
 }
 
-func (h *rpcHandler) GetTorrentTrackers(args *rainrpc.GetTorrentTrackersRequest, reply *rainrpc.GetTorrentTrackersResponse) error {
+func (h *rpcHandler) GetTorrentTrackers(args *rpctypes.GetTorrentTrackersRequest, reply *rpctypes.GetTorrentTrackersResponse) error {
 	t := h.session.GetTorrent(args.ID)
 	if t == nil {
 		return errors.New("torrent not found")
 	}
 	trackers := t.Trackers()
-	reply.Trackers = make([]rainrpc.Tracker, len(trackers))
+	reply.Trackers = make([]rpctypes.Tracker, len(trackers))
 	for i, t := range trackers {
-		reply.Trackers[i] = rainrpc.Tracker{
+		reply.Trackers[i] = rpctypes.Tracker{
 			URL:      t.URL,
 			Status:   trackerStatusToString(t.Status),
 			Leechers: t.Leechers,
@@ -175,22 +175,22 @@ func (h *rpcHandler) GetTorrentTrackers(args *rainrpc.GetTorrentTrackersRequest,
 	return nil
 }
 
-func (h *rpcHandler) GetTorrentPeers(args *rainrpc.GetTorrentPeersRequest, reply *rainrpc.GetTorrentPeersResponse) error {
+func (h *rpcHandler) GetTorrentPeers(args *rpctypes.GetTorrentPeersRequest, reply *rpctypes.GetTorrentPeersResponse) error {
 	t := h.session.GetTorrent(args.ID)
 	if t == nil {
 		return errors.New("torrent not found")
 	}
 	peers := t.Peers()
-	reply.Peers = make([]rainrpc.Peer, len(peers))
+	reply.Peers = make([]rpctypes.Peer, len(peers))
 	for i, p := range peers {
-		reply.Peers[i] = rainrpc.Peer{
+		reply.Peers[i] = rpctypes.Peer{
 			Addr: p.Addr.String(),
 		}
 	}
 	return nil
 }
 
-func (h *rpcHandler) StartTorrent(args *rainrpc.StartTorrentRequest, reply *rainrpc.StartTorrentResponse) error {
+func (h *rpcHandler) StartTorrent(args *rpctypes.StartTorrentRequest, reply *rpctypes.StartTorrentResponse) error {
 	t := h.session.GetTorrent(args.ID)
 	if t == nil {
 		return errors.New("torrent not found")
@@ -199,7 +199,7 @@ func (h *rpcHandler) StartTorrent(args *rainrpc.StartTorrentRequest, reply *rain
 	return nil
 }
 
-func (h *rpcHandler) StopTorrent(args *rainrpc.StopTorrentRequest, reply *rainrpc.StopTorrentResponse) error {
+func (h *rpcHandler) StopTorrent(args *rpctypes.StopTorrentRequest, reply *rpctypes.StopTorrentResponse) error {
 	t := h.session.GetTorrent(args.ID)
 	if t == nil {
 		return errors.New("torrent not found")

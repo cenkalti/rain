@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/rain/internal/jsonutil"
+	"github.com/cenkalti/rain/internal/rpctypes"
 	"github.com/cenkalti/rain/rainrpc"
 	"github.com/jroimartin/gocui"
 )
@@ -22,13 +23,13 @@ const (
 
 type Console struct {
 	client          *rainrpc.Client
-	torrents        []rainrpc.Torrent
+	torrents        []rpctypes.Torrent
 	errTorrents     error
 	selectedID      string
 	selectedTab     int
-	stats           rainrpc.Stats
-	trackers        []rainrpc.Tracker
-	peers           []rainrpc.Peer
+	stats           rpctypes.Stats
+	trackers        []rpctypes.Tracker
+	peers           []rpctypes.Peer
 	errDetails      error
 	updatingDetails bool
 	m               sync.Mutex

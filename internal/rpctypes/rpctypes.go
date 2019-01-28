@@ -1,4 +1,4 @@
-package rainrpc
+package rpctypes
 
 type Torrent struct {
 	ID        string
