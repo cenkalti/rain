@@ -11,9 +11,8 @@ import (
 
 // Piece of a torrent.
 type Piece struct {
-	Index  uint32 // index in torrent
-	Length uint32 // always equal to Info.PieceLength except last piece
-	// TODO try remove Blocks field
+	Index   uint32 // index in torrent
+	Length  uint32 // always equal to Info.PieceLength except last piece
 	Blocks  Blocks
 	Data    filesection.Piece // the place to write downloaded bytes
 	Hash    []byte
