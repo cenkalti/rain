@@ -116,7 +116,6 @@ func (p *PeerReader) Run() {
 
 		// p.log.Debugf("Received message of type: %q", id)
 
-		// TODO consider defining a type for peer message
 		var msg interface{}
 
 		switch id {
