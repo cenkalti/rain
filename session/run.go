@@ -118,10 +118,13 @@ func (t *torrent) run() {
 			t.bitfield.Set(pw.Piece.Index)
 			// Tell everyone that we have this piece
 			for pe := range t.peers {
-				// TODO skip peers having the piece
+				t.updateInterestedState(pe)
+				if t.piecePicker.DoesHave(pe, pw.Piece.Index) {
+					// Skip peers having the piece to save bandwidth
+					continue
+				}
 				msg := peerprotocol.HaveMessage{Index: pw.Piece.Index}
 				pe.SendMessage(msg)
-				t.updateInterestedState(pe)
 			}
 			completed := t.checkCompletion()
 			if t.resume != nil {
