@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/cenkalti/rain/internal/addrlist"
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/peer"
@@ -372,7 +373,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			t.log.Error(err)
 			break
 		}
-		t.handleNewPeers(addrs, "pex")
+		t.handleNewPeers(addrs, addrlist.PEX)
 	default:
 		panic(fmt.Sprintf("unhandled peer message type: %T", msg))
 	}

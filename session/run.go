@@ -6,6 +6,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/cenkalti/rain/internal/addrlist"
 	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/handshaker/incominghandshaker"
 	"github.com/cenkalti/rain/internal/handshaker/outgoinghandshaker"
@@ -66,11 +67,11 @@ func (t *torrent) run() {
 		case ve := <-t.verifierResultC:
 			t.handleVerificationDone(ve)
 		case addrs := <-t.addrsFromTrackers:
-			t.handleNewPeers(addrs, "tracker")
+			t.handleNewPeers(addrs, addrlist.Tracker)
 		case addrs := <-t.addPeersCommandC:
-			t.handleNewPeers(addrs, "manual")
+			t.handleNewPeers(addrs, addrlist.Manual)
 		case addrs := <-t.dhtPeersC:
-			t.handleNewPeers(addrs, "dht")
+			t.handleNewPeers(addrs, addrlist.DHT)
 		case conn := <-t.incomingConnC:
 			if len(t.incomingHandshakers)+len(t.incomingPeers) >= t.config.MaxPeerAccept {
 				t.log.Debugln("peer limit reached, rejecting peer", conn.RemoteAddr().String())
@@ -242,11 +243,11 @@ func (t *torrent) closeInfoDownloader(id *infodownloader.InfoDownloader) {
 	delete(t.infoDownloadersSnubbed, id.Peer)
 }
 
-func (t *torrent) handleNewPeers(addrs []*net.TCPAddr, source string) {
+func (t *torrent) handleNewPeers(addrs []*net.TCPAddr, source addrlist.PeerSource) {
 	t.log.Debugf("received %d peers from %s", len(addrs), source)
 	t.setNeedMorePeers(false)
 	if !t.completed {
-		t.addrList.Push(addrs, t.port)
+		t.addrList.Push(addrs, source)
 		t.dialAddresses()
 	}
 }

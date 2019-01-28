@@ -107,7 +107,17 @@ func (h *rpcHandler) GetTorrentStats(args *rainrpc.GetTorrentStatsRequest, reply
 			Incoming: s.Handshakes.Incoming,
 			Outgoing: s.Handshakes.Outgoing,
 		},
-		ReadyAddresses: s.ReadyAddresses,
+		Addresses: struct {
+			Total   int
+			Tracker int
+			DHT     int
+			PEX     int
+		}{
+			Total:   s.Addresses.Total,
+			Tracker: s.Addresses.Tracker,
+			DHT:     s.Addresses.DHT,
+			PEX:     s.Addresses.PEX,
+		},
 		Downloads: struct {
 			Total   int
 			Running int

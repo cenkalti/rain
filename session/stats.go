@@ -1,6 +1,10 @@
 package session
 
-import "math"
+import (
+	"math"
+
+	"github.com/cenkalti/rain/internal/addrlist"
+)
 
 // Stats contains statistics about Torrent.
 type Stats struct {
@@ -46,8 +50,13 @@ type Stats struct {
 		Outgoing int
 	}
 	// Number of peer addresses that are ready to be connected.
-	ReadyAddresses int
-	Downloads      struct {
+	Addresses struct {
+		Total   int
+		Tracker int
+		DHT     int
+		PEX     int
+	}
+	Downloads struct {
 		// Number of active piece downloads.
 		Total int
 		// Number of pieces that are being downloaded normally.
@@ -77,8 +86,10 @@ func (t *torrent) stats() Stats {
 	var s Stats
 	s.Status = t.status()
 	s.Error = t.lastError
-	// TODO breakdown ready addresses by source
-	s.ReadyAddresses = t.addrList.Len()
+	s.Addresses.Total = t.addrList.Len()
+	s.Addresses.Tracker = t.addrList.LenSource(addrlist.Tracker)
+	s.Addresses.DHT = t.addrList.LenSource(addrlist.DHT)
+	s.Addresses.PEX = t.addrList.LenSource(addrlist.PEX)
 	s.Handshakes.Incoming = len(t.incomingHandshakers)
 	s.Handshakes.Outgoing = len(t.outgoingHandshakers)
 	s.Handshakes.Total = len(t.incomingHandshakers) + len(t.outgoingHandshakers)

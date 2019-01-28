@@ -47,8 +47,13 @@ type Stats struct {
 		Incoming int
 		Outgoing int
 	}
-	ReadyAddresses int
-	Downloads      struct {
+	Addresses struct {
+		Total   int
+		Tracker int
+		DHT     int
+		PEX     int
+	}
+	Downloads struct {
 		Total   int
 		Running int
 		Snubbed int
