@@ -30,9 +30,10 @@ type Stats struct {
 		Total     uint32
 	}
 	Bytes struct {
+		Total      int64
+		Allocated  int64
 		Complete   int64
 		Incomplete int64
-		Total      int64
 		Downloaded int64
 		Uploaded   int64
 		Wasted     int64

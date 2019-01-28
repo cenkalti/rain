@@ -75,16 +75,18 @@ func (h *rpcHandler) GetTorrentStats(args *rainrpc.GetTorrentStatsRequest, reply
 			Total:     s.Pieces.Total,
 		},
 		Bytes: struct {
+			Total      int64
+			Allocated  int64
 			Complete   int64
 			Incomplete int64
-			Total      int64
 			Downloaded int64
 			Uploaded   int64
 			Wasted     int64
 		}{
+			Total:      s.Bytes.Total,
+			Allocated:  s.Bytes.Allocated,
 			Complete:   s.Bytes.Complete,
 			Incomplete: s.Bytes.Incomplete,
-			Total:      s.Bytes.Total,
 			Downloaded: s.Bytes.Downloaded,
 			Uploaded:   s.Bytes.Uploaded,
 			Wasted:     s.Bytes.Wasted,

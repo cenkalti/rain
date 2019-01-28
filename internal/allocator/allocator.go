@@ -49,6 +49,8 @@ func (a *Allocator) Run(info *metainfo.Info, sto storage.Storage, progressC chan
 		}
 	}()
 
+	var allocatedSize int64
+
 	// Single file in torrent
 	if !info.MultiFile {
 		var f storage.File
@@ -57,6 +59,8 @@ func (a *Allocator) Run(info *metainfo.Info, sto storage.Storage, progressC chan
 			return
 		}
 		a.Files = []storage.File{f}
+		allocatedSize += info.Length
+		a.sendProgress(progressC, allocatedSize)
 		return
 	}
 
@@ -73,5 +77,15 @@ func (a *Allocator) Run(info *metainfo.Info, sto storage.Storage, progressC chan
 		if exists {
 			a.NeedHashCheck = true
 		}
+		allocatedSize += f.Length
+		a.sendProgress(progressC, allocatedSize)
+	}
+}
+
+func (a *Allocator) sendProgress(progressC chan Progress, size int64) {
+	select {
+	case progressC <- Progress{AllocatedSize: size}:
+	case <-a.closeC:
+		return
 	}
 }

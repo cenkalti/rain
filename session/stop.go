@@ -122,6 +122,7 @@ func (t *torrent) closeData() {
 	t.files = nil
 	t.pieces = nil
 	t.piecePicker = nil
+	t.bytesAllocated = 0
 }
 
 func (t *torrent) stopPeriodicalAnnouncers() {

@@ -32,6 +32,8 @@ type Stats struct {
 		Uploaded int64
 		// Bytes downloaded due to duplicate/non-requested pieces.
 		Wasted int64
+		// Bytes allocated on storage.
+		Allocated int64
 	}
 	Peers struct {
 		// Number of peers that are connected, handshaked and ready to send and receive messages.
@@ -107,6 +109,7 @@ func (t *torrent) stats() Stats {
 	s.Bytes.Downloaded = t.byteStats.BytesDownloaded
 	s.Bytes.Uploaded = t.byteStats.BytesUploaded
 	s.Bytes.Wasted = t.byteStats.BytesWasted
+	s.Bytes.Allocated = t.bytesAllocated
 
 	if t.info != nil {
 		s.Bytes.Total = t.info.TotalLength

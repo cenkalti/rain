@@ -195,6 +195,7 @@ type torrent struct {
 	allocator          *allocator.Allocator
 	allocatorProgressC chan allocator.Progress
 	allocatorResultC   chan *allocator.Allocator
+	bytesAllocated     int64
 
 	// A worker that does hash check of files on the disk.
 	verifier          *verifier.Verifier
