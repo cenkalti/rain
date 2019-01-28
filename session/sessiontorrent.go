@@ -1,6 +1,7 @@
 package session
 
 import (
+	"encoding/hex"
 	"time"
 
 	"github.com/boltdb/bolt"
@@ -17,6 +18,13 @@ type Torrent struct {
 	removed      chan struct{}
 }
 
+type InfoHash [20]byte
+
+// String encodes info hash in hex as 40 charachters.
+func (h InfoHash) String() string {
+	return hex.EncodeToString(h[:])
+}
+
 func (t *Torrent) ID() string {
 	return t.id
 }
@@ -25,8 +33,10 @@ func (t *Torrent) Name() string {
 	return t.torrent.Name()
 }
 
-func (t *Torrent) InfoHash() string {
-	return t.torrent.InfoHash()
+func (t *Torrent) InfoHash() InfoHash {
+	var ih InfoHash
+	copy(ih[:], t.torrent.InfoHash())
+	return ih
 }
 
 func (t *Torrent) CreatedAt() time.Time {
@@ -61,7 +71,7 @@ func (t *Torrent) Start() error {
 	t.torrent.Start()
 	if t.session.config.DHTEnabled && !t.torrent.Stats().Private {
 		t.session.mPeerRequests.Lock()
-		t.session.dhtPeerRequests[dht.InfoHash(t.torrent.InfoHashBytes())] = struct{}{}
+		t.session.dhtPeerRequests[dht.InfoHash(t.torrent.InfoHash())] = struct{}{}
 		t.session.mPeerRequests.Unlock()
 	}
 	return nil

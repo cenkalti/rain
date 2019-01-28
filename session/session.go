@@ -403,7 +403,7 @@ func (s *Session) AddTorrent(r io.Reader) (*Torrent, error) {
 		}
 	}()
 	rspec := &boltdbresumer.Spec{
-		InfoHash:  t.InfoHashBytes(),
+		InfoHash:  t.InfoHash(),
 		Dest:      sto.Dest(),
 		Port:      opt.Port,
 		Name:      opt.Name,
@@ -535,7 +535,7 @@ func (s *Session) newTorrent(t *torrent, id string, port uint16, createdAt time.
 	s.m.Lock()
 	defer s.m.Unlock()
 	s.torrents[id] = t2
-	ih := dht.InfoHash(t.InfoHashBytes())
+	ih := dht.InfoHash(t.InfoHash())
 	s.torrentsByInfoHash[ih] = append(s.torrentsByInfoHash[ih], t2)
 	return t2
 }
@@ -572,7 +572,7 @@ func (s *Session) RemoveTorrent(id string) error {
 	close(t.removed)
 	t.torrent.Close()
 	delete(s.torrents, id)
-	delete(s.torrentsByInfoHash, dht.InfoHash(t.torrent.InfoHashBytes()))
+	delete(s.torrentsByInfoHash, dht.InfoHash(t.torrent.InfoHash()))
 	s.releasePort(t.port)
 	subBucket := id
 	err := s.db.Update(func(tx *bolt.Tx) error {

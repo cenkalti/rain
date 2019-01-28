@@ -1,7 +1,6 @@
 package session
 
 import (
-	"encoding/hex"
 	"net"
 	"sync"
 	"time"
@@ -240,14 +239,8 @@ func (t *torrent) Name() string {
 	return t.name
 }
 
-// InfoHash string encoded in hex as 40 charachters.
-// InfoHash is a unique value that identifies the files in torrent.
-func (t *torrent) InfoHash() string {
-	return hex.EncodeToString(t.infoHash[:])
-}
-
-// InfoHashBytes return info hash as 20 bytes.
-func (t *torrent) InfoHashBytes() []byte {
+// InfoHash is a 20-bytes value that identifies the files in torrent.
+func (t *torrent) InfoHash() []byte {
 	b := make([]byte, 20)
 	copy(b, t.infoHash[:])
 	return b

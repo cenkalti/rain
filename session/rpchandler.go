@@ -44,7 +44,7 @@ func newTorrent(t *Torrent) rainrpc.Torrent {
 	return rainrpc.Torrent{
 		ID:        t.ID(),
 		Name:      t.Name(),
-		InfoHash:  t.InfoHash(),
+		InfoHash:  t.InfoHash().String(),
 		Port:      t.Port(),
 		CreatedAt: rainrpc.Time{Time: t.CreatedAt()},
 	}
