@@ -13,10 +13,16 @@ type Stats struct {
 	// Contains the error message if torrent is stopped unexpectedly.
 	Error  error
 	Pieces struct {
-		Have      uint32
-		Missing   uint32
+		// Number of pieces that we are downloaded successfully and verivied by hash check.
+		Have uint32
+		// Number of pieces that need to be downloaded. Some of them may be being downloaded.
+		// Pieces that are being downloaded may counted as missing until they are downloaded and passed hash check.
+		Missing uint32
+		// Number of unique pieces available on swarm.
+		// If this number is less then the number of total pieces, the download may never finish.
 		Available uint32
-		Total     uint32
+		// Number of total pieces in torrent.
+		Total uint32
 	}
 	Bytes struct {
 		// Bytes that are downloaded and passed hash check.
@@ -51,12 +57,15 @@ type Stats struct {
 		// Number of outgoing peers in handshake state.
 		Outgoing int
 	}
-	// Number of peer addresses that are ready to be connected.
 	Addresses struct {
-		Total   int
+		// Total number of peer addresses that are ready to be connected.
+		Total int
+		// Peers found via trackers.
 		Tracker int
-		DHT     int
-		PEX     int
+		// Peers found via DHT node.
+		DHT int
+		// Peers found via peer exchange.
+		PEX int
 	}
 	Downloads struct {
 		// Number of active piece downloads.
