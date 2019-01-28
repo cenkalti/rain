@@ -74,7 +74,7 @@ func main() {
 				cli.StringFlag{
 					Name:  "config",
 					Usage: "path to the config file",
-					Value: "~/.rain/config.yaml",
+					Value: "~/rain/config.yaml",
 				},
 			},
 			Action: handleServer,
