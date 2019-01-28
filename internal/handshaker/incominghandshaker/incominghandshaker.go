@@ -58,7 +58,7 @@ func (h *IncomingHandshaker) Run(peerID [20]byte, getSKeyFunc func([20]byte) []b
 		} else if _, ok := err.(*net.OpError); ok {
 			log.Debugln("net operation error:", err)
 		} else {
-			log.Errorln("cannot complete incoming handshake:", err)
+			log.Debugln("cannot complete incoming handshake:", err)
 		}
 		h.Error = err
 		return
