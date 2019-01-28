@@ -10,7 +10,6 @@ import (
 
 // MetaInfo file dictionary
 type MetaInfo struct {
-	// TODO implement UnmarshalBencode([]byte) error for Info and remove RawInfo.
 	Info         *Info              `bencode:"-"`
 	RawInfo      bencode.RawMessage `bencode:"info" json:"-"`
 	Announce     string             `bencode:"announce"`
