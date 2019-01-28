@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/rain/internal/blocklist"
+	"github.com/cenkalti/rain/internal/externalip"
 )
 
 type AddrList struct {
@@ -59,8 +60,10 @@ func (d *AddrList) Push(addrs []*net.TCPAddr, listenPort int) {
 			continue
 		}
 		// Discard own client
-		// TODO discard IP reported by Tracker
 		if ad.IP.IsLoopback() && ad.Port == listenPort {
+			continue
+		}
+		if externalip.IsExternal(ad.IP) {
 			continue
 		}
 		if d.blocklist != nil && d.blocklist.Blocked(ad.IP) {
