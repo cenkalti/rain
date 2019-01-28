@@ -30,7 +30,6 @@ type AnnounceResponse struct {
 	Leechers    int32
 	Seeders     int32
 	Peers       []*net.TCPAddr
-	ExternalIP  net.IP
 }
 
 // Error is the string that is sent by the tracker from announce or scrape.

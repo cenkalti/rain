@@ -150,7 +150,6 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 		Leechers:    response.Incomplete,
 		Seeders:     response.Complete,
 		Peers:       peers,
-		ExternalIP:  response.ExternalIP,
 	}, nil
 }
 
