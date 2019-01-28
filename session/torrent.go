@@ -201,6 +201,7 @@ type torrent struct {
 	verifier          *verifier.Verifier
 	verifierProgressC chan verifier.Progress
 	verifierResultC   chan *verifier.Verifier
+	checkedPieces     uint32
 
 	byteStats resumer.Stats
 

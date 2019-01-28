@@ -17,7 +17,6 @@ type Verifier struct {
 
 type Progress struct {
 	Checked uint32
-	OK      uint32
 }
 
 func New() *Verifier {
@@ -58,7 +57,7 @@ func (v *Verifier) Run(pieces []piece.Piece, progressC chan Progress, resultC ch
 			numOK++
 		}
 		select {
-		case progressC <- Progress{Checked: p.Index + 1, OK: numOK}:
+		case progressC <- Progress{Checked: p.Index + 1}:
 		case <-v.closeC:
 			return
 		}

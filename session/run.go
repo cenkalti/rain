@@ -62,8 +62,8 @@ func (t *torrent) run() {
 			t.bytesAllocated = p.AllocatedSize
 		case al := <-t.allocatorResultC:
 			t.handleAllocationDone(al)
-		case <-t.verifierProgressC:
-			// TODO handle verification progress
+		case p := <-t.verifierProgressC:
+			t.checkedPieces = p.Checked
 		case ve := <-t.verifierResultC:
 			t.handleVerificationDone(ve)
 		case addrs := <-t.addrsFromTrackers:

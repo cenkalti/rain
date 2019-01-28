@@ -64,11 +64,13 @@ func (h *rpcHandler) GetTorrentStats(args *rainrpc.GetTorrentStatsRequest, reply
 	reply.Stats = rainrpc.Stats{
 		Status: torrentStatusToString(s.Status),
 		Pieces: struct {
+			Checked   uint32
 			Have      uint32
 			Missing   uint32
 			Available uint32
 			Total     uint32
 		}{
+			Checked:   s.Pieces.Checked,
 			Have:      s.Pieces.Have,
 			Missing:   s.Pieces.Missing,
 			Available: s.Pieces.Available,

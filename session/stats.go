@@ -13,6 +13,8 @@ type Stats struct {
 	// Contains the error message if torrent is stopped unexpectedly.
 	Error  error
 	Pieces struct {
+		// Number of pieces that are checked when torrent is in "Verifying" state.
+		Checked uint32
 		// Number of pieces that we are downloaded successfully and verivied by hash check.
 		Have uint32
 		// Number of pieces that need to be downloaded. Some of them may be being downloaded.
@@ -119,6 +121,7 @@ func (t *torrent) stats() Stats {
 	s.Bytes.Uploaded = t.byteStats.BytesUploaded
 	s.Bytes.Wasted = t.byteStats.BytesWasted
 	s.Bytes.Allocated = t.bytesAllocated
+	s.Pieces.Checked = t.checkedPieces
 
 	if t.info != nil {
 		s.Bytes.Total = t.info.TotalLength

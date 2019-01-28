@@ -24,6 +24,7 @@ type Stats struct {
 	Status string
 	Error  *string
 	Pieces struct {
+		Checked   uint32
 		Have      uint32
 		Missing   uint32
 		Available uint32
