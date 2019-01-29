@@ -1,8 +1,9 @@
 package externalip
 
 import (
-	"log"
 	"net"
+
+	"github.com/cenkalti/log"
 )
 
 var ips []net.IP
@@ -10,7 +11,8 @@ var ips []net.IP
 func init() {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
-		log.Fatal(err)
+		log.Warningln("cannot get interface addresses:", err)
+		return
 	}
 	for _, addr := range addrs {
 		in, ok := addr.(*net.IPNet)
