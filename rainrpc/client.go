@@ -22,6 +22,11 @@ func (c *Client) Close() error {
 	return c.client.Close()
 }
 
+func (c *Client) ServerVersion() (string, error) {
+	var reply string
+	return reply, c.client.Call("Session.Version", nil, &reply)
+}
+
 func (c *Client) ListTorrents() ([]rpctypes.Torrent, error) {
 	var reply rpctypes.ListTorrentsResponse
 	return reply.Torrents, c.client.Call("Session.ListTorrents", nil, &reply)

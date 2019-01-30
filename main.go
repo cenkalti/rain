@@ -92,6 +92,11 @@ func main() {
 			Before: handleBeforeClient,
 			Subcommands: []cli.Command{
 				{
+					Name:   "version",
+					Usage:  "server version",
+					Action: handleVersion,
+				},
+				{
 					Name:   "list",
 					Usage:  "list torrents",
 					Action: handleList,
@@ -259,6 +264,16 @@ func handleServer(c *cli.Context) error {
 
 func handleBeforeClient(c *cli.Context) error {
 	clt = rainrpc.NewClient(c.String("url"))
+	return nil
+}
+
+func handleVersion(c *cli.Context) error {
+	version, err := clt.ServerVersion()
+	if err != nil {
+		return err
+	}
+	_, _ = os.Stdout.WriteString(version)
+	_, _ = os.Stdout.WriteString("\n")
 	return nil
 }
 

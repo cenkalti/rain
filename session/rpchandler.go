@@ -12,6 +12,11 @@ type rpcHandler struct {
 	session *Session
 }
 
+func (h *rpcHandler) Version(args struct{}, reply *string) error {
+	*reply = Version
+	return nil
+}
+
 func (h *rpcHandler) ListTorrents(args *rpctypes.ListTorrentsRequest, reply *rpctypes.ListTorrentsResponse) error {
 	torrents := h.session.ListTorrents()
 	reply.Torrents = make([]rpctypes.Torrent, 0, len(torrents))
