@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"net"
 
 	"github.com/zeebo/bencode"
 )
@@ -78,16 +79,18 @@ func (m *ExtensionMessage) UnmarshalBinary(data []byte) error {
 type ExtensionHandshakeMessage struct {
 	M            map[string]uint8 `bencode:"m"`
 	V            string           `bencode:"v"`
+	YourIP       string           `bencode:"yourip,omitempty"`
 	MetadataSize uint32           `bencode:"metadata_size,omitempty"`
 }
 
-func NewExtensionHandshake(metadataSize uint32, version string) ExtensionHandshakeMessage {
+func NewExtensionHandshake(metadataSize uint32, version string, yourip net.IP) ExtensionHandshakeMessage {
 	return ExtensionHandshakeMessage{
 		M: map[string]uint8{
 			ExtensionKeyMetadata: ExtensionIDMetadata,
 			ExtensionKeyPEX:      ExtensionIDPEX,
 		},
 		V:            version,
+		YourIP:       string(truncateIP(yourip)),
 		MetadataSize: metadataSize,
 	}
 }
@@ -102,4 +105,12 @@ type ExtensionMetadataMessage struct {
 type ExtensionPEXMessage struct {
 	Added   string `bencode:"added"`
 	Dropped string `bencode:"dropped"`
+}
+
+func truncateIP(ip net.IP) net.IP {
+	ip4 := ip.To4()
+	if ip4 != nil {
+		return ip4
+	}
+	return ip
 }
