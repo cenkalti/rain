@@ -7,6 +7,7 @@ import (
 
 	"github.com/cenkalti/rain/internal/blocklist"
 	"github.com/cenkalti/rain/internal/externalip"
+	"github.com/cenkalti/rain/internal/peerpriority"
 )
 
 type PeerSource int
@@ -27,6 +28,7 @@ type AddrList struct {
 
 	maxItems   int
 	listenPort int
+	clientIP   *net.IP
 	blocklist  *blocklist.Blocklist
 
 	countBySource map[PeerSource]int
@@ -36,13 +38,15 @@ type peerAddr struct {
 	*net.TCPAddr
 	timestamp time.Time
 	source    PeerSource
+	priority  peerpriority.Priority
 }
 
-func New(maxItems int, blocklist *blocklist.Blocklist, listenPort int) *AddrList {
+func New(maxItems int, blocklist *blocklist.Blocklist, listenPort int, clientIP *net.IP) *AddrList {
 	return &AddrList{
 		peerAddrsMap:  make(map[string]*peerAddr),
 		maxItems:      maxItems,
 		listenPort:    listenPort,
+		clientIP:      clientIP,
 		blocklist:     blocklist,
 		countBySource: make(map[PeerSource]int),
 	}
@@ -99,6 +103,7 @@ func (d *AddrList) Push(addrs []*net.TCPAddr, source PeerSource) {
 				TCPAddr:   ad,
 				timestamp: now,
 				source:    source,
+				priority:  peerpriority.Calculate(ad, d.clientAddr()),
 			}
 			d.peerAddrsMap[key] = p
 			d.peerAddrs = append(d.peerAddrs, p)
@@ -117,5 +122,16 @@ func (d *AddrList) Push(addrs []*net.TCPAddr, source PeerSource) {
 		}
 		d.peerAddrs = d.peerAddrs[:len(d.peerAddrs)-delta]
 		d.countBySource[source] -= delta
+	}
+}
+
+func (d *AddrList) clientAddr() *net.TCPAddr {
+	ip := *d.clientIP
+	if ip == nil {
+		ip = net.IPv4(0, 0, 0, 0)
+	}
+	return &net.TCPAddr{
+		IP:   ip,
+		Port: d.listenPort,
 	}
 }

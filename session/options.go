@@ -103,7 +103,6 @@ func (o *options) NewTorrent(infoHash []byte, sto storage.Storage) (*torrent, er
 		notifyListenCommandC:      make(chan notifyListenCommand),
 		addPeersCommandC:          make(chan []*net.TCPAddr),
 		addrsFromTrackers:         make(chan []*net.TCPAddr),
-		addrList:                  addrlist.New(cfg.MaxPeerAddresses, o.Blocklist, o.Port),
 		peerIDs:                   make(map[[20]byte]struct{}),
 		incomingConnC:             make(chan net.Conn),
 		sKeyHash:                  mse.HashSKey(ih[:]),
@@ -125,6 +124,7 @@ func (o *options) NewTorrent(infoHash []byte, sto storage.Storage) (*torrent, er
 		blocklist:                 o.Blocklist,
 		externalIP:                externalip.FirstExternalIP(),
 	}
+	t.addrList = addrlist.New(cfg.MaxPeerAddresses, o.Blocklist, o.Port, &t.externalIP)
 	copy(t.peerID[:], []byte(cfg.PeerIDPrefix))
 	t.piecePool.New = func() interface{} {
 		return make([]byte, t.info.PieceLength)
