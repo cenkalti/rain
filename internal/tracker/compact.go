@@ -25,10 +25,7 @@ func (p CompactPeer) Addr() *net.TCPAddr {
 func (p CompactPeer) MarshalBinary() ([]byte, error) {
 	buf := bytes.NewBuffer(make([]byte, 0, 6))
 	err := binary.Write(buf, binary.BigEndian, p)
-	if err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return buf.Bytes(), err
 }
 
 func (p *CompactPeer) UnmarshalBinary(data []byte) error {
