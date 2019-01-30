@@ -112,6 +112,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:0bfbe13936953a98ae3cfe8ed6670d396ad81edf069a806d2f6515d7bb6950df"
+  name = "github.com/google/btree"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "4030bb1f1f0c35b30ca7009e9ebd06849dd45306"
+
+[[projects]]
+  branch = "master"
   digest = "1:d1971637b21871ec2033a44ca87c99c5608a7340cb34ec75fab8d2ab503276c9"
   name = "github.com/hashicorp/errwrap"
   packages = ["."]
@@ -237,6 +245,14 @@
   packages = ["."]
   pruneopts = "UT"
   revision = "b66b20ab708e289ff1eb3e218478302e6aec28ce"
+
+[[projects]]
+  branch = "master"
+  digest = "1:3bf17a6e6eaa6ad24152148a631d18662f7212e21637c2699bff3369b7f00fa2"
+  name = "github.com/petar/GoLLRB"
+  packages = ["llrb"]
+  pruneopts = "UT"
+  revision = "53be0d36a84c2a886ca057d34b6aa4468df9ccb4"
 
 [[projects]]
   digest = "1:0028cb19b2e4c3112225cd871870f2d9cf49b9b4276531f03438a88e94be86fe"
@@ -387,12 +403,14 @@
     "github.com/chihaya/chihaya/storage",
     "github.com/chihaya/chihaya/storage/memory",
     "github.com/fatih/structs",
+    "github.com/google/btree",
     "github.com/hokaccha/go-prettyjson",
     "github.com/jroimartin/gocui",
     "github.com/mitchellh/go-homedir",
     "github.com/nictuku/dht",
     "github.com/powerman/rpc-codec/jsonrpc2",
     "github.com/satori/go.uuid",
+    "github.com/stretchr/testify/assert",
     "github.com/urfave/cli",
     "github.com/zeebo/bencode",
     "gopkg.in/yaml.v2",
