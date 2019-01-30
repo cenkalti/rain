@@ -10,6 +10,7 @@ import (
 	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/blocklist"
+	"github.com/cenkalti/rain/internal/externalip"
 	"github.com/cenkalti/rain/internal/handshaker/incominghandshaker"
 	"github.com/cenkalti/rain/internal/handshaker/outgoinghandshaker"
 	"github.com/cenkalti/rain/internal/infodownloader"
@@ -122,6 +123,7 @@ func (o *options) NewTorrent(infoHash []byte, sto storage.Storage) (*torrent, er
 		pieceCache:                piececache.New(cfg.PieceCacheSize, cfg.PieceCacheTTL),
 		byteStats:                 o.Stats,
 		blocklist:                 o.Blocklist,
+		externalIP:                externalip.FirstExternalIP(),
 	}
 	copy(t.peerID[:], []byte(cfg.PeerIDPrefix))
 	t.piecePool.New = func() interface{} {

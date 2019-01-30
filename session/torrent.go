@@ -231,6 +231,11 @@ type torrent struct {
 	// Optional list of IP addresses to block.
 	blocklist *blocklist.Blocklist
 
+	// Used to calculate canonical peer priority (BEP 40).
+	// Initialized with value found in network interfaces.
+	// Then, updated from "yourip" field in BEP 10 extension handshake message.
+	externalIP net.IP
+
 	log logger.Logger
 }
 

@@ -5,6 +5,7 @@ import (
 	"crypto/sha1" // nolint: gosec
 	"errors"
 	"fmt"
+	"net"
 
 	"github.com/cenkalti/rain/internal/addrlist"
 	"github.com/cenkalti/rain/internal/bitfield"
@@ -256,6 +257,9 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 		}
 		pe.ExtensionHandshake = &msg
 
+		if len(msg.YourIP) == 4 {
+			t.externalIP = net.IP(msg.YourIP)
+		}
 		if _, ok := msg.M[peerprotocol.ExtensionKeyMetadata]; ok {
 			t.startInfoDownloaders()
 		}

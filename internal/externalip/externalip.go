@@ -54,3 +54,10 @@ func IsExternal(ip net.IP) bool {
 	}
 	return false
 }
+
+func FirstExternalIP() net.IP {
+	if len(ips) == 0 {
+		return nil
+	}
+	return ips[0]
+}
