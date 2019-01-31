@@ -1,6 +1,8 @@
 package session
 
 import (
+	"time"
+
 	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/handshaker/incominghandshaker"
 	"github.com/cenkalti/rain/internal/handshaker/outgoinghandshaker"
@@ -93,7 +95,8 @@ func (t *torrent) stop(err error) {
 }
 
 func (t *torrent) stopStatsWriter() {
-	// TODO write stats before stopping the ticker
+	t.writeStats()
+	t.secondsSeededUpdatedAt = time.Time{}
 	t.statsWriteTicker.Stop()
 	t.statsWriteTicker = nil
 	t.statsWriteTickerC = nil

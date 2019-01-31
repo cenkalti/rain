@@ -147,9 +147,10 @@ func (h *rpcHandler) GetTorrentStats(args *rpctypes.GetTorrentStatsRequest, repl
 			Snubbed: s.MetadataDownloads.Snubbed,
 			Running: s.MetadataDownloads.Running,
 		},
-		Name:        s.Name,
-		Private:     s.Private,
-		PieceLength: s.PieceLength,
+		Name:          s.Name,
+		Private:       s.Private,
+		PieceLength:   s.PieceLength,
+		SecondsSeeded: s.SecondsSeeded,
 	}
 	if s.Error != nil {
 		errStr := s.Error.Error()

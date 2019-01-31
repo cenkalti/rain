@@ -66,9 +66,10 @@ type Stats struct {
 		Snubbed int
 		Running int
 	}
-	Name        string
-	Private     bool
-	PieceLength uint32
+	Name          string
+	Private       bool
+	PieceLength   uint32
+	SecondsSeeded int
 }
 
 type ListTorrentsRequest struct {

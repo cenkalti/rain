@@ -23,6 +23,7 @@ var (
 	bytesDownloadedKey = []byte("bytes_downloaded")
 	bytesUploadedKey   = []byte("bytes_uploaded")
 	bytesWastedKey     = []byte("bytes_wasted")
+	secondsSeededKey   = []byte("seconds_seeded")
 )
 
 type Resumer struct {
@@ -93,6 +94,7 @@ func (r *Resumer) WriteStats(s resumer.Stats) error {
 		b.Put(bytesDownloadedKey, []byte(strconv.FormatInt(s.BytesDownloaded, 10)))
 		b.Put(bytesUploadedKey, []byte(strconv.FormatInt(s.BytesUploaded, 10)))
 		b.Put(bytesWastedKey, []byte(strconv.FormatInt(s.BytesWasted, 10)))
+		b.Put(secondsSeededKey, []byte(strconv.FormatUint(uint64(s.SecondsSeeded), 10)))
 		return nil
 	})
 }
@@ -164,6 +166,13 @@ func (r *Resumer) Read() (*Spec, error) {
 		if err != nil {
 			return err
 		}
+
+		value = b.Get(secondsSeededKey)
+		ss, err := strconv.ParseUint(string(value), 10, 32)
+		if err != nil {
+			return err
+		}
+		spec.SecondsSeeded = uint32(ss)
 
 		return nil
 	})

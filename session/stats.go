@@ -2,6 +2,7 @@ package session
 
 import (
 	"math"
+	"time"
 
 	"github.com/cenkalti/rain/internal/addrlist"
 )
@@ -93,6 +94,8 @@ type Stats struct {
 	Private bool
 	// Length of a single piece.
 	PieceLength uint32
+	// Number of seconds that torrent has seeded.
+	SecondsSeeded int
 }
 
 func (t *torrent) stats() Stats {
@@ -120,6 +123,7 @@ func (t *torrent) stats() Stats {
 	s.Bytes.Downloaded = t.byteStats.BytesDownloaded
 	s.Bytes.Uploaded = t.byteStats.BytesUploaded
 	s.Bytes.Wasted = t.byteStats.BytesWasted
+	s.SecondsSeeded = int(t.byteStats.SecondsSeeded)
 	s.Bytes.Allocated = t.bytesAllocated
 	s.Pieces.Checked = t.checkedPieces
 
@@ -189,4 +193,19 @@ func (t *torrent) getPeers() []Peer {
 		peers = append(peers, p)
 	}
 	return peers
+}
+
+func (t *torrent) updateSecondsSeeded() {
+	if t.status() != Seeding {
+		t.secondsSeededUpdatedAt = time.Time{}
+		return
+	}
+	if t.secondsSeededUpdatedAt.IsZero() {
+		t.secondsSeededUpdatedAt = time.Now()
+		return
+	}
+	now := time.Now()
+	passed := now.Sub(t.secondsSeededUpdatedAt)
+	t.byteStats.SecondsSeeded += uint32(passed / time.Second)
+	t.secondsSeededUpdatedAt = now
 }

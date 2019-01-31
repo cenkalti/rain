@@ -14,4 +14,5 @@ type Spec struct {
 	BytesDownloaded int64
 	BytesUploaded   int64
 	BytesWasted     int64
+	SecondsSeeded   uint32
 }

@@ -203,7 +203,8 @@ type torrent struct {
 	verifierResultC   chan *verifier.Verifier
 	checkedPieces     uint32
 
-	byteStats resumer.Stats
+	byteStats              resumer.Stats
+	secondsSeededUpdatedAt time.Time
 
 	// Holds connected peer IPs so we don't dial/accept multiple connections to/from same IP.
 	connectedPeerIPs map[string]struct{}

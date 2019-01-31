@@ -137,9 +137,7 @@ func (t *torrent) run() {
 		case <-t.resumeWriteTimerC:
 			t.writeBitfield(true)
 		case <-t.statsWriteTickerC:
-			if t.resume != nil {
-				t.resume.WriteStats(t.byteStats)
-			}
+			t.writeStats()
 		case pe := <-t.peerSnubbedC:
 			// Mark slow peer as snubbed and don't select that peer in piece picker
 			pe.Snubbed = true
@@ -410,5 +408,13 @@ func (t *torrent) checkCompletion() bool {
 		pd.CancelPending()
 	}
 	t.piecePicker = nil
+	t.updateSecondsSeeded()
 	return true
+}
+
+func (t *torrent) writeStats() {
+	t.updateSecondsSeeded()
+	if t.resume != nil {
+		t.resume.WriteStats(t.byteStats)
+	}
 }
