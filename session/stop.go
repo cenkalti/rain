@@ -93,6 +93,7 @@ func (t *torrent) stop(err error) {
 }
 
 func (t *torrent) stopStatsWriter() {
+	// TODO write stats before stopping the ticker
 	t.statsWriteTicker.Stop()
 	t.statsWriteTicker = nil
 	t.statsWriteTickerC = nil
