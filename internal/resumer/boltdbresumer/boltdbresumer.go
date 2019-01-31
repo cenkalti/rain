@@ -124,53 +124,71 @@ func (r *Resumer) Read() (*Spec, error) {
 		}
 
 		value = b.Get(nameKey)
-		spec.Name = string(value)
+		if value != nil {
+			spec.Name = string(value)
+		}
 
 		value = b.Get(trackersKey)
-		err = json.Unmarshal(value, &spec.Trackers)
-		if err != nil {
-			return err
+		if value != nil {
+			err = json.Unmarshal(value, &spec.Trackers)
+			if err != nil {
+				return err
+			}
 		}
 
 		value = b.Get(destKey)
 		spec.Dest = string(value)
 
 		value = b.Get(infoKey)
-		spec.Info = make([]byte, len(value))
-		copy(spec.Info, value)
+		if value != nil {
+			spec.Info = make([]byte, len(value))
+			copy(spec.Info, value)
+		}
 
 		value = b.Get(bitfieldKey)
-		spec.Bitfield = make([]byte, len(value))
-		copy(spec.Bitfield, value)
+		if value != nil {
+			spec.Bitfield = make([]byte, len(value))
+			copy(spec.Bitfield, value)
+		}
 
 		value = b.Get(createdAtKey)
-		spec.CreatedAt, err = time.Parse(time.RFC3339, string(value))
-		if err != nil {
-			return err
+		if value != nil {
+			spec.CreatedAt, err = time.Parse(time.RFC3339, string(value))
+			if err != nil {
+				return err
+			}
 		}
 
 		value = b.Get(bytesDownloadedKey)
-		spec.BytesDownloaded, err = strconv.ParseInt(string(value), 10, 64)
-		if err != nil {
-			return err
+		if value != nil {
+			spec.BytesDownloaded, err = strconv.ParseInt(string(value), 10, 64)
+			if err != nil {
+				return err
+			}
 		}
 
 		value = b.Get(bytesUploadedKey)
-		spec.BytesUploaded, err = strconv.ParseInt(string(value), 10, 64)
-		if err != nil {
-			return err
+		if value != nil {
+			spec.BytesUploaded, err = strconv.ParseInt(string(value), 10, 64)
+			if err != nil {
+				return err
+			}
 		}
 
 		value = b.Get(bytesWastedKey)
-		spec.BytesWasted, err = strconv.ParseInt(string(value), 10, 64)
-		if err != nil {
-			return err
+		if value != nil {
+			spec.BytesWasted, err = strconv.ParseInt(string(value), 10, 64)
+			if err != nil {
+				return err
+			}
 		}
 
 		value = b.Get(seededForKey)
-		spec.SeededFor, err = time.ParseDuration(string(value))
-		if err != nil {
-			return err
+		if value != nil {
+			spec.SeededFor, err = time.ParseDuration(string(value))
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
