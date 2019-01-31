@@ -74,6 +74,7 @@ type Stats struct {
 		Download float64
 		Upload   float64
 	}
+	ETA *uint
 }
 
 type ListTorrentsRequest struct {

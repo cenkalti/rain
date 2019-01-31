@@ -164,6 +164,10 @@ func (h *rpcHandler) GetTorrentStats(args *rpctypes.GetTorrentStatsRequest, repl
 		errStr := s.Error.Error()
 		reply.Stats.Error = &errStr
 	}
+	if s.ETA != nil {
+		eta := uint(*s.ETA / time.Second)
+		reply.Stats.ETA = &eta
+	}
 	return nil
 }
 

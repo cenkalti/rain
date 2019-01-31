@@ -103,6 +103,8 @@ type Stats struct {
 		// Uploaded bytes per second.
 		Upload float64
 	}
+	// Time remaining to complete download. nil value means infinity.
+	ETA *time.Duration
 }
 
 func (t *torrent) stats() Stats {
@@ -156,6 +158,11 @@ func (t *torrent) stats() Stats {
 		s.Pieces.Total = t.bitfield.Len()
 		s.Pieces.Have = t.bitfield.Count()
 		s.Pieces.Missing = s.Pieces.Total - s.Pieces.Have
+	}
+	bps := int64(s.Speed.Download)
+	if bps != 0 {
+		eta := time.Duration(s.Bytes.Incomplete/bps) * time.Second
+		s.ETA = &eta
 	}
 	return s
 }
