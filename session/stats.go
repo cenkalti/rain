@@ -99,6 +99,8 @@ type Stats struct {
 }
 
 func (t *torrent) stats() Stats {
+	t.updateSecondsSeeded()
+
 	var s Stats
 	s.Status = t.status()
 	s.Error = t.lastError
