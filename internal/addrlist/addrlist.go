@@ -98,9 +98,12 @@ func (d *AddrList) Push(addrs []*net.TCPAddr, source PeerSource) {
 		}
 		item := d.peerByPriority.ReplaceOrInsert(p)
 		if item != nil {
-			d.peerByTime[item.(*peerAddr).index] = p
+			prev := item.(*peerAddr)
+			d.peerByTime[prev.index] = p
+			p.index = prev.index
 		} else {
 			d.peerByTime = append(d.peerByTime, p)
+			p.index = len(d.peerByTime) - 1
 			added++
 		}
 	}
