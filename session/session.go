@@ -270,7 +270,7 @@ func (s *Session) loadExistingTorrents(ids []string) error {
 				BytesDownloaded: spec.BytesDownloaded,
 				BytesUploaded:   spec.BytesUploaded,
 				BytesWasted:     spec.BytesWasted,
-				SecondsSeeded:   spec.SecondsSeeded,
+				SeededFor:       spec.SeededFor,
 			},
 		}
 		var private bool

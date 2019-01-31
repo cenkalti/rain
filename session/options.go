@@ -120,7 +120,7 @@ func (o *options) NewTorrent(infoHash []byte, sto storage.Storage) (*torrent, er
 		announcersStoppedC:        make(chan struct{}),
 		dhtNode:                   o.DHT,
 		pieceCache:                piececache.New(cfg.PieceCacheSize, cfg.PieceCacheTTL),
-		byteStats:                 o.Stats,
+		resumerStats:              o.Stats,
 		blocklist:                 o.Blocklist,
 		externalIP:                externalip.FirstExternalIP(),
 	}

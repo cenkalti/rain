@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/cenkalti/rain/internal/rpctypes"
 )
@@ -92,7 +93,7 @@ func (h *rpcHandler) GetTorrentStats(args *rpctypes.GetTorrentStatsRequest, repl
 		}{
 			Total:      s.Bytes.Total,
 			Allocated:  s.Bytes.Allocated,
-			Complete:   s.Bytes.Complete,
+			Complete:   s.Bytes.Completed,
 			Incomplete: s.Bytes.Incomplete,
 			Downloaded: s.Bytes.Downloaded,
 			Uploaded:   s.Bytes.Uploaded,
@@ -147,10 +148,10 @@ func (h *rpcHandler) GetTorrentStats(args *rpctypes.GetTorrentStatsRequest, repl
 			Snubbed: s.MetadataDownloads.Snubbed,
 			Running: s.MetadataDownloads.Running,
 		},
-		Name:          s.Name,
-		Private:       s.Private,
-		PieceLength:   s.PieceLength,
-		SecondsSeeded: s.SecondsSeeded,
+		Name:        s.Name,
+		Private:     s.Private,
+		PieceLength: s.PieceLength,
+		SeededFor:   uint(s.SeededFor / time.Second),
 	}
 	if s.Error != nil {
 		errStr := s.Error.Error()

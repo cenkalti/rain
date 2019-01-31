@@ -23,13 +23,13 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 	pe := pm.Peer
 	if t.pieces == nil || t.bitfield == nil {
 		pe.Logger().Error("piece received but we don't have info")
-		t.byteStats.BytesWasted += int64(len(msg.Data))
+		t.resumerStats.BytesWasted += int64(len(msg.Data))
 		t.closePeer(pe)
 		return
 	}
 	if msg.Index >= uint32(len(t.pieces)) {
 		pe.Logger().Errorln("invalid piece index:", msg.Index)
-		t.byteStats.BytesWasted += int64(len(msg.Data))
+		t.resumerStats.BytesWasted += int64(len(msg.Data))
 		t.closePeer(pe)
 		return
 	}
@@ -37,20 +37,20 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 	block := piece.Blocks.Find(msg.Begin, uint32(len(msg.Data)))
 	if block == nil {
 		pe.Logger().Errorln("invalid piece begin:", msg.Begin, "length:", len(msg.Data))
-		t.byteStats.BytesWasted += int64(len(msg.Data))
+		t.resumerStats.BytesWasted += int64(len(msg.Data))
 		t.closePeer(pe)
 		return
 	}
-	t.byteStats.BytesDownloaded += int64(len(msg.Data))
+	t.resumerStats.BytesDownloaded += int64(len(msg.Data))
 	pe.BytesDownlaodedInChokePeriod += int64(len(msg.Data))
 	pd, ok := t.pieceDownloaders[pe]
 	if !ok {
-		t.byteStats.BytesWasted += int64(len(msg.Data))
+		t.resumerStats.BytesWasted += int64(len(msg.Data))
 		peerreader.PiecePool.Put(msg.Data)
 		return
 	}
 	if pd.Piece.Index != msg.Index {
-		t.byteStats.BytesWasted += int64(len(msg.Data))
+		t.resumerStats.BytesWasted += int64(len(msg.Data))
 		peerreader.PiecePool.Put(msg.Data)
 		return
 	}
@@ -67,7 +67,7 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 
 	ok = piece.VerifyHash(pd.Buffer[:pd.Piece.Length], sha1.New()) // nolint: gosec
 	if !ok {
-		t.byteStats.BytesWasted += int64(len(msg.Data))
+		t.resumerStats.BytesWasted += int64(len(msg.Data))
 		// TODO ban peers that sent corrupt piece
 		t.log.Error("received corrupt piece")
 		t.closePeer(pd.Peer)
@@ -247,7 +247,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 		}
 		pe.CancelRequest(msg)
 	case peerwriter.BlockUploaded:
-		t.byteStats.BytesUploaded += int64(msg.Length)
+		t.resumerStats.BytesUploaded += int64(msg.Length)
 		pe.BytesUploadedInChokePeriod += int64(msg.Length)
 	case peerprotocol.ExtensionHandshakeMessage:
 		pe.Logger().Debugln("extension handshake received:", msg)

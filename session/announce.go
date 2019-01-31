@@ -11,8 +11,8 @@ func (t *torrent) announcerFields() tracker.Torrent {
 		InfoHash:        t.infoHash,
 		PeerID:          t.peerID,
 		Port:            t.port,
-		BytesDownloaded: t.byteStats.BytesDownloaded,
-		BytesUploaded:   t.byteStats.BytesUploaded,
+		BytesDownloaded: t.resumerStats.BytesDownloaded,
+		BytesUploaded:   t.resumerStats.BytesUploaded,
 	}
 	if t.bitfield == nil {
 		tr.BytesLeft = math.MaxUint32

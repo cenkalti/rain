@@ -96,7 +96,7 @@ func (t *torrent) stop(err error) {
 
 func (t *torrent) stopStatsWriter() {
 	t.writeStats()
-	t.secondsSeededUpdatedAt = time.Time{}
+	t.seedDurationUpdatedAt = time.Time{}
 	t.statsWriteTicker.Stop()
 	t.statsWriteTicker = nil
 	t.statsWriteTickerC = nil

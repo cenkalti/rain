@@ -29,10 +29,10 @@ type Stats struct {
 	}
 	Bytes struct {
 		// Bytes that are downloaded and passed hash check.
-		Complete int64
+		Completed int64
 		// The number of bytes that is needed to complete all missing pieces.
 		Incomplete int64
-		// The number of total bytes of files in torrent.  Total = Complete + Incomplete
+		// The number of total bytes of files in torrent.  Total = Completed + Incomplete
 		Total int64
 		// Downloaded is the number of bytes downloaded from swarm.
 		// Because some pieces may be downloaded more than once, this number may be greater than completed bytes.
@@ -94,12 +94,12 @@ type Stats struct {
 	Private bool
 	// Length of a single piece.
 	PieceLength uint32
-	// Number of seconds that torrent has seeded.
-	SecondsSeeded int
+	// Duration while the torrent is in Seeding status.
+	SeededFor time.Duration
 }
 
 func (t *torrent) stats() Stats {
-	t.updateSecondsSeeded()
+	t.updateSeedDuration()
 
 	var s Stats
 	s.Status = t.status()
@@ -122,17 +122,17 @@ func (t *torrent) stats() Stats {
 	s.Downloads.Choked = len(t.pieceDownloadersChoked)
 	s.Downloads.Running = len(t.pieceDownloaders) - len(t.pieceDownloadersChoked) - len(t.pieceDownloadersSnubbed)
 	s.Pieces.Available = t.avaliablePieceCount()
-	s.Bytes.Downloaded = t.byteStats.BytesDownloaded
-	s.Bytes.Uploaded = t.byteStats.BytesUploaded
-	s.Bytes.Wasted = t.byteStats.BytesWasted
-	s.SecondsSeeded = int(t.byteStats.SecondsSeeded)
+	s.Bytes.Downloaded = t.resumerStats.BytesDownloaded
+	s.Bytes.Uploaded = t.resumerStats.BytesUploaded
+	s.Bytes.Wasted = t.resumerStats.BytesWasted
+	s.SeededFor = t.resumerStats.SeededFor
 	s.Bytes.Allocated = t.bytesAllocated
 	s.Pieces.Checked = t.checkedPieces
 
 	if t.info != nil {
 		s.Bytes.Total = t.info.TotalLength
-		s.Bytes.Complete = t.bytesComplete()
-		s.Bytes.Incomplete = s.Bytes.Total - s.Bytes.Complete
+		s.Bytes.Completed = t.bytesComplete()
+		s.Bytes.Incomplete = s.Bytes.Total - s.Bytes.Completed
 
 		s.Name = t.info.Name
 		s.Private = (t.info.Private == 1)
@@ -197,17 +197,16 @@ func (t *torrent) getPeers() []Peer {
 	return peers
 }
 
-func (t *torrent) updateSecondsSeeded() {
+func (t *torrent) updateSeedDuration() {
 	if t.status() != Seeding {
-		t.secondsSeededUpdatedAt = time.Time{}
+		t.seedDurationUpdatedAt = time.Time{}
 		return
 	}
-	if t.secondsSeededUpdatedAt.IsZero() {
-		t.secondsSeededUpdatedAt = time.Now()
+	if t.seedDurationUpdatedAt.IsZero() {
+		t.seedDurationUpdatedAt = time.Now()
 		return
 	}
 	now := time.Now()
-	passed := now.Sub(t.secondsSeededUpdatedAt)
-	t.byteStats.SecondsSeeded += uint32(passed / time.Second)
-	t.secondsSeededUpdatedAt = now
+	t.resumerStats.SeededFor += now.Sub(t.seedDurationUpdatedAt)
+	t.seedDurationUpdatedAt = now
 }

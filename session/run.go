@@ -408,13 +408,13 @@ func (t *torrent) checkCompletion() bool {
 		pd.CancelPending()
 	}
 	t.piecePicker = nil
-	t.updateSecondsSeeded()
+	t.updateSeedDuration()
 	return true
 }
 
 func (t *torrent) writeStats() {
-	t.updateSecondsSeeded()
+	t.updateSeedDuration()
 	if t.resume != nil {
-		t.resume.WriteStats(t.byteStats)
+		t.resume.WriteStats(t.resumerStats)
 	}
 }
