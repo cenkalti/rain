@@ -70,6 +70,10 @@ type Stats struct {
 	Private     bool
 	PieceLength uint32
 	SeededFor   uint
+	Speed       struct {
+		Download float64
+		Upload   float64
+	}
 }
 
 type ListTorrentsRequest struct {

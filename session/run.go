@@ -138,6 +138,9 @@ func (t *torrent) run() {
 			t.writeBitfield(true)
 		case <-t.statsWriteTickerC:
 			t.writeStats()
+		case <-t.speedCounterTickerC:
+			t.downloadSpeed.Tick()
+			t.uploadSpeed.Tick()
 		case pe := <-t.peerSnubbedC:
 			// Mark slow peer as snubbed and don't select that peer in piece picker
 			pe.Snubbed = true

@@ -152,6 +152,13 @@ func (h *rpcHandler) GetTorrentStats(args *rpctypes.GetTorrentStatsRequest, repl
 		Private:     s.Private,
 		PieceLength: s.PieceLength,
 		SeededFor:   uint(s.SeededFor / time.Second),
+		Speed: struct {
+			Download float64
+			Upload   float64
+		}{
+			Download: s.Speed.Download,
+			Upload:   s.Speed.Upload,
+		},
 	}
 	if s.Error != nil {
 		errStr := s.Error.Error()

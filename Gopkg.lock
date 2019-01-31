@@ -312,6 +312,14 @@
   revision = "418d78d0b9a7b7de3a6bbc8a23def624cc977bb2"
 
 [[projects]]
+  branch = "master"
+  digest = "1:d38f81081a389f1466ec98192cf9115a82158854d6f01e1c23e2e7554b97db71"
+  name = "github.com/rcrowley/go-metrics"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "3113b8401b8a98917cde58f8bbd42a1b1c03b1fd"
+
+[[projects]]
   digest = "1:274f67cb6fed9588ea2521ecdac05a6d62a8c51c074c1fccc6a49a40ba80e925"
   name = "github.com/satori/go.uuid"
   packages = ["."]
@@ -409,6 +417,7 @@
     "github.com/mitchellh/go-homedir",
     "github.com/nictuku/dht",
     "github.com/powerman/rpc-codec/jsonrpc2",
+    "github.com/rcrowley/go-metrics",
     "github.com/satori/go.uuid",
     "github.com/stretchr/testify/assert",
     "github.com/urfave/cli",

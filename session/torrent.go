@@ -26,6 +26,7 @@ import (
 	"github.com/cenkalti/rain/internal/storage"
 	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/internal/verifier"
+	"github.com/rcrowley/go-metrics"
 )
 
 var (
@@ -236,6 +237,12 @@ type torrent struct {
 	// Initialized with value found in network interfaces.
 	// Then, updated from "yourip" field in BEP 10 extension handshake message.
 	externalIP net.IP
+
+	// Rate counters for download and upload speeds.
+	downloadSpeed       metrics.EWMA
+	uploadSpeed         metrics.EWMA
+	speedCounterTicker  *time.Ticker
+	speedCounterTickerC <-chan time.Time
 
 	log logger.Logger
 }

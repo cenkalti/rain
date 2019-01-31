@@ -96,6 +96,13 @@ type Stats struct {
 	PieceLength uint32
 	// Duration while the torrent is in Seeding status.
 	SeededFor time.Duration
+	// Speed is calculated as 1-minute moving average.
+	Speed struct {
+		// Downloaded bytes per second.
+		Download float64
+		// Uploaded bytes per second.
+		Upload float64
+	}
 }
 
 func (t *torrent) stats() Stats {
@@ -128,6 +135,8 @@ func (t *torrent) stats() Stats {
 	s.SeededFor = t.resumerStats.SeededFor
 	s.Bytes.Allocated = t.bytesAllocated
 	s.Pieces.Checked = t.checkedPieces
+	s.Speed.Download = t.downloadSpeed.Rate()
+	s.Speed.Upload = t.uploadSpeed.Rate()
 
 	if t.info != nil {
 		s.Bytes.Total = t.info.TotalLength

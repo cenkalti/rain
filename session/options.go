@@ -25,6 +25,7 @@ import (
 	"github.com/cenkalti/rain/internal/storage"
 	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/internal/verifier"
+	"github.com/rcrowley/go-metrics"
 )
 
 // options for creating a new Torrent.
@@ -123,6 +124,8 @@ func (o *options) NewTorrent(infoHash []byte, sto storage.Storage) (*torrent, er
 		resumerStats:              o.Stats,
 		blocklist:                 o.Blocklist,
 		externalIP:                externalip.FirstExternalIP(),
+		downloadSpeed:             metrics.NewEWMA1(),
+		uploadSpeed:               metrics.NewEWMA1(),
 	}
 	t.addrList = addrlist.New(cfg.MaxPeerAddresses, o.Blocklist, o.Port, &t.externalIP)
 	copy(t.peerID[:], []byte(cfg.PeerIDPrefix))

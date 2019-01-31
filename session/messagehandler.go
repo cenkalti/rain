@@ -41,6 +41,7 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 		t.closePeer(pe)
 		return
 	}
+	t.downloadSpeed.Update(int64(len(msg.Data)))
 	t.resumerStats.BytesDownloaded += int64(len(msg.Data))
 	pe.BytesDownlaodedInChokePeriod += int64(len(msg.Data))
 	pd, ok := t.pieceDownloaders[pe]
@@ -247,6 +248,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 		}
 		pe.CancelRequest(msg)
 	case peerwriter.BlockUploaded:
+		t.uploadSpeed.Update(int64(msg.Length))
 		t.resumerStats.BytesUploaded += int64(msg.Length)
 		pe.BytesUploadedInChokePeriod += int64(msg.Length)
 	case peerprotocol.ExtensionHandshakeMessage:

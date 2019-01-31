@@ -7,6 +7,7 @@ import (
 	"github.com/cenkalti/rain/internal/handshaker/incominghandshaker"
 	"github.com/cenkalti/rain/internal/handshaker/outgoinghandshaker"
 	"github.com/cenkalti/rain/internal/tracker"
+	"github.com/rcrowley/go-metrics"
 )
 
 func (t *torrent) stop(err error) {
@@ -67,6 +68,8 @@ func (t *torrent) stop(err error) {
 	t.log.Debugln("stopping stats writer")
 	t.stopStatsWriter()
 
+	t.stopSpeedCounter()
+
 	t.log.Debugln("clearing piece cache")
 	t.pieceCache.Clear()
 
@@ -92,6 +95,7 @@ func (t *torrent) stop(err error) {
 	go t.stoppedEventAnnouncer.Run()
 
 	t.addrList.Reset()
+
 }
 
 func (t *torrent) stopStatsWriter() {
@@ -100,6 +104,14 @@ func (t *torrent) stopStatsWriter() {
 	t.statsWriteTicker.Stop()
 	t.statsWriteTicker = nil
 	t.statsWriteTickerC = nil
+}
+
+func (t *torrent) stopSpeedCounter() {
+	t.speedCounterTicker.Stop()
+	t.speedCounterTicker = nil
+	t.speedCounterTickerC = nil
+	t.downloadSpeed = metrics.NewEWMA1()
+	t.uploadSpeed = metrics.NewEWMA1()
 }
 
 func (t *torrent) stopOutgoingHandshakers() {
