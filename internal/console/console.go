@@ -185,7 +185,13 @@ func (c *Console) updateLoop(g *gocui.Gui) {
 func (c *Console) updateTorrents(g *gocui.Gui) {
 	torrents, err := c.client.ListTorrents()
 
-	sort.Slice(torrents, func(i, j int) bool { return torrents[i].CreatedAt.Time.Before(torrents[j].CreatedAt.Time) })
+	sort.Slice(torrents, func(i, j int) bool {
+		a, b := torrents[i], torrents[j]
+		if a.CreatedAt.Equal(b.CreatedAt.Time) {
+			return a.ID < b.ID
+		}
+		return a.CreatedAt.Time.Before(b.CreatedAt.Time)
+	})
 
 	c.m.Lock()
 	c.torrents = torrents
