@@ -99,9 +99,9 @@ type Stats struct {
 	// Speed is calculated as 1-minute moving average.
 	Speed struct {
 		// Downloaded bytes per second.
-		Download float64
+		Download uint
 		// Uploaded bytes per second.
-		Upload float64
+		Upload uint
 	}
 	// Time remaining to complete download. nil value means infinity.
 	ETA *time.Duration
@@ -137,8 +137,8 @@ func (t *torrent) stats() Stats {
 	s.SeededFor = t.resumerStats.SeededFor
 	s.Bytes.Allocated = t.bytesAllocated
 	s.Pieces.Checked = t.checkedPieces
-	s.Speed.Download = t.downloadSpeed.Rate()
-	s.Speed.Upload = t.uploadSpeed.Rate()
+	s.Speed.Download = uint(t.downloadSpeed.Rate())
+	s.Speed.Upload = uint(t.uploadSpeed.Rate())
 
 	if t.info != nil {
 		s.Bytes.Total = t.info.TotalLength

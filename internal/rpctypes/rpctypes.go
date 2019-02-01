@@ -71,8 +71,8 @@ type Stats struct {
 	PieceLength uint32
 	SeededFor   uint
 	Speed       struct {
-		Download float64
-		Upload   float64
+		Download uint
+		Upload   uint
 	}
 	ETA *uint
 }

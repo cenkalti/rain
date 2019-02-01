@@ -153,8 +153,8 @@ func (h *rpcHandler) GetTorrentStats(args *rpctypes.GetTorrentStatsRequest, repl
 		PieceLength: s.PieceLength,
 		SeededFor:   uint(s.SeededFor / time.Second),
 		Speed: struct {
-			Download float64
-			Upload   float64
+			Download uint
+			Upload   uint
 		}{
 			Download: s.Speed.Download,
 			Upload:   s.Speed.Upload,
