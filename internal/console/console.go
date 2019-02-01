@@ -61,6 +61,8 @@ func (c *Console) Run() error {
 	g.SetKeybinding("torrents", 'R', gocui.ModNone, c.removeTorrent)
 	g.SetKeybinding("torrents", 's', gocui.ModNone, c.startTorrent)
 	g.SetKeybinding("torrents", 'S', gocui.ModNone, c.stopTorrent)
+	g.SetKeybinding("torrents", 'g', gocui.ModNone, c.goTop)
+	g.SetKeybinding("torrents", 'G', gocui.ModNone, c.goBottom)
 	g.SetKeybinding("torrents", gocui.KeyCtrlG, gocui.ModNone, c.switchGeneral)
 	g.SetKeybinding("torrents", gocui.KeyCtrlT, gocui.ModNone, c.switchTrackers)
 	g.SetKeybinding("torrents", gocui.KeyCtrlP, gocui.ModNone, c.switchPeers)
@@ -290,6 +292,35 @@ func (c *Console) cursorUp(g *gocui.Gui, v *gocui.View) error {
 	if row >= 0 && row < len(c.torrents) {
 		c.updatingDetails = true
 		c.setSelectedID(c.torrents[row].ID)
+	}
+	return nil
+}
+
+func (c *Console) goTop(g *gocui.Gui, v *gocui.View) error {
+	c.m.Lock()
+	defer c.m.Unlock()
+
+	v.SetOrigin(0, 0)
+	v.SetCursor(0, 0)
+	if len(c.torrents) > 0 {
+		c.updatingDetails = true
+		c.setSelectedID(c.torrents[0].ID)
+	}
+	return nil
+}
+
+func (c *Console) goBottom(g *gocui.Gui, v *gocui.View) error {
+	c.m.Lock()
+	defer c.m.Unlock()
+
+	_, height := v.Size()
+
+	if len(c.torrents) > height {
+		v.SetOrigin(0, len(c.torrents)-height)
+		v.SetCursor(0, height-1)
+	} else {
+		v.SetOrigin(0, 0)
+		v.SetCursor(0, len(c.torrents)-1)
 	}
 	return nil
 }
