@@ -33,7 +33,7 @@ type Stats struct {
 	Bytes struct {
 		Total      int64
 		Allocated  int64
-		Complete   int64
+		Completed  int64
 		Incomplete int64
 		Downloaded int64
 		Uploaded   int64

@@ -85,7 +85,7 @@ func (h *rpcHandler) GetTorrentStats(args *rpctypes.GetTorrentStatsRequest, repl
 		Bytes: struct {
 			Total      int64
 			Allocated  int64
-			Complete   int64
+			Completed  int64
 			Incomplete int64
 			Downloaded int64
 			Uploaded   int64
@@ -93,7 +93,7 @@ func (h *rpcHandler) GetTorrentStats(args *rpctypes.GetTorrentStatsRequest, repl
 		}{
 			Total:      s.Bytes.Total,
 			Allocated:  s.Bytes.Allocated,
-			Complete:   s.Bytes.Completed,
+			Completed:  s.Bytes.Completed,
 			Incomplete: s.Bytes.Incomplete,
 			Downloaded: s.Bytes.Downloaded,
 			Uploaded:   s.Bytes.Uploaded,
