@@ -51,7 +51,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:9440211ea0fcea7e3df3613e9008b4b65b925302a5cdb817c070b26c317c04cc"
+  digest = "1:4d917daa0de1e115cf77a0a1ac36c4adc443bbbb4647c2e30611a5210ca84242"
   name = "github.com/chihaya/chihaya"
   packages = [
     "bittorrent",
@@ -68,7 +68,7 @@
     "storage/memory",
   ]
   pruneopts = "UT"
-  revision = "b4b257c1515b6efdec22cb22526d2d421f3f9098"
+  revision = "5f99a7e7788591b1fe8ab4a8eda0dcffe227109d"
 
 [[projects]]
   digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
