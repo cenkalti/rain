@@ -252,77 +252,91 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 	return gocui.ErrQuit
 }
 
+func (c *Console) switchRow(v *gocui.View, row int) error {
+	_, cy := v.Cursor()
+	_, oy := v.Origin()
+	_, height := v.Size()
+
+	currentRow := oy + cy
+
+	if len(c.torrents) > height {
+		if row > currentRow {
+			// sroll down
+			if row >= oy+height {
+				// move origin
+				v.SetOrigin(0, row-height+1)
+				v.SetCursor(0, height-1)
+			} else {
+				v.SetCursor(0, row-oy)
+			}
+		} else {
+			// scroll up
+			if row < oy {
+				// move origin
+				v.SetOrigin(0, row)
+				v.SetCursor(0, 0)
+			} else {
+				v.SetCursor(0, row-oy)
+			}
+		}
+	} else {
+		v.SetOrigin(0, 0)
+		v.SetCursor(0, row)
+	}
+
+	c.updatingDetails = true
+	c.setSelectedID(c.torrents[row].ID)
+	return nil
+}
+
 func (c *Console) cursorDown(g *gocui.Gui, v *gocui.View) error {
 	c.m.Lock()
 	defer c.m.Unlock()
 
-	cx, cy := v.Cursor()
-	ox, oy := v.Origin()
-	if cy+oy >= len(c.torrents)-1 {
+	_, cy := v.Cursor()
+	_, oy := v.Origin()
+
+	row := cy + oy + 1
+	if row >= len(c.torrents) {
 		return nil
 	}
-	if err := v.SetCursor(cx, cy+1); err != nil {
-		if err := v.SetOrigin(ox, oy+1); err != nil {
-			return err
-		}
-	}
-	row := cy + oy + 1
-	if row >= 0 && row < len(c.torrents) {
-		c.updatingDetails = true
-		c.setSelectedID(c.torrents[row].ID)
-	}
-	return nil
+
+	return c.switchRow(v, row)
 }
 
 func (c *Console) cursorUp(g *gocui.Gui, v *gocui.View) error {
 	c.m.Lock()
 	defer c.m.Unlock()
 
-	cx, cy := v.Cursor()
-	ox, oy := v.Origin()
-	if cy+oy <= 0 {
+	_, cy := v.Cursor()
+	_, oy := v.Origin()
+
+	row := cy + oy - 1
+	if row < 0 {
 		return nil
 	}
-	if err := v.SetCursor(cx, cy-1); err != nil && oy > 0 {
-		if err := v.SetOrigin(ox, oy-1); err != nil {
-			return err
-		}
-	}
-	row := cy + oy - 1
-	if row >= 0 && row < len(c.torrents) {
-		c.updatingDetails = true
-		c.setSelectedID(c.torrents[row].ID)
-	}
-	return nil
+
+	return c.switchRow(v, row)
 }
 
 func (c *Console) goTop(g *gocui.Gui, v *gocui.View) error {
 	c.m.Lock()
 	defer c.m.Unlock()
 
-	v.SetOrigin(0, 0)
-	v.SetCursor(0, 0)
-	if len(c.torrents) > 0 {
-		c.updatingDetails = true
-		c.setSelectedID(c.torrents[0].ID)
+	if len(c.torrents) == 0 {
+		return nil
 	}
-	return nil
+	return c.switchRow(v, 0)
 }
 
 func (c *Console) goBottom(g *gocui.Gui, v *gocui.View) error {
 	c.m.Lock()
 	defer c.m.Unlock()
 
-	_, height := v.Size()
-
-	if len(c.torrents) > height {
-		v.SetOrigin(0, len(c.torrents)-height)
-		v.SetCursor(0, height-1)
-	} else {
-		v.SetOrigin(0, 0)
-		v.SetCursor(0, len(c.torrents)-1)
+	if len(c.torrents) == 0 {
+		return nil
 	}
-	return nil
+	return c.switchRow(v, len(c.torrents)-1)
 }
 
 func (c *Console) removeTorrent(g *gocui.Gui, v *gocui.View) error {
