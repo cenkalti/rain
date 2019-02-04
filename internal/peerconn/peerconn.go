@@ -7,6 +7,7 @@ import (
 
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/internal/mse"
 	"github.com/cenkalti/rain/internal/peerconn/peerreader"
 	"github.com/cenkalti/rain/internal/peerconn/peerwriter"
 	"github.com/cenkalti/rain/internal/peerprotocol"
@@ -16,6 +17,7 @@ type Conn struct {
 	conn          net.Conn
 	id            [20]byte
 	FastExtension bool
+	Cipher        mse.CryptoMethod
 	reader        *peerreader.PeerReader
 	writer        *peerwriter.PeerWriter
 	messages      chan interface{}
@@ -24,13 +26,14 @@ type Conn struct {
 	doneC         chan struct{}
 }
 
-func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, l logger.Logger, pieceTimeout time.Duration, readBufferSize int) *Conn {
+func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, cipher mse.CryptoMethod, l logger.Logger, pieceTimeout time.Duration, readBufferSize int) *Conn {
 	fastExtension := extensions.Test(61)
 	extensionProtocol := extensions.Test(43)
 	return &Conn{
 		conn:          conn,
 		id:            id,
 		FastExtension: fastExtension,
+		Cipher:        cipher,
 		reader:        peerreader.New(conn, l, pieceTimeout, readBufferSize, fastExtension, extensionProtocol),
 		writer:        peerwriter.New(conn, l),
 		messages:      make(chan interface{}),

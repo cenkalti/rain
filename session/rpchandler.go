@@ -224,7 +224,8 @@ func (h *rpcHandler) GetTorrentPeers(args *rpctypes.GetTorrentPeersRequest, repl
 			OptimisticUnchoked:  p.OptimisticUnchoked,
 			Snubbed:             p.Snubbed,
 			IncomingConnection:  p.IncomingConnection,
-			Encrypted:           p.Encrypted,
+			EncryptedHandshake:  p.EncryptedHandshake,
+			EncryptedStream:     p.EncryptedStream,
 		}
 	}
 	return nil

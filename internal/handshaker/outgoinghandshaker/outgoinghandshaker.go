@@ -8,6 +8,7 @@ import (
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/btconn"
 	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/internal/mse"
 )
 
 type OutgoingHandshaker struct {
@@ -15,6 +16,7 @@ type OutgoingHandshaker struct {
 	Conn       net.Conn
 	PeerID     [20]byte
 	Extensions *bitfield.Bitfield
+	Cipher     mse.CryptoMethod
 	Error      error
 
 	closeC chan struct{}
@@ -67,6 +69,7 @@ func (h *OutgoingHandshaker) Run(dialTimeout, handshakeTimeout time.Duration, pe
 	h.Conn = conn
 	h.PeerID = peerID
 	h.Extensions = peerbf
+	h.Cipher = cipher
 
 	select {
 	case resultC <- h:

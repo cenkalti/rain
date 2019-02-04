@@ -458,8 +458,10 @@ func flags(p rpctypes.Peer) string {
 	case "PEX":
 		sb.WriteRune('X')
 	}
-	if p.Encrypted {
+	if p.EncryptedStream {
 		sb.WriteRune('E')
+	} else if p.EncryptedHandshake {
+		sb.WriteRune('e')
 	}
 	return sb.String()
 }

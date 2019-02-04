@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/rain/internal/addrlist"
+	"github.com/cenkalti/rain/internal/mse"
 )
 
 // Stats contains statistics about Torrent.
@@ -210,13 +211,14 @@ func (t *torrent) getPeers() []Peer {
 			Downloading:        pe.Downloading,
 			OptimisticUnchoked: pe.OptimisticUnchoked,
 			Snubbed:            pe.Snubbed,
+			EncryptedHandshake: pe.Cipher != 0,
+			EncryptedStream:    pe.Cipher == mse.RC4,
 			// TODO set remaining flags
 			// Source              PeerSource
 			// ClientWantsDownload bool
 			// Uploading           bool
 			// PeerWantsUpload     bool
 			// IncomingConnection  bool
-			// Encrypted           bool
 		}
 		peers = append(peers, p)
 	}

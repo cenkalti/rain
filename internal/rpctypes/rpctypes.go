@@ -18,7 +18,8 @@ type Peer struct {
 	OptimisticUnchoked  bool
 	Snubbed             bool
 	IncomingConnection  bool
-	Encrypted           bool
+	EncryptedHandshake  bool
+	EncryptedStream     bool
 }
 
 type Tracker struct {
