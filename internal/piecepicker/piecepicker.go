@@ -65,10 +65,7 @@ func (p *PiecePicker) DoesHave(pe *peer.Peer, i uint32) bool {
 }
 
 func (p *PiecePicker) HandleHave(pe *peer.Peer, i uint32) {
-	p.pieces[i].HavingPeers[pe] = struct{}{}
-	if len(p.pieces[i].HavingPeers) == 1 {
-		p.available++
-	}
+	p.addHavingPeer(i, pe)
 }
 
 func (p *PiecePicker) HandleAllowedFast(pe *peer.Peer, i uint32) {
@@ -88,10 +85,25 @@ func (p *PiecePicker) HandleDisconnect(pe *peer.Peer) {
 	for i := range p.pieces {
 		p.HandleCancelDownload(pe, uint32(i))
 		delete(p.pieces[i].AllowedFastPeers, pe)
-		delete(p.pieces[i].HavingPeers, pe)
-		if len(p.pieces[i].HavingPeers) == 0 {
-			p.available--
-		}
+		p.removeHavingPeer(i, pe)
+	}
+}
+
+func (p *PiecePicker) addHavingPeer(i uint32, pe *peer.Peer) {
+	m := p.pieces[i].HavingPeers
+	count := len(m)
+	m[pe] = struct{}{}
+	if count == 0 && len(m) == 1 {
+		p.available++
+	}
+}
+
+func (p *PiecePicker) removeHavingPeer(i int, pe *peer.Peer) {
+	m := p.pieces[i].HavingPeers
+	count := len(m)
+	delete(p.pieces[i].HavingPeers, pe)
+	if count == 1 && len(m) == 0 {
+		p.available--
 	}
 }
 
