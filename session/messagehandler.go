@@ -283,7 +283,6 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 				t.sendMetadataReject(pe, msg.Piece, extMsgID)
 				break
 			}
-			// TODO Clients MAY implement flood protection by rejecting request messages after a certain number of them have been served. Typically the number of pieces of metadata times a factor.
 			start := 16 * 1024 * msg.Piece
 			end := start + 16*1024
 			totalSize := uint32(len(t.info.Bytes))
