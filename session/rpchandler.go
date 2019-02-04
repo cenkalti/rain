@@ -9,6 +9,8 @@ import (
 	"github.com/cenkalti/rain/internal/rpctypes"
 )
 
+var errTorrentNotFound = errors.New("torrent not found")
+
 type rpcHandler struct {
 	session *Session
 }
@@ -64,7 +66,7 @@ func (h *rpcHandler) RemoveTorrent(args *rpctypes.RemoveTorrentRequest, reply *r
 func (h *rpcHandler) GetTorrentStats(args *rpctypes.GetTorrentStatsRequest, reply *rpctypes.GetTorrentStatsResponse) error {
 	t := h.session.GetTorrent(args.ID)
 	if t == nil {
-		return errors.New("torrent not found")
+		return errTorrentNotFound
 	}
 	s := t.Stats()
 	reply.Stats = rpctypes.Stats{
@@ -174,7 +176,7 @@ func (h *rpcHandler) GetTorrentStats(args *rpctypes.GetTorrentStatsRequest, repl
 func (h *rpcHandler) GetTorrentTrackers(args *rpctypes.GetTorrentTrackersRequest, reply *rpctypes.GetTorrentTrackersResponse) error {
 	t := h.session.GetTorrent(args.ID)
 	if t == nil {
-		return errors.New("torrent not found")
+		return errTorrentNotFound
 	}
 	trackers := t.Trackers()
 	reply.Trackers = make([]rpctypes.Tracker, len(trackers))
@@ -196,7 +198,7 @@ func (h *rpcHandler) GetTorrentTrackers(args *rpctypes.GetTorrentTrackersRequest
 func (h *rpcHandler) GetTorrentPeers(args *rpctypes.GetTorrentPeersRequest, reply *rpctypes.GetTorrentPeersResponse) error {
 	t := h.session.GetTorrent(args.ID)
 	if t == nil {
-		return errors.New("torrent not found")
+		return errTorrentNotFound
 	}
 	peers := t.Peers()
 	reply.Peers = make([]rpctypes.Peer, len(peers))
@@ -211,7 +213,7 @@ func (h *rpcHandler) GetTorrentPeers(args *rpctypes.GetTorrentPeersRequest, repl
 func (h *rpcHandler) StartTorrent(args *rpctypes.StartTorrentRequest, reply *rpctypes.StartTorrentResponse) error {
 	t := h.session.GetTorrent(args.ID)
 	if t == nil {
-		return errors.New("torrent not found")
+		return errTorrentNotFound
 	}
 	t.Start()
 	return nil
@@ -220,7 +222,7 @@ func (h *rpcHandler) StartTorrent(args *rpctypes.StartTorrentRequest, reply *rpc
 func (h *rpcHandler) StopTorrent(args *rpctypes.StopTorrentRequest, reply *rpctypes.StopTorrentResponse) error {
 	t := h.session.GetTorrent(args.ID)
 	if t == nil {
-		return errors.New("torrent not found")
+		return errTorrentNotFound
 	}
 	t.Stop()
 	return nil
