@@ -34,20 +34,18 @@ type PeerReader struct {
 	log               logger.Logger
 	pieceTimeout      time.Duration
 	messages          chan interface{}
-	fastExtension     bool
 	extensionProtocol bool
 	stopC             chan struct{}
 	doneC             chan struct{}
 }
 
-func New(conn net.Conn, l logger.Logger, pieceTimeout time.Duration, bufferSize int, fastExtension, extensionProtocol bool) *PeerReader {
+func New(conn net.Conn, l logger.Logger, pieceTimeout time.Duration, bufferSize int, extensionProtocol bool) *PeerReader {
 	return &PeerReader{
 		conn:              conn,
 		buf:               bufio.NewReaderSize(conn, bufferSize),
 		log:               l,
 		pieceTimeout:      pieceTimeout,
 		messages:          make(chan interface{}),
-		fastExtension:     fastExtension,
 		extensionProtocol: extensionProtocol,
 		stopC:             make(chan struct{}),
 		doneC:             make(chan struct{}),
@@ -160,10 +158,6 @@ func (p *PeerReader) Run() {
 			}
 			msg = rm
 		case peerprotocol.Reject:
-			if !p.fastExtension {
-				err = errors.New("reject message received but fast extensions is not enabled")
-				return
-			}
 			var rm peerprotocol.RejectMessage
 			err = binary.Read(p.buf, binary.BigEndian, &rm)
 			if err != nil {
@@ -212,20 +206,12 @@ func (p *PeerReader) Run() {
 			}
 			msg = Piece{PieceMessage: pm, Data: b}
 		case peerprotocol.HaveAll:
-			if !p.fastExtension {
-				err = errors.New("have_all message received but fast extensions is not enabled")
-				return
-			}
 			if !first {
 				err = errors.New("have_all can only be sent after handshake")
 				return
 			}
 			msg = peerprotocol.HaveAllMessage{}
 		case peerprotocol.HaveNone:
-			if !p.fastExtension {
-				err = errors.New("have_none message received but fast extensions is not enabled")
-				return
-			}
 			if !first {
 				err = errors.New("have_none can only be sent after handshake")
 				return

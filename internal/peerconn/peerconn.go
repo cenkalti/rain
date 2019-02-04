@@ -34,7 +34,7 @@ func New(conn net.Conn, id [20]byte, extensions *bitfield.Bitfield, cipher mse.C
 		id:            id,
 		FastExtension: fastExtension,
 		Cipher:        cipher,
-		reader:        peerreader.New(conn, l, pieceTimeout, readBufferSize, fastExtension, extensionProtocol),
+		reader:        peerreader.New(conn, l, pieceTimeout, readBufferSize, extensionProtocol),
 		writer:        peerwriter.New(conn, l),
 		messages:      make(chan interface{}),
 		log:           l,

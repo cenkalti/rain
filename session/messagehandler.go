@@ -141,6 +141,11 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 		t.updateInterestedState(pe)
 		t.startPieceDownloaders()
 	case peerprotocol.HaveAllMessage:
+		if !pe.FastExtension {
+			pe.Logger().Error("have_all message received but fast extensions is not enabled")
+			t.closePeer(pe)
+			break
+		}
 		if t.pieces == nil || t.bitfield == nil {
 			pe.Messages = append(pe.Messages, msg)
 			break
@@ -153,6 +158,11 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 		t.updateInterestedState(pe)
 		t.startPieceDownloaders()
 	case peerprotocol.HaveNoneMessage:
+		if !pe.FastExtension {
+			pe.Logger().Error("have_none message received but fast extensions is not enabled")
+			t.closePeer(pe)
+			break
+		}
 	case peerprotocol.AllowedFastMessage:
 		if t.pieces == nil || t.bitfield == nil {
 			pe.Messages = append(pe.Messages, msg)
@@ -211,6 +221,11 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			pe.SendPiece(msg, t.cachedPiece(pi))
 		}
 	case peerprotocol.RejectMessage:
+		if !pe.FastExtension {
+			pe.Logger().Error("reject message received but fast extensions is not enabled")
+			t.closePeer(pe)
+			break
+		}
 		if t.pieces == nil || t.bitfield == nil {
 			pe.Logger().Error("reject received but we don't have info")
 			t.closePeer(pe)
