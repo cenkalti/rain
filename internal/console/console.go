@@ -154,11 +154,11 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 				}
 			case trackers:
 				for i, t := range c.trackers {
-					var errorStr string
+					fmt.Fprintf(v, "#%d %s\n", i, t.URL)
+					fmt.Fprintf(v, "    Status: %s, Seeders: %d, Leechers: %d\n", t.Status, t.Seeders, t.Leechers)
 					if t.Error != nil {
-						errorStr = *t.Error
+						fmt.Fprintf(v, "    Error: %s\n", *t.Error)
 					}
-					fmt.Fprintf(v, "#%d %s\n    Status: %s, Seeders: %d, Leechers: %d\n    Error: %s\n", i, t.URL, t.Status, t.Seeders, t.Leechers, errorStr)
 				}
 			case peers:
 				for i, p := range c.peers {
