@@ -144,8 +144,25 @@ func (t *torrent) Trackers() []Tracker {
 }
 
 type Peer struct {
-	Addr net.Addr
+	Addr                net.Addr
+	Source              PeerSource
+	Downloading         bool
+	ClientWantsDownload bool
+	Uploading           bool
+	PeerWantsUpload     bool
+	OptimisticUnchoked  bool
+	Snubbed             bool
+	IncomingConnection  bool
+	Encrypted           bool
 }
+
+type PeerSource int
+
+const (
+	SourceTracker PeerSource = iota
+	SourceDHT
+	SourcePEX
+)
 
 type peersRequest struct {
 	Response chan []Peer

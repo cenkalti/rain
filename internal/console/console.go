@@ -162,7 +162,7 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 				}
 			case peers:
 				for i, p := range c.peers {
-					fmt.Fprintf(v, "#%d Addr: %s\n", i, p.Addr)
+					fmt.Fprintf(v, "#%s Addr: %21s Flags: %s\n", fmt.Sprintf("%2d", i), p.Addr, flags(p))
 				}
 			}
 		}
@@ -426,4 +426,40 @@ func (c *Console) triggerUpdateTorrents() {
 	case c.updateTorrentsC <- struct{}{}:
 	default:
 	}
+}
+
+func flags(p rpctypes.Peer) string {
+	var sb strings.Builder
+	sb.Grow(9)
+	if p.Downloading {
+		sb.WriteRune('D')
+	}
+	if p.ClientWantsDownload {
+		sb.WriteRune('d')
+	}
+	if p.Uploading {
+		sb.WriteRune('U')
+	}
+	if p.PeerWantsUpload {
+		sb.WriteRune('u')
+	}
+	if p.OptimisticUnchoked {
+		sb.WriteRune('O')
+	}
+	if p.Snubbed {
+		sb.WriteRune('S')
+	}
+	if p.IncomingConnection {
+		sb.WriteRune('I')
+	}
+	switch p.Source {
+	case "DHT":
+		sb.WriteRune('H')
+	case "PEX":
+		sb.WriteRune('X')
+	}
+	if p.Encrypted {
+		sb.WriteRune('E')
+	}
+	return sb.String()
 }

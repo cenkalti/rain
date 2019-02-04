@@ -206,7 +206,17 @@ func (t *torrent) getPeers() []Peer {
 	var peers []Peer
 	for pe := range t.peers {
 		p := Peer{
-			Addr: pe.Addr(),
+			Addr:               pe.Addr(),
+			Downloading:        pe.Downloading,
+			OptimisticUnchoked: pe.OptimisticUnchoked,
+			Snubbed:            pe.Snubbed,
+			// TODO set remaining flags
+			// Source              PeerSource
+			// ClientWantsDownload bool
+			// Uploading           bool
+			// PeerWantsUpload     bool
+			// IncomingConnection  bool
+			// Encrypted           bool
 		}
 		peers = append(peers, p)
 	}

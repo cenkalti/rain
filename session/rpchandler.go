@@ -203,8 +203,28 @@ func (h *rpcHandler) GetTorrentPeers(args *rpctypes.GetTorrentPeersRequest, repl
 	peers := t.Peers()
 	reply.Peers = make([]rpctypes.Peer, len(peers))
 	for i, p := range peers {
+		var source string
+		switch p.Source {
+		case SourceTracker:
+			source = "TRACKER"
+		case SourceDHT:
+			source = "DHT"
+		case SourcePEX:
+			source = "PEX"
+		default:
+			source = "UNKNOWN"
+		}
 		reply.Peers[i] = rpctypes.Peer{
-			Addr: p.Addr.String(),
+			Addr:                p.Addr.String(),
+			Source:              source,
+			Downloading:         p.Downloading,
+			ClientWantsDownload: p.ClientWantsDownload,
+			Uploading:           p.Uploading,
+			PeerWantsUpload:     p.PeerWantsUpload,
+			OptimisticUnchoked:  p.OptimisticUnchoked,
+			Snubbed:             p.Snubbed,
+			IncomingConnection:  p.IncomingConnection,
+			Encrypted:           p.Encrypted,
 		}
 	}
 	return nil
