@@ -106,12 +106,8 @@ func (p *PiecePicker) Pick() (*piece.Piece, *peer.Peer) {
 }
 
 func (p *PiecePicker) findPieceAndPeer() (*myPiece, *peer.Peer) {
-	pe, pi := p.select4RandomPiece()
-	if pe != nil && pi != nil {
-		return pe, pi
-	}
 	sort.Slice(p.sortedPieces, func(i, j int) bool { return len(p.sortedPieces[i].HavingPeers) < len(p.sortedPieces[j].HavingPeers) })
-	pe, pi = p.selectPiece(true)
+	pe, pi := p.selectPiece(true)
 	if pe != nil && pi != nil {
 		return pe, pi
 	}
@@ -119,11 +115,6 @@ func (p *PiecePicker) findPieceAndPeer() (*myPiece, *peer.Peer) {
 	if pe != nil && pi != nil {
 		return pe, pi
 	}
-	return nil, nil
-}
-
-func (p *PiecePicker) select4RandomPiece() (*myPiece, *peer.Peer) {
-	// TODO request first 4 pieces randomly
 	return nil, nil
 }
 

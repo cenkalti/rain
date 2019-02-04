@@ -69,7 +69,6 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 	ok = piece.VerifyHash(pd.Buffer[:pd.Piece.Length], sha1.New()) // nolint: gosec
 	if !ok {
 		t.resumerStats.BytesWasted += int64(len(msg.Data))
-		// TODO ban peers that sent corrupt piece
 		t.log.Error("received corrupt piece")
 		t.closePeer(pd.Peer)
 		t.startPieceDownloaders()
