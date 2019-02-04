@@ -323,10 +323,9 @@ func (s *Session) loadExistingTorrents(ids []string) error {
 }
 
 func (s *Session) hasStarted(id string) (bool, error) {
-	subBucket := id
 	started := false
 	err := s.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(torrentsBucket).Bucket([]byte(subBucket))
+		b := tx.Bucket(torrentsBucket).Bucket([]byte(id))
 		val := b.Get([]byte("started"))
 		if bytes.Equal(val, []byte("1")) {
 			started = true
@@ -577,9 +576,8 @@ func (s *Session) RemoveTorrent(id string) error {
 	delete(s.torrents, id)
 	delete(s.torrentsByInfoHash, dht.InfoHash(t.torrent.InfoHash()))
 	s.releasePort(t.port)
-	subBucket := id
 	err := s.db.Update(func(tx *bolt.Tx) error {
-		return tx.Bucket(torrentsBucket).DeleteBucket([]byte(subBucket))
+		return tx.Bucket(torrentsBucket).DeleteBucket([]byte(id))
 	})
 	if err != nil {
 		return err
