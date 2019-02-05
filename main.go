@@ -18,7 +18,7 @@ import (
 	"github.com/cenkalti/rain/internal/console"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/rainrpc"
-	"github.com/cenkalti/rain/session"
+	"github.com/cenkalti/rain/torrent"
 	"github.com/hokaccha/go-prettyjson"
 	"github.com/mitchellh/go-homedir"
 	"github.com/urfave/cli"
@@ -32,7 +32,7 @@ var (
 )
 
 func main() {
-	app.Version = session.Version
+	app.Version = torrent.Version
 	app.Usage = "BitTorrent client"
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
@@ -86,7 +86,7 @@ func main() {
 				cli.StringFlag{
 					Name:  "url",
 					Usage: "URL of RPC server",
-					Value: "http://127.0.0.1:" + strconv.Itoa(session.DefaultConfig.RPCPort),
+					Value: "http://127.0.0.1:" + strconv.Itoa(torrent.DefaultConfig.RPCPort),
 				},
 			},
 			Before: handleBeforeClient,
@@ -207,7 +207,7 @@ func handleAfterCommand(c *cli.Context) error {
 }
 
 func handleServer(c *cli.Context) error {
-	cfg := session.DefaultConfig
+	cfg := torrent.DefaultConfig
 
 	configPath := c.String("config")
 	if configPath != "" {
@@ -234,7 +234,7 @@ func handleServer(c *cli.Context) error {
 		}
 	}
 
-	ses, err := session.New(cfg)
+	ses, err := torrent.New(cfg)
 	if err != nil {
 		return err
 	}

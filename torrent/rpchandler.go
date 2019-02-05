@@ -1,4 +1,4 @@
-package session
+package torrent
 
 import (
 	"encoding/base64"

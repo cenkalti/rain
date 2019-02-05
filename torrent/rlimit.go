@@ -1,6 +1,6 @@
 // +build !windows
 
-package session
+package torrent
 
 import "syscall"
 

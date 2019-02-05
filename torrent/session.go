@@ -1,5 +1,5 @@
-// Package session provides a BitTorrent client implementation that is capable of downlaoding multiple torrents in parallel.
-package session
+// Package torrent provides a BitTorrent client implementation.
+package torrent
 
 import (
 	"bytes"

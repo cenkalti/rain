@@ -1,4 +1,4 @@
-package session
+package torrent
 
 import (
 	"github.com/cenkalti/rain/internal/infodownloader"

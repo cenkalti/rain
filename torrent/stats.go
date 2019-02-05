@@ -1,4 +1,4 @@
-package session
+package torrent
 
 import (
 	"math"
@@ -11,7 +11,7 @@ import (
 // Stats contains statistics about Torrent.
 type Stats struct {
 	// Status of the torrent.
-	Status TorrentStatus
+	Status Status
 	// Contains the error message if torrent is stopped unexpectedly.
 	Error  error
 	Pieces struct {

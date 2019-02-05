@@ -1,9 +1,9 @@
-package session
+package torrent
 
-type TorrentStatus int
+type Status int
 
 const (
-	Stopped TorrentStatus = iota
+	Stopped Status = iota
 	DownloadingMetadata
 	Allocating
 	Verifying
@@ -12,8 +12,8 @@ const (
 	Stopping
 )
 
-func torrentStatusToString(s TorrentStatus) string {
-	m := map[TorrentStatus]string{
+func torrentStatusToString(s Status) string {
+	m := map[Status]string{
 		Stopped:             "Stopped",
 		DownloadingMetadata: "Downloading Metadata",
 		Allocating:          "Allocating",
@@ -25,7 +25,7 @@ func torrentStatusToString(s TorrentStatus) string {
 	return m[s]
 }
 
-func (t *torrent) status() TorrentStatus {
+func (t *torrent) status() Status {
 	if t.errC == nil {
 		return Stopped
 	}

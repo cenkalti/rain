@@ -1,4 +1,4 @@
-package session
+package torrent
 
 // Version of client. Set during build.
 // "0.0.0" is the development version.
