@@ -220,6 +220,7 @@ func (t *torrent) getPeers() []Peer {
 			panic("unhandled peer source")
 		}
 		p := Peer{
+			ID:                 pe.ID,
 			Addr:               pe.Addr(),
 			Downloading:        pe.Downloading,
 			ClientInterested:   pe.ClientInterested,

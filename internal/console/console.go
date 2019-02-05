@@ -162,7 +162,7 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 				}
 			case peers:
 				for i, p := range c.peers {
-					fmt.Fprintf(v, "#%s Addr: %21s Flags: %s\n", fmt.Sprintf("%2d", i), p.Addr, flags(p))
+					fmt.Fprintf(v, "#%s Addr: %21s Flags: %s ID: %s\n", fmt.Sprintf("%2d", i), p.Addr, flags(p), printableID(p.ID))
 				}
 			}
 		}
@@ -490,4 +490,29 @@ func flags(p rpctypes.Peer) string {
 		sb.WriteString(" ")
 	}
 	return sb.String()
+}
+
+func printableID(id string) string {
+	// ID follows BEP 20 convention
+	if id[7] == '-' {
+		return string(id[:8])
+	}
+
+	// Rain convention
+	if strings.HasPrefix(id, "-RN") {
+		i := strings.IndexRune(id[1:], '-')
+		if i != -1 {
+			return id[:i+2]
+		}
+	}
+
+	// Replace non-ascii characters with '_'
+	b := []byte(id)
+	for i, val := range b {
+		if val >= 32 && val < 127 {
+			continue
+		}
+		b[i] = '_'
+	}
+	return string(b)
 }

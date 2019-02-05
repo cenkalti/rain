@@ -9,6 +9,7 @@ type Torrent struct {
 }
 
 type Peer struct {
+	ID                 string
 	Addr               string
 	Source             string
 	Downloading        bool

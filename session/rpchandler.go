@@ -217,6 +217,7 @@ func (h *rpcHandler) GetTorrentPeers(args *rpctypes.GetTorrentPeersRequest, repl
 			panic("unhandled peer source")
 		}
 		reply.Peers[i] = rpctypes.Peer{
+			ID:                 string(p.ID[:]),
 			Addr:               p.Addr.String(),
 			Source:             source,
 			Downloading:        p.Downloading,
