@@ -4,8 +4,8 @@ import (
 	"math"
 	"time"
 
-	"github.com/cenkalti/rain/internal/addrlist"
 	"github.com/cenkalti/rain/internal/mse"
+	"github.com/cenkalti/rain/internal/peer"
 )
 
 // Stats contains statistics about Torrent.
@@ -115,9 +115,9 @@ func (t *torrent) stats() Stats {
 	s.Status = t.status()
 	s.Error = t.lastError
 	s.Addresses.Total = t.addrList.Len()
-	s.Addresses.Tracker = t.addrList.LenSource(addrlist.Tracker)
-	s.Addresses.DHT = t.addrList.LenSource(addrlist.DHT)
-	s.Addresses.PEX = t.addrList.LenSource(addrlist.PEX)
+	s.Addresses.Tracker = t.addrList.LenSource(peer.SourceTracker)
+	s.Addresses.DHT = t.addrList.LenSource(peer.SourceDHT)
+	s.Addresses.PEX = t.addrList.LenSource(peer.SourcePEX)
 	s.Handshakes.Incoming = len(t.incomingHandshakers)
 	s.Handshakes.Outgoing = len(t.outgoingHandshakers)
 	s.Handshakes.Total = len(t.incomingHandshakers) + len(t.outgoingHandshakers)
@@ -206,6 +206,19 @@ func (t *torrent) getTrackers() []Tracker {
 func (t *torrent) getPeers() []Peer {
 	var peers []Peer
 	for pe := range t.peers {
+		var source PeerSource
+		switch pe.Source {
+		case peer.SourceTracker:
+			source = SourceTracker
+		case peer.SourceDHT:
+			source = SourceDHT
+		case peer.SourcePEX:
+			source = SourcePEX
+		case peer.SourceIncoming:
+			source = SourceIncoming
+		default:
+			panic("unhandled peer source")
+		}
 		p := Peer{
 			Addr:               pe.Addr(),
 			Downloading:        pe.Downloading,
@@ -213,9 +226,8 @@ func (t *torrent) getPeers() []Peer {
 			Snubbed:            pe.Snubbed,
 			EncryptedHandshake: pe.EncryptionCipher != 0,
 			EncryptedStream:    pe.EncryptionCipher == mse.RC4,
-			IncomingConnection: pe.Incoming,
+			Source:             source,
 			// TODO set remaining flags
-			// Source              PeerSource
 			// ClientWantsDownload bool
 			// Uploading           bool
 			// PeerWantsUpload     bool

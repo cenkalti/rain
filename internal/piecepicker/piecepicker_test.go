@@ -29,7 +29,7 @@ func newPiecePicker(numPieces uint32, numPeers int) *piecepicker.PiecePicker {
 	var ext [8]byte
 	pp := piecepicker.New(pieces, endgameParallelDownloadsPerPiece, nil)
 	for i := 0; i < numPeers; i++ {
-		pe := peer.New(nil, false, id, ext, 0, 0)
+		pe := peer.New(nil, 0, id, ext, 0, 0)
 		if prob(snubRatio) {
 			pe.Snubbed = true
 		}

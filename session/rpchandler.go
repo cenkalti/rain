@@ -211,8 +211,10 @@ func (h *rpcHandler) GetTorrentPeers(args *rpctypes.GetTorrentPeersRequest, repl
 			source = "DHT"
 		case SourcePEX:
 			source = "PEX"
+		case SourceIncoming:
+			source = "INCOMING"
 		default:
-			source = "UNKNOWN"
+			panic("unhandled peer source")
 		}
 		reply.Peers[i] = rpctypes.Peer{
 			Addr:                p.Addr.String(),
@@ -223,7 +225,6 @@ func (h *rpcHandler) GetTorrentPeers(args *rpctypes.GetTorrentPeersRequest, repl
 			PeerWantsUpload:     p.PeerWantsUpload,
 			OptimisticUnchoked:  p.OptimisticUnchoked,
 			Snubbed:             p.Snubbed,
-			IncomingConnection:  p.IncomingConnection,
 			EncryptedHandshake:  p.EncryptedHandshake,
 			EncryptedStream:     p.EncryptedStream,
 		}

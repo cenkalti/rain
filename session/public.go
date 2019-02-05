@@ -152,7 +152,6 @@ type Peer struct {
 	PeerWantsUpload     bool
 	OptimisticUnchoked  bool
 	Snubbed             bool
-	IncomingConnection  bool
 	EncryptedHandshake  bool
 	EncryptedStream     bool
 }
@@ -163,6 +162,7 @@ const (
 	SourceTracker PeerSource = iota
 	SourceDHT
 	SourcePEX
+	SourceIncoming
 )
 
 type peersRequest struct {

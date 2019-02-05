@@ -14,7 +14,7 @@ import (
 type Peer struct {
 	*peerconn.Conn
 
-	Incoming bool
+	Source Source
 
 	ID                [20]byte
 	ExtensionsEnabled bool
@@ -60,7 +60,7 @@ type PieceMessage struct {
 	Piece peerreader.Piece
 }
 
-func New(p *peerconn.Conn, incoming bool, id [20]byte, extensions [8]byte, cipher mse.CryptoMethod, snubTimeout time.Duration) *Peer {
+func New(p *peerconn.Conn, source Source, id [20]byte, extensions [8]byte, cipher mse.CryptoMethod, snubTimeout time.Duration) *Peer {
 	bf, _ := bitfield.NewBytes(extensions[:], 64)
 	fastEnabled := bf.Test(61)
 	extensionsEnabled := bf.Test(43)
@@ -69,7 +69,7 @@ func New(p *peerconn.Conn, incoming bool, id [20]byte, extensions [8]byte, ciphe
 	t.Stop()
 	return &Peer{
 		Conn:              p,
-		Incoming:          incoming,
+		Source:            source,
 		ID:                id,
 		AmChoking:         true,
 		PeerChoking:       true,

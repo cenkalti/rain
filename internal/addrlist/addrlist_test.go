@@ -4,6 +4,7 @@ import (
 	"net"
 	"testing"
 
+	"github.com/cenkalti/rain/internal/peer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -12,19 +13,19 @@ func TestAddrList(t *testing.T) {
 	al := New(2, nil, 5000, &clientIP)
 
 	// Push 1st addr
-	al.Push([]*net.TCPAddr{newAddr("1.1.1.1")}, Tracker)
+	al.Push([]*net.TCPAddr{newAddr("1.1.1.1")}, peer.SourceTracker)
 	assert.Equal(t, len(al.peerByTime), 1)
 	assert.Equal(t, al.peerByPriority.Len(), 1)
 	assert.Equal(t, al.peerByTime[0].index, 0)
 
 	// Push same addr again
-	al.Push([]*net.TCPAddr{newAddr("1.1.1.1")}, Tracker)
+	al.Push([]*net.TCPAddr{newAddr("1.1.1.1")}, peer.SourceTracker)
 	assert.Equal(t, len(al.peerByTime), 1)
 	assert.Equal(t, al.peerByPriority.Len(), 1)
 	assert.Equal(t, al.peerByTime[0].index, 0)
 
 	// Push 2nd addr
-	al.Push([]*net.TCPAddr{newAddr("2.2.2.2")}, Tracker)
+	al.Push([]*net.TCPAddr{newAddr("2.2.2.2")}, peer.SourceTracker)
 	assert.Equal(t, len(al.peerByTime), 2)
 	assert.Equal(t, al.peerByPriority.Len(), 2)
 	assert.Equal(t, al.peerByTime[0].index, 0)
@@ -38,14 +39,14 @@ func TestAddrList(t *testing.T) {
 	assert.Equal(t, al.peerByTime[0].index, 0)
 
 	// Push 3nd addr
-	al.Push([]*net.TCPAddr{newAddr("3.3.3.3")}, Tracker)
+	al.Push([]*net.TCPAddr{newAddr("3.3.3.3")}, peer.SourceTracker)
 	assert.Equal(t, len(al.peerByTime), 2)
 	assert.Equal(t, al.peerByPriority.Len(), 2)
 	assert.Equal(t, al.peerByTime[0].index, 0)
 	assert.Equal(t, al.peerByTime[1].index, 1)
 
 	// Push 4nd addr
-	al.Push([]*net.TCPAddr{newAddr("4.4.4.4")}, Tracker)
+	al.Push([]*net.TCPAddr{newAddr("4.4.4.4")}, peer.SourceTracker)
 	assert.Equal(t, len(al.peerByTime), 2)
 	assert.Equal(t, al.peerByPriority.Len(), 2)
 	assert.Equal(t, al.peerByTime[0].index, 0)

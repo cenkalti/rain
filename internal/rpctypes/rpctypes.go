@@ -17,7 +17,6 @@ type Peer struct {
 	PeerWantsUpload     bool
 	OptimisticUnchoked  bool
 	Snubbed             bool
-	IncomingConnection  bool
 	EncryptedHandshake  bool
 	EncryptedStream     bool
 }

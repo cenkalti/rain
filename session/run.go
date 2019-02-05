@@ -6,7 +6,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/cenkalti/rain/internal/addrlist"
 	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/handshaker/incominghandshaker"
 	"github.com/cenkalti/rain/internal/handshaker/outgoinghandshaker"
@@ -68,11 +67,11 @@ func (t *torrent) run() {
 		case ve := <-t.verifierResultC:
 			t.handleVerificationDone(ve)
 		case addrs := <-t.addrsFromTrackers:
-			t.handleNewPeers(addrs, addrlist.Tracker)
+			t.handleNewPeers(addrs, peer.SourceTracker)
 		case addrs := <-t.addPeersCommandC:
-			t.handleNewPeers(addrs, addrlist.Manual)
+			t.handleNewPeers(addrs, peer.SourceManual)
 		case addrs := <-t.dhtPeersC:
-			t.handleNewPeers(addrs, addrlist.DHT)
+			t.handleNewPeers(addrs, peer.SourceDHT)
 		case conn := <-t.incomingConnC:
 			if len(t.incomingHandshakers)+len(t.incomingPeers) >= t.config.MaxPeerAccept {
 				t.log.Debugln("peer limit reached, rejecting peer", conn.RemoteAddr().String())
@@ -168,7 +167,7 @@ func (t *torrent) run() {
 			}
 			log := logger.New("peer <- " + ih.Conn.RemoteAddr().String())
 			pe := peerconn.New(ih.Conn, log, t.config.PieceTimeout, t.config.PeerReadBufferSize)
-			t.startPeer(pe, true, t.incomingPeers, ih.PeerID, ih.Extensions, ih.Cipher)
+			t.startPeer(pe, peer.SourceIncoming, t.incomingPeers, ih.PeerID, ih.Extensions, ih.Cipher)
 		case oh := <-t.outgoingHandshakerResultC:
 			delete(t.outgoingHandshakers, oh)
 			if oh.Error != nil {
@@ -178,7 +177,7 @@ func (t *torrent) run() {
 			}
 			log := logger.New("peer -> " + oh.Conn.RemoteAddr().String())
 			pe := peerconn.New(oh.Conn, log, t.config.PieceTimeout, t.config.PeerReadBufferSize)
-			t.startPeer(pe, false, t.outgoingPeers, oh.PeerID, oh.Extensions, oh.Cipher)
+			t.startPeer(pe, oh.Source, t.outgoingPeers, oh.PeerID, oh.Extensions, oh.Cipher)
 		case pe := <-t.peerDisconnectedC:
 			t.closePeer(pe)
 		case pm := <-t.pieceMessages:
@@ -248,7 +247,7 @@ func (t *torrent) closeInfoDownloader(id *infodownloader.InfoDownloader) {
 	delete(t.infoDownloadersSnubbed, id.Peer)
 }
 
-func (t *torrent) handleNewPeers(addrs []*net.TCPAddr, source addrlist.PeerSource) {
+func (t *torrent) handleNewPeers(addrs []*net.TCPAddr, source peer.Source) {
 	t.log.Debugf("received %d peers from %s", len(addrs), source)
 	t.setNeedMorePeers(false)
 	if status := t.status(); status == Stopped || status == Stopping {
@@ -265,7 +264,7 @@ func (t *torrent) dialAddresses() {
 		return
 	}
 	for len(t.outgoingPeers)+len(t.outgoingHandshakers) < t.config.MaxPeerDial {
-		addr := t.addrList.Pop()
+		addr, src := t.addrList.Pop()
 		if addr == nil {
 			t.setNeedMorePeers(true)
 			break
@@ -274,7 +273,7 @@ func (t *torrent) dialAddresses() {
 		if _, ok := t.connectedPeerIPs[ip]; ok {
 			continue
 		}
-		h := outgoinghandshaker.New(addr)
+		h := outgoinghandshaker.New(addr, src)
 		t.outgoingHandshakers[h] = struct{}{}
 		t.connectedPeerIPs[ip] = struct{}{}
 		go h.Run(t.config.PeerConnectTimeout, t.config.PeerHandshakeTimeout, t.peerID, t.infoHash, t.outgoingHandshakerResultC, ourExtensions, t.config.DisableOutgoingEncryption, t.config.ForceOutgoingEncryption)
@@ -300,7 +299,7 @@ func (t *torrent) processQueuedMessages() {
 	}
 }
 
-func (t *torrent) startPeer(p *peerconn.Conn, incoming bool, peers map[*peer.Peer]struct{}, peerID [20]byte, extensions [8]byte, cipher mse.CryptoMethod) {
+func (t *torrent) startPeer(p *peerconn.Conn, source peer.Source, peers map[*peer.Peer]struct{}, peerID [20]byte, extensions [8]byte, cipher mse.CryptoMethod) {
 	t.pexAddPeer(p.Addr())
 	_, ok := t.peerIDs[peerID]
 	if ok {
@@ -312,7 +311,7 @@ func (t *torrent) startPeer(p *peerconn.Conn, incoming bool, peers map[*peer.Pee
 	}
 	t.peerIDs[peerID] = struct{}{}
 
-	pe := peer.New(p, incoming, peerID, extensions, cipher, t.config.RequestTimeout)
+	pe := peer.New(p, source, peerID, extensions, cipher, t.config.RequestTimeout)
 	t.peers[pe] = struct{}{}
 	peers[pe] = struct{}{}
 	go pe.Run(t.messages, t.pieceMessages, t.peerSnubbedC, t.peerDisconnectedC)

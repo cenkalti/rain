@@ -449,14 +449,13 @@ func flags(p rpctypes.Peer) string {
 	if p.Snubbed {
 		sb.WriteRune('S')
 	}
-	if p.IncomingConnection {
-		sb.WriteRune('I')
-	}
 	switch p.Source {
 	case "DHT":
 		sb.WriteRune('H')
 	case "PEX":
 		sb.WriteRune('X')
+	case "INCOMING":
+		sb.WriteRune('I')
 	}
 	if p.EncryptedStream {
 		sb.WriteRune('E')

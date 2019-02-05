@@ -5,6 +5,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peerpriority"
 	"github.com/google/btree"
 )
@@ -12,7 +13,7 @@ import (
 type peerAddr struct {
 	addr      *net.TCPAddr
 	timestamp time.Time
-	source    PeerSource
+	source    peer.Source
 	priority  peerpriority.Priority
 
 	// index in AddrList.peerByTime slice
