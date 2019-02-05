@@ -21,16 +21,12 @@ func (t *torrent) tickUnchoke() {
 	peers := t.peerList()
 	if t.completed {
 		sort.Slice(peers, func(i, j int) bool {
-			return peers[i].BytesUploadedInChokePeriod > peers[j].BytesUploadedInChokePeriod
+			return peers[i].UploadSpeed() > peers[j].UploadSpeed()
 		})
 	} else {
 		sort.Slice(peers, func(i, j int) bool {
-			return peers[i].BytesDownlaodedInChokePeriod > peers[j].BytesDownlaodedInChokePeriod
+			return peers[i].DownloadSpeed() > peers[j].DownloadSpeed()
 		})
-	}
-	for pe := range t.peers {
-		pe.BytesDownlaodedInChokePeriod = 0
-		pe.BytesUploadedInChokePeriod = 0
 	}
 	var unchoked int
 	for _, pe := range peers {

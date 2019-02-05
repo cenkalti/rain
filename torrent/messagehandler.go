@@ -42,7 +42,6 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 	}
 	t.downloadSpeed.Update(int64(len(msg.Data)))
 	t.resumerStats.BytesDownloaded += int64(len(msg.Data))
-	pe.BytesDownlaodedInChokePeriod += int64(len(msg.Data))
 	pd, ok := t.pieceDownloaders[pe]
 	if !ok {
 		t.resumerStats.BytesWasted += int64(len(msg.Data))
@@ -248,7 +247,6 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 	case peerwriter.BlockUploaded:
 		t.uploadSpeed.Update(int64(msg.Length))
 		t.resumerStats.BytesUploaded += int64(msg.Length)
-		pe.BytesUploadedInChokePeriod += int64(msg.Length)
 	case peerprotocol.ExtensionHandshakeMessage:
 		pe.Logger().Debugln("extension handshake received:", msg)
 		if pe.ExtensionHandshake != nil {

@@ -35,10 +35,8 @@ type Peer struct {
 
 	Downloading bool
 
-	BytesDownlaodedInChokePeriod int64
-	BytesUploadedInChokePeriod   int64
-	downloadSpeed                metrics.EWMA
-	uploadSpeed                  metrics.EWMA
+	downloadSpeed metrics.EWMA
+	uploadSpeed   metrics.EWMA
 
 	// Messages received while we don't have info yet are saved here.
 	Messages []interface{}
