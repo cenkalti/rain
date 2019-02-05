@@ -220,16 +220,16 @@ func (t *torrent) getPeers() []Peer {
 			panic("unhandled peer source")
 		}
 		p := Peer{
-			Addr:                pe.Addr(),
-			Downloading:         pe.ClientInterested && !pe.PeerChoking,
-			ClientWantsDownload: pe.ClientInterested && pe.PeerChoking,
-			Uploading:           pe.PeerInterested && !pe.ClientChoking,
-			PeerWantsUpload:     pe.PeerInterested && pe.ClientChoking,
-			OptimisticUnchoked:  pe.OptimisticUnchoked,
-			Snubbed:             pe.Snubbed,
-			EncryptedHandshake:  pe.EncryptionCipher != 0,
-			EncryptedStream:     pe.EncryptionCipher == mse.RC4,
-			Source:              source,
+			Addr:               pe.Addr(),
+			ClientInterested:   pe.ClientInterested,
+			ClientChoking:      pe.ClientChoking,
+			PeerInterested:     pe.PeerInterested,
+			PeerChoking:        pe.PeerChoking,
+			OptimisticUnchoked: pe.OptimisticUnchoked,
+			Snubbed:            pe.Snubbed,
+			EncryptedHandshake: pe.EncryptionCipher != 0,
+			EncryptedStream:    pe.EncryptionCipher == mse.RC4,
+			Source:             source,
 		}
 		peers = append(peers, p)
 	}

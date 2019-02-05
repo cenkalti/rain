@@ -430,26 +430,32 @@ func (c *Console) triggerUpdateTorrents() {
 
 func flags(p rpctypes.Peer) string {
 	var sb strings.Builder
-	sb.Grow(9)
-	if p.Downloading {
-		sb.WriteString("D")
+	sb.Grow(6)
+	if p.ClientInterested {
+		if p.PeerChoking {
+			sb.WriteString("d")
+		} else {
+			sb.WriteString("D")
+		}
 	} else {
-		sb.WriteString(" ")
+		if !p.PeerChoking {
+			sb.WriteString("K")
+		} else {
+			sb.WriteString(" ")
+		}
 	}
-	if p.ClientWantsDownload {
-		sb.WriteString("d")
+	if p.PeerInterested {
+		if p.ClientChoking {
+			sb.WriteString("u")
+		} else {
+			sb.WriteString("U")
+		}
 	} else {
-		sb.WriteString(" ")
-	}
-	if p.Uploading {
-		sb.WriteString("U")
-	} else {
-		sb.WriteString(" ")
-	}
-	if p.PeerWantsUpload {
-		sb.WriteString("u")
-	} else {
-		sb.WriteString(" ")
+		if !p.ClientChoking {
+			sb.WriteString("?")
+		} else {
+			sb.WriteString(" ")
+		}
 	}
 	if p.OptimisticUnchoked {
 		sb.WriteString("O")

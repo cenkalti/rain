@@ -144,16 +144,16 @@ func (t *torrent) Trackers() []Tracker {
 }
 
 type Peer struct {
-	Addr                net.Addr
-	Source              PeerSource
-	Downloading         bool
-	ClientWantsDownload bool
-	Uploading           bool
-	PeerWantsUpload     bool
-	OptimisticUnchoked  bool
-	Snubbed             bool
-	EncryptedHandshake  bool
-	EncryptedStream     bool
+	Addr               net.Addr
+	Source             PeerSource
+	ClientInterested   bool
+	ClientChoking      bool
+	PeerInterested     bool
+	PeerChoking        bool
+	OptimisticUnchoked bool
+	Snubbed            bool
+	EncryptedHandshake bool
+	EncryptedStream    bool
 }
 
 type PeerSource int

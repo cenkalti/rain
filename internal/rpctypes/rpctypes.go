@@ -9,16 +9,16 @@ type Torrent struct {
 }
 
 type Peer struct {
-	Addr                string
-	Source              string
-	Downloading         bool
-	ClientWantsDownload bool
-	Uploading           bool
-	PeerWantsUpload     bool
-	OptimisticUnchoked  bool
-	Snubbed             bool
-	EncryptedHandshake  bool
-	EncryptedStream     bool
+	Addr               string
+	Source             string
+	ClientInterested   bool
+	ClientChoking      bool
+	PeerInterested     bool
+	PeerChoking        bool
+	OptimisticUnchoked bool
+	Snubbed            bool
+	EncryptedHandshake bool
+	EncryptedStream    bool
 }
 
 type Tracker struct {
