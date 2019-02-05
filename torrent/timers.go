@@ -7,13 +7,18 @@ import (
 	"github.com/cenkalti/rain/internal/peer"
 )
 
-func (t *torrent) tickUnchoke() {
+func (t *torrent) peerList() []*peer.Peer {
 	peers := make([]*peer.Peer, 0, len(t.peers))
 	for pe := range t.peers {
 		if pe.PeerInterested && !pe.OptimisticUnchoked {
 			peers = append(peers, pe)
 		}
 	}
+	return peers
+}
+
+func (t *torrent) tickUnchoke() {
+	peers := t.peerList()
 	if t.completed {
 		sort.Slice(peers, func(i, j int) bool {
 			return peers[i].BytesUploadedInChokePeriod > peers[j].BytesUploadedInChokePeriod
