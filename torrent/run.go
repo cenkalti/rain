@@ -93,7 +93,15 @@ func (t *torrent) run() {
 			h := incominghandshaker.New(conn)
 			t.incomingHandshakers[h] = struct{}{}
 			t.connectedPeerIPs[ipstr] = struct{}{}
-			go h.Run(t.peerID, t.getSKey, t.checkInfoHash, t.incomingHandshakerResultC, t.config.PeerHandshakeTimeout, ourExtensions, t.config.ForceIncomingEncryption)
+			go h.Run(
+				t.peerID,
+				t.getSKey,
+				t.checkInfoHash,
+				t.incomingHandshakerResultC,
+				t.config.PeerHandshakeTimeout,
+				ourExtensions,
+				t.config.ForceIncomingEncryption,
+			)
 		case req := <-t.announcerRequestC:
 			tr := t.announcerFields()
 			select {
@@ -276,7 +284,16 @@ func (t *torrent) dialAddresses() {
 		h := outgoinghandshaker.New(addr, src)
 		t.outgoingHandshakers[h] = struct{}{}
 		t.connectedPeerIPs[ip] = struct{}{}
-		go h.Run(t.config.PeerConnectTimeout, t.config.PeerHandshakeTimeout, t.peerID, t.infoHash, t.outgoingHandshakerResultC, ourExtensions, t.config.DisableOutgoingEncryption, t.config.ForceOutgoingEncryption)
+		go h.Run(
+			t.config.PeerConnectTimeout,
+			t.config.PeerHandshakeTimeout,
+			t.peerID,
+			t.infoHash,
+			t.outgoingHandshakerResultC,
+			ourExtensions,
+			t.config.DisableOutgoingEncryption,
+			t.config.ForceOutgoingEncryption,
+		)
 	}
 }
 
@@ -299,7 +316,14 @@ func (t *torrent) processQueuedMessages() {
 	}
 }
 
-func (t *torrent) startPeer(p *peerconn.Conn, source peer.Source, peers map[*peer.Peer]struct{}, peerID [20]byte, extensions [8]byte, cipher mse.CryptoMethod) {
+func (t *torrent) startPeer(
+	p *peerconn.Conn,
+	source peer.Source,
+	peers map[*peer.Peer]struct{},
+	peerID [20]byte,
+	extensions [8]byte,
+	cipher mse.CryptoMethod,
+) {
 	t.pexAddPeer(p.Addr())
 	_, ok := t.peerIDs[peerID]
 	if ok {
