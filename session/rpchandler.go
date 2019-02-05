@@ -219,6 +219,7 @@ func (h *rpcHandler) GetTorrentPeers(args *rpctypes.GetTorrentPeersRequest, repl
 		reply.Peers[i] = rpctypes.Peer{
 			Addr:               p.Addr.String(),
 			Source:             source,
+			Downloading:        p.Downloading,
 			ClientInterested:   p.ClientInterested,
 			ClientChoking:      p.ClientChoking,
 			PeerInterested:     p.PeerInterested,

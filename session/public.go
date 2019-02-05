@@ -146,6 +146,7 @@ func (t *torrent) Trackers() []Tracker {
 type Peer struct {
 	Addr               net.Addr
 	Source             PeerSource
+	Downloading        bool
 	ClientInterested   bool
 	ClientChoking      bool
 	PeerInterested     bool

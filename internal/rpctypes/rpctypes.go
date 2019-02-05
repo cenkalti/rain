@@ -11,6 +11,7 @@ type Torrent struct {
 type Peer struct {
 	Addr               string
 	Source             string
+	Downloading        bool
 	ClientInterested   bool
 	ClientChoking      bool
 	PeerInterested     bool
