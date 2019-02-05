@@ -4,6 +4,8 @@ import (
 	"math"
 	"time"
 
+	"github.com/cenkalti/rain/internal/bitfield"
+	"github.com/cenkalti/rain/internal/mse"
 	"github.com/cenkalti/rain/internal/peerconn"
 	"github.com/cenkalti/rain/internal/peerconn/peerreader"
 	"github.com/cenkalti/rain/internal/peerprotocol"
@@ -11,6 +13,11 @@ import (
 
 type Peer struct {
 	*peerconn.Conn
+
+	ID                [20]byte
+	ExtensionsEnabled bool
+	FastEnabled       bool
+	EncryptionCipher  mse.CryptoMethod
 
 	AmChoking      bool
 	AmInterested   bool
@@ -51,17 +58,25 @@ type PieceMessage struct {
 	Piece peerreader.Piece
 }
 
-func New(p *peerconn.Conn, snubTimeout time.Duration) *Peer {
+func New(p *peerconn.Conn, id [20]byte, extensions [8]byte, cipher mse.CryptoMethod, snubTimeout time.Duration) *Peer {
+	bf, _ := bitfield.NewBytes(extensions[:], 64)
+	fastEnabled := bf.Test(61)
+	extensionsEnabled := bf.Test(43)
+
 	t := time.NewTimer(math.MaxInt64)
 	t.Stop()
 	return &Peer{
-		Conn:        p,
-		AmChoking:   true,
-		PeerChoking: true,
-		snubTimeout: snubTimeout,
-		snubTimer:   t,
-		closeC:      make(chan struct{}),
-		doneC:       make(chan struct{}),
+		Conn:              p,
+		ID:                id,
+		AmChoking:         true,
+		PeerChoking:       true,
+		ExtensionsEnabled: extensionsEnabled,
+		FastEnabled:       fastEnabled,
+		EncryptionCipher:  cipher,
+		snubTimeout:       snubTimeout,
+		snubTimer:         t,
+		closeC:            make(chan struct{}),
+		doneC:             make(chan struct{}),
 	}
 }
 

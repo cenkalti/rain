@@ -29,26 +29,24 @@ var PiecePool = sync.Pool{
 }
 
 type PeerReader struct {
-	conn              net.Conn
-	buf               *bufio.Reader
-	log               logger.Logger
-	pieceTimeout      time.Duration
-	messages          chan interface{}
-	extensionProtocol bool
-	stopC             chan struct{}
-	doneC             chan struct{}
+	conn         net.Conn
+	buf          *bufio.Reader
+	log          logger.Logger
+	pieceTimeout time.Duration
+	messages     chan interface{}
+	stopC        chan struct{}
+	doneC        chan struct{}
 }
 
-func New(conn net.Conn, l logger.Logger, pieceTimeout time.Duration, bufferSize int, extensionProtocol bool) *PeerReader {
+func New(conn net.Conn, l logger.Logger, pieceTimeout time.Duration, bufferSize int) *PeerReader {
 	return &PeerReader{
-		conn:              conn,
-		buf:               bufio.NewReaderSize(conn, bufferSize),
-		log:               l,
-		pieceTimeout:      pieceTimeout,
-		messages:          make(chan interface{}),
-		extensionProtocol: extensionProtocol,
-		stopC:             make(chan struct{}),
-		doneC:             make(chan struct{}),
+		conn:         conn,
+		buf:          bufio.NewReaderSize(conn, bufferSize),
+		log:          l,
+		pieceTimeout: pieceTimeout,
+		messages:     make(chan interface{}),
+		stopC:        make(chan struct{}),
+		doneC:        make(chan struct{}),
 	}
 }
 
@@ -228,10 +226,6 @@ func (p *PeerReader) Run() {
 			buf := make([]byte, length)
 			_, err = io.ReadFull(p.buf, buf)
 			if err != nil {
-				return
-			}
-			if !p.extensionProtocol {
-				err = errors.New("extension message received but it is not enabled in bitfield")
 				return
 			}
 			var em peerprotocol.ExtensionMessage

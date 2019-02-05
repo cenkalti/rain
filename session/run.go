@@ -12,6 +12,7 @@ import (
 	"github.com/cenkalti/rain/internal/handshaker/outgoinghandshaker"
 	"github.com/cenkalti/rain/internal/infodownloader"
 	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/internal/mse"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peerconn"
 	"github.com/cenkalti/rain/internal/peerprotocol"
@@ -166,8 +167,8 @@ func (t *torrent) run() {
 				break
 			}
 			log := logger.New("peer <- " + ih.Conn.RemoteAddr().String())
-			pe := peerconn.New(ih.Conn, ih.PeerID, ih.Extensions, ih.Cipher, log, t.config.PieceTimeout, t.config.PeerReadBufferSize)
-			t.startPeer(pe, t.incomingPeers)
+			pe := peerconn.New(ih.Conn, log, t.config.PieceTimeout, t.config.PeerReadBufferSize)
+			t.startPeer(pe, t.incomingPeers, ih.PeerID, ih.Extensions, ih.Cipher)
 		case oh := <-t.outgoingHandshakerResultC:
 			delete(t.outgoingHandshakers, oh)
 			if oh.Error != nil {
@@ -176,8 +177,8 @@ func (t *torrent) run() {
 				break
 			}
 			log := logger.New("peer -> " + oh.Conn.RemoteAddr().String())
-			pe := peerconn.New(oh.Conn, oh.PeerID, oh.Extensions, oh.Cipher, log, t.config.PieceTimeout, t.config.PeerReadBufferSize)
-			t.startPeer(pe, t.outgoingPeers)
+			pe := peerconn.New(oh.Conn, log, t.config.PieceTimeout, t.config.PeerReadBufferSize)
+			t.startPeer(pe, t.outgoingPeers, oh.PeerID, oh.Extensions, oh.Cipher)
 		case pe := <-t.peerDisconnectedC:
 			t.closePeer(pe)
 		case pm := <-t.pieceMessages:
@@ -223,7 +224,7 @@ func (t *torrent) closePeer(pe *peer.Peer) {
 	delete(t.incomingPeers, pe)
 	delete(t.outgoingPeers, pe)
 	delete(t.peersSnubbed, pe)
-	delete(t.peerIDs, pe.ID())
+	delete(t.peerIDs, pe.ID)
 	delete(t.connectedPeerIPs, pe.Conn.IP())
 	if t.piecePicker != nil {
 		t.piecePicker.HandleDisconnect(pe)
@@ -299,19 +300,19 @@ func (t *torrent) processQueuedMessages() {
 	}
 }
 
-func (t *torrent) startPeer(p *peerconn.Conn, peers map[*peer.Peer]struct{}) {
+func (t *torrent) startPeer(p *peerconn.Conn, peers map[*peer.Peer]struct{}, peerID [20]byte, extensions [8]byte, cipher mse.CryptoMethod) {
 	t.pexAddPeer(p.Addr())
-	_, ok := t.peerIDs[p.ID()]
+	_, ok := t.peerIDs[peerID]
 	if ok {
-		p.Logger().Errorln("peer with same id already connected:", p.ID())
+		p.Logger().Errorln("peer with same id already connected:", peerID)
 		p.CloseConn()
 		t.pexDropPeer(p.Addr())
 		t.dialAddresses()
 		return
 	}
-	t.peerIDs[p.ID()] = struct{}{}
+	t.peerIDs[peerID] = struct{}{}
 
-	pe := peer.New(p, t.config.RequestTimeout)
+	pe := peer.New(p, peerID, extensions, cipher, t.config.RequestTimeout)
 	t.peers[pe] = struct{}{}
 	peers[pe] = struct{}{}
 	go pe.Run(t.messages, t.pieceMessages, t.peerSnubbedC, t.peerDisconnectedC)
@@ -346,10 +347,10 @@ func (t *torrent) pexDropPeer(addr *net.TCPAddr) {
 
 func (t *torrent) sendFirstMessage(p *peer.Peer) {
 	bf := t.bitfield
-	if p.FastExtension && bf != nil && bf.All() {
+	if p.FastEnabled && bf != nil && bf.All() {
 		msg := peerprotocol.HaveAllMessage{}
 		p.SendMessage(msg)
-	} else if p.FastExtension && (bf == nil || bf != nil && bf.Count() == 0) {
+	} else if p.FastEnabled && (bf == nil || bf != nil && bf.Count() == 0) {
 		msg := peerprotocol.HaveNoneMessage{}
 		p.SendMessage(msg)
 	} else if bf != nil {
@@ -362,12 +363,14 @@ func (t *torrent) sendFirstMessage(p *peer.Peer) {
 	if t.info != nil {
 		metadataSize = t.info.InfoSize
 	}
-	extHandshakeMsg := peerprotocol.NewExtensionHandshake(metadataSize, t.config.ExtensionHandshakeClientVersion, p.Addr().IP)
-	msg := peerprotocol.ExtensionMessage{
-		ExtendedMessageID: peerprotocol.ExtensionIDHandshake,
-		Payload:           extHandshakeMsg,
+	if p.ExtensionsEnabled {
+		extHandshakeMsg := peerprotocol.NewExtensionHandshake(metadataSize, t.config.ExtensionHandshakeClientVersion, p.Addr().IP)
+		msg := peerprotocol.ExtensionMessage{
+			ExtendedMessageID: peerprotocol.ExtensionIDHandshake,
+			Payload:           extHandshakeMsg,
+		}
+		p.SendMessage(msg)
 	}
-	p.SendMessage(msg)
 }
 
 func (t *torrent) chokePeer(pe *peer.Peer) {

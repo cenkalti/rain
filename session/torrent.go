@@ -1,6 +1,7 @@
 package session
 
 import (
+	"log"
 	"net"
 	"sync"
 	"time"
@@ -31,12 +32,16 @@ import (
 
 var (
 	// We send this in handshake tell supported extensions.
-	ourExtensions = bitfield.New(64)
+	ourExtensions [8]byte
 )
 
 func init() {
-	ourExtensions.Set(61) // Fast Extension (BEP 6)
-	ourExtensions.Set(43) // Extension Protocol (BEP 10)
+	bf, err := bitfield.NewBytes(ourExtensions[:], 64)
+	if err != nil {
+		log.Fatal(err)
+	}
+	bf.Set(61) // Fast Extension (BEP 6)
+	bf.Set(43) // Extension Protocol (BEP 10)
 }
 
 // torrent connects to peers and downloads files from swarm.

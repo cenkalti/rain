@@ -25,9 +25,11 @@ func benchmarkPick(numPieces uint32, numPeers int, b *testing.B) {
 
 func newPiecePicker(numPieces uint32, numPeers int) *piecepicker.PiecePicker {
 	pieces := make([]piece.Piece, numPieces)
+	var id [20]byte
+	var ext [8]byte
 	pp := piecepicker.New(pieces, endgameParallelDownloadsPerPiece, nil)
 	for i := 0; i < numPeers; i++ {
-		pe := peer.New(nil, 0)
+		pe := peer.New(nil, id, ext, 0, 0)
 		if prob(snubRatio) {
 			pe.Snubbed = true
 		}

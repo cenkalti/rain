@@ -211,8 +211,8 @@ func (t *torrent) getPeers() []Peer {
 			Downloading:        pe.Downloading,
 			OptimisticUnchoked: pe.OptimisticUnchoked,
 			Snubbed:            pe.Snubbed,
-			EncryptedHandshake: pe.Cipher != 0,
-			EncryptedStream:    pe.Cipher == mse.RC4,
+			EncryptedHandshake: pe.EncryptionCipher != 0,
+			EncryptedStream:    pe.EncryptionCipher == mse.RC4,
 			// TODO set remaining flags
 			// Source              PeerSource
 			// ClientWantsDownload bool
