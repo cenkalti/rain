@@ -44,7 +44,7 @@ func (t *torrent) tickUnchoke() {
 func (t *torrent) tickOptimisticUnchoke() {
 	peers := make([]*peer.Peer, 0, len(t.peers))
 	for pe := range t.peers {
-		if pe.PeerInterested && !pe.OptimisticUnchoked && pe.AmChoking {
+		if pe.PeerInterested && !pe.OptimisticUnchoked && pe.ClientChoking {
 			peers = append(peers, pe)
 		}
 	}

@@ -432,35 +432,51 @@ func flags(p rpctypes.Peer) string {
 	var sb strings.Builder
 	sb.Grow(9)
 	if p.Downloading {
-		sb.WriteRune('D')
+		sb.WriteString("D")
+	} else {
+		sb.WriteString(" ")
 	}
 	if p.ClientWantsDownload {
-		sb.WriteRune('d')
+		sb.WriteString("d")
+	} else {
+		sb.WriteString(" ")
 	}
 	if p.Uploading {
-		sb.WriteRune('U')
+		sb.WriteString("U")
+	} else {
+		sb.WriteString(" ")
 	}
 	if p.PeerWantsUpload {
-		sb.WriteRune('u')
+		sb.WriteString("u")
+	} else {
+		sb.WriteString(" ")
 	}
 	if p.OptimisticUnchoked {
-		sb.WriteRune('O')
+		sb.WriteString("O")
+	} else {
+		sb.WriteString(" ")
 	}
 	if p.Snubbed {
-		sb.WriteRune('S')
+		sb.WriteString("S")
+	} else {
+		sb.WriteString(" ")
 	}
 	switch p.Source {
 	case "DHT":
-		sb.WriteRune('H')
+		sb.WriteString("H")
 	case "PEX":
-		sb.WriteRune('X')
+		sb.WriteString("X")
 	case "INCOMING":
-		sb.WriteRune('I')
+		sb.WriteString("I")
+	default:
+		sb.WriteString(" ")
 	}
 	if p.EncryptedStream {
-		sb.WriteRune('E')
+		sb.WriteString("E")
 	} else if p.EncryptedHandshake {
-		sb.WriteRune('e')
+		sb.WriteString("e")
+	} else {
+		sb.WriteString(" ")
 	}
 	return sb.String()
 }

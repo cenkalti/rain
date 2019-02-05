@@ -373,16 +373,16 @@ func (t *torrent) sendFirstMessage(p *peer.Peer) {
 }
 
 func (t *torrent) chokePeer(pe *peer.Peer) {
-	if !pe.AmChoking {
-		pe.AmChoking = true
+	if !pe.ClientChoking {
+		pe.ClientChoking = true
 		msg := peerprotocol.ChokeMessage{}
 		pe.SendMessage(msg)
 	}
 }
 
 func (t *torrent) unchokePeer(pe *peer.Peer) {
-	if pe.AmChoking {
-		pe.AmChoking = false
+	if pe.ClientChoking {
+		pe.ClientChoking = false
 		msg := peerprotocol.UnchokeMessage{}
 		pe.SendMessage(msg)
 	}

@@ -21,10 +21,10 @@ type Peer struct {
 	FastEnabled       bool
 	EncryptionCipher  mse.CryptoMethod
 
-	AmChoking      bool
-	AmInterested   bool
-	PeerChoking    bool
-	PeerInterested bool
+	ClientInterested bool
+	ClientChoking    bool
+	PeerInterested   bool
+	PeerChoking      bool
 
 	OptimisticUnchoked bool
 
@@ -71,7 +71,7 @@ func New(p *peerconn.Conn, source Source, id [20]byte, extensions [8]byte, ciphe
 		Conn:              p,
 		Source:            source,
 		ID:                id,
-		AmChoking:         true,
+		ClientChoking:     true,
 		PeerChoking:       true,
 		ExtensionsEnabled: extensionsEnabled,
 		FastEnabled:       fastEnabled,

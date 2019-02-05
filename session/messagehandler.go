@@ -201,7 +201,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			break
 		}
 		pi := &t.pieces[msg.Index]
-		if pe.AmChoking {
+		if pe.ClientChoking {
 			if pe.FastEnabled {
 				m := peerprotocol.RejectMessage{RequestMessage: msg}
 				pe.SendMessage(m)
@@ -397,14 +397,14 @@ func (t *torrent) updateInterestedState(pe *peer.Peer) {
 			}
 		}
 	}
-	if !pe.AmInterested && interested {
-		pe.AmInterested = true
+	if !pe.ClientInterested && interested {
+		pe.ClientInterested = true
 		msg := peerprotocol.InterestedMessage{}
 		pe.SendMessage(msg)
 		return
 	}
-	if pe.AmInterested && !interested {
-		pe.AmInterested = false
+	if pe.ClientInterested && !interested {
+		pe.ClientInterested = false
 		msg := peerprotocol.NotInterestedMessage{}
 		pe.SendMessage(msg)
 		return
