@@ -168,7 +168,7 @@ func (t *torrent) run() {
 			}
 			log := logger.New("peer <- " + ih.Conn.RemoteAddr().String())
 			pe := peerconn.New(ih.Conn, log, t.config.PieceTimeout, t.config.PeerReadBufferSize)
-			t.startPeer(pe, t.incomingPeers, ih.PeerID, ih.Extensions, ih.Cipher)
+			t.startPeer(pe, true, t.incomingPeers, ih.PeerID, ih.Extensions, ih.Cipher)
 		case oh := <-t.outgoingHandshakerResultC:
 			delete(t.outgoingHandshakers, oh)
 			if oh.Error != nil {
@@ -178,7 +178,7 @@ func (t *torrent) run() {
 			}
 			log := logger.New("peer -> " + oh.Conn.RemoteAddr().String())
 			pe := peerconn.New(oh.Conn, log, t.config.PieceTimeout, t.config.PeerReadBufferSize)
-			t.startPeer(pe, t.outgoingPeers, oh.PeerID, oh.Extensions, oh.Cipher)
+			t.startPeer(pe, false, t.outgoingPeers, oh.PeerID, oh.Extensions, oh.Cipher)
 		case pe := <-t.peerDisconnectedC:
 			t.closePeer(pe)
 		case pm := <-t.pieceMessages:
@@ -300,7 +300,7 @@ func (t *torrent) processQueuedMessages() {
 	}
 }
 
-func (t *torrent) startPeer(p *peerconn.Conn, peers map[*peer.Peer]struct{}, peerID [20]byte, extensions [8]byte, cipher mse.CryptoMethod) {
+func (t *torrent) startPeer(p *peerconn.Conn, incoming bool, peers map[*peer.Peer]struct{}, peerID [20]byte, extensions [8]byte, cipher mse.CryptoMethod) {
 	t.pexAddPeer(p.Addr())
 	_, ok := t.peerIDs[peerID]
 	if ok {
@@ -312,7 +312,7 @@ func (t *torrent) startPeer(p *peerconn.Conn, peers map[*peer.Peer]struct{}, pee
 	}
 	t.peerIDs[peerID] = struct{}{}
 
-	pe := peer.New(p, peerID, extensions, cipher, t.config.RequestTimeout)
+	pe := peer.New(p, incoming, peerID, extensions, cipher, t.config.RequestTimeout)
 	t.peers[pe] = struct{}{}
 	peers[pe] = struct{}{}
 	go pe.Run(t.messages, t.pieceMessages, t.peerSnubbedC, t.peerDisconnectedC)

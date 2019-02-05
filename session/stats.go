@@ -213,12 +213,12 @@ func (t *torrent) getPeers() []Peer {
 			Snubbed:            pe.Snubbed,
 			EncryptedHandshake: pe.EncryptionCipher != 0,
 			EncryptedStream:    pe.EncryptionCipher == mse.RC4,
+			IncomingConnection: pe.Incoming,
 			// TODO set remaining flags
 			// Source              PeerSource
 			// ClientWantsDownload bool
 			// Uploading           bool
 			// PeerWantsUpload     bool
-			// IncomingConnection  bool
 		}
 		peers = append(peers, p)
 	}
