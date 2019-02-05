@@ -8,7 +8,9 @@ import (
 	"github.com/cenkalti/rain/internal/mse"
 	"github.com/cenkalti/rain/internal/peerconn"
 	"github.com/cenkalti/rain/internal/peerconn/peerreader"
+	"github.com/cenkalti/rain/internal/peerconn/peerwriter"
 	"github.com/cenkalti/rain/internal/peerprotocol"
+	"github.com/rcrowley/go-metrics"
 )
 
 type Peer struct {
@@ -35,6 +37,8 @@ type Peer struct {
 
 	BytesDownlaodedInChokePeriod int64
 	BytesUploadedInChokePeriod   int64
+	downloadSpeed                metrics.EWMA
+	uploadSpeed                  metrics.EWMA
 
 	// Messages received while we don't have info yet are saved here.
 	Messages []interface{}
@@ -80,6 +84,8 @@ func New(p *peerconn.Conn, source Source, id [20]byte, extensions [8]byte, ciphe
 		snubTimer:         t,
 		closeC:            make(chan struct{}),
 		doneC:             make(chan struct{}),
+		downloadSpeed:     metrics.NewEWMA1(),
+		uploadSpeed:       metrics.NewEWMA1(),
 	}
 }
 
@@ -96,6 +102,10 @@ func (p *Peer) Close() {
 func (p *Peer) Run(messages chan Message, pieces chan PieceMessage, snubbed, disconnect chan *Peer) {
 	defer close(p.doneC)
 	go p.Conn.Run()
+
+	speedTicker := time.NewTicker(5 * time.Second)
+	defer speedTicker.Stop()
+
 	for {
 		select {
 		case pm, ok := <-p.Conn.Messages():
@@ -107,12 +117,16 @@ func (p *Peer) Run(messages chan Message, pieces chan PieceMessage, snubbed, dis
 				return
 			}
 			if m, ok := pm.(peerreader.Piece); ok {
+				p.downloadSpeed.Update(int64(len(m.Data)))
 				select {
 				case pieces <- PieceMessage{Peer: p, Piece: m}:
 				case <-p.closeC:
 					return
 				}
 			} else {
+				if m, ok := pm.(peerwriter.BlockUploaded); ok {
+					p.uploadSpeed.Update(int64(m.Length))
+				}
 				select {
 				case messages <- Message{Peer: p, Message: pm}:
 				case <-p.closeC:
@@ -125,6 +139,9 @@ func (p *Peer) Run(messages chan Message, pieces chan PieceMessage, snubbed, dis
 			case <-p.closeC:
 				return
 			}
+		case <-speedTicker.C:
+			p.downloadSpeed.Tick()
+			p.uploadSpeed.Tick()
 		case <-p.closeC:
 			return
 		}
@@ -144,4 +161,12 @@ func (p *Peer) ResetSnubTimer() {
 
 func (p *Peer) StopSnubTimer() {
 	p.snubTimer.Stop()
+}
+
+func (p *Peer) DownloadSpeed() uint {
+	return uint(p.downloadSpeed.Rate())
+}
+
+func (p *Peer) UploadSpeed() uint {
+	return uint(p.uploadSpeed.Rate())
 }

@@ -162,7 +162,7 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 				}
 			case peers:
 				for i, p := range c.peers {
-					fmt.Fprintf(v, "#%s Addr: %21s Flags: %s ID: %s\n", fmt.Sprintf("%2d", i), p.Addr, flags(p), printableID(p.ID))
+					fmt.Fprintf(v, "#%s Addr: %21s Flags: %s DL: %5d KiB/s UL: %5d KiB/s ID: %s\n", fmt.Sprintf("%2d", i), p.Addr, flags(p), p.DownloadSpeed/1024, p.UploadSpeed/1024, printableID(p.ID))
 				}
 			}
 		}

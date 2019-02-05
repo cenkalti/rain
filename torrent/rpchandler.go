@@ -229,6 +229,8 @@ func (h *rpcHandler) GetTorrentPeers(args *rpctypes.GetTorrentPeersRequest, repl
 			Snubbed:            p.Snubbed,
 			EncryptedHandshake: p.EncryptedHandshake,
 			EncryptedStream:    p.EncryptedStream,
+			DownloadSpeed:      p.DownloadSpeed,
+			UploadSpeed:        p.UploadSpeed,
 		}
 	}
 	return nil

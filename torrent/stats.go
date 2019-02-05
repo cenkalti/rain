@@ -250,6 +250,8 @@ func (t *torrent) getPeers() []Peer {
 			EncryptedHandshake: pe.EncryptionCipher != 0,
 			EncryptedStream:    pe.EncryptionCipher == mse.RC4,
 			Source:             source,
+			DownloadSpeed:      pe.DownloadSpeed(),
+			UploadSpeed:        pe.UploadSpeed(),
 		}
 		peers = append(peers, p)
 	}

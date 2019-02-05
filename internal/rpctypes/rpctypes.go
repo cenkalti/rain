@@ -21,6 +21,8 @@ type Peer struct {
 	Snubbed            bool
 	EncryptedHandshake bool
 	EncryptedStream    bool
+	DownloadSpeed      uint
+	UploadSpeed        uint
 }
 
 type Tracker struct {
