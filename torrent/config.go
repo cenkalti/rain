@@ -112,7 +112,7 @@ var DefaultConfig = Config{
 	DataDir:                         "~/rain/data",
 	PortBegin:                       50000,
 	PortEnd:                         60000,
-	MaxOpenFiles:                    1024 * 1024,
+	MaxOpenFiles:                    1000000,
 	PEXEnabled:                      true,
 	BitfieldWriteInterval:           30 * time.Second,
 	StatsWriteInterval:              30 * time.Second,
