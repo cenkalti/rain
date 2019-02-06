@@ -159,7 +159,10 @@ func (t *torrent) startPieceDownloaders() {
 	if t.completed {
 		return
 	}
-	for len(t.pieceDownloaders)-len(t.pieceDownloadersChoked)-len(t.pieceDownloadersSnubbed) < t.config.ParallelPieceDownloads {
+	activeDownloads := func() int {
+		return len(t.pieceDownloaders) - len(t.pieceDownloadersChoked) - len(t.pieceDownloadersSnubbed)
+	}
+	for activeDownloads() < t.config.ParallelPieceDownloads {
 		pi, pe := t.piecePicker.Pick()
 		if pi == nil || pe == nil {
 			break
