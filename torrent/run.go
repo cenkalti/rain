@@ -268,6 +268,10 @@ func (t *torrent) handleNewPeers(addrs []*net.TCPAddr, source peer.Source) {
 }
 
 func (t *torrent) dialAddresses() {
+	status := t.status()
+	if status == Stopping || status == Stopped {
+		return
+	}
 	if t.completed {
 		return
 	}
