@@ -22,7 +22,7 @@ const (
 	readTimeout = 2 * time.Minute
 )
 
-var PiecePool = sync.Pool{
+var piecePool = sync.Pool{
 	New: func() interface{} {
 		return make([]byte, piece.BlockSize)
 	},
@@ -181,13 +181,14 @@ func (p *PeerReader) Run() {
 				return
 			}
 			var m, n int
-			b := PiecePool.Get().([]byte)[:length-8]
+			buf := piecePool.Get().([]byte)
+			data := buf[:length-8]
 			for {
 				err = p.conn.SetReadDeadline(time.Now().Add(p.pieceTimeout))
 				if err != nil {
 					return
 				}
-				n, err = io.ReadFull(p.buf, b)
+				n, err = io.ReadFull(p.buf, data)
 				if err != nil {
 					if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
 						// Peer couldn't send the block in allowed time.
@@ -195,14 +196,14 @@ func (p *PeerReader) Run() {
 							return
 						}
 						m += n
-						b = b[n:]
+						data = data[n:]
 						continue
 					}
 					return
 				}
 				break
 			}
-			msg = Piece{PieceMessage: pm, Data: b}
+			msg = Piece{PieceMessage: pm, buffer: buf, Data: data}
 		case peerprotocol.HaveAll:
 			if !first {
 				err = errors.New("have_all can only be sent after handshake")

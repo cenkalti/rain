@@ -6,5 +6,10 @@ import (
 
 type Piece struct {
 	peerprotocol.PieceMessage
-	Data []byte
+	Data   []byte
+	buffer []byte
+}
+
+func (p *Piece) ReleaseBuffer() {
+	piecePool.Put(p.buffer)
 }

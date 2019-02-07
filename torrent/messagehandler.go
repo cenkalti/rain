@@ -10,7 +10,6 @@ import (
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/peer"
-	"github.com/cenkalti/rain/internal/peerconn/peerreader"
 	"github.com/cenkalti/rain/internal/peerconn/peerwriter"
 	"github.com/cenkalti/rain/internal/peerprotocol"
 	"github.com/cenkalti/rain/internal/piecewriter"
@@ -45,16 +44,16 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 	pd, ok := t.pieceDownloaders[pe]
 	if !ok {
 		t.resumerStats.BytesWasted += int64(len(msg.Data))
-		peerreader.PiecePool.Put(msg.Data)
+		msg.ReleaseBuffer()
 		return
 	}
 	if pd.Piece.Index != msg.Index {
 		t.resumerStats.BytesWasted += int64(len(msg.Data))
-		peerreader.PiecePool.Put(msg.Data)
+		msg.ReleaseBuffer()
 		return
 	}
 	pd.GotBlock(block, msg.Data)
-	peerreader.PiecePool.Put(msg.Data)
+	msg.ReleaseBuffer()
 	if !pd.Done() {
 		pd.RequestBlocks(t.config.RequestQueueLength)
 		pe.ResetSnubTimer()
