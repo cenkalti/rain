@@ -144,7 +144,7 @@ var DefaultConfig = Config{
 	RequestQueueLength:               50,
 	RequestTimeout:                   20 * time.Second,
 	EndgameParallelDownloadsPerPiece: 2,
-	MaxPeerDial:                      20,
+	MaxPeerDial:                      100,
 	MaxPeerAccept:                    20,
 	MaxActivePieceBytes:              1024 * 1024 * 1024,
 	ParallelMetadataDownloads:        2,
