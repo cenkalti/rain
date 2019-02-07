@@ -22,7 +22,7 @@ const (
 	readTimeout = 2 * time.Minute
 )
 
-var piecePool = sync.Pool{
+var blockPool = sync.Pool{
 	New: func() interface{} {
 		return make([]byte, piece.BlockSize)
 	},
@@ -181,7 +181,7 @@ func (p *PeerReader) Run() {
 				return
 			}
 			var m, n int
-			buf := piecePool.Get().([]byte)
+			buf := blockPool.Get().([]byte)
 			data := buf[:length-8]
 			for {
 				err = p.conn.SetReadDeadline(time.Now().Add(p.pieceTimeout))

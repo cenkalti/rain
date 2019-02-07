@@ -11,5 +11,5 @@ type Piece struct {
 }
 
 func (p *Piece) ReleaseBuffer() {
-	piecePool.Put(p.buffer)
+	blockPool.Put(p.buffer)
 }
