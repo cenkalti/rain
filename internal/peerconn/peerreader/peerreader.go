@@ -17,7 +17,7 @@ import (
 
 const (
 	// maxBlockSize is the max size of block data that we accept from peers.
-	maxBlockSize = 16 * 1024
+	maxBlockSize = 32 * 1024
 	// time to wait for a message. peer must send keep-alive messages to keep connection alive.
 	readTimeout = 2 * time.Minute
 )
