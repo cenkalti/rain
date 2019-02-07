@@ -28,15 +28,18 @@ func (t *torrent) close() {
 	if t.stoppedEventAnnouncer != nil {
 		t.stoppedEventAnnouncer.Close()
 	}
+
+	t.ram.Close()
 }
 
 // Torrent event loop
 func (t *torrent) run() {
 	for {
 		select {
-		case doneC := <-t.closeC:
+		case done := <-t.closeC:
 			t.close()
-			close(doneC)
+			close(t.doneC)
+			close(done)
 			return
 		case <-t.startCommandC:
 			t.start()
@@ -66,6 +69,8 @@ func (t *torrent) run() {
 			t.checkedPieces = p.Checked
 		case ve := <-t.verifierResultC:
 			t.handleVerificationDone(ve)
+		case <-t.ramNotifyC:
+			t.startSinglePieceDownloader()
 		case addrs := <-t.addrsFromTrackers:
 			t.handleNewPeers(addrs, peer.SourceTracker)
 		case addrs := <-t.addPeersCommandC:
@@ -248,6 +253,7 @@ func (t *torrent) closePieceDownloader(pd *piecedownloader.PieceDownloader) {
 		t.piecePicker.HandleCancelDownload(pd.Peer, pd.Piece.Index)
 	}
 	pd.Peer.Downloading = false
+	t.ram.Release(int(t.info.PieceLength))
 }
 
 func (t *torrent) closeInfoDownloader(id *infodownloader.InfoDownloader) {
@@ -271,11 +277,14 @@ func (t *torrent) dialAddresses() {
 	if t.completed {
 		return
 	}
-	for len(t.outgoingPeers)+len(t.outgoingHandshakers) < t.config.MaxPeerDial {
+	peersConnected := func() int {
+		return len(t.outgoingPeers) + len(t.outgoingHandshakers)
+	}
+	for peersConnected() < t.config.MaxPeerDial {
 		addr, src := t.addrList.Pop()
 		if addr == nil {
 			t.setNeedMorePeers(true)
-			break
+			return
 		}
 		ip := addr.IP.String()
 		if _, ok := t.connectedPeerIPs[ip]; ok {

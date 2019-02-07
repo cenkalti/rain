@@ -23,6 +23,7 @@ import (
 	"github.com/cenkalti/rain/internal/piecedownloader"
 	"github.com/cenkalti/rain/internal/piecepicker"
 	"github.com/cenkalti/rain/internal/piecewriter"
+	"github.com/cenkalti/rain/internal/resourcemanager"
 	"github.com/cenkalti/rain/internal/resumer"
 	"github.com/cenkalti/rain/internal/storage"
 	"github.com/cenkalti/rain/internal/tracker"
@@ -134,6 +135,8 @@ type torrent struct {
 
 	// When Stop() is called, it will close this channel to signal run() function to stop.
 	closeC chan chan struct{}
+
+	doneC chan struct{}
 
 	// These are the channels for sending a message to run() loop.
 	statsCommandC        chan statsRequest        // Stats()
@@ -248,6 +251,9 @@ type torrent struct {
 	uploadSpeed         metrics.EWMA
 	speedCounterTicker  *time.Ticker
 	speedCounterTickerC <-chan time.Time
+
+	ram        *resourcemanager.ResourceManager
+	ramNotifyC chan struct{}
 
 	log logger.Logger
 }

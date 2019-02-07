@@ -21,6 +21,7 @@ import (
 	"github.com/cenkalti/rain/internal/piececache"
 	"github.com/cenkalti/rain/internal/piecedownloader"
 	"github.com/cenkalti/rain/internal/piecewriter"
+	"github.com/cenkalti/rain/internal/resourcemanager"
 	"github.com/cenkalti/rain/internal/resumer"
 	"github.com/cenkalti/rain/internal/storage"
 	"github.com/cenkalti/rain/internal/tracker"
@@ -50,6 +51,8 @@ type options struct {
 	DHT *dhtAnnouncer
 	// Optional blocklist to prevent connection to blocked IP addresses.
 	Blocklist *blocklist.Blocklist
+	// Pieces read from disk are cached in memory for a while.
+	PieceCache *piececache.Cache
 }
 
 // NewTorrent creates a new torrent that downloads the torrent with infoHash and saves the files to the storage.
@@ -120,12 +123,15 @@ func (o *options) NewTorrent(infoHash []byte, sto storage.Storage) (*torrent, er
 		connectedPeerIPs:          make(map[string]struct{}),
 		announcersStoppedC:        make(chan struct{}),
 		dhtNode:                   o.DHT,
-		pieceCache:                piececache.New(cfg.PieceCacheSize, cfg.PieceCacheTTL),
+		pieceCache:                o.PieceCache,
 		resumerStats:              o.Stats,
 		blocklist:                 o.Blocklist,
 		externalIP:                externalip.FirstExternalIP(),
 		downloadSpeed:             metrics.NewEWMA1(),
 		uploadSpeed:               metrics.NewEWMA1(),
+		ram:                       resourcemanager.New(cfg.MaxActivePieceBytes),
+		ramNotifyC:                make(chan struct{}),
+		doneC:                     make(chan struct{}),
 	}
 	t.addrList = addrlist.New(cfg.MaxPeerAddresses, o.Blocklist, o.Port, &t.externalIP)
 	copy(t.peerID[:], []byte(cfg.PeerIDPrefix))

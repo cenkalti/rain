@@ -20,6 +20,7 @@ import (
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/magnet"
 	"github.com/cenkalti/rain/internal/metainfo"
+	"github.com/cenkalti/rain/internal/piececache"
 	"github.com/cenkalti/rain/internal/resumer"
 	"github.com/cenkalti/rain/internal/resumer/boltdbresumer"
 	"github.com/cenkalti/rain/internal/storage/filestorage"
@@ -44,6 +45,7 @@ type Session struct {
 	dht            *dht.DHT
 	blocklist      *blocklist.Blocklist
 	trackerManager *trackermanager.TrackerManager
+	pieceCache     *piececache.Cache
 	closeC         chan struct{}
 
 	mPeerRequests   sync.Mutex
@@ -141,6 +143,7 @@ func New(cfg Config) (*Session, error) {
 		torrentsByInfoHash: make(map[dht.InfoHash][]*Torrent),
 		availablePorts:     ports,
 		dht:                dhtNode,
+		pieceCache:         piececache.New(cfg.PieceCacheSize, cfg.PieceCacheTTL),
 		closeC:             make(chan struct{}),
 	}
 	err = c.startBlocklistReloader()
@@ -260,12 +263,13 @@ func (s *Session) loadExistingTorrents(ids []string) error {
 			continue
 		}
 		opt := options{
-			Name:      spec.Name,
-			Port:      spec.Port,
-			Trackers:  s.parseTrackers(spec.Trackers),
-			Resumer:   res,
-			Blocklist: s.blocklist,
-			Config:    &s.config,
+			Name:       spec.Name,
+			Port:       spec.Port,
+			Trackers:   s.parseTrackers(spec.Trackers),
+			Resumer:    res,
+			Blocklist:  s.blocklist,
+			PieceCache: s.pieceCache,
+			Config:     &s.config,
 			Stats: resumer.Stats{
 				BytesDownloaded: spec.BytesDownloaded,
 				BytesUploaded:   spec.BytesUploaded,
@@ -517,10 +521,11 @@ func (s *Session) add() (*options, *filestorage.FileStorage, string, error) {
 		return nil, nil, "", err
 	}
 	return &options{
-		Port:      int(port),
-		Resumer:   res,
-		Blocklist: s.blocklist,
-		Config:    &s.config,
+		Port:       int(port),
+		Resumer:    res,
+		Blocklist:  s.blocklist,
+		PieceCache: s.pieceCache,
+		Config:     &s.config,
 	}, sto, id, nil
 }
 

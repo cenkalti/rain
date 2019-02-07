@@ -114,7 +114,7 @@ func (t *torrent) startAcceptor() {
 	if err != nil {
 		t.log.Warningf("cannot listen port %d: %s", t.port, err)
 	} else {
-		t.log.Notice("Listening peers on tcp://" + listener.Addr().String())
+		t.log.Info("Listening peers on tcp://" + listener.Addr().String())
 		t.port = listener.Addr().(*net.TCPAddr).Port
 		t.portC <- t.port
 		t.acceptor = acceptor.New(listener, t.incomingConnC, t.log)
@@ -159,22 +159,24 @@ func (t *torrent) startPieceDownloaders() {
 	if t.completed {
 		return
 	}
-	activeDownloads := func() int {
-		return len(t.pieceDownloaders) - len(t.pieceDownloadersChoked) - len(t.pieceDownloadersSnubbed)
+	t.ram.Request(string(t.peerID[:]), int(t.info.PieceLength), t.ramNotifyC, t.doneC)
+}
+
+func (t *torrent) startSinglePieceDownloader() {
+	pi, pe := t.piecePicker.Pick()
+	if pi == nil || pe == nil {
+		t.ram.Release(int(t.info.PieceLength))
+		return
 	}
-	for activeDownloads() < t.config.ParallelPieceDownloads {
-		pi, pe := t.piecePicker.Pick()
-		if pi == nil || pe == nil {
-			break
-		}
-		pd := piecedownloader.New(pi, pe, t.piecePool.Get().([]byte))
-		// t.log.Debugln("downloading piece", pd.Piece.Index, "from", pd.Peer.String())
-		if _, ok := t.pieceDownloaders[pd.Peer]; ok {
-			panic("peer already has a piece downloader")
-		}
-		t.pieceDownloaders[pd.Peer] = pd
-		pd.Peer.Downloading = true
-		pd.RequestBlocks(t.config.RequestQueueLength)
-		pd.Peer.ResetSnubTimer()
+	pd := piecedownloader.New(pi, pe, t.piecePool.Get().([]byte))
+	// t.log.Debugln("downloading piece", pd.Piece.Index, "from", pd.Peer.String())
+	if _, ok := t.pieceDownloaders[pd.Peer]; ok {
+		panic("peer already has a piece downloader")
 	}
+	t.pieceDownloaders[pd.Peer] = pd
+	pd.Peer.Downloading = true
+	pd.RequestBlocks(t.config.RequestQueueLength)
+	pd.Peer.ResetSnubTimer()
+
+	t.ram.Request(string(t.peerID[:]), int(t.info.PieceLength), t.ramNotifyC, t.doneC)
 }

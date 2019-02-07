@@ -206,7 +206,11 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 				pe.SendMessage(m)
 			}
 		} else {
-			pe.SendPiece(msg, t.cachedPiece(pi))
+			if t.pieceCache != nil {
+				pe.SendPiece(msg, t.cachedPiece(pi))
+			} else {
+				pe.SendPiece(msg, pi.Data)
+			}
 		}
 	case peerprotocol.RejectMessage:
 		if t.pieces == nil || t.bitfield == nil {

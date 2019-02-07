@@ -73,9 +73,8 @@ type Config struct {
 	// Max number of outgoing connections to dial
 	MaxPeerDial int
 	// Max number of incoming connections to accept
-	MaxPeerAccept int
-	// Running piece downloads, snubbed and choked peers don't count
-	ParallelPieceDownloads int
+	MaxPeerAccept       int
+	MaxActivePieceBytes int
 	// Running metadata downloads, snubbed peers don't count
 	ParallelMetadataDownloads int
 	// Time to wait for TCP connection to open.
@@ -147,7 +146,7 @@ var DefaultConfig = Config{
 	EndgameParallelDownloadsPerPiece: 2,
 	MaxPeerDial:                      20,
 	MaxPeerAccept:                    20,
-	ParallelPieceDownloads:           10,
+	MaxActivePieceBytes:              1024 * 1024 * 1024,
 	ParallelMetadataDownloads:        2,
 	PeerConnectTimeout:               5 * time.Second,
 	PeerHandshakeTimeout:             10 * time.Second,
@@ -157,6 +156,6 @@ var DefaultConfig = Config{
 
 	// Piece cache
 	PieceReadSize:  256 * 1024,
-	PieceCacheSize: 50 * 256 * 1024,
+	PieceCacheSize: 256 * 1024 * 1024,
 	PieceCacheTTL:  5 * time.Minute,
 }
