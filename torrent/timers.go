@@ -54,6 +54,7 @@ func (t *torrent) tickOptimisticUnchoke() {
 	for _, pe := range t.optimisticUnchokedPeers {
 		if pe.OptimisticUnchoked {
 			t.chokePeer(pe)
+			pe.OptimisticUnchoked = false
 		}
 	}
 	t.optimisticUnchokedPeers = t.optimisticUnchokedPeers[:0]
