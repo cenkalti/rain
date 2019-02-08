@@ -70,11 +70,6 @@ func (t *torrent) stop(err error) {
 
 	t.stopSpeedCounter()
 
-	if t.pieceCache != nil {
-		t.log.Debugln("clearing piece cache")
-		t.pieceCache.Clear()
-	}
-
 	// Stop periodical announcers first.
 	t.log.Debugln("stopping announcers")
 	announcers := t.announcers // keep a reference to the list before nilling in order to start StopAnnouncer
