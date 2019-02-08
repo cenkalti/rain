@@ -322,6 +322,7 @@ func (t *torrent) processQueuedMessages() {
 			pm := peer.Message{Peer: pe, Message: msg}
 			t.handlePeerMessage(pm)
 		}
+		pe.Messages = nil
 	}
 }
 
