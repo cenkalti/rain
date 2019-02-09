@@ -6,6 +6,7 @@ type ResourceManager struct {
 	requestC  chan request
 	releaseC  chan int
 	closeC    chan struct{}
+	doneC     chan struct{}
 }
 
 type request struct {
@@ -22,6 +23,7 @@ func New(limit int) *ResourceManager {
 		requestC:  make(chan request),
 		releaseC:  make(chan int),
 		closeC:    make(chan struct{}),
+		doneC:     make(chan struct{}),
 	}
 	go m.run()
 	return m
@@ -29,6 +31,7 @@ func New(limit int) *ResourceManager {
 
 func (m *ResourceManager) Close() {
 	close(m.closeC)
+	<-m.doneC
 }
 
 func (m *ResourceManager) Request(key string, n int, notifyC, closeC chan struct{}) {
@@ -69,6 +72,7 @@ func (m *ResourceManager) run() {
 		case <-req.closeC:
 			delete(m.requests, req.key)
 		case <-m.closeC:
+			close(m.doneC)
 			return
 		}
 	}
