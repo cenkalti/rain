@@ -159,7 +159,10 @@ func (t *torrent) startPieceDownloaders() {
 	if t.completed {
 		return
 	}
-	t.ram.Request(string(t.peerID[:]), int(t.info.PieceLength), t.ramNotifyC, t.doneC)
+	ok := t.ram.Request(string(t.peerID[:]), int(t.info.PieceLength), t.ramNotifyC, t.doneC)
+	if ok {
+		t.startSinglePieceDownloader()
+	}
 }
 
 func (t *torrent) startSinglePieceDownloader() {
@@ -178,5 +181,8 @@ func (t *torrent) startSinglePieceDownloader() {
 	pd.RequestBlocks(t.config.RequestQueueLength)
 	pd.Peer.ResetSnubTimer()
 
-	t.ram.Request(string(t.peerID[:]), int(t.info.PieceLength), t.ramNotifyC, t.doneC)
+	ok := t.ram.Request(string(t.peerID[:]), int(t.info.PieceLength), t.ramNotifyC, t.doneC)
+	if ok {
+		t.startSinglePieceDownloader()
+	}
 }

@@ -13,7 +13,8 @@ type request struct {
 	key     string
 	n       int
 	notifyC chan struct{}
-	closeC  chan struct{}
+	cancelC chan struct{}
+	doneC   chan bool
 }
 
 func New(limit int) *ResourceManager {
@@ -34,7 +35,7 @@ func (m *ResourceManager) Close() {
 	<-m.doneC
 }
 
-func (m *ResourceManager) Request(key string, n int, notifyC, closeC chan struct{}) {
+func (m *ResourceManager) Request(key string, n int, notifyC, cancelC chan struct{}) (acquired bool) {
 	if n < 0 {
 		return
 	}
@@ -42,12 +43,18 @@ func (m *ResourceManager) Request(key string, n int, notifyC, closeC chan struct
 		key:     key,
 		n:       n,
 		notifyC: notifyC,
-		closeC:  closeC,
+		cancelC: cancelC,
+		doneC:   make(chan bool),
 	}
 	select {
 	case m.requestC <- r:
+		select {
+		case acquired = <-r.doneC:
+		case <-m.closeC:
+		}
 	case <-m.closeC:
 	}
+	return
 }
 
 func (m *ResourceManager) Release(n int) {
@@ -63,13 +70,13 @@ func (m *ResourceManager) run() {
 
 		select {
 		case r := <-m.requestC:
-			m.requests[r.key] = r
+			m.handleRequest(r)
 		case n := <-m.releaseC:
 			m.available += n
 		case req.notifyC <- struct{}{}:
 			m.available -= req.n
 			delete(m.requests, req.key)
-		case <-req.closeC:
+		case <-req.cancelC:
 			delete(m.requests, req.key)
 		case <-m.closeC:
 			close(m.doneC)
@@ -85,4 +92,17 @@ func (m *ResourceManager) randomRequest() request {
 		}
 	}
 	return request{}
+}
+
+func (m *ResourceManager) handleRequest(r request) {
+	acquired := m.available >= r.n
+	select {
+	case r.doneC <- acquired:
+		if acquired {
+			m.available -= r.n
+		} else {
+			m.requests[r.key] = r
+		}
+	case <-r.cancelC:
+	}
 }
