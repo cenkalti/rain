@@ -20,7 +20,7 @@ type Peer struct {
 
 	Pieces               map[uint32]struct{}
 	AllowedFastPieces    []uint32
-	AllowedFastPiecesMap map[uint32]struct{}
+	AllowedFastPiecesSet map[uint32]struct{}
 
 	ID                [20]byte
 	ExtensionsEnabled bool
@@ -77,7 +77,7 @@ func New(p *peerconn.Conn, source Source, id [20]byte, extensions [8]byte, ciphe
 		Conn:                 p,
 		Source:               source,
 		Pieces:               make(map[uint32]struct{}),
-		AllowedFastPiecesMap: make(map[uint32]struct{}),
+		AllowedFastPiecesSet: make(map[uint32]struct{}),
 		ID:                   id,
 		ClientChoking:        true,
 		PeerChoking:          true,

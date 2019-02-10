@@ -68,8 +68,8 @@ func (p *PiecePicker) HandleHave(pe *peer.Peer, i uint32) {
 }
 
 func (p *PiecePicker) HandleAllowedFast(pe *peer.Peer, i uint32) {
-	if _, ok := pe.AllowedFastPiecesMap[i]; !ok {
-		pe.AllowedFastPiecesMap[i] = struct{}{}
+	if _, ok := pe.AllowedFastPiecesSet[i]; !ok {
+		pe.AllowedFastPiecesSet[i] = struct{}{}
 		pe.AllowedFastPieces = append(pe.AllowedFastPieces, i)
 	}
 }
@@ -151,7 +151,7 @@ func (p *PiecePicker) selectPiece(noDuplicate bool) (*myPiece, *peer.Peer) {
 			if !pe.PeerChoking {
 				return pi, pe
 			}
-			if _, ok := pe.AllowedFastPiecesMap[pi.Index]; !ok {
+			if _, ok := pe.AllowedFastPiecesSet[pi.Index]; !ok {
 				return pi, pe
 			}
 		}
