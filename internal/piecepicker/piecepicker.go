@@ -18,10 +18,9 @@ type PiecePicker struct {
 
 type myPiece struct {
 	*piece.Piece
-	HavingPeers      map[*peer.Peer]struct{}
-	AllowedFastPeers map[*peer.Peer]struct{}
-	RequestedPeers   map[*peer.Peer]struct{}
-	SnubbedPeers     map[*peer.Peer]struct{}
+	HavingPeers    map[*peer.Peer]struct{}
+	RequestedPeers map[*peer.Peer]struct{}
+	SnubbedPeers   map[*peer.Peer]struct{}
 }
 
 func (p *myPiece) RunningDownloads() int {
@@ -32,11 +31,10 @@ func New(pieces []piece.Piece, endgameParallelDownloadsPerPiece int, l logger.Lo
 	ps := make([]myPiece, len(pieces))
 	for i := range pieces {
 		ps[i] = myPiece{
-			Piece:            &pieces[i],
-			HavingPeers:      make(map[*peer.Peer]struct{}),
-			AllowedFastPeers: make(map[*peer.Peer]struct{}),
-			RequestedPeers:   make(map[*peer.Peer]struct{}),
-			SnubbedPeers:     make(map[*peer.Peer]struct{}),
+			Piece:          &pieces[i],
+			HavingPeers:    make(map[*peer.Peer]struct{}),
+			RequestedPeers: make(map[*peer.Peer]struct{}),
+			SnubbedPeers:   make(map[*peer.Peer]struct{}),
 		}
 	}
 	sps := make([]*myPiece, len(ps))
@@ -70,7 +68,10 @@ func (p *PiecePicker) HandleHave(pe *peer.Peer, i uint32) {
 }
 
 func (p *PiecePicker) HandleAllowedFast(pe *peer.Peer, i uint32) {
-	p.pieces[i].AllowedFastPeers[pe] = struct{}{}
+	if _, ok := pe.AllowedFastPiecesMap[i]; !ok {
+		pe.AllowedFastPiecesMap[i] = struct{}{}
+		pe.AllowedFastPieces = append(pe.AllowedFastPieces, i)
+	}
 }
 
 func (p *PiecePicker) HandleSnubbed(pe *peer.Peer, i uint32) {
@@ -85,7 +86,6 @@ func (p *PiecePicker) HandleCancelDownload(pe *peer.Peer, i uint32) {
 func (p *PiecePicker) HandleDisconnect(pe *peer.Peer) {
 	for i := range p.pieces {
 		p.HandleCancelDownload(pe, uint32(i))
-		delete(p.pieces[i].AllowedFastPeers, pe)
 		p.removeHavingPeer(i, pe)
 	}
 }
@@ -151,7 +151,7 @@ func (p *PiecePicker) selectPiece(noDuplicate bool) (*myPiece, *peer.Peer) {
 			if !pe.PeerChoking {
 				return pi, pe
 			}
-			if _, ok := pi.AllowedFastPeers[pe]; !ok {
+			if _, ok := pe.AllowedFastPiecesMap[pi.Index]; !ok {
 				return pi, pe
 			}
 		}
