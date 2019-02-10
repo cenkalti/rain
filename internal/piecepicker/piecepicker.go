@@ -66,6 +66,7 @@ func (p *PiecePicker) DoesHave(pe *peer.Peer, i uint32) bool {
 
 func (p *PiecePicker) HandleHave(pe *peer.Peer, i uint32) {
 	p.addHavingPeer(i, pe)
+	pe.Pieces[i] = struct{}{}
 }
 
 func (p *PiecePicker) HandleAllowedFast(pe *peer.Peer, i uint32) {

@@ -18,6 +18,8 @@ type Peer struct {
 
 	Source Source
 
+	Pieces map[uint32]struct{}
+
 	ID                [20]byte
 	ExtensionsEnabled bool
 	FastEnabled       bool
@@ -72,6 +74,7 @@ func New(p *peerconn.Conn, source Source, id [20]byte, extensions [8]byte, ciphe
 	return &Peer{
 		Conn:              p,
 		Source:            source,
+		Pieces:            make(map[uint32]struct{}),
 		ID:                id,
 		ClientChoking:     true,
 		PeerChoking:       true,
