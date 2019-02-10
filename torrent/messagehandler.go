@@ -68,7 +68,7 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 		t.resumerStats.BytesWasted += int64(len(msg.Data))
 		t.log.Error("received corrupt piece")
 		t.closePeer(pd.Peer)
-		t.startPieceDownloaders()
+		t.startPieceDownloaderFor(pe)
 		return
 	}
 
@@ -91,7 +91,7 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 	pw := piecewriter.New(piece, pd.Buffer, pd.Piece.Length)
 	go pw.Run(t.pieceWriterResultC)
 
-	t.startPieceDownloaders()
+	t.startPieceDownloaderFor(pe)
 }
 
 func (t *torrent) handlePeerMessage(pm peer.Message) {
@@ -114,7 +114,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			t.piecePicker.HandleHave(pe, pi.Index)
 		}
 		t.updateInterestedState(pe)
-		t.startPieceDownloaders()
+		t.startPieceDownloaderFor(pe)
 	case peerprotocol.BitfieldMessage:
 		// Save bitfield messages while we don't have info yet.
 		if t.pieces == nil || t.bitfield == nil {
@@ -136,7 +136,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			}
 		}
 		t.updateInterestedState(pe)
-		t.startPieceDownloaders()
+		t.startPieceDownloaderFor(pe)
 	case peerprotocol.HaveAllMessage:
 		if t.pieces == nil || t.bitfield == nil {
 			pe.Messages = append(pe.Messages, msg)
@@ -148,7 +148,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			}
 		}
 		t.updateInterestedState(pe)
-		t.startPieceDownloaders()
+		t.startPieceDownloaderFor(pe)
 	case peerprotocol.HaveNoneMessage:
 	case peerprotocol.AllowedFastMessage:
 		if t.pieces == nil || t.bitfield == nil {
@@ -170,13 +170,13 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 		if pd, ok := t.pieceDownloaders[pe]; ok {
 			pd.RequestBlocks(t.config.RequestQueueLength)
 		}
-		t.startPieceDownloaders()
+		t.startPieceDownloaderFor(pe)
 	case peerprotocol.ChokeMessage:
 		pe.PeerChoking = true
 		if pd, ok := t.pieceDownloaders[pe]; ok {
 			pd.Choked()
 			t.pieceDownloadersChoked[pe] = pd
-			t.startPieceDownloaders()
+			t.startPieceDownloaderFor(pe)
 		}
 	case peerprotocol.InterestedMessage:
 		pe.PeerInterested = true

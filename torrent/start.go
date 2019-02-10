@@ -7,6 +7,7 @@ import (
 	"github.com/cenkalti/rain/internal/acceptor"
 	"github.com/cenkalti/rain/internal/allocator"
 	"github.com/cenkalti/rain/internal/announcer"
+	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/piecedownloader"
 	"github.com/cenkalti/rain/internal/verifier"
 )
@@ -147,6 +148,10 @@ func (t *torrent) startInfoDownloaders() {
 		id.RequestBlocks(t.config.RequestQueueLength)
 		id.Peer.ResetSnubTimer()
 	}
+}
+
+func (t *torrent) startPieceDownloaderFor(pe *peer.Peer) {
+	t.startPieceDownloaders()
 }
 
 func (t *torrent) startPieceDownloaders() {
