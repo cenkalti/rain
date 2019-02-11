@@ -13,6 +13,7 @@ type cachedPiece struct {
 	cache    *piececache.Cache
 	readSize int64
 	m        *sync.Mutex
+	peerID   []byte
 }
 
 func (t *torrent) cachedPiece(pi *piece.Piece) *cachedPiece {
@@ -21,6 +22,7 @@ func (t *torrent) cachedPiece(pi *piece.Piece) *cachedPiece {
 		cache:    t.pieceCache,
 		readSize: t.config.PieceReadSize,
 		m:        &t.readMutex,
+		peerID:   t.peerID[:],
 	}
 }
 
@@ -32,9 +34,10 @@ func (c *cachedPiece) ReadAt(p []byte, off int64) (n int, err error) {
 		blkEnd = c.pi.Length
 	}
 
-	key := make([]byte, 8)
-	binary.BigEndian.PutUint32(key, c.pi.Index)
-	binary.BigEndian.PutUint32(key[4:], blk)
+	key := make([]byte, 20+4+4)
+	copy(key, c.peerID)
+	binary.BigEndian.PutUint32(key[20:24], c.pi.Index)
+	binary.BigEndian.PutUint32(key[24:28], blk)
 
 	buf, err := c.cache.Get(string(key), func() ([]byte, error) {
 		b := make([]byte, blkEnd-blkBegin)
