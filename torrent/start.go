@@ -8,6 +8,7 @@ import (
 	"github.com/cenkalti/rain/internal/allocator"
 	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/peer"
+	"github.com/cenkalti/rain/internal/piece"
 	"github.com/cenkalti/rain/internal/piecedownloader"
 	"github.com/cenkalti/rain/internal/verifier"
 )
@@ -183,7 +184,12 @@ func (t *torrent) startPieceDownloaders() {
 }
 
 func (t *torrent) startSinglePieceDownloader(pe *peer.Peer) {
-	pi, pe := t.piecePicker.Pick()
+	var pi *piece.Piece
+	if pe != nil {
+		pi = t.piecePicker.PickFor(pe)
+	} else {
+		pi, pe = t.piecePicker.Pick()
+	}
 	if pi == nil || pe == nil {
 		t.ram.Release(int(t.info.PieceLength))
 		return
