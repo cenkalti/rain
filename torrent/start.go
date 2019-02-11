@@ -151,7 +151,19 @@ func (t *torrent) startInfoDownloaders() {
 }
 
 func (t *torrent) startPieceDownloaderFor(pe *peer.Peer) {
-	t.startPieceDownloaders()
+	if t.bitfield == nil {
+		return
+	}
+	if t.pieces == nil {
+		return
+	}
+	if t.completed {
+		return
+	}
+	ok := t.ram.Request(string(t.peerID[:]), int(t.info.PieceLength), t.ramNotifyC, t.doneC)
+	if ok {
+		t.startSinglePieceDownloader(pe)
+	}
 }
 
 func (t *torrent) startPieceDownloaders() {
@@ -166,11 +178,11 @@ func (t *torrent) startPieceDownloaders() {
 	}
 	ok := t.ram.Request(string(t.peerID[:]), int(t.info.PieceLength), t.ramNotifyC, t.doneC)
 	if ok {
-		t.startSinglePieceDownloader()
+		t.startSinglePieceDownloader(nil)
 	}
 }
 
-func (t *torrent) startSinglePieceDownloader() {
+func (t *torrent) startSinglePieceDownloader(pe *peer.Peer) {
 	pi, pe := t.piecePicker.Pick()
 	if pi == nil || pe == nil {
 		t.ram.Release(int(t.info.PieceLength))
@@ -188,6 +200,6 @@ func (t *torrent) startSinglePieceDownloader() {
 
 	ok := t.ram.Request(string(t.peerID[:]), int(t.info.PieceLength), t.ramNotifyC, t.doneC)
 	if ok {
-		t.startSinglePieceDownloader()
+		t.startSinglePieceDownloader(pe)
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/rain/internal/announcer"
+	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/handshaker/incominghandshaker"
 	"github.com/cenkalti/rain/internal/handshaker/outgoinghandshaker"
 	"github.com/cenkalti/rain/internal/infodownloader"
@@ -70,7 +71,7 @@ func (t *torrent) run() {
 		case ve := <-t.verifierResultC:
 			t.handleVerificationDone(ve)
 		case <-t.ramNotifyC:
-			t.startSinglePieceDownloader()
+			t.startSinglePieceDownloader(nil)
 		case addrs := <-t.addrsFromTrackers:
 			t.handleNewPeers(addrs, peer.SourceTracker)
 		case addrs := <-t.addPeersCommandC:
@@ -132,7 +133,7 @@ func (t *torrent) run() {
 			// Tell everyone that we have this piece
 			for pe := range t.peers {
 				t.updateInterestedState(pe)
-				if t.piecePicker.DoesHave(pe, pw.Piece.Index) {
+				if pe.Bitfield.Test(pw.Piece.Index) {
 					// Skip peers having the piece to save bandwidth
 					continue
 				}
@@ -348,6 +349,9 @@ func (t *torrent) startPeer(
 	pe := peer.New(p, source, peerID, extensions, cipher, t.config.RequestTimeout)
 	t.peers[pe] = struct{}{}
 	peers[pe] = struct{}{}
+	if t.info != nil {
+		pe.Bitfield = bitfield.New(t.info.NumPieces)
+	}
 	go pe.Run(t.messages, t.pieceMessages, t.peerSnubbedC, t.peerDisconnectedC)
 
 	t.sendFirstMessage(pe)

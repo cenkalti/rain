@@ -73,7 +73,7 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 	}
 
 	if t.piecePicker != nil {
-		for pe := range t.piecePicker.RequestedPeers(piece.Index) {
+		for _, pe := range t.piecePicker.RequestedPeers(piece.Index) {
 			pd2 := t.pieceDownloaders[pe]
 			t.closePieceDownloader(pd2)
 			pd2.CancelPending()
@@ -395,7 +395,7 @@ func (t *torrent) updateInterestedState(pe *peer.Peer) {
 	if !t.completed {
 		for i := uint32(0); i < t.bitfield.Len(); i++ {
 			weHave := t.bitfield.Test(i)
-			peerHave := t.piecePicker.DoesHave(pe, i)
+			peerHave := pe.Bitfield.Test(i)
 			if !weHave && peerHave {
 				interested = true
 				break

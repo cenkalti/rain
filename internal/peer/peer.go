@@ -18,9 +18,7 @@ type Peer struct {
 
 	Source Source
 
-	Pieces               map[uint32]struct{}
-	AllowedFastPieces    []uint32
-	AllowedFastPiecesSet map[uint32]struct{}
+	Bitfield *bitfield.Bitfield
 
 	ID                [20]byte
 	ExtensionsEnabled bool
@@ -74,22 +72,20 @@ func New(p *peerconn.Conn, source Source, id [20]byte, extensions [8]byte, ciphe
 	t := time.NewTimer(math.MaxInt64)
 	t.Stop()
 	return &Peer{
-		Conn:                 p,
-		Source:               source,
-		Pieces:               make(map[uint32]struct{}),
-		AllowedFastPiecesSet: make(map[uint32]struct{}),
-		ID:                   id,
-		ClientChoking:        true,
-		PeerChoking:          true,
-		ExtensionsEnabled:    extensionsEnabled,
-		FastEnabled:          fastEnabled,
-		EncryptionCipher:     cipher,
-		snubTimeout:          snubTimeout,
-		snubTimer:            t,
-		closeC:               make(chan struct{}),
-		doneC:                make(chan struct{}),
-		downloadSpeed:        metrics.NewEWMA1(),
-		uploadSpeed:          metrics.NewEWMA1(),
+		Conn:              p,
+		Source:            source,
+		ID:                id,
+		ClientChoking:     true,
+		PeerChoking:       true,
+		ExtensionsEnabled: extensionsEnabled,
+		FastEnabled:       fastEnabled,
+		EncryptionCipher:  cipher,
+		snubTimeout:       snubTimeout,
+		snubTimer:         t,
+		closeC:            make(chan struct{}),
+		doneC:             make(chan struct{}),
+		downloadSpeed:     metrics.NewEWMA1(),
+		uploadSpeed:       metrics.NewEWMA1(),
 	}
 }
 

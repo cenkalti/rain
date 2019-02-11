@@ -18,23 +18,25 @@ type PiecePicker struct {
 
 type myPiece struct {
 	*piece.Piece
-	HavingPeers    map[*peer.Peer]struct{}
-	RequestedPeers map[*peer.Peer]struct{}
-	SnubbedPeers   map[*peer.Peer]struct{}
+	Having      *peerList
+	AllowedFast *peerList
+	Requested   *peerList
+	Snubbed     *peerList
 }
 
 func (p *myPiece) RunningDownloads() int {
-	return len(p.RequestedPeers) - len(p.SnubbedPeers)
+	return p.Requested.Len() - p.Snubbed.Len()
 }
 
 func New(pieces []piece.Piece, endgameParallelDownloadsPerPiece int, l logger.Logger) *PiecePicker {
 	ps := make([]myPiece, len(pieces))
 	for i := range pieces {
 		ps[i] = myPiece{
-			Piece:          &pieces[i],
-			HavingPeers:    make(map[*peer.Peer]struct{}),
-			RequestedPeers: make(map[*peer.Peer]struct{}),
-			SnubbedPeers:   make(map[*peer.Peer]struct{}),
+			Piece:       &pieces[i],
+			Having:      new(peerList),
+			AllowedFast: new(peerList),
+			Requested:   new(peerList),
+			Snubbed:     new(peerList),
 		}
 	}
 	sps := make([]*myPiece, len(ps))
@@ -53,57 +55,46 @@ func (p *PiecePicker) Available() uint32 {
 	return p.available
 }
 
-func (p *PiecePicker) RequestedPeers(i uint32) map[*peer.Peer]struct{} {
-	return p.pieces[i].RequestedPeers
-}
-
-func (p *PiecePicker) DoesHave(pe *peer.Peer, i uint32) bool {
-	_, ok := p.pieces[i].HavingPeers[pe]
-	return ok
+func (p *PiecePicker) RequestedPeers(i uint32) []*peer.Peer {
+	return p.pieces[i].Requested.Peers
 }
 
 func (p *PiecePicker) HandleHave(pe *peer.Peer, i uint32) {
+	pe.Bitfield.Set(i)
 	p.addHavingPeer(i, pe)
-	pe.Pieces[i] = struct{}{}
 }
 
 func (p *PiecePicker) HandleAllowedFast(pe *peer.Peer, i uint32) {
-	if _, ok := pe.AllowedFastPiecesSet[i]; !ok {
-		pe.AllowedFastPiecesSet[i] = struct{}{}
-		pe.AllowedFastPieces = append(pe.AllowedFastPieces, i)
-	}
+	p.pieces[i].AllowedFast.Add(pe)
 }
 
 func (p *PiecePicker) HandleSnubbed(pe *peer.Peer, i uint32) {
-	p.pieces[i].SnubbedPeers[pe] = struct{}{}
+	p.pieces[i].Snubbed.Add(pe)
 }
 
 func (p *PiecePicker) HandleCancelDownload(pe *peer.Peer, i uint32) {
-	delete(p.pieces[i].RequestedPeers, pe)
-	delete(p.pieces[i].SnubbedPeers, pe)
+	p.pieces[i].Requested.Remove(pe)
+	p.pieces[i].Snubbed.Remove(pe)
 }
 
 func (p *PiecePicker) HandleDisconnect(pe *peer.Peer) {
 	for i := range p.pieces {
 		p.HandleCancelDownload(pe, uint32(i))
+		p.pieces[i].AllowedFast.Remove(pe)
 		p.removeHavingPeer(i, pe)
 	}
 }
 
 func (p *PiecePicker) addHavingPeer(i uint32, pe *peer.Peer) {
-	m := p.pieces[i].HavingPeers
-	count := len(m)
-	m[pe] = struct{}{}
-	if count == 0 && len(m) == 1 {
+	ok := p.pieces[i].Having.Add(pe)
+	if ok && p.pieces[i].Having.Len() == 1 {
 		p.available++
 	}
 }
 
 func (p *PiecePicker) removeHavingPeer(i int, pe *peer.Peer) {
-	m := p.pieces[i].HavingPeers
-	count := len(m)
-	delete(p.pieces[i].HavingPeers, pe)
-	if count == 1 && len(m) == 0 {
+	ok := p.pieces[i].Having.Remove(pe)
+	if ok && p.pieces[i].Having.Len() == 0 {
 		p.available--
 	}
 }
@@ -114,24 +105,75 @@ func (p *PiecePicker) Pick() (*piece.Piece, *peer.Peer) {
 		return nil, nil
 	}
 	pe.Snubbed = false
-	pi.RequestedPeers[pe] = struct{}{}
+	pi.Requested.Add(pe)
 	return pi.Piece, pe
 }
 
+func (p *PiecePicker) xPickFor(pe *peer.Peer) *piece.Piece {
+	// TODO implement
+	return nil
+}
+
 func (p *PiecePicker) findPieceAndPeer() (*myPiece, *peer.Peer) {
-	sort.Slice(p.sortedPieces, func(i, j int) bool { return len(p.sortedPieces[i].HavingPeers) < len(p.sortedPieces[j].HavingPeers) })
-	pe, pi := p.selectPiece(true)
+	sort.Slice(p.sortedPieces, func(i, j int) bool {
+		return len(p.sortedPieces[i].Having.Peers) < len(p.sortedPieces[j].Having.Peers)
+	})
+	pe, pi := p.selectAllowedFastPiece(true, true)
 	if pe != nil && pi != nil {
 		return pe, pi
 	}
-	pe, pi = p.selectPiece(false)
+	pe, pi = p.selectUnchokedPeer(true, true)
+	if pe != nil && pi != nil {
+		return pe, pi
+	}
+	pe, pi = p.selectSnubbedPeer(true)
+	if pe != nil && pi != nil {
+		return pe, pi
+	}
+	pe, pi = p.selectDuplicatePiece()
 	if pe != nil && pi != nil {
 		return pe, pi
 	}
 	return nil, nil
 }
 
-func (p *PiecePicker) selectPiece(noDuplicate bool) (*myPiece, *peer.Peer) {
+func (p *PiecePicker) selectAllowedFastPiece(skipSnubbed, noDuplicate bool) (*myPiece, *peer.Peer) {
+	return p.selectPiece(true, skipSnubbed, noDuplicate)
+}
+
+func (p *PiecePicker) selectUnchokedPeer(skipSnubbed, noDuplicate bool) (*myPiece, *peer.Peer) {
+	return p.selectPiece(false, skipSnubbed, noDuplicate)
+}
+
+func (p *PiecePicker) selectSnubbedPeer(noDuplicate bool) (*myPiece, *peer.Peer) {
+	pi, pe := p.selectAllowedFastPiece(false, noDuplicate)
+	if pi != nil && pe != nil {
+		return pi, pe
+	}
+	pi, pe = p.selectUnchokedPeer(false, noDuplicate)
+	if pi != nil && pe != nil {
+		return pi, pe
+	}
+	return nil, nil
+}
+
+func (p *PiecePicker) selectDuplicatePiece() (*myPiece, *peer.Peer) {
+	pe, pi := p.selectAllowedFastPiece(true, false)
+	if pe != nil && pi != nil {
+		return pe, pi
+	}
+	pe, pi = p.selectUnchokedPeer(true, false)
+	if pe != nil && pi != nil {
+		return pe, pi
+	}
+	pe, pi = p.selectSnubbedPeer(false)
+	if pe != nil && pi != nil {
+		return pe, pi
+	}
+	return nil, nil
+}
+
+func (p *PiecePicker) selectPiece(preferAllowedFast, skipSnubbed, noDuplicate bool) (*myPiece, *peer.Peer) {
 	for _, pi := range p.sortedPieces {
 		if pi.Done {
 			continue
@@ -139,21 +181,28 @@ func (p *PiecePicker) selectPiece(noDuplicate bool) (*myPiece, *peer.Peer) {
 		if pi.Writing {
 			continue
 		}
-		if noDuplicate && len(pi.RequestedPeers) > 0 {
+		if noDuplicate && pi.Requested.Len() > 0 {
 			continue
 		} else if pi.RunningDownloads() >= p.endgameParallelDownloadsPerPiece {
 			continue
 		}
-		for pe := range pi.HavingPeers {
+		for _, pe := range pi.Having.Peers {
 			if pe.Downloading {
 				continue
 			}
-			if !pe.PeerChoking {
-				return pi, pe
+			if skipSnubbed && pe.Snubbed {
+				continue
 			}
-			if _, ok := pe.AllowedFastPiecesSet[pi.Index]; !ok {
-				return pi, pe
+			if preferAllowedFast {
+				if !pi.AllowedFast.Has(pe) {
+					continue
+				}
+			} else {
+				if pe.PeerChoking {
+					continue
+				}
 			}
+			return pi, pe
 		}
 	}
 	return nil, nil

@@ -35,6 +35,10 @@ func (t *torrent) handleAllocationDone(al *allocator.Allocator) {
 	}
 	t.piecePicker = piecepicker.New(t.pieces, t.config.EndgameParallelDownloadsPerPiece, t.log)
 
+	for pe := range t.peers {
+		pe.Bitfield = bitfield.New(t.info.NumPieces)
+	}
+
 	// If we already have bitfield from resume db, skip verification and start downloading.
 	if t.bitfield != nil {
 		for i := uint32(0); i < t.bitfield.Len(); i++ {
