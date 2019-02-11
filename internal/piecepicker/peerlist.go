@@ -4,11 +4,11 @@ import (
 	"github.com/cenkalti/rain/internal/peer"
 )
 
-type peerList struct {
+type peerSet struct {
 	Peers []*peer.Peer
 }
 
-func (l *peerList) Add(pe *peer.Peer) bool {
+func (l *peerSet) Add(pe *peer.Peer) bool {
 	for _, p := range l.Peers {
 		if p == pe {
 			return false
@@ -18,7 +18,7 @@ func (l *peerList) Add(pe *peer.Peer) bool {
 	return true
 }
 
-func (l *peerList) Remove(pe *peer.Peer) bool {
+func (l *peerSet) Remove(pe *peer.Peer) bool {
 	for i, p := range l.Peers {
 		if p == pe {
 			l.Peers[i] = l.Peers[len(l.Peers)-1]
@@ -29,7 +29,7 @@ func (l *peerList) Remove(pe *peer.Peer) bool {
 	return false
 }
 
-func (l *peerList) Has(pe *peer.Peer) bool {
+func (l *peerSet) Has(pe *peer.Peer) bool {
 	for _, p := range l.Peers {
 		if p == pe {
 			return true
@@ -38,6 +38,6 @@ func (l *peerList) Has(pe *peer.Peer) bool {
 	return false
 }
 
-func (l *peerList) Len() int {
+func (l *peerSet) Len() int {
 	return len(l.Peers)
 }
