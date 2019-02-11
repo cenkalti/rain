@@ -18,10 +18,10 @@ type PiecePicker struct {
 
 type myPiece struct {
 	*piece.Piece
-	Having      *peerSet
-	AllowedFast *peerSet
-	Requested   *peerSet
-	Snubbed     *peerSet
+	Having      peerSet
+	AllowedFast peerSet
+	Requested   peerSet
+	Snubbed     peerSet
 }
 
 func (p *myPiece) RunningDownloads() int {
@@ -31,13 +31,7 @@ func (p *myPiece) RunningDownloads() int {
 func New(pieces []piece.Piece, endgameParallelDownloadsPerPiece int, l logger.Logger) *PiecePicker {
 	ps := make([]myPiece, len(pieces))
 	for i := range pieces {
-		ps[i] = myPiece{
-			Piece:       &pieces[i],
-			Having:      new(peerSet),
-			AllowedFast: new(peerSet),
-			Requested:   new(peerSet),
-			Snubbed:     new(peerSet),
-		}
+		ps[i] = myPiece{Piece: &pieces[i]}
 	}
 	sps := make([]*myPiece, len(ps))
 	for i := range sps {
