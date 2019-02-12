@@ -19,6 +19,11 @@ func (s *Session) startBlocklistReloader() error {
 	if err != nil {
 		return err
 	}
+
+	s.mBlocklist.Lock()
+	s.blocklistTimestamp = blocklistTimestamp
+	s.mBlocklist.Unlock()
+
 	deadline := blocklistTimestamp.Add(s.config.BlocklistUpdateInterval)
 	now := time.Now().UTC()
 	delta := now.Sub(deadline)
@@ -86,13 +91,19 @@ func (s *Session) reloadBlocklist() error {
 	}
 	s.log.Infof("Loaded %d rules from blocklist.", n)
 
+	now := time.Now()
+
+	s.mBlocklist.Lock()
+	s.blocklistTimestamp = now
+	s.mBlocklist.Unlock()
+
 	return s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(sessionBucket)
 		err2 := b.Put(blocklistKey, buf.Bytes())
 		if err2 != nil {
 			return err2
 		}
-		return b.Put(blocklistTimestampKey, []byte(time.Now().UTC().Format(time.RFC3339)))
+		return b.Put(blocklistTimestampKey, []byte(now.UTC().Format(time.RFC3339)))
 	})
 }
 

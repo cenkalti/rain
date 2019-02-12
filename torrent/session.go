@@ -43,7 +43,6 @@ type Session struct {
 	db             *bolt.DB
 	log            logger.Logger
 	dht            *dht.DHT
-	blocklist      *blocklist.Blocklist
 	trackerManager *trackermanager.TrackerManager
 	pieceCache     *piececache.Cache
 	closeC         chan struct{}
@@ -55,8 +54,12 @@ type Session struct {
 	torrents           map[string]*Torrent
 	torrentsByInfoHash map[dht.InfoHash][]*Torrent
 
-	mPorts         sync.Mutex
+	mPorts         sync.RWMutex
 	availablePorts map[uint16]struct{}
+
+	mBlocklist         sync.RWMutex
+	blocklist          *blocklist.Blocklist
+	blocklistTimestamp time.Time
 
 	rpc *rpcServer
 }
@@ -582,11 +585,23 @@ func (s *Session) RemoveTorrent(id string) error {
 }
 
 func (s *Session) Stats() SessionStats {
+	s.m.RLock()
+	torrents := len(s.torrents)
+	s.m.RUnlock()
+
+	s.mPorts.RLock()
+	ports := len(s.availablePorts)
+	s.mPorts.RUnlock()
+
+	s.mBlocklist.RLock()
+	blocklistTime := s.blocklistTimestamp
+	s.mBlocklist.RUnlock()
+
 	return SessionStats{
-		// Torrents:                      XXX,
-		// AvailablePorts:                XXX,
-		// BlockListRules:                XXX,
-		// BlockListLastSuccessfulUpdate: XXX,
+		Torrents:                      torrents,
+		AvailablePorts:                ports,
+		BlockListRules:                s.blocklist.Len(),
+		BlockListLastSuccessfulUpdate: blocklistTime,
 		// PieceCacheItems:               XXX,
 		// PieceCacheSize:                XXX,
 		// ActivePieceBytes:              XXX,

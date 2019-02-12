@@ -37,7 +37,7 @@ type SessionStats struct {
 	Torrents                      int
 	AvailablePorts                int
 	BlockListRules                int
-	BlockListLastSuccessfulUpdate Time
+	BlockListLastSuccessfulUpdate *Time
 	PieceCacheItems               int
 	PieceCacheSize                int
 	ActivePieceBytes              int

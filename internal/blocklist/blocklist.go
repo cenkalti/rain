@@ -13,12 +13,19 @@ import (
 )
 
 type Blocklist struct {
-	tree stree.Stree
-	m    sync.RWMutex
+	tree  stree.Stree
+	m     sync.RWMutex
+	count int
 }
 
 func New() *Blocklist {
 	return &Blocklist{}
+}
+
+func (b *Blocklist) Len() int {
+	b.m.RLock()
+	defer b.m.RUnlock()
+	return b.count
 }
 
 func (b *Blocklist) Blocked(ip net.IP) bool {
@@ -44,6 +51,7 @@ func (b *Blocklist) Reload(r io.Reader) (int, error) {
 	}
 
 	b.tree = tree
+	b.count = n
 	return n, nil
 }
 

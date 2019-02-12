@@ -65,8 +65,15 @@ func (h *rpcHandler) RemoveTorrent(args *rpctypes.RemoveTorrentRequest, reply *r
 
 func (h *rpcHandler) GetSessionStats(args *rpctypes.GetSessionStatsRequest, reply *rpctypes.GetSessionStatsResponse) error {
 	s := h.session.Stats()
+	var blocklistUpdatedAt *rpctypes.Time
+	if !s.BlockListLastSuccessfulUpdate.IsZero() {
+		blocklistUpdatedAt = &rpctypes.Time{Time: s.BlockListLastSuccessfulUpdate}
+	}
 	reply.Stats = rpctypes.SessionStats{
-		Torrents: s.Torrents,
+		Torrents:                      s.Torrents,
+		AvailablePorts:                s.AvailablePorts,
+		BlockListRules:                s.BlockListRules,
+		BlockListLastSuccessfulUpdate: blocklistUpdatedAt,
 	}
 	return nil
 }
