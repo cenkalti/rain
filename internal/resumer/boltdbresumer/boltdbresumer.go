@@ -19,7 +19,7 @@ var (
 	destKey            = []byte("dest")
 	infoKey            = []byte("info")
 	bitfieldKey        = []byte("bitfield")
-	createdAtKey       = []byte("created_at")
+	addedAtKey         = []byte("added_at")
 	bytesDownloadedKey = []byte("bytes_downloaded")
 	bytesUploadedKey   = []byte("bytes_uploaded")
 	bytesWastedKey     = []byte("bytes_wasted")
@@ -66,7 +66,7 @@ func (r *Resumer) Write(spec *Spec) error {
 		b.Put(trackersKey, trackers)
 		b.Put(infoKey, spec.Info)
 		b.Put(bitfieldKey, spec.Bitfield)
-		b.Put(createdAtKey, []byte(spec.CreatedAt.Format(time.RFC3339)))
+		b.Put(addedAtKey, []byte(spec.AddedAt.Format(time.RFC3339)))
 		b.Put(bytesDownloadedKey, []byte(strconv.FormatInt(spec.BytesDownloaded, 10)))
 		b.Put(bytesUploadedKey, []byte(strconv.FormatInt(spec.BytesUploaded, 10)))
 		b.Put(bytesWastedKey, []byte(strconv.FormatInt(spec.BytesWasted, 10)))
@@ -151,9 +151,9 @@ func (r *Resumer) Read() (*Spec, error) {
 			copy(spec.Bitfield, value)
 		}
 
-		value = b.Get(createdAtKey)
+		value = b.Get(addedAtKey)
 		if value != nil {
-			spec.CreatedAt, err = time.Parse(time.RFC3339, string(value))
+			spec.AddedAt, err = time.Parse(time.RFC3339, string(value))
 			if err != nil {
 				return err
 			}

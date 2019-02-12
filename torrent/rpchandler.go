@@ -50,11 +50,11 @@ func (h *rpcHandler) AddURI(args *rpctypes.AddURIRequest, reply *rpctypes.AddURI
 
 func newTorrent(t *Torrent) rpctypes.Torrent {
 	return rpctypes.Torrent{
-		ID:        t.ID(),
-		Name:      t.Name(),
-		InfoHash:  t.InfoHash().String(),
-		Port:      t.Port(),
-		CreatedAt: rpctypes.Time{Time: t.CreatedAt()},
+		ID:       t.ID(),
+		Name:     t.Name(),
+		InfoHash: t.InfoHash().String(),
+		Port:     t.Port(),
+		AddedAt:  rpctypes.Time{Time: t.AddedAt()},
 	}
 }
 

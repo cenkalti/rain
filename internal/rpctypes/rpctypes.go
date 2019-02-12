@@ -1,11 +1,11 @@
 package rpctypes
 
 type Torrent struct {
-	ID        string
-	Name      string
-	InfoHash  string
-	Port      uint16
-	CreatedAt Time
+	ID       string
+	Name     string
+	InfoHash string
+	Port     uint16
+	AddedAt  Time
 }
 
 type Peer struct {

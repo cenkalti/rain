@@ -10,7 +10,7 @@ import (
 
 type Torrent struct {
 	id           string
-	createdAt    time.Time
+	addedAt      time.Time
 	port         uint16
 	dhtAnnouncer *dhtAnnouncer
 	session      *Session
@@ -39,8 +39,8 @@ func (t *Torrent) InfoHash() InfoHash {
 	return ih
 }
 
-func (t *Torrent) CreatedAt() time.Time {
-	return t.createdAt
+func (t *Torrent) AddedAt() time.Time {
+	return t.addedAt
 }
 
 func (t *Torrent) Stats() Stats {

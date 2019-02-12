@@ -193,10 +193,10 @@ func (c *Console) updateTorrents(g *gocui.Gui) {
 
 	sort.Slice(torrents, func(i, j int) bool {
 		a, b := torrents[i], torrents[j]
-		if a.CreatedAt.Equal(b.CreatedAt.Time) {
+		if a.AddedAt.Equal(b.AddedAt.Time) {
 			return a.ID < b.ID
 		}
-		return a.CreatedAt.Time.Before(b.CreatedAt.Time)
+		return a.AddedAt.Time.Before(b.AddedAt.Time)
 	})
 
 	c.m.Lock()

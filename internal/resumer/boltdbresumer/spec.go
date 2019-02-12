@@ -10,7 +10,7 @@ type Spec struct {
 	Trackers        []string
 	Info            []byte
 	Bitfield        []byte
-	CreatedAt       time.Time
+	AddedAt         time.Time
 	BytesDownloaded int64
 	BytesUploaded   int64
 	BytesWasted     int64
