@@ -227,7 +227,7 @@ func (c *Console) updateDetails(g *gocui.Gui) {
 			c.m.Unlock()
 		case trackers:
 			trackers, err := c.client.GetTorrentTrackers(selectedID)
-			sort.Slice(trackers, func(i, j int) bool { return strings.Compare(trackers[i].URL, trackers[j].URL) < 0 })
+			sort.Slice(trackers, func(i, j int) bool { return trackers[i].URL < trackers[j].URL })
 			c.m.Lock()
 			c.trackers = trackers
 			c.errDetails = err
@@ -235,7 +235,11 @@ func (c *Console) updateDetails(g *gocui.Gui) {
 		case peers:
 			peers, err := c.client.GetTorrentPeers(selectedID)
 			sort.Slice(peers, func(i, j int) bool {
-				return peers[i].ConnectedAt.Time.Before(peers[j].ConnectedAt.Time)
+				a, b := peers[i], peers[j]
+				if a.ConnectedAt.Equal(b.ConnectedAt.Time) {
+					return a.Addr < b.Addr
+				}
+				return a.ConnectedAt.Time.Before(b.ConnectedAt.Time)
 			})
 			c.m.Lock()
 			c.peers = peers
