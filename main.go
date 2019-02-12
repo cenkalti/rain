@@ -117,6 +117,11 @@ func main() {
 					Action: handleStats,
 				},
 				{
+					Name:   "session-stats",
+					Usage:  "get stats of session",
+					Action: handleSessionStats,
+				},
+				{
 					Name:   "trackers",
 					Usage:  "get trackers of torrent",
 					Action: handleTrackers,
@@ -329,6 +334,20 @@ func handleRemove(c *cli.Context) error {
 func handleStats(c *cli.Context) error {
 	id := c.Args().Get(0)
 	resp, err := clt.GetTorrentStats(id)
+	if err != nil {
+		return err
+	}
+	b, err := prettyjson.Marshal(resp)
+	if err != nil {
+		return err
+	}
+	_, _ = os.Stdout.Write(b)
+	_, _ = os.Stdout.WriteString("\n")
+	return nil
+}
+
+func handleSessionStats(c *cli.Context) error {
+	resp, err := clt.GetSessionStats()
 	if err != nil {
 		return err
 	}

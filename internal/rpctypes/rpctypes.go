@@ -33,6 +33,16 @@ type Tracker struct {
 	Error    *string
 }
 
+type SessionStats struct {
+	Torrents                      int
+	AvailablePorts                int
+	BlockListRules                int
+	BlockListLastSuccessfulUpdate Time
+	PieceCacheItems               int
+	PieceCacheSize                int
+	ActivePieceBytes              int
+}
+
 type Stats struct {
 	Status string
 	Error  *string
@@ -118,6 +128,13 @@ type RemoveTorrentRequest struct {
 }
 
 type RemoveTorrentResponse struct {
+}
+
+type GetSessionStatsRequest struct {
+}
+
+type GetSessionStatsResponse struct {
+	Stats SessionStats
 }
 
 type GetTorrentStatsRequest struct {

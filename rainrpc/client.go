@@ -60,6 +60,12 @@ func (c *Client) GetTorrentStats(id string) (*rpctypes.Stats, error) {
 	return &reply.Stats, c.client.Call("Session.GetTorrentStats", args, &reply)
 }
 
+func (c *Client) GetSessionStats() (*rpctypes.SessionStats, error) {
+	args := rpctypes.GetSessionStatsRequest{}
+	var reply rpctypes.GetSessionStatsResponse
+	return &reply.Stats, c.client.Call("Session.GetSessionStats", args, &reply)
+}
+
 func (c *Client) GetTorrentTrackers(id string) ([]rpctypes.Tracker, error) {
 	args := rpctypes.GetTorrentTrackersRequest{ID: id}
 	var reply rpctypes.GetTorrentTrackersResponse

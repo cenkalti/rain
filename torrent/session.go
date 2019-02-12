@@ -589,3 +589,15 @@ func (s *Session) RemoveTorrent(id string) error {
 	}
 	return os.RemoveAll(t.torrent.storage.(*filestorage.FileStorage).Dest())
 }
+
+func (s *Session) Stats() SessionStats {
+	return SessionStats{
+		// Torrents:                      XXX,
+		// AvailablePorts:                XXX,
+		// BlockListRules:                XXX,
+		// BlockListLastSuccessfulUpdate: XXX,
+		// PieceCacheItems:               XXX,
+		// PieceCacheSize:                XXX,
+		// ActivePieceBytes:              XXX,
+	}
+}

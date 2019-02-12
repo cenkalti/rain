@@ -63,6 +63,14 @@ func (h *rpcHandler) RemoveTorrent(args *rpctypes.RemoveTorrentRequest, reply *r
 	return nil
 }
 
+func (h *rpcHandler) GetSessionStats(args *rpctypes.GetSessionStatsRequest, reply *rpctypes.GetSessionStatsResponse) error {
+	s := h.session.Stats()
+	reply.Stats = rpctypes.SessionStats{
+		Torrents: s.Torrents,
+	}
+	return nil
+}
+
 func (h *rpcHandler) GetTorrentStats(args *rpctypes.GetTorrentStatsRequest, reply *rpctypes.GetTorrentStatsResponse) error {
 	t := h.session.GetTorrent(args.ID)
 	if t == nil {
