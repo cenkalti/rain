@@ -161,7 +161,11 @@ func (t *torrent) startPieceDownloaderFor(pe *peer.Peer) {
 	if t.completed {
 		return
 	}
-	ok := t.ram.Request(string(t.peerID[:]), int(t.info.PieceLength), t.ramNotifyC, t.doneC)
+	if t.ram == nil {
+		t.startSinglePieceDownloader(pe)
+		return
+	}
+	ok := t.ram.Request(string(t.peerID[:]), int64(t.info.PieceLength), t.ramNotifyC, t.doneC)
 	if ok {
 		t.startSinglePieceDownloader(pe)
 	}
@@ -177,7 +181,11 @@ func (t *torrent) startPieceDownloaders() {
 	if t.completed {
 		return
 	}
-	ok := t.ram.Request(string(t.peerID[:]), int(t.info.PieceLength), t.ramNotifyC, t.doneC)
+	if t.ram == nil {
+		t.startSinglePieceDownloader(nil)
+		return
+	}
+	ok := t.ram.Request(string(t.peerID[:]), int64(t.info.PieceLength), t.ramNotifyC, t.doneC)
 	if ok {
 		t.startSinglePieceDownloader(nil)
 	}
@@ -191,7 +199,9 @@ func (t *torrent) startSinglePieceDownloader(pe *peer.Peer) {
 		pi, pe = t.piecePicker.Pick()
 	}
 	if pi == nil || pe == nil {
-		t.ram.Release(int(t.info.PieceLength))
+		if t.ram != nil {
+			t.ram.Release(int64(t.info.PieceLength))
+		}
 		return
 	}
 	pd := piecedownloader.New(pi, pe, t.piecePool.Get().([]byte))
@@ -204,7 +214,11 @@ func (t *torrent) startSinglePieceDownloader(pe *peer.Peer) {
 	pd.RequestBlocks(t.config.RequestQueueLength)
 	pd.Peer.ResetSnubTimer()
 
-	ok := t.ram.Request(string(t.peerID[:]), int(t.info.PieceLength), t.ramNotifyC, t.doneC)
+	if t.ram == nil {
+		t.startSinglePieceDownloader(pe)
+		return
+	}
+	ok := t.ram.Request(string(t.peerID[:]), int64(t.info.PieceLength), t.ramNotifyC, t.doneC)
 	if ok {
 		t.startSinglePieceDownloader(pe)
 	}

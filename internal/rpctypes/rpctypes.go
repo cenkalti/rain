@@ -41,6 +41,7 @@ type SessionStats struct {
 	PieceCacheItems               int
 	PieceCacheSize                int64
 	ActivePieceBytes              int64
+	PendingRAMRequests            int
 }
 
 type Stats struct {

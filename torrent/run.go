@@ -29,8 +29,6 @@ func (t *torrent) close() {
 	if t.stoppedEventAnnouncer != nil {
 		t.stoppedEventAnnouncer.Close()
 	}
-
-	t.ram.Close()
 }
 
 // Torrent event loop
@@ -258,7 +256,9 @@ func (t *torrent) closePieceDownloader(pd *piecedownloader.PieceDownloader) {
 		t.piecePicker.HandleCancelDownload(pd.Peer, pd.Piece.Index)
 	}
 	pd.Peer.Downloading = false
-	t.ram.Release(int(t.info.PieceLength))
+	if t.ram != nil {
+		t.ram.Release(int64(t.info.PieceLength))
+	}
 }
 
 func (t *torrent) closeInfoDownloader(id *infodownloader.InfoDownloader) {

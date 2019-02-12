@@ -21,6 +21,7 @@ import (
 	"github.com/cenkalti/rain/internal/magnet"
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/piececache"
+	"github.com/cenkalti/rain/internal/resourcemanager"
 	"github.com/cenkalti/rain/internal/resumer"
 	"github.com/cenkalti/rain/internal/resumer/boltdbresumer"
 	"github.com/cenkalti/rain/internal/storage/filestorage"
@@ -62,6 +63,8 @@ type Session struct {
 	blocklistTimestamp time.Time
 
 	rpc *rpcServer
+
+	ram *resourcemanager.ResourceManager
 }
 
 // New returns a pointer to new Rain BitTorrent client.
@@ -147,6 +150,7 @@ func New(cfg Config) (*Session, error) {
 		availablePorts:     ports,
 		dht:                dhtNode,
 		pieceCache:         piececache.New(cfg.PieceCacheSize, cfg.PieceCacheTTL),
+		ram:                resourcemanager.New(cfg.MaxActivePieceBytes),
 		closeC:             make(chan struct{}),
 	}
 	err = c.startBlocklistReloader()
@@ -263,6 +267,7 @@ func (s *Session) loadExistingTorrents(ids []string) error {
 			Resumer:    res,
 			Blocklist:  s.blocklist,
 			PieceCache: s.pieceCache,
+			RAM:        s.ram,
 			Config:     &s.config,
 			Stats: resumer.Stats{
 				BytesDownloaded: spec.BytesDownloaded,
@@ -357,6 +362,8 @@ func (s *Session) Close() error {
 			s.log.Errorln("cannot stop RPC server:", err.Error())
 		}
 	}
+
+	s.ram.Close()
 
 	return s.db.Close()
 }
@@ -519,6 +526,7 @@ func (s *Session) add() (*options, *filestorage.FileStorage, string, error) {
 		Resumer:    res,
 		Blocklist:  s.blocklist,
 		PieceCache: s.pieceCache,
+		RAM:        s.ram,
 		Config:     &s.config,
 	}, sto, id, nil
 }
@@ -597,6 +605,8 @@ func (s *Session) Stats() SessionStats {
 	blocklistTime := s.blocklistTimestamp
 	s.mBlocklist.RUnlock()
 
+	ramStats := s.ram.Stats()
+
 	return SessionStats{
 		Torrents:                      torrents,
 		AvailablePorts:                ports,
@@ -604,6 +614,7 @@ func (s *Session) Stats() SessionStats {
 		BlockListLastSuccessfulUpdate: blocklistTime,
 		PieceCacheItems:               s.pieceCache.Len(),
 		PieceCacheSize:                s.pieceCache.Size(),
-		// ActivePieceBytes:              XXX,
+		ActivePieceBytes:              ramStats.Used,
+		PendingRAMRequests:            ramStats.Count,
 	}
 }

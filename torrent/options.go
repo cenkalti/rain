@@ -53,6 +53,8 @@ type options struct {
 	Blocklist *blocklist.Blocklist
 	// Pieces read from disk are cached in memory for a while.
 	PieceCache *piececache.Cache
+	// Optional resource manager instance.
+	RAM *resourcemanager.ResourceManager
 }
 
 // NewTorrent creates a new torrent that downloads the torrent with infoHash and saves the files to the storage.
@@ -129,7 +131,7 @@ func (o *options) NewTorrent(infoHash []byte, sto storage.Storage) (*torrent, er
 		externalIP:                externalip.FirstExternalIP(),
 		downloadSpeed:             metrics.NewEWMA1(),
 		uploadSpeed:               metrics.NewEWMA1(),
-		ram:                       resourcemanager.New(cfg.MaxActivePieceBytes),
+		ram:                       o.RAM,
 		ramNotifyC:                make(chan struct{}),
 		doneC:                     make(chan struct{}),
 	}
