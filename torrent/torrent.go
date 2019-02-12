@@ -253,7 +253,7 @@ type torrent struct {
 	speedCounterTickerC <-chan time.Time
 
 	ram        *resourcemanager.ResourceManager
-	ramNotifyC chan struct{}
+	ramNotifyC chan interface{}
 
 	log logger.Logger
 }

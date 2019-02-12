@@ -68,8 +68,8 @@ func (t *torrent) run() {
 			t.checkedPieces = p.Checked
 		case ve := <-t.verifierResultC:
 			t.handleVerificationDone(ve)
-		case <-t.ramNotifyC:
-			t.startSinglePieceDownloader(nil)
+		case data := <-t.ramNotifyC:
+			t.startSinglePieceDownloader(data.(*peer.Peer))
 		case addrs := <-t.addrsFromTrackers:
 			t.handleNewPeers(addrs, peer.SourceTracker)
 		case addrs := <-t.addPeersCommandC:

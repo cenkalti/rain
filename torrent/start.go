@@ -8,7 +8,6 @@ import (
 	"github.com/cenkalti/rain/internal/allocator"
 	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/peer"
-	"github.com/cenkalti/rain/internal/piece"
 	"github.com/cenkalti/rain/internal/piecedownloader"
 	"github.com/cenkalti/rain/internal/verifier"
 )
@@ -151,6 +150,17 @@ func (t *torrent) startInfoDownloaders() {
 	}
 }
 
+func (t *torrent) startPieceDownloaders() {
+	if t.status() != Downloading {
+		return
+	}
+	for pe := range t.peers {
+		if !pe.Downloading {
+			t.startPieceDownloaderFor(pe)
+		}
+	}
+}
+
 func (t *torrent) startPieceDownloaderFor(pe *peer.Peer) {
 	if t.status() != Downloading {
 		return
@@ -159,23 +169,9 @@ func (t *torrent) startPieceDownloaderFor(pe *peer.Peer) {
 		t.startSinglePieceDownloader(pe)
 		return
 	}
-	ok := t.ram.Request(string(t.peerID[:]), int64(t.info.PieceLength), t.ramNotifyC, t.doneC)
+	ok := t.ram.Request(string(t.peerID[:]), pe, int64(t.info.PieceLength), t.ramNotifyC, t.doneC)
 	if ok {
 		t.startSinglePieceDownloader(pe)
-	}
-}
-
-func (t *torrent) startPieceDownloaders() {
-	if t.status() != Downloading {
-		return
-	}
-	if t.ram == nil {
-		t.startSinglePieceDownloader(nil)
-		return
-	}
-	ok := t.ram.Request(string(t.peerID[:]), int64(t.info.PieceLength), t.ramNotifyC, t.doneC)
-	if ok {
-		t.startSinglePieceDownloader(nil)
 	}
 }
 
@@ -183,12 +179,7 @@ func (t *torrent) startSinglePieceDownloader(pe *peer.Peer) {
 	if t.completed {
 		return
 	}
-	var pi *piece.Piece
-	if pe != nil {
-		pi = t.piecePicker.PickFor(pe)
-	} else {
-		pi, pe = t.piecePicker.Pick()
-	}
+	pi := t.piecePicker.PickFor(pe)
 	if pi == nil || pe == nil {
 		if t.ram != nil {
 			t.ram.Release(int64(t.info.PieceLength))
@@ -209,7 +200,7 @@ func (t *torrent) startSinglePieceDownloader(pe *peer.Peer) {
 		t.startSinglePieceDownloader(pe)
 		return
 	}
-	ok := t.ram.Request(string(t.peerID[:]), int64(t.info.PieceLength), t.ramNotifyC, t.doneC)
+	ok := t.ram.Request(string(t.peerID[:]), pe, int64(t.info.PieceLength), t.ramNotifyC, t.doneC)
 	if ok {
 		t.startSinglePieceDownloader(pe)
 	}

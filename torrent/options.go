@@ -132,7 +132,7 @@ func (o *options) NewTorrent(infoHash []byte, sto storage.Storage) (*torrent, er
 		downloadSpeed:             metrics.NewEWMA1(),
 		uploadSpeed:               metrics.NewEWMA1(),
 		ram:                       o.RAM,
-		ramNotifyC:                make(chan struct{}),
+		ramNotifyC:                make(chan interface{}),
 		doneC:                     make(chan struct{}),
 	}
 	t.addrList = addrlist.New(cfg.MaxPeerAddresses, o.Blocklist, o.Port, &t.externalIP)

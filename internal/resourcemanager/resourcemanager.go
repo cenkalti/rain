@@ -1,9 +1,13 @@
 package resourcemanager
 
+import (
+	"math/rand"
+)
+
 type ResourceManager struct {
 	limit     int64
 	available int64
-	requests  map[string]request
+	requests  map[string][]request
 	requestC  chan request
 	releaseC  chan int64
 	statsC    chan chan Stats
@@ -13,8 +17,9 @@ type ResourceManager struct {
 
 type request struct {
 	key     string
+	data    interface{}
 	n       int64
-	notifyC chan struct{}
+	notifyC chan interface{}
 	cancelC chan struct{}
 	doneC   chan bool
 }
@@ -28,7 +33,7 @@ func New(limit int64) *ResourceManager {
 	m := &ResourceManager{
 		limit:     limit,
 		available: limit,
-		requests:  make(map[string]request),
+		requests:  make(map[string][]request),
 		requestC:  make(chan request),
 		releaseC:  make(chan int64),
 		statsC:    make(chan chan Stats),
@@ -58,12 +63,13 @@ func (m *ResourceManager) Stats() Stats {
 	return stats
 }
 
-func (m *ResourceManager) Request(key string, n int64, notifyC, cancelC chan struct{}) (acquired bool) {
+func (m *ResourceManager) Request(key string, data interface{}, n int64, notifyC chan interface{}, cancelC chan struct{}) (acquired bool) {
 	if n < 0 {
 		return
 	}
 	r := request{
 		key:     key,
+		data:    data,
 		n:       n,
 		notifyC: notifyC,
 		cancelC: cancelC,
@@ -89,18 +95,17 @@ func (m *ResourceManager) Release(n int64) {
 
 func (m *ResourceManager) run() {
 	for {
-		req := m.randomRequest()
-
+		req, i := m.randomRequest()
 		select {
 		case r := <-m.requestC:
 			m.handleRequest(r)
 		case n := <-m.releaseC:
 			m.available += n
-		case req.notifyC <- struct{}{}:
+		case req.notifyC <- req.data:
 			m.available -= req.n
-			delete(m.requests, req.key)
+			m.deleteRequest(req.key, i)
 		case <-req.cancelC:
-			delete(m.requests, req.key)
+			m.deleteRequest(req.key, i)
 		case ch := <-m.statsC:
 			stats := Stats{
 				Used:  m.limit - m.available,
@@ -117,13 +122,23 @@ func (m *ResourceManager) run() {
 	}
 }
 
-func (m *ResourceManager) randomRequest() request {
-	for _, r := range m.requests {
-		if m.available >= r.n {
-			return r
-		}
+func (m *ResourceManager) deleteRequest(key string, i int) {
+	rs := m.requests[key]
+	rs[i] = rs[len(rs)-1]
+	rs = rs[:len(rs)-1]
+	if len(rs) > 0 {
+		m.requests[key] = rs
+	} else {
+		delete(m.requests, key)
 	}
-	return request{}
+}
+
+func (m *ResourceManager) randomRequest() (request, int) {
+	for _, rs := range m.requests {
+		i := rand.Intn(len(rs))
+		return rs[i], i
+	}
+	return request{}, -1
 }
 
 func (m *ResourceManager) handleRequest(r request) {
@@ -133,7 +148,7 @@ func (m *ResourceManager) handleRequest(r request) {
 		if acquired {
 			m.available -= r.n
 		} else {
-			m.requests[r.key] = r
+			m.requests[r.key] = append(m.requests[r.key], r)
 		}
 	case <-r.cancelC:
 	}

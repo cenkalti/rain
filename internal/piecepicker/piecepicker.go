@@ -102,99 +102,84 @@ func (p *PiecePicker) removeHavingPeer(i int, pe *peer.Peer) {
 	}
 }
 
-func (p *PiecePicker) Pick() (*piece.Piece, *peer.Peer) {
-	pi, pe := p.findPieceAndPeer(nil)
-	if pi == nil || pe == nil {
-		return nil, nil
-	}
-	pe.Snubbed = false
-	pi.Requested.Add(pe)
-	return pi.Piece, pe
-}
-
-func (p *PiecePicker) PickFor(cp *peer.Peer) *piece.Piece {
-	pi, pe := p.findPieceAndPeer(cp)
-	if pi == nil || pe == nil {
+func (p *PiecePicker) PickFor(pe *peer.Peer) *piece.Piece {
+	if pe.Downloading {
 		return nil
 	}
-	if pe != cp {
-		panic("invalid peer")
+	pi := p.findPiece(pe)
+	if pi == nil {
+		return nil
 	}
 	pe.Snubbed = false
 	pi.Requested.Add(pe)
 	return pi.Piece
 }
 
-func (p *PiecePicker) findPieceAndPeer(cp *peer.Peer) (*myPiece, *peer.Peer) {
+func (p *PiecePicker) findPiece(pe *peer.Peer) *myPiece {
 	sort.Slice(p.sortedPieces, func(i, j int) bool {
 		return len(p.sortedPieces[i].Having.Peers) < len(p.sortedPieces[j].Having.Peers)
 	})
-	pe, pi := p.selectAllowedFastPiece(cp, true, true)
-	if pe != nil && pi != nil {
-		return pe, pi
+	pi := p.selectAllowedFastPiece(pe, true, true)
+	if pi != nil {
+		return pi
 	}
-	pe, pi = p.selectUnchokedPeer(cp, true, true)
-	if pe != nil && pi != nil {
-		return pe, pi
+	pi = p.selectUnchokedPeer(pe, true, true)
+	if pi != nil {
+		return pi
 	}
-	pe, pi = p.selectSnubbedPeer(cp, true)
-	if pe != nil && pi != nil {
-		return pe, pi
+	pi = p.selectSnubbedPeer(pe, true)
+	if pi != nil {
+		return pi
 	}
-	pe, pi = p.selectDuplicatePiece(cp)
-	if pe != nil && pi != nil {
-		return pe, pi
+	pi = p.selectDuplicatePiece(pe)
+	if pi != nil {
+		return pi
 	}
-	return nil, nil
+	return nil
 }
 
-func (p *PiecePicker) selectAllowedFastPiece(cp *peer.Peer, skipSnubbed, noDuplicate bool) (*myPiece, *peer.Peer) {
-	return p.selectPiece(cp, true, skipSnubbed, noDuplicate)
+func (p *PiecePicker) selectAllowedFastPiece(pe *peer.Peer, skipSnubbed, noDuplicate bool) *myPiece {
+	return p.selectPiece(pe, true, skipSnubbed, noDuplicate)
 }
 
-func (p *PiecePicker) selectUnchokedPeer(cp *peer.Peer, skipSnubbed, noDuplicate bool) (*myPiece, *peer.Peer) {
-	return p.selectPiece(cp, false, skipSnubbed, noDuplicate)
+func (p *PiecePicker) selectUnchokedPeer(pe *peer.Peer, skipSnubbed, noDuplicate bool) *myPiece {
+	return p.selectPiece(pe, false, skipSnubbed, noDuplicate)
 }
 
-func (p *PiecePicker) selectSnubbedPeer(cp *peer.Peer, noDuplicate bool) (*myPiece, *peer.Peer) {
-	pi, pe := p.selectAllowedFastPiece(cp, false, noDuplicate)
-	if pi != nil && pe != nil {
-		return pi, pe
+func (p *PiecePicker) selectSnubbedPeer(pe *peer.Peer, noDuplicate bool) *myPiece {
+	pi := p.selectAllowedFastPiece(pe, false, noDuplicate)
+	if pi != nil {
+		return pi
 	}
-	pi, pe = p.selectUnchokedPeer(cp, false, noDuplicate)
-	if pi != nil && pe != nil {
-		return pi, pe
+	pi = p.selectUnchokedPeer(pe, false, noDuplicate)
+	if pi != nil {
+		return pi
 	}
-	return nil, nil
+	return nil
 }
 
-func (p *PiecePicker) selectDuplicatePiece(cp *peer.Peer) (*myPiece, *peer.Peer) {
-	pe, pi := p.selectAllowedFastPiece(cp, true, false)
-	if pe != nil && pi != nil {
-		return pe, pi
+func (p *PiecePicker) selectDuplicatePiece(pe *peer.Peer) *myPiece {
+	pi := p.selectAllowedFastPiece(pe, true, false)
+	if pi != nil {
+		return pi
 	}
-	pe, pi = p.selectUnchokedPeer(cp, true, false)
-	if pe != nil && pi != nil {
-		return pe, pi
+	pi = p.selectUnchokedPeer(pe, true, false)
+	if pi != nil {
+		return pi
 	}
-	pe, pi = p.selectSnubbedPeer(cp, false)
-	if pe != nil && pi != nil {
-		return pe, pi
+	pi = p.selectSnubbedPeer(pe, false)
+	if pi != nil {
+		return pi
 	}
-	return nil, nil
+	return nil
 }
 
-func (p *PiecePicker) selectPiece(pe *peer.Peer, preferAllowedFast, skipSnubbed, noDuplicate bool) (*myPiece, *peer.Peer) {
-	if pe != nil {
-		if pe.Downloading {
-			return nil, nil
-		}
-		if skipSnubbed && pe.Snubbed {
-			return nil, nil
-		}
-		if !preferAllowedFast && pe.PeerChoking {
-			return nil, nil
-		}
+func (p *PiecePicker) selectPiece(pe *peer.Peer, preferAllowedFast, skipSnubbed, noDuplicate bool) *myPiece {
+	if skipSnubbed && pe.Snubbed {
+		return nil
+	}
+	if !preferAllowedFast && pe.PeerChoking {
+		return nil
 	}
 	for _, pi := range p.sortedPieces {
 		if pi.Done {
@@ -208,30 +193,16 @@ func (p *PiecePicker) selectPiece(pe *peer.Peer, preferAllowedFast, skipSnubbed,
 		} else if pi.RunningDownloads() >= p.endgameParallelDownloadsPerPiece {
 			continue
 		}
-		var l []*peer.Peer
-		if pe != nil {
-			l = []*peer.Peer{pe}
+		if preferAllowedFast {
+			if !pi.AllowedFast.Has(pe) {
+				continue
+			}
 		} else {
-			l = pi.Having.Peers
-		}
-		for _, pe := range l {
-			if pe.Downloading {
+			if pe.PeerChoking {
 				continue
 			}
-			if skipSnubbed && pe.Snubbed {
-				continue
-			}
-			if preferAllowedFast {
-				if !pi.AllowedFast.Has(pe) {
-					continue
-				}
-			} else {
-				if pe.PeerChoking {
-					continue
-				}
-			}
-			return pi, pe
 		}
+		return pi
 	}
-	return nil, nil
+	return nil
 }
