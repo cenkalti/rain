@@ -26,23 +26,20 @@ func torrentStatusToString(s Status) string {
 }
 
 func (t *torrent) status() Status {
-	if t.errC == nil {
+	switch {
+	case t.errC == nil:
 		return Stopped
-	}
-	if t.stoppedEventAnnouncer != nil {
+	case t.stoppedEventAnnouncer != nil:
 		return Stopping
-	}
-	if t.allocator != nil {
+	case t.allocator != nil:
 		return Allocating
-	}
-	if t.verifier != nil {
+	case t.verifier != nil:
 		return Verifying
-	}
-	if t.completed {
+	case t.completed:
 		return Seeding
-	}
-	if t.info == nil {
+	case t.info == nil:
 		return DownloadingMetadata
+	default:
+		return Downloading
 	}
-	return Downloading
 }

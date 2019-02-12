@@ -152,13 +152,7 @@ func (t *torrent) startInfoDownloaders() {
 }
 
 func (t *torrent) startPieceDownloaderFor(pe *peer.Peer) {
-	if t.bitfield == nil {
-		return
-	}
-	if t.pieces == nil {
-		return
-	}
-	if t.completed {
+	if t.status() != Downloading {
 		return
 	}
 	if t.ram == nil {
@@ -172,13 +166,7 @@ func (t *torrent) startPieceDownloaderFor(pe *peer.Peer) {
 }
 
 func (t *torrent) startPieceDownloaders() {
-	if t.bitfield == nil {
-		return
-	}
-	if t.pieces == nil {
-		return
-	}
-	if t.completed {
+	if t.status() != Downloading {
 		return
 	}
 	if t.ram == nil {
