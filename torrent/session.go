@@ -198,20 +198,11 @@ func (s *Session) processDHTResults() {
 func (s *Session) handleDHTtick() {
 	s.mPeerRequests.Lock()
 	defer s.mPeerRequests.Unlock()
-	if len(s.dhtPeerRequests) == 0 {
+	for ih := range s.dhtPeerRequests {
+		s.dht.PeersRequest(string(ih), true)
+		delete(s.dhtPeerRequests, ih)
 		return
 	}
-	var ih dht.InfoHash
-	found := false
-	for ih = range s.dhtPeerRequests {
-		found = true
-		break
-	}
-	if !found {
-		return
-	}
-	s.dht.PeersRequest(string(ih), true)
-	delete(s.dhtPeerRequests, ih)
 }
 
 func parseDHTPeers(peers []string) []*net.TCPAddr {
