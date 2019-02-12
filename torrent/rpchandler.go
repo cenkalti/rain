@@ -74,6 +74,8 @@ func (h *rpcHandler) GetSessionStats(args *rpctypes.GetSessionStatsRequest, repl
 		AvailablePorts:                s.AvailablePorts,
 		BlockListRules:                s.BlockListRules,
 		BlockListLastSuccessfulUpdate: blocklistUpdatedAt,
+		PieceCacheItems:               s.PieceCacheItems,
+		PieceCacheSize:                s.PieceCacheSize,
 	}
 	return nil
 }

@@ -8,6 +8,6 @@ type SessionStats struct {
 	BlockListRules                int
 	BlockListLastSuccessfulUpdate time.Time
 	PieceCacheItems               int
-	PieceCacheSize                int
-	ActivePieceBytes              int
+	PieceCacheSize                int64
+	ActivePieceBytes              int64
 }

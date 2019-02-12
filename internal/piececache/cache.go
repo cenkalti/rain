@@ -11,7 +11,7 @@ type Cache struct {
 	ttl           time.Duration
 	items         map[string]*item
 	accessList    accessList
-	m             sync.Mutex
+	m             sync.RWMutex
 }
 
 type Loader func() ([]byte, error)
@@ -33,6 +33,18 @@ func (c *Cache) Clear() {
 	c.accessList = nil
 	c.size = 0
 	c.m.Unlock()
+}
+
+func (c *Cache) Len() int {
+	c.m.RLock()
+	defer c.m.RUnlock()
+	return len(c.items)
+}
+
+func (c *Cache) Size() int64 {
+	c.m.RLock()
+	defer c.m.RUnlock()
+	return c.size
 }
 
 func (c *Cache) Get(key string, loader Loader) ([]byte, error) {

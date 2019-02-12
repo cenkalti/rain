@@ -602,8 +602,8 @@ func (s *Session) Stats() SessionStats {
 		AvailablePorts:                ports,
 		BlockListRules:                s.blocklist.Len(),
 		BlockListLastSuccessfulUpdate: blocklistTime,
-		// PieceCacheItems:               XXX,
-		// PieceCacheSize:                XXX,
+		PieceCacheItems:               s.pieceCache.Len(),
+		PieceCacheSize:                s.pieceCache.Size(),
 		// ActivePieceBytes:              XXX,
 	}
 }
