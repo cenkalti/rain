@@ -192,6 +192,9 @@ func (t *torrent) startPieceDownloaders() {
 }
 
 func (t *torrent) startSinglePieceDownloader(pe *peer.Peer) {
+	if t.completed {
+		return
+	}
 	var pi *piece.Piece
 	if pe != nil {
 		pi = t.piecePicker.PickFor(pe)
