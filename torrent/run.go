@@ -247,6 +247,10 @@ func (t *torrent) closePeer(pe *peer.Peer) {
 }
 
 func (t *torrent) closePieceDownloader(pd *piecedownloader.PieceDownloader) {
+	_, open := t.pieceDownloaders[pd.Peer]
+	if !open {
+		return
+	}
 	delete(t.pieceDownloaders, pd.Peer)
 	delete(t.pieceDownloadersSnubbed, pd.Peer)
 	delete(t.pieceDownloadersChoked, pd.Peer)
