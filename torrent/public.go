@@ -2,6 +2,7 @@ package torrent
 
 import (
 	"net"
+	"time"
 )
 
 // Start downloading.
@@ -147,6 +148,7 @@ type Peer struct {
 	ID                 [20]byte
 	Addr               net.Addr
 	Source             PeerSource
+	ConnectedAt        time.Time
 	Downloading        bool
 	ClientInterested   bool
 	ClientChoking      bool

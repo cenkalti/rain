@@ -12,6 +12,7 @@ type Peer struct {
 	ID                 string
 	Addr               string
 	Source             string
+	ConnectedAt        Time
 	Downloading        bool
 	ClientInterested   bool
 	ClientChoking      bool

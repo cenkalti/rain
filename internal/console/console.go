@@ -234,7 +234,9 @@ func (c *Console) updateDetails(g *gocui.Gui) {
 			c.m.Unlock()
 		case peers:
 			peers, err := c.client.GetTorrentPeers(selectedID)
-			sort.Slice(peers, func(i, j int) bool { return strings.Compare(peers[i].Addr, peers[j].Addr) < 0 })
+			sort.Slice(peers, func(i, j int) bool {
+				return peers[i].ConnectedAt.Time.Before(peers[j].ConnectedAt.Time)
+			})
 			c.m.Lock()
 			c.peers = peers
 			c.errDetails = err

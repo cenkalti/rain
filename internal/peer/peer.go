@@ -16,6 +16,8 @@ import (
 type Peer struct {
 	*peerconn.Conn
 
+	ConnectedAt time.Time
+
 	Source Source
 
 	Bitfield *bitfield.Bitfield
@@ -74,6 +76,7 @@ func New(p *peerconn.Conn, source Source, id [20]byte, extensions [8]byte, ciphe
 	return &Peer{
 		Conn:              p,
 		Source:            source,
+		ConnectedAt:       time.Now(),
 		ID:                id,
 		ClientChoking:     true,
 		PeerChoking:       true,
