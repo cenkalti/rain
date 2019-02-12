@@ -93,11 +93,12 @@ func (d *AddrList) Push(addrs []*net.TCPAddr, source peer.Source) {
 			prev := item.(*peerAddr)
 			d.peerByTime[prev.index] = p
 			p.index = prev.index
+			d.countBySource[prev.source]--
 		} else {
 			d.peerByTime = append(d.peerByTime, p)
 			p.index = len(d.peerByTime) - 1
-			added++
 		}
+		added++
 	}
 	d.filterNils()
 	sort.Sort(byTimestamp(d.peerByTime))
