@@ -3,7 +3,6 @@ package piecepicker
 import (
 	"sort"
 
-	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peerset"
 	"github.com/cenkalti/rain/internal/piece"
@@ -15,7 +14,6 @@ type PiecePicker struct {
 	maxDuplicateDownload int
 	available            uint32
 	endgame              bool
-	log                  logger.Logger
 }
 
 type myPiece struct {
@@ -30,7 +28,7 @@ func (p *myPiece) RunningDownloads() int {
 	return p.Requested.Len() - p.Snubbed.Len() - p.Choked.Len()
 }
 
-func New(pieces []piece.Piece, maxDuplicateDownload int, l logger.Logger) *PiecePicker {
+func New(pieces []piece.Piece, maxDuplicateDownload int) *PiecePicker {
 	ps := make([]myPiece, len(pieces))
 	for i := range pieces {
 		ps[i] = myPiece{Piece: &pieces[i]}
@@ -43,7 +41,6 @@ func New(pieces []piece.Piece, maxDuplicateDownload int, l logger.Logger) *Piece
 		pieces:               ps,
 		sortedPieces:         sps,
 		maxDuplicateDownload: maxDuplicateDownload,
-		log:                  l,
 	}
 }
 
