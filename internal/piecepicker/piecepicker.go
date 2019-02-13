@@ -10,7 +10,8 @@ import (
 
 type PiecePicker struct {
 	pieces               []myPiece
-	sortedPieces         []*myPiece
+	piecesByAvailability []*myPiece
+	piecesByStalled      []*myPiece
 	maxDuplicateDownload int
 	available            uint32
 	endgame              bool
@@ -28,18 +29,25 @@ func (p *myPiece) RunningDownloads() int {
 	return p.Requested.Len() - p.Snubbed.Len() - p.Choked.Len()
 }
 
+func (p *myPiece) StalledDownloads() int {
+	return p.Snubbed.Len() + p.Choked.Len()
+}
+
 func New(pieces []piece.Piece, maxDuplicateDownload int) *PiecePicker {
 	ps := make([]myPiece, len(pieces))
 	for i := range pieces {
 		ps[i] = myPiece{Piece: &pieces[i]}
 	}
 	sps := make([]*myPiece, len(ps))
+	sps2 := make([]*myPiece, len(ps))
 	for i := range sps {
 		sps[i] = &ps[i]
+		sps2[i] = &ps[i]
 	}
 	return &PiecePicker{
 		pieces:               ps,
-		sortedPieces:         sps,
+		piecesByAvailability: sps,
+		piecesByStalled:      sps2,
 		maxDuplicateDownload: maxDuplicateDownload,
 	}
 }
@@ -115,11 +123,9 @@ func (p *PiecePicker) findPiece(pe *peer.Peer) *myPiece {
 		return nil
 	}
 	// Pick allowed fast piece
-	for _, pi := range pe.AllowedFast.Pieces {
-		mp := &p.pieces[pi.Index]
-		if !mp.Done && !mp.Writing && mp.Requested.Len() == 0 && mp.Having.Has(pe) {
-			return mp
-		}
+	pi := p.pickAllowedFast(pe)
+	if pi != nil {
+		return pi
 	}
 	// Must be unchoked to request a peer
 	if pe.PeerChoking {
@@ -129,37 +135,89 @@ func (p *PiecePicker) findPiece(pe *peer.Peer) *myPiece {
 	if p.endgame {
 		return p.pickEndgame(pe)
 	}
-	// Sort by rarity
-	sort.Slice(p.sortedPieces, func(i, j int) bool {
-		return len(p.sortedPieces[i].Having.Peers) < len(p.sortedPieces[j].Having.Peers)
-	})
-	var hasUnrequested bool
-	// Select unrequested piece
-	for _, mp := range p.sortedPieces {
-		if mp.Requested.Len() == 0 {
-			hasUnrequested = true
+	// Pieck rarest piece
+	pi = p.pickRarest(pe)
+	if pi != nil {
+		return pi
+	}
+	// Check if endgame mode is activated
+	if p.endgame {
+		return p.pickEndgame(pe)
+	}
+	// Re-request stalled downloads
+	return p.pickStalled(pe)
+}
+
+func (p *PiecePicker) pickAllowedFast(pe *peer.Peer) *myPiece {
+	for _, pi := range pe.AllowedFast.Pieces {
+		mp := &p.pieces[pi.Index]
+		if mp.Done || mp.Writing {
+			continue
 		}
-		if !mp.Done && !mp.Writing && mp.Requested.Len() == 0 && mp.Having.Has(pe) {
+		if mp.Requested.Len() == 0 && mp.Having.Has(pe) {
 			return mp
 		}
 	}
-	// Activate endgame mode if all pieces are requested from at least one peer
-	if !hasUnrequested {
-		p.endgame = true
-		return p.pickEndgame(pe)
+	return nil
+}
+
+func (p *PiecePicker) pickRarest(pe *peer.Peer) *myPiece {
+	// Sort by rarity
+	sort.Slice(p.piecesByAvailability, func(i, j int) bool {
+		return len(p.piecesByAvailability[i].Having.Peers) < len(p.piecesByAvailability[j].Having.Peers)
+	})
+	var picked *myPiece
+	var hasUnrequested bool
+	// Select unrequested piece
+	for _, mp := range p.piecesByAvailability {
+		if mp.Done || mp.Writing {
+			continue
+		}
+		if mp.Requested.Len() == 0 && mp.Having.Has(pe) {
+			picked = mp
+			break
+		}
+		if mp.Requested.Len() == 0 {
+			hasUnrequested = true
+		}
 	}
-	// Re-request snubbed and choked downloads
-	return p.pickEndgame(pe)
+	if picked == nil && !hasUnrequested {
+		p.endgame = true
+	}
+	return picked
 }
 
 func (p *PiecePicker) pickEndgame(pe *peer.Peer) *myPiece {
 	// Sort by request count
-	sort.Slice(p.sortedPieces, func(i, j int) bool {
-		return p.sortedPieces[i].RunningDownloads() < p.sortedPieces[j].RunningDownloads()
+	sort.Slice(p.piecesByAvailability, func(i, j int) bool {
+		return p.piecesByAvailability[i].RunningDownloads() < p.piecesByAvailability[j].RunningDownloads()
 	})
 	// Select unrequested piece
-	for _, mp := range p.sortedPieces {
-		if !mp.Done && !mp.Writing && mp.Requested.Len() < p.maxDuplicateDownload && mp.Having.Has(pe) {
+	for _, mp := range p.piecesByAvailability {
+		if mp.Done || mp.Writing {
+			continue
+		}
+		if mp.Requested.Len() < p.maxDuplicateDownload && mp.Having.Has(pe) {
+			return mp
+		}
+	}
+	return nil
+}
+
+func (p *PiecePicker) pickStalled(pe *peer.Peer) *myPiece {
+	// Sort by request count
+	sort.Slice(p.piecesByStalled, func(i, j int) bool {
+		return p.piecesByStalled[i].StalledDownloads() < p.piecesByStalled[j].StalledDownloads()
+	})
+	// Select unrequested piece
+	for _, mp := range p.piecesByStalled {
+		if mp.Done || mp.Writing {
+			continue
+		}
+		if mp.RunningDownloads() > 0 {
+			continue
+		}
+		if mp.Requested.Len() < p.maxDuplicateDownload && mp.Having.Has(pe) {
 			return mp
 		}
 	}
