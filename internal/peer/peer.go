@@ -10,6 +10,7 @@ import (
 	"github.com/cenkalti/rain/internal/peerconn/peerreader"
 	"github.com/cenkalti/rain/internal/peerconn/peerwriter"
 	"github.com/cenkalti/rain/internal/peerprotocol"
+	"github.com/cenkalti/rain/internal/pieceset"
 	"github.com/rcrowley/go-metrics"
 )
 
@@ -20,7 +21,8 @@ type Peer struct {
 
 	Source Source
 
-	Bitfield *bitfield.Bitfield
+	Bitfield    *bitfield.Bitfield
+	AllowedFast pieceset.PieceSet
 
 	ID                [20]byte
 	ExtensionsEnabled bool

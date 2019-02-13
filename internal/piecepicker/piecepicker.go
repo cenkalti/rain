@@ -62,6 +62,7 @@ func (p *PiecePicker) HandleHave(pe *peer.Peer, i uint32) {
 
 func (p *PiecePicker) HandleAllowedFast(pe *peer.Peer, i uint32) {
 	p.pieces[i].AllowedFast.Add(pe)
+	pe.AllowedFast.Add(p.pieces[i].Piece)
 }
 
 func (p *PiecePicker) HandleSnubbed(pe *peer.Peer, i uint32) {
