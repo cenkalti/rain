@@ -101,6 +101,9 @@ func (m *ResourceManager) run() {
 			m.handleRequest(r)
 		case n := <-m.releaseC:
 			m.available += n
+			if m.available < 0 {
+				panic("invalid release call")
+			}
 		case req.notifyC <- req.data:
 			m.available -= req.n
 			m.deleteRequest(req.key, i)

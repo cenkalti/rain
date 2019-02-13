@@ -176,11 +176,14 @@ func (t *torrent) startPieceDownloaderFor(pe *peer.Peer) {
 }
 
 func (t *torrent) startSinglePieceDownloader(pe *peer.Peer) {
-	if t.completed {
+	if t.status() != Downloading {
+		if t.ram != nil {
+			t.ram.Release(int64(t.info.PieceLength))
+		}
 		return
 	}
 	pi := t.piecePicker.PickFor(pe)
-	if pi == nil || pe == nil {
+	if pi == nil {
 		if t.ram != nil {
 			t.ram.Release(int64(t.info.PieceLength))
 		}
@@ -195,13 +198,4 @@ func (t *torrent) startSinglePieceDownloader(pe *peer.Peer) {
 	pd.Peer.Downloading = true
 	pd.RequestBlocks(t.config.RequestQueueLength)
 	pd.Peer.ResetSnubTimer()
-
-	if t.ram == nil {
-		t.startSinglePieceDownloader(pe)
-		return
-	}
-	ok := t.ram.Request(string(t.peerID[:]), pe, int64(t.info.PieceLength), t.ramNotifyC, t.doneC)
-	if ok {
-		t.startSinglePieceDownloader(pe)
-	}
 }
