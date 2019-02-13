@@ -10,27 +10,27 @@ import (
 )
 
 type PiecePicker struct {
-	pieces                           []myPiece
-	sortedPieces                     []*myPiece
-	endgameParallelDownloadsPerPiece int
-	available                        uint32
-	log                              logger.Logger
+	pieces               []myPiece
+	sortedPieces         []*myPiece
+	maxDuplicateDownload int
+	available            uint32
+	endgame              bool
+	log                  logger.Logger
 }
 
 type myPiece struct {
 	*piece.Piece
-	Having      peerset.PeerSet
-	AllowedFast peerset.PeerSet
-	Requested   peerset.PeerSet
-	Snubbed     peerset.PeerSet
-	Choked      peerset.PeerSet
+	Having    peerset.PeerSet
+	Requested peerset.PeerSet
+	Snubbed   peerset.PeerSet
+	Choked    peerset.PeerSet
 }
 
 func (p *myPiece) RunningDownloads() int {
-	return p.Requested.Len() - p.Snubbed.Len()
+	return p.Requested.Len() - p.Snubbed.Len() - p.Choked.Len()
 }
 
-func New(pieces []piece.Piece, endgameParallelDownloadsPerPiece int, l logger.Logger) *PiecePicker {
+func New(pieces []piece.Piece, maxDuplicateDownload int, l logger.Logger) *PiecePicker {
 	ps := make([]myPiece, len(pieces))
 	for i := range pieces {
 		ps[i] = myPiece{Piece: &pieces[i]}
@@ -40,10 +40,10 @@ func New(pieces []piece.Piece, endgameParallelDownloadsPerPiece int, l logger.Lo
 		sps[i] = &ps[i]
 	}
 	return &PiecePicker{
-		pieces:                           ps,
-		sortedPieces:                     sps,
-		endgameParallelDownloadsPerPiece: endgameParallelDownloadsPerPiece,
-		log:                              l,
+		pieces:               ps,
+		sortedPieces:         sps,
+		maxDuplicateDownload: maxDuplicateDownload,
+		log:                  l,
 	}
 }
 
@@ -61,7 +61,6 @@ func (p *PiecePicker) HandleHave(pe *peer.Peer, i uint32) {
 }
 
 func (p *PiecePicker) HandleAllowedFast(pe *peer.Peer, i uint32) {
-	p.pieces[i].AllowedFast.Add(pe)
 	pe.AllowedFast.Add(p.pieces[i].Piece)
 }
 
@@ -85,7 +84,6 @@ func (p *PiecePicker) HandleCancelDownload(pe *peer.Peer, i uint32) {
 func (p *PiecePicker) HandleDisconnect(pe *peer.Peer) {
 	for i := range p.pieces {
 		p.HandleCancelDownload(pe, uint32(i))
-		p.pieces[i].AllowedFast.Remove(pe)
 		p.removeHavingPeer(i, pe)
 	}
 }
@@ -105,9 +103,6 @@ func (p *PiecePicker) removeHavingPeer(i int, pe *peer.Peer) {
 }
 
 func (p *PiecePicker) PickFor(pe *peer.Peer) *piece.Piece {
-	if pe.Downloading {
-		return nil
-	}
 	pi := p.findPiece(pe)
 	if pi == nil {
 		return nil
@@ -118,93 +113,58 @@ func (p *PiecePicker) PickFor(pe *peer.Peer) *piece.Piece {
 }
 
 func (p *PiecePicker) findPiece(pe *peer.Peer) *myPiece {
+	// Peer is allowed to download only one piece at a time
+	if pe.Downloading {
+		return nil
+	}
+	// Pick allowed fast piece
+	for _, pi := range pe.AllowedFast.Pieces {
+		mp := &p.pieces[pi.Index]
+		if !mp.Done && !mp.Writing && mp.Requested.Len() == 0 && mp.Having.Has(pe) {
+			return mp
+		}
+	}
+	// Must be unchoked to request a peer
+	if pe.PeerChoking {
+		return nil
+	}
+	// Short path for endgame mode.
+	if p.endgame {
+		return p.pickEndgame(pe)
+	}
+	// Sort by rarity
 	sort.Slice(p.sortedPieces, func(i, j int) bool {
 		return len(p.sortedPieces[i].Having.Peers) < len(p.sortedPieces[j].Having.Peers)
 	})
-	pi := p.selectAllowedFastPiece(pe, true, true)
-	if pi != nil {
-		return pi
-	}
-	pi = p.selectUnchokedPeer(pe, true, true)
-	if pi != nil {
-		return pi
-	}
-	pi = p.selectSnubbedPeer(pe, true)
-	if pi != nil {
-		return pi
-	}
-	pi = p.selectDuplicatePiece(pe)
-	if pi != nil {
-		return pi
-	}
-	return nil
-}
-
-func (p *PiecePicker) selectAllowedFastPiece(pe *peer.Peer, skipSnubbed, noDuplicate bool) *myPiece {
-	return p.selectPiece(pe, true, skipSnubbed, noDuplicate)
-}
-
-func (p *PiecePicker) selectUnchokedPeer(pe *peer.Peer, skipSnubbed, noDuplicate bool) *myPiece {
-	return p.selectPiece(pe, false, skipSnubbed, noDuplicate)
-}
-
-func (p *PiecePicker) selectSnubbedPeer(pe *peer.Peer, noDuplicate bool) *myPiece {
-	pi := p.selectAllowedFastPiece(pe, false, noDuplicate)
-	if pi != nil {
-		return pi
-	}
-	pi = p.selectUnchokedPeer(pe, false, noDuplicate)
-	if pi != nil {
-		return pi
-	}
-	return nil
-}
-
-func (p *PiecePicker) selectDuplicatePiece(pe *peer.Peer) *myPiece {
-	pi := p.selectAllowedFastPiece(pe, true, false)
-	if pi != nil {
-		return pi
-	}
-	pi = p.selectUnchokedPeer(pe, true, false)
-	if pi != nil {
-		return pi
-	}
-	pi = p.selectSnubbedPeer(pe, false)
-	if pi != nil {
-		return pi
-	}
-	return nil
-}
-
-func (p *PiecePicker) selectPiece(pe *peer.Peer, preferAllowedFast, skipSnubbed, noDuplicate bool) *myPiece {
-	if skipSnubbed && pe.Snubbed {
-		return nil
-	}
-	if !preferAllowedFast && pe.PeerChoking {
-		return nil
-	}
-	for _, pi := range p.sortedPieces {
-		if pi.Done {
-			continue
+	var hasUnrequested bool
+	// Select unrequested piece
+	for _, mp := range p.sortedPieces {
+		if mp.Requested.Len() == 0 {
+			hasUnrequested = true
 		}
-		if pi.Writing {
-			continue
+		if !mp.Done && !mp.Writing && mp.Requested.Len() == 0 && mp.Having.Has(pe) {
+			return mp
 		}
-		if noDuplicate && pi.Requested.Len() > 0 {
-			continue
-		} else if pi.RunningDownloads() >= p.endgameParallelDownloadsPerPiece {
-			continue
+	}
+	// Activate endgame mode if all pieces are requested from at least one peer
+	if !hasUnrequested {
+		p.endgame = true
+		return p.pickEndgame(pe)
+	}
+	// Re-request snubbed and choked downloads
+	return p.pickEndgame(pe)
+}
+
+func (p *PiecePicker) pickEndgame(pe *peer.Peer) *myPiece {
+	// Sort by request count
+	sort.Slice(p.sortedPieces, func(i, j int) bool {
+		return p.sortedPieces[i].RunningDownloads() < p.sortedPieces[j].RunningDownloads()
+	})
+	// Select unrequested piece
+	for _, mp := range p.sortedPieces {
+		if !mp.Done && !mp.Writing && mp.Requested.Len() < p.maxDuplicateDownload && mp.Having.Has(pe) {
+			return mp
 		}
-		if preferAllowedFast {
-			if !pi.AllowedFast.Has(pe) {
-				continue
-			}
-		} else {
-			if pe.PeerChoking {
-				continue
-			}
-		}
-		return pi
 	}
 	return nil
 }

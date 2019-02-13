@@ -69,7 +69,7 @@ type Config struct {
 	// Time to wait for a requested block to be received before marking peer as snubbed
 	RequestTimeout time.Duration
 	// Max number of running downloads on piece in endgame mode, snubbed and choed peers don't count
-	EndgameParallelDownloadsPerPiece int
+	EndgameMaxDuplicateDownloads int
 	// Max number of outgoing connections to dial
 	MaxPeerDial int
 	// Max number of incoming connections to accept
@@ -139,20 +139,20 @@ var DefaultConfig = Config{
 	DHTMinAnnounceInterval: time.Minute,
 
 	// Peer
-	UnchokedPeers:                    3,
-	OptimisticUnchokedPeers:          1,
-	RequestQueueLength:               50,
-	RequestTimeout:                   20 * time.Second,
-	EndgameParallelDownloadsPerPiece: 2,
-	MaxPeerDial:                      100,
-	MaxPeerAccept:                    20,
-	MaxActivePieceBytes:              1024 * 1024 * 1024,
-	ParallelMetadataDownloads:        2,
-	PeerConnectTimeout:               5 * time.Second,
-	PeerHandshakeTimeout:             10 * time.Second,
-	PieceTimeout:                     30 * time.Second,
-	PeerReadBufferSize:               32 * 1024,
-	MaxPeerAddresses:                 2000,
+	UnchokedPeers:                3,
+	OptimisticUnchokedPeers:      1,
+	RequestQueueLength:           50,
+	RequestTimeout:               20 * time.Second,
+	EndgameMaxDuplicateDownloads: 20,
+	MaxPeerDial:                  100,
+	MaxPeerAccept:                20,
+	MaxActivePieceBytes:          1024 * 1024 * 1024,
+	ParallelMetadataDownloads:    2,
+	PeerConnectTimeout:           5 * time.Second,
+	PeerHandshakeTimeout:         10 * time.Second,
+	PieceTimeout:                 30 * time.Second,
+	PeerReadBufferSize:           32 * 1024,
+	MaxPeerAddresses:             2000,
 
 	// Piece cache
 	PieceReadSize:  256 * 1024,
