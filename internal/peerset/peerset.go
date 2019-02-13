@@ -1,14 +1,14 @@
-package piecepicker
+package peerset
 
 import (
 	"github.com/cenkalti/rain/internal/peer"
 )
 
-type peerSet struct {
+type PeerSet struct {
 	Peers []*peer.Peer
 }
 
-func (l *peerSet) Add(pe *peer.Peer) bool {
+func (l *PeerSet) Add(pe *peer.Peer) bool {
 	for _, p := range l.Peers {
 		if p == pe {
 			return false
@@ -18,7 +18,7 @@ func (l *peerSet) Add(pe *peer.Peer) bool {
 	return true
 }
 
-func (l *peerSet) Remove(pe *peer.Peer) bool {
+func (l *PeerSet) Remove(pe *peer.Peer) bool {
 	for i, p := range l.Peers {
 		if p == pe {
 			l.Peers[i] = l.Peers[len(l.Peers)-1]
@@ -29,7 +29,7 @@ func (l *peerSet) Remove(pe *peer.Peer) bool {
 	return false
 }
 
-func (l *peerSet) Has(pe *peer.Peer) bool {
+func (l *PeerSet) Has(pe *peer.Peer) bool {
 	for _, p := range l.Peers {
 		if p == pe {
 			return true
@@ -38,6 +38,6 @@ func (l *peerSet) Has(pe *peer.Peer) bool {
 	return false
 }
 
-func (l *peerSet) Len() int {
+func (l *PeerSet) Len() int {
 	return len(l.Peers)
 }

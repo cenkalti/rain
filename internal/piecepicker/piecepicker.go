@@ -5,6 +5,7 @@ import (
 
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/peer"
+	"github.com/cenkalti/rain/internal/peerset"
 	"github.com/cenkalti/rain/internal/piece"
 )
 
@@ -18,11 +19,11 @@ type PiecePicker struct {
 
 type myPiece struct {
 	*piece.Piece
-	Having      peerSet
-	AllowedFast peerSet
-	Requested   peerSet
-	Snubbed     peerSet
-	Choked      peerSet
+	Having      peerset.PeerSet
+	AllowedFast peerset.PeerSet
+	Requested   peerset.PeerSet
+	Snubbed     peerset.PeerSet
+	Choked      peerset.PeerSet
 }
 
 func (p *myPiece) RunningDownloads() int {
