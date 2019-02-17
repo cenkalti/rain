@@ -101,11 +101,14 @@ func (m *ResourceManager) run() {
 			m.handleRequest(r)
 		case n := <-m.releaseC:
 			m.available += n
-			if m.available < 0 {
+			if m.available > m.limit {
 				panic("invalid release call")
 			}
 		case req.notifyC <- req.data:
 			m.available -= req.n
+			if m.available < 0 {
+				panic("invalid request call 1")
+			}
 			m.deleteRequest(req.key, i)
 		case <-req.cancelC:
 			m.deleteRequest(req.key, i)
@@ -150,6 +153,9 @@ func (m *ResourceManager) handleRequest(r request) {
 	case r.doneC <- acquired:
 		if acquired {
 			m.available -= r.n
+			if m.available < 0 {
+				panic("invalid request call 2")
+			}
 		} else {
 			m.requests[r.key] = append(m.requests[r.key], r)
 		}
