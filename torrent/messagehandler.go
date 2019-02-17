@@ -31,14 +31,6 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 		t.closePeer(pe)
 		return
 	}
-	piece := &t.pieces[msg.Index]
-	block := piece.Blocks.Find(msg.Begin, uint32(len(msg.Data)))
-	if block == nil {
-		pe.Logger().Errorln("invalid piece begin:", msg.Begin, "length:", len(msg.Data))
-		t.resumerStats.BytesWasted += int64(len(msg.Data))
-		t.closePeer(pe)
-		return
-	}
 	t.downloadSpeed.Update(int64(len(msg.Data)))
 	t.resumerStats.BytesDownloaded += int64(len(msg.Data))
 	pd, ok := t.pieceDownloaders[pe]
@@ -50,6 +42,14 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 	if pd.Piece.Index != msg.Index {
 		t.resumerStats.BytesWasted += int64(len(msg.Data))
 		msg.ReleaseBuffer()
+		return
+	}
+	piece := pd.Piece
+	block := piece.Blocks.Find(msg.Begin, uint32(len(msg.Data)))
+	if block == nil {
+		pe.Logger().Errorln("invalid piece index:", msg.Index, "begin:", msg.Begin, "length:", len(msg.Data))
+		t.resumerStats.BytesWasted += int64(len(msg.Data))
+		t.closePeer(pe)
 		return
 	}
 	pd.GotBlock(block, msg.Data)
@@ -226,18 +226,17 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			t.closePeer(pe)
 			break
 		}
-		piece := &t.pieces[msg.Index]
-		block := piece.Blocks.Find(msg.Begin, msg.Length)
-		if block == nil {
-			pe.Logger().Errorln("invalid reject begin:", msg.Begin, "length:", msg.Length)
-			t.closePeer(pe)
-			break
-		}
 		pd, ok := t.pieceDownloaders[pe]
 		if !ok {
 			break
 		}
 		if pd.Piece.Index != msg.Index {
+			break
+		}
+		block := pd.Piece.Blocks.Find(msg.Begin, msg.Length)
+		if block == nil {
+			pe.Logger().Errorln("invalid reject index:", msg.Index, "begin:", msg.Begin, "length:", msg.Length)
+			t.closePeer(pe)
 			break
 		}
 		pd.Rejected(block)
