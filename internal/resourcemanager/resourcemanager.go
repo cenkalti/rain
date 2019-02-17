@@ -142,7 +142,11 @@ func (m *ResourceManager) deleteRequest(key string, i int) {
 func (m *ResourceManager) randomRequest() (request, int) {
 	for _, rs := range m.requests {
 		i := rand.Intn(len(rs))
-		return rs[i], i
+		r := rs[i]
+		if r.n > m.available {
+			break
+		}
+		return r, i
 	}
 	return request{}, -1
 }
