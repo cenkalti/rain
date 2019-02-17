@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -151,7 +152,7 @@ func (p *PeerReader) Run() {
 			// p.log.Debugf("Received Request: %+v", rm)
 
 			if rm.Length > maxBlockSize {
-				err = errors.New("received a request with block size larger than allowed")
+				err = fmt.Errorf("received a request with block size larger than allowed (%d > %d)", rm.Length, maxBlockSize)
 				return
 			}
 			msg = rm
