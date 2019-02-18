@@ -56,7 +56,6 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 	msg.ReleaseBuffer()
 	if !pd.Done() {
 		pd.RequestBlocks(t.config.RequestQueueLength)
-		pe.ResetSnubTimer()
 		return
 	}
 	// t.log.Debugln("piece download completed. index:", pd.Piece.Index)
@@ -328,7 +327,6 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			}
 			if !id.Done() {
 				id.RequestBlocks(t.config.RequestQueueLength)
-				pe.ResetSnubTimer()
 				break
 			}
 			pe.StopSnubTimer()

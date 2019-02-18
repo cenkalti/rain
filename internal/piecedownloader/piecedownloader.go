@@ -78,6 +78,7 @@ func (d *PieceDownloader) RequestBlocks(queueLength int) {
 		d.unrequested = d.unrequested[1:]
 		d.requested[b.Index] = struct{}{}
 	}
+	d.Peer.ResetSnubTimer()
 }
 
 func (d *PieceDownloader) Done() bool {

@@ -78,6 +78,7 @@ func (d *InfoDownloader) RequestBlocks(queueLength int) {
 		d.Peer.SendMessage(msg)
 		d.requested[d.nextBlockIndex] = struct{}{}
 	}
+	d.Peer.ResetSnubTimer()
 }
 
 func (d *InfoDownloader) Done() bool {

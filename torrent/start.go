@@ -146,7 +146,6 @@ func (t *torrent) startInfoDownloaders() {
 		t.log.Debugln("downloading info from", id.Peer.String())
 		t.infoDownloaders[id.Peer] = id
 		id.RequestBlocks(t.config.RequestQueueLength)
-		id.Peer.ResetSnubTimer()
 	}
 }
 
@@ -197,5 +196,4 @@ func (t *torrent) startSinglePieceDownloader(pe *peer.Peer) {
 	t.pieceDownloaders[pd.Peer] = pd
 	pd.Peer.Downloading = true
 	pd.RequestBlocks(t.config.RequestQueueLength)
-	pd.Peer.ResetSnubTimer()
 }
