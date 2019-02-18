@@ -178,7 +178,7 @@ func (t *torrent) run() {
 				break
 			}
 			log := logger.New("peer <- " + ih.Conn.RemoteAddr().String())
-			pe := peerconn.New(ih.Conn, log, t.config.PieceTimeout, t.config.PeerReadBufferSize)
+			pe := peerconn.New(ih.Conn, log, t.config.PieceReadTimeout, t.config.PeerReadBufferSize)
 			t.startPeer(pe, peer.SourceIncoming, t.incomingPeers, ih.PeerID, ih.Extensions, ih.Cipher)
 		case oh := <-t.outgoingHandshakerResultC:
 			delete(t.outgoingHandshakers, oh)
@@ -188,7 +188,7 @@ func (t *torrent) run() {
 				break
 			}
 			log := logger.New("peer -> " + oh.Conn.RemoteAddr().String())
-			pe := peerconn.New(oh.Conn, log, t.config.PieceTimeout, t.config.PeerReadBufferSize)
+			pe := peerconn.New(oh.Conn, log, t.config.PieceReadTimeout, t.config.PeerReadBufferSize)
 			t.startPeer(pe, oh.Source, t.outgoingPeers, oh.PeerID, oh.Extensions, oh.Cipher)
 		case pe := <-t.peerDisconnectedC:
 			t.closePeer(pe)

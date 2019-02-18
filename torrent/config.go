@@ -81,8 +81,8 @@ type Config struct {
 	PeerConnectTimeout time.Duration
 	// Time to wait for BitTorrent handshake to complete.
 	PeerHandshakeTimeout time.Duration
-	// When peer has started to send piece block, if it does not send any bytes in PieceTimeout, the connection is closed.
-	PieceTimeout time.Duration
+	// When peer has started to send piece block, if it does not send any bytes in PieceReadTimeout, the connection is closed.
+	PieceReadTimeout time.Duration
 	// Buffer size for messages read from a single peer
 	PeerReadBufferSize int
 	// Max number of peer addresses to keep in connect queue.
@@ -144,14 +144,14 @@ var DefaultConfig = Config{
 	RequestQueueLength:           50,
 	RequestTimeout:               20 * time.Second,
 	EndgameMaxDuplicateDownloads: 20,
-	MaxPeerDial:                  100,
+	MaxPeerDial:                  80,
 	MaxPeerAccept:                20,
 	MaxActivePieceBytes:          1024 * 1024 * 1024,
 	ParallelMetadataDownloads:    2,
 	PeerConnectTimeout:           5 * time.Second,
 	PeerHandshakeTimeout:         10 * time.Second,
-	PieceTimeout:                 30 * time.Second,
-	PeerReadBufferSize:           32 * 1024,
+	PieceReadTimeout:             30 * time.Second,
+	PeerReadBufferSize:           16 * 1024,
 	MaxPeerAddresses:             2000,
 
 	// Piece cache
