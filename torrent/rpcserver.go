@@ -2,6 +2,7 @@ package torrent
 
 import (
 	"context"
+	"expvar"
 	"net"
 	"net/http"
 	"net/rpc"
@@ -22,10 +23,15 @@ func newRPCServer(ses *Session) *rpcServer {
 	h := &rpcHandler{session: ses}
 	srv := rpc.NewServer()
 	srv.RegisterName("Session", h)
+
+	mux := http.NewServeMux()
+	mux.Handle("/debug/vars", expvar.Handler())
+	mux.Handle("/", jsonrpc2.HTTPHandler(srv))
+
 	return &rpcServer{
 		rpcServer: srv,
 		httpServer: http.Server{
-			Handler: jsonrpc2.HTTPHandler(srv),
+			Handler: mux,
 		},
 		log: logger.New("rpc server"),
 	}
