@@ -9,6 +9,7 @@ type SessionStats struct {
 	BlockListLastSuccessfulUpdate time.Time
 	PieceCacheItems               int
 	PieceCacheSize                int64
+	PieceCacheUtilization         int
 	ActivePieceBytes              int64
 	TorrentsPendingRAM            int
 }

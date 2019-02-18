@@ -4,6 +4,8 @@ import (
 	"container/heap"
 	"sync"
 	"time"
+
+	"github.com/rcrowley/go-metrics"
 )
 
 type Cache struct {
@@ -12,16 +14,44 @@ type Cache struct {
 	items         map[string]*item
 	accessList    accessList
 	m             sync.RWMutex
+
+	numCached metrics.EWMA
+	numTotal  metrics.EWMA
+
+	closeC chan struct{}
 }
 
 type Loader func() ([]byte, error)
 
 func New(maxSize int64, ttl time.Duration) *Cache {
-	return &Cache{
-		maxSize: maxSize,
-		ttl:     ttl,
-		items:   make(map[string]*item),
+	c := &Cache{
+		maxSize:   maxSize,
+		ttl:       ttl,
+		items:     make(map[string]*item),
+		numCached: metrics.NewEWMA1(),
+		numTotal:  metrics.NewEWMA1(),
+		closeC:    make(chan struct{}),
 	}
+	go c.tick()
+	return c
+}
+
+func (c *Cache) tick() {
+	t := time.NewTicker(5 * time.Second)
+	defer t.Stop()
+	for {
+		select {
+		case <-t.C:
+			c.numCached.Tick()
+			c.numTotal.Tick()
+		case <-c.closeC:
+			return
+		}
+	}
+}
+
+func (c *Cache) Close() {
+	close(c.closeC)
 }
 
 func (c *Cache) Clear() {
@@ -47,6 +77,14 @@ func (c *Cache) Size() int64 {
 	return c.size
 }
 
+func (c *Cache) Utilization() int {
+	total := c.numTotal.Rate()
+	if total == 0 {
+		return 0
+	}
+	return int((100 * c.numCached.Rate()) / total)
+}
+
 func (c *Cache) Get(key string, loader Loader) ([]byte, error) {
 	i := c.getItem(key)
 	return c.getValue(i, loader)
@@ -56,8 +94,12 @@ func (c *Cache) getItem(key string) *item {
 	c.m.Lock()
 	defer c.m.Unlock()
 
+	c.numTotal.Update(1)
+
 	i, ok := c.items[key]
-	if !ok {
+	if ok {
+		c.numCached.Update(1)
+	} else {
 		i = &item{key: key}
 		c.items[key] = i
 	}

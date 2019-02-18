@@ -364,7 +364,7 @@ func (s *Session) Close() error {
 	}
 
 	s.ram.Close()
-
+	s.pieceCache.Close()
 	return s.db.Close()
 }
 
@@ -614,6 +614,7 @@ func (s *Session) Stats() SessionStats {
 		BlockListLastSuccessfulUpdate: blocklistTime,
 		PieceCacheItems:               s.pieceCache.Len(),
 		PieceCacheSize:                s.pieceCache.Size(),
+		PieceCacheUtilization:         s.pieceCache.Utilization(),
 		ActivePieceBytes:              ramStats.Used,
 		TorrentsPendingRAM:            ramStats.Count,
 	}
