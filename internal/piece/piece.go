@@ -11,13 +11,14 @@ import (
 
 // Piece of a torrent.
 type Piece struct {
-	Index   uint32 // index in torrent
-	Length  uint32 // always equal to Info.PieceLength except last piece
-	Blocks  Blocks
-	Data    filesection.Piece // the place to write downloaded bytes
-	Hash    []byte
-	Writing bool
-	Done    bool
+	Index     uint32 // index in torrent
+	Length    uint32 // always equal to Info.PieceLength except last piece
+	Blocks    Blocks
+	Data      filesection.Piece // the place to write downloaded bytes
+	Hash      []byte
+	Verifying bool
+	Writing   bool
+	Done      bool
 }
 
 func NewPieces(info *metainfo.Info, files []storage.File) []Piece {

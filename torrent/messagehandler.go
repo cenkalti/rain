@@ -12,7 +12,7 @@ import (
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peerconn/peerwriter"
 	"github.com/cenkalti/rain/internal/peerprotocol"
-	"github.com/cenkalti/rain/internal/piecewriter"
+	"github.com/cenkalti/rain/internal/pieceverifier"
 	"github.com/cenkalti/rain/internal/tracker"
 )
 
@@ -62,35 +62,9 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 	t.closePieceDownloader(pd)
 	pe.StopSnubTimer()
 
-	ok = piece.VerifyHash(pd.Buffer[:pd.Piece.Length], sha1.New()) // nolint: gosec
-	if !ok {
-		t.resumerStats.BytesWasted += int64(len(msg.Data))
-		t.log.Error("received corrupt piece")
-		t.closePeer(pd.Peer)
-		t.startPieceDownloaderFor(pe)
-		return
-	}
-
-	if t.piecePicker != nil {
-		for _, pe := range t.piecePicker.RequestedPeers(piece.Index) {
-			pd2 := t.pieceDownloaders[pe]
-			t.closePieceDownloader(pd2)
-			pd2.CancelPending()
-		}
-	}
-
-	if piece.Writing {
-		panic("piece already writing")
-	}
-	piece.Writing = true
-
-	t.blockPieceMessages = t.pieceMessages
-	t.pieceMessages = nil
-
-	pw := piecewriter.New(piece, pd.Buffer, pd.Piece.Length)
-	go pw.Run(t.pieceWriterResultC)
-
-	t.startPieceDownloaderFor(pe)
+	piece.Verifying = true
+	pv := pieceverifier.New(piece, pe, pd.Buffer, pd.Piece.Length)
+	go pv.Run(t.pieceVerifierResultC, t.doneC)
 }
 
 func (t *torrent) handlePeerMessage(pm peer.Message) {

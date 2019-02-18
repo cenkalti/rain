@@ -151,7 +151,7 @@ func (p *PiecePicker) findPiece(pe *peer.Peer) *myPiece {
 func (p *PiecePicker) pickAllowedFast(pe *peer.Peer) *myPiece {
 	for _, pi := range pe.AllowedFast.Pieces {
 		mp := &p.pieces[pi.Index]
-		if mp.Done || mp.Writing {
+		if mp.Done || mp.Writing || mp.Verifying {
 			continue
 		}
 		if mp.Requested.Len() == 0 && mp.Having.Has(pe) {
@@ -170,7 +170,7 @@ func (p *PiecePicker) pickRarest(pe *peer.Peer) *myPiece {
 	var hasUnrequested bool
 	// Select unrequested piece
 	for _, mp := range p.piecesByAvailability {
-		if mp.Done || mp.Writing {
+		if mp.Done || mp.Writing || mp.Verifying {
 			continue
 		}
 		if mp.Requested.Len() == 0 && mp.Having.Has(pe) {
@@ -194,7 +194,7 @@ func (p *PiecePicker) pickEndgame(pe *peer.Peer) *myPiece {
 	})
 	// Select unrequested piece
 	for _, mp := range p.piecesByAvailability {
-		if mp.Done || mp.Writing {
+		if mp.Done || mp.Writing || mp.Verifying {
 			continue
 		}
 		if mp.Requested.Len() < p.maxDuplicateDownload && mp.Having.Has(pe) {
@@ -211,7 +211,7 @@ func (p *PiecePicker) pickStalled(pe *peer.Peer) *myPiece {
 	})
 	// Select unrequested piece
 	for _, mp := range p.piecesByStalled {
-		if mp.Done || mp.Writing {
+		if mp.Done || mp.Writing || mp.Verifying {
 			continue
 		}
 		if mp.RunningDownloads() > 0 {

@@ -17,6 +17,7 @@ import (
 	"github.com/cenkalti/rain/internal/peerconn"
 	"github.com/cenkalti/rain/internal/peerprotocol"
 	"github.com/cenkalti/rain/internal/piecedownloader"
+	"github.com/cenkalti/rain/internal/piecewriter"
 )
 
 var errClosed = errors.New("torrent is closed")
@@ -112,6 +113,36 @@ func (t *torrent) run() {
 			case req.Response <- announcer.Response{Torrent: tr}:
 			case <-req.Cancel:
 			}
+		case pv := <-t.pieceVerifierResultC:
+			pv.Piece.Verifying = false
+
+			if !pv.OK {
+				t.resumerStats.BytesWasted += int64(pv.Length)
+				t.log.Error("received corrupt piece")
+				t.closePeer(pv.Peer)
+				return
+			}
+
+			if pv.Piece.Writing {
+				break
+			}
+			pv.Piece.Writing = true
+
+			if t.piecePicker != nil {
+				for _, pe := range t.piecePicker.RequestedPeers(pv.Piece.Index) {
+					pd2 := t.pieceDownloaders[pe]
+					t.closePieceDownloader(pd2)
+					pd2.CancelPending()
+				}
+			}
+
+			t.blockPieceMessages = t.pieceMessages
+			t.pieceMessages = nil
+
+			pw := piecewriter.New(pv.Piece, pv.Buffer, pv.Piece.Length)
+			go pw.Run(t.pieceWriterResultC, t.doneC)
+
+			t.startPieceDownloaderFor(pv.Peer)
 		case pw := <-t.pieceWriterResultC:
 			pw.Piece.Writing = false
 
