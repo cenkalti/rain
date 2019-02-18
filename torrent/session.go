@@ -615,6 +615,6 @@ func (s *Session) Stats() SessionStats {
 		PieceCacheItems:               s.pieceCache.Len(),
 		PieceCacheSize:                s.pieceCache.Size(),
 		ActivePieceBytes:              ramStats.Used,
-		PendingRAMRequests:            ramStats.Count,
+		TorrentsPendingRAM:            ramStats.Count,
 	}
 }

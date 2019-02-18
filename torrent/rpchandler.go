@@ -77,7 +77,7 @@ func (h *rpcHandler) GetSessionStats(args *rpctypes.GetSessionStatsRequest, repl
 		PieceCacheItems:               s.PieceCacheItems,
 		PieceCacheSize:                s.PieceCacheSize,
 		ActivePieceBytes:              s.ActivePieceBytes,
-		PendingRAMRequests:            s.PendingRAMRequests,
+		TorrentsPendingRAM:            s.TorrentsPendingRAM,
 	}
 	return nil
 }
