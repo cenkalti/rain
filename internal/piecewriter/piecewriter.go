@@ -1,26 +1,25 @@
 package piecewriter
 
 import (
+	"github.com/cenkalti/rain/internal/bufferpool"
 	"github.com/cenkalti/rain/internal/piece"
 )
 
 type PieceWriter struct {
 	Piece  *piece.Piece
-	Buffer []byte
-	Lenght uint32
+	Buffer bufferpool.Buffer
 	Error  error
 }
 
-func New(p *piece.Piece, buf []byte, length uint32) *PieceWriter {
+func New(p *piece.Piece, buf bufferpool.Buffer) *PieceWriter {
 	return &PieceWriter{
 		Piece:  p,
 		Buffer: buf,
-		Lenght: length,
 	}
 }
 
 func (w *PieceWriter) Run(resultC chan *PieceWriter, closeC chan struct{}) {
-	_, w.Error = w.Piece.Data.Write(w.Buffer[:w.Lenght])
+	_, w.Error = w.Piece.Data.Write(w.Buffer.Data)
 	select {
 	case resultC <- w:
 	case <-closeC:

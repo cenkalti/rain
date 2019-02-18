@@ -1,6 +1,7 @@
 package piecedownloader
 
 import (
+	"github.com/cenkalti/rain/internal/bufferpool"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peerprotocol"
 	"github.com/cenkalti/rain/internal/piece"
@@ -10,7 +11,7 @@ import (
 type PieceDownloader struct {
 	Piece  *piece.Piece
 	Peer   *peer.Peer
-	Buffer []byte
+	Buffer bufferpool.Buffer
 
 	unrequested []uint32
 	requested   map[uint32]struct{}
@@ -22,7 +23,7 @@ type pieceReaderResult struct {
 	Error      error
 }
 
-func New(pi *piece.Piece, pe *peer.Peer, buf []byte) *PieceDownloader {
+func New(pi *piece.Piece, pe *peer.Peer, buf bufferpool.Buffer) *PieceDownloader {
 	unrequested := make([]uint32, len(pi.Blocks))
 	for i := range unrequested {
 		unrequested[i] = uint32(i)
@@ -48,7 +49,7 @@ func (d *PieceDownloader) GotBlock(block *piece.Block, data []byte) {
 	if _, ok := d.done[block.Index]; ok {
 		d.Peer.Logger().Warningln("received duplicate block:", block.Index)
 	}
-	copy(d.Buffer[block.Begin:block.Begin+block.Length], data)
+	copy(d.Buffer.Data[block.Begin:block.Begin+block.Length], data)
 	delete(d.requested, block.Index)
 	d.done[block.Index] = struct{}{}
 }

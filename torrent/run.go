@@ -117,7 +117,7 @@ func (t *torrent) run() {
 			pv.Piece.Verifying = false
 
 			if !pv.OK {
-				t.resumerStats.BytesWasted += int64(pv.Length)
+				t.resumerStats.BytesWasted += int64(len(pv.Buffer.Data))
 				t.log.Error("received corrupt piece")
 				t.closePeer(pv.Peer)
 				return
@@ -139,7 +139,7 @@ func (t *torrent) run() {
 			t.blockPieceMessages = t.pieceMessages
 			t.pieceMessages = nil
 
-			pw := piecewriter.New(pv.Piece, pv.Buffer, pv.Piece.Length)
+			pw := piecewriter.New(pv.Piece, pv.Buffer)
 			go pw.Run(t.pieceWriterResultC, t.doneC)
 
 			t.startPieceDownloaderFor(pv.Peer)
@@ -149,7 +149,7 @@ func (t *torrent) run() {
 			t.pieceMessages = t.blockPieceMessages
 			t.blockPieceMessages = nil
 
-			t.piecePool.Put(pw.Buffer)
+			pw.Buffer.Release()
 			if pw.Error != nil {
 				t.stop(pw.Error)
 				break

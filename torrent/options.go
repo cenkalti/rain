@@ -10,6 +10,7 @@ import (
 	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/blocklist"
+	"github.com/cenkalti/rain/internal/bufferpool"
 	"github.com/cenkalti/rain/internal/externalip"
 	"github.com/cenkalti/rain/internal/handshaker/incominghandshaker"
 	"github.com/cenkalti/rain/internal/handshaker/outgoinghandshaker"
@@ -139,8 +140,8 @@ func (o *options) NewTorrent(infoHash []byte, sto storage.Storage) (*torrent, er
 	}
 	t.addrList = addrlist.New(cfg.MaxPeerAddresses, o.Blocklist, o.Port, &t.externalIP)
 	copy(t.peerID[:], []byte(cfg.PeerIDPrefix))
-	t.piecePool.New = func() interface{} {
-		return make([]byte, t.info.PieceLength)
+	if t.info != nil {
+		t.piecePool = bufferpool.New(int(t.info.PieceLength))
 	}
 	_, err := rand.Read(t.peerID[len(cfg.PeerIDPrefix):]) // nolint: gosec
 	if err != nil {

@@ -122,7 +122,7 @@ func (p *Peer) Run(messages chan Message, pieces chan PieceMessage, snubbed, dis
 				return
 			}
 			if m, ok := pm.(peerreader.Piece); ok {
-				p.downloadSpeed.Update(int64(len(m.Data)))
+				p.downloadSpeed.Update(int64(len(m.Buffer.Data)))
 				select {
 				case pieces <- PieceMessage{Peer: p, Piece: m}:
 				case <-p.closeC:

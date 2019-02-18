@@ -12,6 +12,7 @@ import (
 	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/blocklist"
+	"github.com/cenkalti/rain/internal/bufferpool"
 	"github.com/cenkalti/rain/internal/handshaker/incominghandshaker"
 	"github.com/cenkalti/rain/internal/handshaker/outgoinghandshaker"
 	"github.com/cenkalti/rain/internal/infodownloader"
@@ -224,7 +225,7 @@ type torrent struct {
 	announcersStoppedC chan struct{}
 
 	// Piece buffers that are being downloaded are pooled to reduce load on GC.
-	piecePool sync.Pool
+	piecePool *bufferpool.Pool
 
 	// Keep a timer to write bitfield at interval to reduce IO.
 	resumeWriteTimer  *time.Timer

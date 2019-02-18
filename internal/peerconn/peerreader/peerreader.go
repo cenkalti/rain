@@ -8,9 +8,9 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
-	"sync"
 	"time"
 
+	"github.com/cenkalti/rain/internal/bufferpool"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/peerprotocol"
 	"github.com/cenkalti/rain/internal/piece"
@@ -23,11 +23,7 @@ const (
 	readTimeout = 2 * time.Minute
 )
 
-var blockPool = sync.Pool{
-	New: func() interface{} {
-		return make([]byte, piece.BlockSize)
-	},
-}
+var blockPool = bufferpool.New(piece.BlockSize)
 
 type PeerReader struct {
 	conn         net.Conn
@@ -181,17 +177,16 @@ func (p *PeerReader) Run() {
 			if err != nil {
 				return
 			}
-			var m, n int
-			buf := blockPool.Get().([]byte)
-			data := buf[:length-8]
+			var m int
+			buf := blockPool.Get(int(length - 8))
 			for {
 				err = p.conn.SetReadDeadline(time.Now().Add(p.pieceTimeout))
 				if err != nil {
 					return
 				}
-				n, err = io.ReadFull(p.buf, data)
-				if err != nil {
-					if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
+				n, rerr := io.ReadFull(p.buf, buf.Data[m:])
+				if rerr != nil {
+					if nerr, ok := rerr.(net.Error); ok && nerr.Timeout() {
 						// Peer didn't send the full block in allowed time.
 						if n == 0 {
 							// Disconnect if no bytes received.
@@ -199,7 +194,6 @@ func (p *PeerReader) Run() {
 						}
 						// Some bytes received, peer appears to be slow, keep receiving the rest.
 						m += n
-						data = data[n:]
 						continue
 					}
 					return
@@ -207,7 +201,7 @@ func (p *PeerReader) Run() {
 				// Received full block.
 				break
 			}
-			msg = Piece{PieceMessage: pm, buffer: buf, Data: data}
+			msg = Piece{PieceMessage: pm, Buffer: buf}
 		case peerprotocol.HaveAll:
 			if !first {
 				err = errors.New("have_all can only be sent after handshake")

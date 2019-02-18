@@ -188,7 +188,7 @@ func (t *torrent) startSinglePieceDownloader(pe *peer.Peer) {
 		}
 		return
 	}
-	pd := piecedownloader.New(pi, pe, t.piecePool.Get().([]byte))
+	pd := piecedownloader.New(pi, pe, t.piecePool.Get(int(pi.Length)))
 	// t.log.Debugln("downloading piece", pd.Piece.Index, "from", pd.Peer.String())
 	if _, ok := t.pieceDownloaders[pd.Peer]; ok {
 		panic("peer already has a piece downloader")

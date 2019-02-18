@@ -8,6 +8,7 @@ import (
 	"net"
 
 	"github.com/cenkalti/rain/internal/bitfield"
+	"github.com/cenkalti/rain/internal/bufferpool"
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peerconn/peerwriter"
@@ -21,39 +22,40 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 	pe := pm.Peer
 	if t.pieces == nil || t.bitfield == nil {
 		pe.Logger().Error("piece received but we don't have info")
-		t.resumerStats.BytesWasted += int64(len(msg.Data))
+		t.resumerStats.BytesWasted += int64(len(msg.Buffer.Data))
 		t.closePeer(pe)
 		return
 	}
 	if msg.Index >= uint32(len(t.pieces)) {
 		pe.Logger().Errorln("invalid piece index:", msg.Index)
-		t.resumerStats.BytesWasted += int64(len(msg.Data))
+		t.resumerStats.BytesWasted += int64(len(msg.Buffer.Data))
 		t.closePeer(pe)
 		return
 	}
-	t.downloadSpeed.Update(int64(len(msg.Data)))
-	t.resumerStats.BytesDownloaded += int64(len(msg.Data))
+	t.downloadSpeed.Update(int64(len(msg.Buffer.Data)))
+	t.resumerStats.BytesDownloaded += int64(len(msg.Buffer.Data))
 	pd, ok := t.pieceDownloaders[pe]
 	if !ok {
-		t.resumerStats.BytesWasted += int64(len(msg.Data))
-		msg.ReleaseBuffer()
+		t.resumerStats.BytesWasted += int64(len(msg.Buffer.Data))
+		msg.Buffer.Release()
 		return
 	}
 	if pd.Piece.Index != msg.Index {
-		t.resumerStats.BytesWasted += int64(len(msg.Data))
-		msg.ReleaseBuffer()
+		t.resumerStats.BytesWasted += int64(len(msg.Buffer.Data))
+		msg.Buffer.Release()
 		return
 	}
 	piece := pd.Piece
-	block := piece.Blocks.Find(msg.Begin, uint32(len(msg.Data)))
+	block := piece.Blocks.Find(msg.Begin, uint32(len(msg.Buffer.Data)))
 	if block == nil {
-		pe.Logger().Errorln("invalid piece index:", msg.Index, "begin:", msg.Begin, "length:", len(msg.Data))
-		t.resumerStats.BytesWasted += int64(len(msg.Data))
+		pe.Logger().Errorln("invalid piece index:", msg.Index, "begin:", msg.Begin, "length:", len(msg.Buffer.Data))
+		t.resumerStats.BytesWasted += int64(len(msg.Buffer.Data))
 		t.closePeer(pe)
+		msg.Buffer.Release()
 		return
 	}
-	pd.GotBlock(block, msg.Data)
-	msg.ReleaseBuffer()
+	pd.GotBlock(block, msg.Buffer.Data)
+	msg.Buffer.Release()
 	if !pd.Done() {
 		pd.RequestBlocks(t.config.RequestQueueLength)
 		return
@@ -63,7 +65,7 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 	pe.StopSnubTimer()
 
 	piece.Verifying = true
-	pv := pieceverifier.New(piece, pe, pd.Buffer, pd.Piece.Length)
+	pv := pieceverifier.New(piece, pe, pd.Buffer)
 	go pv.Run(t.pieceVerifierResultC, t.doneC)
 }
 
@@ -329,6 +331,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 				break
 			}
 			t.info = info
+			t.piecePool = bufferpool.New(int(info.PieceLength))
 			if t.resume != nil {
 				err = t.resume.WriteInfo(t.info.Bytes)
 				if err != nil {
