@@ -192,16 +192,19 @@ func (p *PeerReader) Run() {
 				n, err = io.ReadFull(p.buf, data)
 				if err != nil {
 					if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
-						// Peer couldn't send the block in allowed time.
+						// Peer didn't send the full block in allowed time.
 						if n == 0 {
+							// Disconnect if no bytes received.
 							return
 						}
+						// Some bytes received, peer appears to be slow, keep receiving the rest.
 						m += n
 						data = data[n:]
 						continue
 					}
 					return
 				}
+				// Received full block.
 				break
 			}
 			msg = Piece{PieceMessage: pm, buffer: buf, Data: data}
