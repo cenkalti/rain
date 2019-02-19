@@ -64,6 +64,9 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 	t.closePieceDownloader(pd)
 	pe.StopSnubTimer()
 
+	// Request next piece while writing the completed piece, being optimistic about hash check.
+	t.startPieceDownloaderFor(pe)
+
 	if piece.Writing {
 		panic("piece is already writing")
 	}

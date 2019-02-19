@@ -131,26 +131,20 @@ func (t *torrent) run() {
 				break
 			}
 
-			// Copy requested peers
-			requestedPeers := t.piecePicker.RequestedPeers(pw.Piece.Index)
-			peers := make([]*peer.Peer, len(requestedPeers))
-			for i := range requestedPeers {
-				peers[i] = requestedPeers[i]
-			}
-
-			if t.piecePicker != nil {
-				for _, pe := range peers {
-					pd2 := t.pieceDownloaders[pe]
-					t.closePieceDownloader(pd2)
-					pd2.CancelPending()
-				}
-			}
-
 			pw.Piece.Done = true
 			if t.bitfield.Test(pw.Piece.Index) {
 				panic("already have the piece")
 			}
 			t.bitfield.Set(pw.Piece.Index)
+
+			if t.piecePicker != nil {
+				for _, pe := range t.piecePicker.RequestedPeers(pw.Piece.Index) {
+					pd2 := t.pieceDownloaders[pe]
+					t.closePieceDownloader(pd2)
+					pd2.CancelPending()
+					t.startPieceDownloaderFor(pe)
+				}
+			}
 
 			// Tell everyone that we have this piece
 			for pe := range t.peers {
@@ -161,12 +155,6 @@ func (t *torrent) run() {
 				}
 				msg := peerprotocol.HaveMessage{Index: pw.Piece.Index}
 				pe.SendMessage(msg)
-			}
-
-			// Start download on current peer first, then canceled peers
-			t.startPieceDownloaderFor(pw.Peer)
-			for _, p := range peers {
-				t.startPieceDownloaderFor(p)
 			}
 
 			completed := t.checkCompletion()
