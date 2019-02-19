@@ -21,7 +21,6 @@ import (
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/piececache"
 	"github.com/cenkalti/rain/internal/piecedownloader"
-	"github.com/cenkalti/rain/internal/pieceverifier"
 	"github.com/cenkalti/rain/internal/piecewriter"
 	"github.com/cenkalti/rain/internal/resourcemanager"
 	"github.com/cenkalti/rain/internal/resumer"
@@ -99,7 +98,6 @@ func (o *options) NewTorrent(infoHash []byte, sto storage.Storage) (*torrent, er
 		peerSnubbedC:              make(chan *peer.Peer),
 		infoDownloaders:           make(map[*peer.Peer]*infodownloader.InfoDownloader),
 		infoDownloadersSnubbed:    make(map[*peer.Peer]*infodownloader.InfoDownloader),
-		pieceVerifierResultC:      make(chan *pieceverifier.PieceVerifier),
 		pieceWriterResultC:        make(chan *piecewriter.PieceWriter),
 		optimisticUnchokedPeers:   make([]*peer.Peer, 0, cfg.OptimisticUnchokedPeers),
 		completeC:                 make(chan struct{}),

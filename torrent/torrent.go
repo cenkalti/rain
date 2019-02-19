@@ -23,7 +23,6 @@ import (
 	"github.com/cenkalti/rain/internal/piececache"
 	"github.com/cenkalti/rain/internal/piecedownloader"
 	"github.com/cenkalti/rain/internal/piecepicker"
-	"github.com/cenkalti/rain/internal/pieceverifier"
 	"github.com/cenkalti/rain/internal/piecewriter"
 	"github.com/cenkalti/rain/internal/resourcemanager"
 	"github.com/cenkalti/rain/internal/resumer"
@@ -113,8 +112,7 @@ type torrent struct {
 	infoDownloaders        map[*peer.Peer]*infodownloader.InfoDownloader
 	infoDownloadersSnubbed map[*peer.Peer]*infodownloader.InfoDownloader
 
-	pieceVerifierResultC chan *pieceverifier.PieceVerifier
-	pieceWriterResultC   chan *piecewriter.PieceWriter
+	pieceWriterResultC chan *piecewriter.PieceWriter
 
 	// Some peers are optimistically unchoked regardless of their download rate.
 	optimisticUnchokedPeers []*peer.Peer

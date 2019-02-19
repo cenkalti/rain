@@ -17,7 +17,6 @@ import (
 	"github.com/cenkalti/rain/internal/peerconn"
 	"github.com/cenkalti/rain/internal/peerprotocol"
 	"github.com/cenkalti/rain/internal/piecedownloader"
-	"github.com/cenkalti/rain/internal/piecewriter"
 )
 
 var errClosed = errors.New("torrent is closed")
@@ -113,51 +112,46 @@ func (t *torrent) run() {
 			case req.Response <- announcer.Response{Torrent: tr}:
 			case <-req.Cancel:
 			}
-		case pv := <-t.pieceVerifierResultC:
-			pv.Piece.Verifying = false
-
-			if !pv.OK {
-				t.resumerStats.BytesWasted += int64(len(pv.Buffer.Data))
-				t.log.Error("received corrupt piece")
-				t.closePeer(pv.Peer)
-				return
-			}
-
-			if pv.Piece.Writing {
-				break
-			}
-			pv.Piece.Writing = true
-
-			if t.piecePicker != nil {
-				for _, pe := range t.piecePicker.RequestedPeers(pv.Piece.Index) {
-					pd2 := t.pieceDownloaders[pe]
-					t.closePieceDownloader(pd2)
-					pd2.CancelPending()
-				}
-			}
-
-			// Prevent receiving piece messages to avoid more than 1 write per torrent.
-			t.pieceMessagesC.Suspend()
-
-			pw := piecewriter.New(pv.Piece, pv.Buffer)
-			go pw.Run(t.pieceWriterResultC, t.doneC)
-
-			t.startPieceDownloaderFor(pv.Peer)
 		case pw := <-t.pieceWriterResultC:
 			pw.Piece.Writing = false
 
 			t.pieceMessagesC.Resume()
 
 			pw.Buffer.Release()
+
+			if !pw.HashOK {
+				t.resumerStats.BytesWasted += int64(len(pw.Buffer.Data))
+				t.log.Error("received corrupt piece")
+				t.closePeer(pw.Peer)
+				t.startPieceDownloaders()
+				return
+			}
 			if pw.Error != nil {
 				t.stop(pw.Error)
 				break
 			}
+
+			// Copy requested peers
+			requestedPeers := t.piecePicker.RequestedPeers(pw.Piece.Index)
+			peers := make([]*peer.Peer, len(requestedPeers))
+			for i := range requestedPeers {
+				peers[i] = requestedPeers[i]
+			}
+
+			if t.piecePicker != nil {
+				for _, pe := range peers {
+					pd2 := t.pieceDownloaders[pe]
+					t.closePieceDownloader(pd2)
+					pd2.CancelPending()
+				}
+			}
+
 			pw.Piece.Done = true
 			if t.bitfield.Test(pw.Piece.Index) {
 				panic("already have the piece")
 			}
 			t.bitfield.Set(pw.Piece.Index)
+
 			// Tell everyone that we have this piece
 			for pe := range t.peers {
 				t.updateInterestedState(pe)
@@ -168,6 +162,13 @@ func (t *torrent) run() {
 				msg := peerprotocol.HaveMessage{Index: pw.Piece.Index}
 				pe.SendMessage(msg)
 			}
+
+			// Start download on current peer first, then canceled peers
+			t.startPieceDownloaderFor(pw.Peer)
+			for _, p := range peers {
+				t.startPieceDownloaderFor(p)
+			}
+
 			completed := t.checkCompletion()
 			if t.resume != nil {
 				if completed {

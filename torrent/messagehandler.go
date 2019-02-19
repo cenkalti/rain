@@ -13,7 +13,7 @@ import (
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peerconn/peerwriter"
 	"github.com/cenkalti/rain/internal/peerprotocol"
-	"github.com/cenkalti/rain/internal/pieceverifier"
+	"github.com/cenkalti/rain/internal/piecewriter"
 	"github.com/cenkalti/rain/internal/tracker"
 )
 
@@ -64,9 +64,16 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 	t.closePieceDownloader(pd)
 	pe.StopSnubTimer()
 
-	piece.Verifying = true
-	pv := pieceverifier.New(piece, pe, pd.Buffer)
-	go pv.Run(t.pieceVerifierResultC, t.doneC)
+	if piece.Writing {
+		panic("piece is already writing")
+	}
+	piece.Writing = true
+
+	// Prevent receiving piece messages to avoid more than 1 write per torrent.
+	t.pieceMessagesC.Suspend()
+
+	pw := piecewriter.New(piece, pe, pd.Buffer)
+	go pw.Run(t.pieceWriterResultC, t.doneC)
 }
 
 func (t *torrent) handlePeerMessage(pm peer.Message) {
