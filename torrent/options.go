@@ -26,6 +26,7 @@ import (
 	"github.com/cenkalti/rain/internal/resourcemanager"
 	"github.com/cenkalti/rain/internal/resumer"
 	"github.com/cenkalti/rain/internal/storage"
+	"github.com/cenkalti/rain/internal/suspendchan"
 	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/internal/verifier"
 	"github.com/rcrowley/go-metrics"
@@ -87,7 +88,7 @@ func (o *options) NewTorrent(infoHash []byte, sto storage.Storage) (*torrent, er
 		log:                       logger.New("torrent " + logName),
 		peerDisconnectedC:         make(chan *peer.Peer),
 		messages:                  make(chan peer.Message),
-		pieceMessages:             make(chan peer.PieceMessage),
+		pieceMessagesC:            suspendchan.New(0),
 		peers:                     make(map[*peer.Peer]struct{}),
 		incomingPeers:             make(map[*peer.Peer]struct{}),
 		outgoingPeers:             make(map[*peer.Peer]struct{}),

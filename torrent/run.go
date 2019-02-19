@@ -136,8 +136,8 @@ func (t *torrent) run() {
 				}
 			}
 
-			t.blockPieceMessages = t.pieceMessages
-			t.pieceMessages = nil
+			// Prevent receiving piece messages to avoid more than 1 write per torrent.
+			t.pieceMessagesC.Suspend()
 
 			pw := piecewriter.New(pv.Piece, pv.Buffer)
 			go pw.Run(t.pieceWriterResultC, t.doneC)
@@ -146,8 +146,7 @@ func (t *torrent) run() {
 		case pw := <-t.pieceWriterResultC:
 			pw.Piece.Writing = false
 
-			t.pieceMessages = t.blockPieceMessages
-			t.blockPieceMessages = nil
+			t.pieceMessagesC.Resume()
 
 			pw.Buffer.Release()
 			if pw.Error != nil {
@@ -223,8 +222,8 @@ func (t *torrent) run() {
 			t.startPeer(pe, oh.Source, t.outgoingPeers, oh.PeerID, oh.Extensions, oh.Cipher)
 		case pe := <-t.peerDisconnectedC:
 			t.closePeer(pe)
-		case pm := <-t.pieceMessages:
-			t.handlePieceMessage(pm)
+		case pm := <-t.pieceMessagesC.ReceiveC():
+			t.handlePieceMessage(pm.(peer.PieceMessage))
 		case pm := <-t.messages:
 			t.handlePeerMessage(pm)
 		}
@@ -387,7 +386,7 @@ func (t *torrent) startPeer(
 	if t.info != nil {
 		pe.Bitfield = bitfield.New(t.info.NumPieces)
 	}
-	go pe.Run(t.messages, t.pieceMessages, t.peerSnubbedC, t.peerDisconnectedC)
+	go pe.Run(t.messages, t.pieceMessagesC.SendC(), t.peerSnubbedC, t.peerDisconnectedC)
 
 	t.sendFirstMessage(pe)
 	if len(t.peers) <= 4 {

@@ -28,6 +28,7 @@ import (
 	"github.com/cenkalti/rain/internal/resourcemanager"
 	"github.com/cenkalti/rain/internal/resumer"
 	"github.com/cenkalti/rain/internal/storage"
+	"github.com/cenkalti/rain/internal/suspendchan"
 	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/internal/verifier"
 	"github.com/rcrowley/go-metrics"
@@ -87,10 +88,7 @@ type torrent struct {
 	peerDisconnectedC chan *peer.Peer
 
 	// Piece messages coming from peers are sent this channel.
-	pieceMessages chan peer.PieceMessage
-
-	// To limit parallel writes to disk, pieceMessages is set to nil when a piece has started writing to disk.
-	blockPieceMessages chan peer.PieceMessage
+	pieceMessagesC *suspendchan.Chan
 
 	// Other messages coming from peers are sent to this channel.
 	messages chan peer.Message
