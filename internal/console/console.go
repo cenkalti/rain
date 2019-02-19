@@ -40,8 +40,8 @@ type Console struct {
 func New(clt *rainrpc.Client) *Console {
 	return &Console{
 		client:          clt,
-		updateTorrentsC: make(chan struct{}),
-		updateDetailsC:  make(chan struct{}),
+		updateTorrentsC: make(chan struct{}, 1),
+		updateDetailsC:  make(chan struct{}, 1),
 	}
 }
 
@@ -171,19 +171,20 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 }
 
 func (c *Console) updateLoop(g *gocui.Gui) {
-	c.updateTorrents(g)
-	c.updateDetails(g)
-
 	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	c.triggerUpdateTorrents()
 	for {
+
 		select {
 		case <-ticker.C:
-			c.updateTorrents(g)
-			c.updateDetails(g)
+			c.triggerUpdateTorrents()
+			c.triggerUpdateDetails()
 		case <-c.updateTorrentsC:
 			c.updateTorrents(g)
 		case <-c.updateDetailsC:
-			c.updateDetails(g)
+			go c.updateDetails(g)
 		}
 	}
 }
@@ -253,8 +254,11 @@ func (c *Console) updateDetails(g *gocui.Gui) {
 	}
 
 	c.m.Lock()
+	defer c.m.Unlock()
 	c.updatingDetails = false
-	c.m.Unlock()
+	if selectedID != c.selectedID {
+		return
+	}
 	g.Update(c.drawDetails)
 }
 
