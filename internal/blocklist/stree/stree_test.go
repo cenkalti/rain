@@ -4,24 +4,31 @@
 
 package stree
 
-import (
-	"testing"
-)
+import "testing"
+
+func TestEmptyTree(t *testing.T) {
+	var tree Stree
+	tree.Build()
+	result := tree.query(0, 0)
+	if len(result) != 0 {
+		t.Errorf("fail query empty tree")
+	}
+	result = tree.query(2, 3)
+	if len(result) != 0 {
+		t.Errorf("fail query empty tree")
+	}
+}
 
 func TestMinimalTree(t *testing.T) {
 	var tree Stree
 	tree.AddRange(3, 7)
 	tree.Build()
-	fail := false
 	result := tree.query(1, 2)
 	if len(result) != 0 {
-		fail = true
+		t.Errorf("fail query minimal tree")
 	}
 	result = tree.query(2, 3)
 	if len(result) != 1 {
-		fail = true
-	}
-	if fail {
 		t.Errorf("fail query minimal tree")
 	}
 }

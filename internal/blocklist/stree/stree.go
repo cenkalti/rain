@@ -36,6 +36,9 @@ func (t *Stree) Clear() {
 
 // Build segment tree out of interval stack
 func (t *Stree) Build() {
+	if len(t.base) == 0 {
+		return
+	}
 	var es []ValueType
 	es, t.min, t.max = endpoints(t.base)
 	// Create tree nodes from interval endpoints
