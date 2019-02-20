@@ -193,6 +193,7 @@ func (s *Session) processDHTResults() {
 					select {
 					case t.dhtAnnouncer.peersC <- addrs:
 					case <-t.removed:
+					default:
 					}
 				}
 			}

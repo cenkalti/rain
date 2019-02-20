@@ -18,7 +18,7 @@ func newDHTAnnouncer(node *node.DHT, infoHash []byte, port int) *dhtAnnouncer {
 		node:     node,
 		infoHash: string(infoHash),
 		port:     port,
-		peersC:   make(chan []*net.TCPAddr),
+		peersC:   make(chan []*net.TCPAddr, 1),
 	}
 }
 
