@@ -76,21 +76,33 @@ func (r *Resumer) Write(spec *Spec) error {
 
 func (r *Resumer) WriteInfo(value []byte) error {
 	return r.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(r.mainBucket).Bucket(r.subBucket)
+		b := tx.Bucket(r.mainBucket)
+		if b == nil {
+			return nil
+		}
+		b = b.Bucket(r.subBucket)
 		return b.Put(infoKey, value)
 	})
 }
 
 func (r *Resumer) WriteBitfield(value []byte) error {
 	return r.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(r.mainBucket).Bucket(r.subBucket)
+		b := tx.Bucket(r.mainBucket)
+		if b == nil {
+			return nil
+		}
+		b = b.Bucket(r.subBucket)
 		return b.Put(bitfieldKey, value)
 	})
 }
 
 func (r *Resumer) WriteStats(s resumer.Stats) error {
 	return r.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(r.mainBucket).Bucket(r.subBucket)
+		b := tx.Bucket(r.mainBucket)
+		if b == nil {
+			return nil
+		}
+		b = b.Bucket(r.subBucket)
 		b.Put(bytesDownloadedKey, []byte(strconv.FormatInt(s.BytesDownloaded, 10)))
 		b.Put(bytesUploadedKey, []byte(strconv.FormatInt(s.BytesUploaded, 10)))
 		b.Put(bytesWastedKey, []byte(strconv.FormatInt(s.BytesWasted, 10)))
