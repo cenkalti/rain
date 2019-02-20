@@ -237,7 +237,16 @@ func (a *announcer) Cancel() {
 	}
 }
 
-func announce(trk tracker.Tracker, e tracker.Event, numWant int, requestC chan *Request, newPeers chan []*net.TCPAddr, responseC chan *tracker.AnnounceResponse, errC chan error, stopC, doneC chan struct{}) {
+func announce(
+	trk tracker.Tracker,
+	e tracker.Event,
+	numWant int,
+	requestC chan *Request,
+	newPeers chan []*net.TCPAddr,
+	responseC chan *tracker.AnnounceResponse,
+	errC chan error,
+	stopC, doneC chan struct{},
+) {
 	defer close(doneC)
 
 	ctx, cancel := context.WithCancel(context.Background())
