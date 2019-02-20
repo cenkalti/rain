@@ -503,6 +503,10 @@ func flags(p rpctypes.Peer) string {
 }
 
 func printableID(id string) string {
+	return asciify(clientID(id))
+}
+
+func clientID(id string) string {
 	// ID follows BEP 20 convention
 	if id[7] == '-' {
 		return string(id[:8])
@@ -516,7 +520,11 @@ func printableID(id string) string {
 		}
 	}
 
-	// Replace non-ascii characters with '_'
+	return id
+}
+
+// asciify replaces non-ascii characters with '_'.
+func asciify(id string) string {
 	b := []byte(id)
 	for i, val := range b {
 		if val >= 32 && val < 127 {
