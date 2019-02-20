@@ -1,6 +1,7 @@
 package blocklist
 
 import (
+	"bytes"
 	"net"
 	"os"
 	"path/filepath"
@@ -35,6 +36,24 @@ func TestContains(t *testing.T) {
 	t.Logf("loaded %d values", n)
 	if !b.Blocked(net.ParseIP("6.1.2.3")) {
 		t.Errorf("must contain")
+	}
+	if b.Blocked(net.ParseIP("176.240.195.107")) {
+		t.Errorf("must not contain")
+	}
+}
+
+func TestEmptyList(t *testing.T) {
+	r := bytes.NewReader(make([]byte, 0))
+	b := New()
+	n, err := b.Reload(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Fatalf("loaded %d values", n)
+	}
+	if b.Blocked(net.ParseIP("0.0.0.0")) {
+		t.Errorf("must not contain")
 	}
 	if b.Blocked(net.ParseIP("176.240.195.107")) {
 		t.Errorf("must not contain")
