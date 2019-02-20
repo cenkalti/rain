@@ -267,7 +267,9 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 }
 
 func (c *Console) switchRow(v *gocui.View, row int) error {
-	if row < 0 {
+	if len(c.torrents) == 0 {
+		return nil
+	} else if row < 0 {
 		row = 0
 	} else if row >= len(c.torrents) {
 		row = len(c.torrents) - 1
