@@ -181,7 +181,7 @@ func (c *Console) updateLoop(g *gocui.Gui) {
 		select {
 		case <-ticker.C:
 			c.triggerUpdateTorrents()
-			c.triggerUpdateDetails()
+			c.triggerUpdateDetails(false)
 		case <-c.updateTorrentsC:
 			c.updateTorrents(g)
 		case <-c.updateDetailsC:
@@ -374,7 +374,7 @@ func (c *Console) setSelectedID(id string) {
 	changed := id != c.selectedID
 	c.selectedID = id
 	if changed {
-		c.triggerUpdateDetails()
+		c.triggerUpdateDetails(true)
 	}
 }
 
@@ -387,7 +387,7 @@ func (c *Console) startTorrent(g *gocui.Gui, v *gocui.View) error {
 	if err != nil {
 		return err
 	}
-	c.triggerUpdateDetails()
+	c.triggerUpdateDetails(true)
 	return nil
 }
 
@@ -400,7 +400,7 @@ func (c *Console) stopTorrent(g *gocui.Gui, v *gocui.View) error {
 	if err != nil {
 		return err
 	}
-	c.triggerUpdateDetails()
+	c.triggerUpdateDetails(true)
 	return nil
 }
 
@@ -408,7 +408,7 @@ func (c *Console) switchGeneral(g *gocui.Gui, v *gocui.View) error {
 	c.m.Lock()
 	c.selectedTab = general
 	c.m.Unlock()
-	c.triggerUpdateDetails()
+	c.triggerUpdateDetails(true)
 	return nil
 }
 
@@ -416,7 +416,7 @@ func (c *Console) switchTrackers(g *gocui.Gui, v *gocui.View) error {
 	c.m.Lock()
 	c.selectedTab = trackers
 	c.m.Unlock()
-	c.triggerUpdateDetails()
+	c.triggerUpdateDetails(true)
 	return nil
 }
 
@@ -424,12 +424,14 @@ func (c *Console) switchPeers(g *gocui.Gui, v *gocui.View) error {
 	c.m.Lock()
 	c.selectedTab = peers
 	c.m.Unlock()
-	c.triggerUpdateDetails()
+	c.triggerUpdateDetails(true)
 	return nil
 }
 
-func (c *Console) triggerUpdateDetails() {
-	c.updatingDetails = true
+func (c *Console) triggerUpdateDetails(clear bool) {
+	if clear {
+		c.updatingDetails = true
+	}
 	select {
 	case c.updateDetailsC <- struct{}{}:
 	default:
