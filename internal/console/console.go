@@ -1,7 +1,6 @@
 package console
 
 import (
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -107,17 +106,16 @@ func (c *Console) drawTorrents(g *gocui.Gui) error {
 		v.Clear()
 		if c.errTorrents != nil {
 			fmt.Fprintln(v, "error:", c.errTorrents)
-			c.selectedID = ""
-		} else {
-			for _, t := range c.torrents {
-				fmt.Fprintf(v, "%s %s %5d %s\n", t.ID, t.InfoHash, t.Port, t.Name)
-			}
-			_, cy := v.Cursor()
-			_, oy := v.Origin()
-			selectedRow := cy + oy
-			if selectedRow < len(c.torrents) {
-				c.setSelectedID(c.torrents[selectedRow].ID)
-			}
+			return nil
+		}
+		for _, t := range c.torrents {
+			fmt.Fprintf(v, "%s %s %5d %s\n", t.ID, t.InfoHash, t.Port, t.Name)
+		}
+		_, cy := v.Cursor()
+		_, oy := v.Origin()
+		selectedRow := cy + oy
+		if selectedRow < len(c.torrents) {
+			c.setSelectedID(c.torrents[selectedRow].ID)
 		}
 	}
 	return nil
@@ -137,33 +135,36 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 		fmt.Fprintln(v, "loading details...")
 	} else {
 		v.Clear()
+		if c.selectedID == "" {
+			return nil
+		}
 		if c.updatingDetails {
 			fmt.Fprintln(v, "refreshing...")
 			return nil
 		}
 		if c.errDetails != nil {
 			fmt.Fprintln(v, "error:", c.errDetails)
-		} else {
-			switch c.selectedTab {
-			case general:
-				b, err := jsonutil.MarshalCompactPretty(c.stats)
-				if err != nil {
-					fmt.Fprintln(v, "error:", c.errDetails)
-				} else {
-					fmt.Fprintln(v, string(b))
+			return nil
+		}
+		switch c.selectedTab {
+		case general:
+			b, err := jsonutil.MarshalCompactPretty(c.stats)
+			if err != nil {
+				fmt.Fprintln(v, "error:", c.errDetails)
+			} else {
+				fmt.Fprintln(v, string(b))
+			}
+		case trackers:
+			for i, t := range c.trackers {
+				fmt.Fprintf(v, "#%d %s\n", i, t.URL)
+				fmt.Fprintf(v, "    Status: %s, Seeders: %d, Leechers: %d\n", t.Status, t.Seeders, t.Leechers)
+				if t.Error != nil {
+					fmt.Fprintf(v, "    Error: %s\n", *t.Error)
 				}
-			case trackers:
-				for i, t := range c.trackers {
-					fmt.Fprintf(v, "#%d %s\n", i, t.URL)
-					fmt.Fprintf(v, "    Status: %s, Seeders: %d, Leechers: %d\n", t.Status, t.Seeders, t.Leechers)
-					if t.Error != nil {
-						fmt.Fprintf(v, "    Error: %s\n", *t.Error)
-					}
-				}
-			case peers:
-				for i, p := range c.peers {
-					fmt.Fprintf(v, "#%s Addr: %21s Flags: %s DL: %5d KiB/s UL: %5d KiB/s ID: %s\n", fmt.Sprintf("%2d", i), p.Addr, flags(p), p.DownloadSpeed/1024, p.UploadSpeed/1024, printableID(p.ID))
-				}
+			}
+		case peers:
+			for i, p := range c.peers {
+				fmt.Fprintf(v, "#%s Addr: %21s Flags: %s DL: %5d KiB/s UL: %5d KiB/s ID: %s\n", fmt.Sprintf("%2d", i), p.Addr, flags(p), p.DownloadSpeed/1024, p.UploadSpeed/1024, printableID(p.ID))
 			}
 		}
 	}
@@ -218,38 +219,36 @@ func (c *Console) updateDetails(g *gocui.Gui) {
 	selectedID := c.selectedID
 	c.m.Unlock()
 
-	if selectedID != "" {
-		switch c.selectedTab {
-		case general:
-			stats, err := c.client.GetTorrentStats(selectedID)
-			c.m.Lock()
-			c.stats = *stats
-			c.errDetails = err
-			c.m.Unlock()
-		case trackers:
-			trackers, err := c.client.GetTorrentTrackers(selectedID)
-			sort.Slice(trackers, func(i, j int) bool { return trackers[i].URL < trackers[j].URL })
-			c.m.Lock()
-			c.trackers = trackers
-			c.errDetails = err
-			c.m.Unlock()
-		case peers:
-			peers, err := c.client.GetTorrentPeers(selectedID)
-			sort.Slice(peers, func(i, j int) bool {
-				a, b := peers[i], peers[j]
-				if a.ConnectedAt.Equal(b.ConnectedAt.Time) {
-					return a.Addr < b.Addr
-				}
-				return a.ConnectedAt.Time.Before(b.ConnectedAt.Time)
-			})
-			c.m.Lock()
-			c.peers = peers
-			c.errDetails = err
-			c.m.Unlock()
-		}
-	} else {
+	if selectedID == "" {
+		return
+	}
+
+	switch c.selectedTab {
+	case general:
+		stats, err := c.client.GetTorrentStats(selectedID)
 		c.m.Lock()
-		c.errDetails = errors.New("no torrent selected")
+		c.stats = *stats
+		c.errDetails = err
+		c.m.Unlock()
+	case trackers:
+		trackers, err := c.client.GetTorrentTrackers(selectedID)
+		sort.Slice(trackers, func(i, j int) bool { return trackers[i].URL < trackers[j].URL })
+		c.m.Lock()
+		c.trackers = trackers
+		c.errDetails = err
+		c.m.Unlock()
+	case peers:
+		peers, err := c.client.GetTorrentPeers(selectedID)
+		sort.Slice(peers, func(i, j int) bool {
+			a, b := peers[i], peers[j]
+			if a.ConnectedAt.Equal(b.ConnectedAt.Time) {
+				return a.Addr < b.Addr
+			}
+			return a.ConnectedAt.Time.Before(b.ConnectedAt.Time)
+		})
+		c.m.Lock()
+		c.peers = peers
+		c.errDetails = err
 		c.m.Unlock()
 	}
 
