@@ -2,6 +2,7 @@ package torrent
 
 import (
 	"bytes"
+	"compress/gzip"
 	"errors"
 	"io"
 	"net/http"
@@ -86,8 +87,18 @@ func (s *Session) reloadBlocklist() error {
 		return errors.New("invalid blocklist status code")
 	}
 
+	var r io.Reader = resp.Body
+	if resp.Header.Get("content-type") == "application/x-gzip" {
+		gr, gerr := gzip.NewReader(r)
+		if gerr != nil {
+			return gerr
+		}
+		defer gr.Close()
+		r = gr
+	}
+
 	buf := bytes.NewBuffer(make([]byte, 0, resp.ContentLength))
-	r := io.TeeReader(resp.Body, buf)
+	r = io.TeeReader(r, buf)
 
 	n, err := s.blocklist.Reload(r)
 	if err != nil {
