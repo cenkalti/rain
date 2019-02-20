@@ -160,28 +160,30 @@ func (t *torrent) stats() Stats {
 		s.Pieces.Have = t.bitfield.Count()
 		s.Pieces.Missing = s.Pieces.Total - s.Pieces.Have
 	}
-	bps := int64(s.Speed.Download)
-	if bps != 0 {
-		eta := time.Duration(s.Bytes.Incomplete/bps) * time.Second
-		switch {
-		case eta > 8*time.Hour:
-			eta = eta.Round(time.Hour)
-		case eta > 4*time.Hour:
-			eta = eta.Round(30 * time.Minute)
-		case eta > 2*time.Hour:
-			eta = eta.Round(15 * time.Minute)
-		case eta > time.Hour:
-			eta = eta.Round(5 * time.Minute)
-		case eta > 30*time.Minute:
-			eta = eta.Round(1 * time.Minute)
-		case eta > 15*time.Minute:
-			eta = eta.Round(30 * time.Second)
-		case eta > 5*time.Minute:
-			eta = eta.Round(15 * time.Second)
-		case eta > time.Minute:
-			eta = eta.Round(5 * time.Second)
+	if s.Status == Downloading {
+		bps := int64(s.Speed.Download)
+		if bps != 0 {
+			eta := time.Duration(s.Bytes.Incomplete/bps) * time.Second
+			switch {
+			case eta > 8*time.Hour:
+				eta = eta.Round(time.Hour)
+			case eta > 4*time.Hour:
+				eta = eta.Round(30 * time.Minute)
+			case eta > 2*time.Hour:
+				eta = eta.Round(15 * time.Minute)
+			case eta > time.Hour:
+				eta = eta.Round(5 * time.Minute)
+			case eta > 30*time.Minute:
+				eta = eta.Round(1 * time.Minute)
+			case eta > 15*time.Minute:
+				eta = eta.Round(30 * time.Second)
+			case eta > 5*time.Minute:
+				eta = eta.Round(15 * time.Second)
+			case eta > time.Minute:
+				eta = eta.Round(5 * time.Second)
+			}
+			s.ETA = &eta
 		}
-		s.ETA = &eta
 	}
 	return s
 }
