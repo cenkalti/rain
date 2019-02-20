@@ -572,24 +572,36 @@ func (s *Session) GetTorrent(id string) *Torrent {
 }
 
 func (s *Session) RemoveTorrent(id string) error {
+	t, err := s.removeTorrentFromClient(id)
+	if t != nil {
+		go s.stopAndRemoveData(t)
+	}
+	return err
+}
+
+func (s *Session) removeTorrentFromClient(id string) (*Torrent, error) {
 	s.m.Lock()
 	defer s.m.Unlock()
 	t, ok := s.torrents[id]
 	if !ok {
-		return nil
+		return nil, nil
 	}
 	close(t.removed)
-	t.torrent.Close()
 	delete(s.torrents, id)
 	delete(s.torrentsByInfoHash, dht.InfoHash(t.torrent.InfoHash()))
-	s.releasePort(t.port)
-	err := s.db.Update(func(tx *bolt.Tx) error {
+	return t, s.db.Update(func(tx *bolt.Tx) error {
 		return tx.Bucket(torrentsBucket).DeleteBucket([]byte(id))
 	})
+}
+
+func (s *Session) stopAndRemoveData(t *Torrent) {
+	t.torrent.Close()
+	s.releasePort(t.port)
+	dest := t.torrent.storage.(*filestorage.FileStorage).Dest()
+	err := os.RemoveAll(dest)
 	if err != nil {
-		return err
+		s.log.Errorf("cannot remove torrent data. err: %s dest: %s", err, dest)
 	}
-	return os.RemoveAll(t.torrent.storage.(*filestorage.FileStorage).Dest())
 }
 
 func (s *Session) Stats() SessionStats {
