@@ -267,6 +267,12 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 }
 
 func (c *Console) switchRow(v *gocui.View, row int) error {
+	if row < 0 {
+		row = 0
+	} else if row >= len(c.torrents) {
+		row = len(c.torrents) - 1
+	}
+
 	_, cy := v.Cursor()
 	_, oy := v.Origin()
 	_, height := v.Size()
@@ -298,7 +304,6 @@ func (c *Console) switchRow(v *gocui.View, row int) error {
 		v.SetCursor(0, row)
 	}
 
-	c.updatingDetails = true
 	c.setSelectedID(c.torrents[row].ID)
 	return nil
 }
@@ -311,10 +316,9 @@ func (c *Console) cursorDown(g *gocui.Gui, v *gocui.View) error {
 	_, oy := v.Origin()
 
 	row := cy + oy + 1
-	if row >= len(c.torrents) {
+	if row == len(c.torrents) {
 		return nil
 	}
-
 	return c.switchRow(v, row)
 }
 
@@ -326,10 +330,9 @@ func (c *Console) cursorUp(g *gocui.Gui, v *gocui.View) error {
 	_, oy := v.Origin()
 
 	row := cy + oy - 1
-	if row < 0 {
+	if row == -1 {
 		return nil
 	}
-
 	return c.switchRow(v, row)
 }
 
@@ -425,6 +428,7 @@ func (c *Console) switchPeers(g *gocui.Gui, v *gocui.View) error {
 }
 
 func (c *Console) triggerUpdateDetails() {
+	c.updatingDetails = true
 	select {
 	case c.updateDetailsC <- struct{}{}:
 	default:
