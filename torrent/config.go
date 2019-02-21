@@ -154,7 +154,7 @@ var DefaultConfig = Config{
 	PeerConnectTimeout:           5 * time.Second,
 	PeerHandshakeTimeout:         10 * time.Second,
 	PieceReadTimeout:             30 * time.Second,
-	PeerReadBufferSize:           16 * 1024,
+	PeerReadBufferSize:           17,
 	MaxPeerAddresses:             2000,
 
 	// Piece cache
