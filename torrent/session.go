@@ -340,6 +340,8 @@ func (s *Session) hasStarted(id string) (bool, error) {
 }
 
 func (s *Session) Close() error {
+	close(s.closeC)
+
 	if s.config.DHTEnabled {
 		s.dht.Stop()
 	}

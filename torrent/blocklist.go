@@ -3,6 +3,7 @@ package torrent
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -77,7 +78,23 @@ func (s *Session) retryReloadBlocklist() {
 }
 
 func (s *Session) reloadBlocklist() error {
-	resp, err := http.Get(s.config.BlocklistURL)
+	req, err := http.NewRequest(http.MethodGet, s.config.BlocklistURL, nil)
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		select {
+		case <-s.closeC:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+	req = req.WithContext(ctx)
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
 	}
