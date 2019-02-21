@@ -17,8 +17,7 @@ import (
 )
 
 const (
-	// maxBlockSize is the max size of block data that we accept from peers.
-	maxBlockSize = 32 * 1024
+	maxBlockSize = 16 * 1024
 	// time to wait for a message. peer must send keep-alive messages to keep connection alive.
 	readTimeout = 2 * time.Minute
 )
@@ -167,7 +166,7 @@ func (p *PeerReader) Run() {
 				return
 			}
 			if cm.Length > maxBlockSize {
-				err = errors.New("received a cancel with block size larger than allowed")
+				err = fmt.Errorf("received a cancel with block size larger than allowed (%d > %d)", cm.Length, maxBlockSize)
 				return
 			}
 			msg = cm
