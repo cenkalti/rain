@@ -59,10 +59,6 @@
   version = "1.0.0"
 
 [[constraint]]
-  name = "github.com/satori/go.uuid"
-  version = "1.2.0"
-
-[[constraint]]
   branch = "master"
   name = "github.com/google/btree"
 
@@ -73,3 +69,7 @@
 [[constraint]]
   branch = "master"
   name = "github.com/rcrowley/go-metrics"
+
+[[constraint]]
+  name = "github.com/gofrs/uuid"
+  version = "3.2.0"

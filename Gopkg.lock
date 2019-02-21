@@ -95,6 +95,14 @@
   version = "v1.1.0"
 
 [[projects]]
+  digest = "1:bed9d72d596f94e65fff37f4d6c01398074a6bb1c3f3ceff963516bd01db6ff5"
+  name = "github.com/gofrs/uuid"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "6b08a5c5172ba18946672b49749cde22873dd7c2"
+  version = "v3.2.0"
+
+[[projects]]
   branch = "master"
   digest = "1:3fb07f8e222402962fa190eb060608b34eddfb64562a18e2167df2de0ece85d8"
   name = "github.com/golang/groupcache"
@@ -320,14 +328,6 @@
   revision = "3113b8401b8a98917cde58f8bbd42a1b1c03b1fd"
 
 [[projects]]
-  digest = "1:274f67cb6fed9588ea2521ecdac05a6d62a8c51c074c1fccc6a49a40ba80e925"
-  name = "github.com/satori/go.uuid"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "f58768cc1a7a7e77a3bd49e98cdd21419399b6a3"
-  version = "v1.2.0"
-
-[[projects]]
   digest = "1:69b1cc331fca23d702bd72f860c6a647afd0aa9fcbc1d0659b1365e26546dd70"
   name = "github.com/sirupsen/logrus"
   packages = ["."]
@@ -411,6 +411,7 @@
     "github.com/chihaya/chihaya/storage",
     "github.com/chihaya/chihaya/storage/memory",
     "github.com/fatih/structs",
+    "github.com/gofrs/uuid",
     "github.com/google/btree",
     "github.com/hokaccha/go-prettyjson",
     "github.com/jroimartin/gocui",
@@ -418,7 +419,6 @@
     "github.com/nictuku/dht",
     "github.com/powerman/rpc-codec/jsonrpc2",
     "github.com/rcrowley/go-metrics",
-    "github.com/satori/go.uuid",
     "github.com/stretchr/testify/assert",
     "github.com/urfave/cli",
     "github.com/zeebo/bencode",

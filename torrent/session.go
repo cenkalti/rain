@@ -27,9 +27,9 @@ import (
 	"github.com/cenkalti/rain/internal/storage/filestorage"
 	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/internal/trackermanager"
+	"github.com/gofrs/uuid"
 	"github.com/mitchellh/go-homedir"
 	"github.com/nictuku/dht"
-	"github.com/satori/go.uuid"
 )
 
 var (
@@ -511,7 +511,10 @@ func (s *Session) add() (*options, *filestorage.FileStorage, string, error) {
 			s.releasePort(port)
 		}
 	}()
-	u1 := uuid.NewV1()
+	u1, err := uuid.NewV1()
+	if err != nil {
+		return nil, nil, "", err
+	}
 	id := base64.RawURLEncoding.EncodeToString(u1[:])
 	res, err := boltdbresumer.New(s.db, torrentsBucket, []byte(id))
 	if err != nil {
