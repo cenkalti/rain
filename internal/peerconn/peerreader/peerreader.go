@@ -181,29 +181,10 @@ func (p *PeerReader) Run() {
 				err = fmt.Errorf("received a piece with block size larger than allowed (%d > %d)", length, piece.BlockSize)
 				return
 			}
-			buf := blockPool.Get(int(length))
-			var m int
-			for {
-				err = p.conn.SetReadDeadline(time.Now().Add(p.pieceTimeout))
-				if err != nil {
-					return
-				}
-				n, rerr := io.ReadFull(p.buf, buf.Data[m:])
-				if rerr != nil {
-					if nerr, ok := rerr.(net.Error); ok && nerr.Timeout() {
-						// Peer didn't send the full block in allowed time.
-						if n == 0 {
-							// Disconnect if no bytes received.
-							return
-						}
-						// Some bytes received, peer appears to be slow, keep receiving the rest.
-						m += n
-						continue
-					}
-					return
-				}
-				// Received full block.
-				break
+			var buf bufferpool.Buffer
+			buf, err = p.readPiece(length)
+			if err != nil {
+				return
 			}
 			msg = Piece{PieceMessage: pm, Buffer: buf}
 		case peerprotocol.HaveAll:
@@ -259,4 +240,38 @@ func (p *PeerReader) Run() {
 			return
 		}
 	}
+}
+
+func (p *PeerReader) readPiece(length uint32) (buf bufferpool.Buffer, err error) {
+	buf = blockPool.Get(int(length))
+	defer func() {
+		if err != nil {
+			buf.Release()
+		}
+	}()
+
+	var m int
+	for {
+		err = p.conn.SetReadDeadline(time.Now().Add(p.pieceTimeout))
+		if err != nil {
+			return
+		}
+		n, rerr := io.ReadFull(p.buf, buf.Data[m:])
+		if rerr != nil {
+			if nerr, ok := rerr.(net.Error); ok && nerr.Timeout() {
+				// Peer didn't send the full block in allowed time.
+				if n == 0 {
+					// Disconnect if no bytes received.
+					return
+				}
+				// Some bytes received, peer appears to be slow, keep receiving the rest.
+				m += n
+				continue
+			}
+			return
+		}
+		// Received full block.
+		break
+	}
+	return
 }
