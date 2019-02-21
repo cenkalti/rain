@@ -95,6 +95,14 @@
   version = "v1.1.0"
 
 [[projects]]
+  digest = "1:547f5df5f708c880f0af507317c8d022b8d62053a5cb075e23c6eeed09eb2e4e"
+  name = "github.com/fortytw2/leaktest"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "9a23578d06a26ec1b47bfc8965bf5e7011df8bd6"
+  version = "v1.3.0"
+
+[[projects]]
   digest = "1:bed9d72d596f94e65fff37f4d6c01398074a6bb1c3f3ceff963516bd01db6ff5"
   name = "github.com/gofrs/uuid"
   packages = ["."]
@@ -411,6 +419,7 @@
     "github.com/chihaya/chihaya/storage",
     "github.com/chihaya/chihaya/storage/memory",
     "github.com/fatih/structs",
+    "github.com/fortytw2/leaktest",
     "github.com/gofrs/uuid",
     "github.com/google/btree",
     "github.com/hokaccha/go-prettyjson",

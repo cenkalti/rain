@@ -14,6 +14,7 @@ import (
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/storage/filestorage"
+	"github.com/fortytw2/leaktest"
 )
 
 var (
@@ -37,6 +38,8 @@ func newFileStorage(t *testing.T, dir string) *filestorage.FileStorage {
 }
 
 func TestDownloadMagnet(t *testing.T) {
+	defer leaktest.Check(t)()
+
 	where, err := ioutil.TempDir("", "rain-")
 	if err != nil {
 		t.Fatal(err)
