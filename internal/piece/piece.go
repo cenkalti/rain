@@ -9,15 +9,23 @@ import (
 	"github.com/cenkalti/rain/internal/storage"
 )
 
+const BlockSize = 16 * 1024
+
 // Piece of a torrent.
 type Piece struct {
-	Index   uint32 // index in torrent
-	Length  uint32 // always equal to Info.PieceLength except last piece
-	Blocks  Blocks
+	Index   uint32            // index in torrent
+	Length  uint32            // always equal to Info.PieceLength except last piece
 	Data    filesection.Piece // the place to write downloaded bytes
 	Hash    []byte
 	Writing bool
 	Done    bool
+}
+
+// Block is part of a Piece that is specified in peerprotocol.Request messages.
+type Block struct {
+	Index  int    // index in piece
+	Begin  uint32 // offset in piece
+	Length uint32 // always equal to BlockSize except the last block of a piece.
 }
 
 func NewPieces(info *metainfo.Info, files []storage.File) []Piece {
@@ -80,10 +88,51 @@ func NewPieces(info *metainfo.Info, files []storage.File) []Piece {
 		}
 
 		p.Data = sections
-		p.Blocks = newBlocks(p.Length)
 		pieces[i] = p
 	}
 	return pieces
+}
+
+func (p *Piece) NumBlocks() int {
+	div, mod := divMod32(p.Length, BlockSize)
+	numBlocks := div
+	if mod != 0 {
+		numBlocks++
+	}
+	return int(numBlocks)
+}
+
+func (p *Piece) GetBlock(i int) (b Block, ok bool) {
+	n := p.NumBlocks()
+	if i >= n {
+		return
+	}
+	var blen uint32
+	if i == n-1 {
+		blen = p.Length % BlockSize
+	} else {
+		blen = BlockSize
+	}
+	return Block{
+		Index:  i,
+		Begin:  uint32(i) * BlockSize,
+		Length: blen,
+	}, true
+}
+
+func (p *Piece) FindBlock(begin, length uint32) (b Block, ok bool) {
+	idx, mod := divMod32(begin, BlockSize)
+	if mod != 0 {
+		return
+	}
+	b, ok = p.GetBlock(int(idx))
+	if !ok {
+		return
+	}
+	if b.Length != length {
+		return
+	}
+	return b, true
 }
 
 func (p *Piece) VerifyHash(buf []byte, h hash.Hash) bool {

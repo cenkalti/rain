@@ -13,28 +13,28 @@ type PieceDownloader struct {
 	Peer   *peer.Peer
 	Buffer bufferpool.Buffer
 
-	unrequested []uint32
-	requested   map[uint32]struct{}
-	done        map[uint32]struct{}
+	unrequested []int
+	requested   map[int]struct{}
+	done        map[int]struct{}
 }
 
 type pieceReaderResult struct {
-	BlockIndex uint32
+	BlockIndex int
 	Error      error
 }
 
 func New(pi *piece.Piece, pe *peer.Peer, buf bufferpool.Buffer) *PieceDownloader {
-	unrequested := make([]uint32, len(pi.Blocks))
+	unrequested := make([]int, pi.NumBlocks())
 	for i := range unrequested {
-		unrequested[i] = uint32(i)
+		unrequested[i] = int(i)
 	}
 	return &PieceDownloader{
 		Piece:       pi,
 		Peer:        pe,
 		Buffer:      buf,
 		unrequested: unrequested,
-		requested:   make(map[uint32]struct{}),
-		done:        make(map[uint32]struct{}),
+		requested:   make(map[int]struct{}),
+		done:        make(map[int]struct{}),
 	}
 }
 
@@ -45,7 +45,7 @@ func (d *PieceDownloader) Choked() {
 	}
 }
 
-func (d *PieceDownloader) GotBlock(block *piece.Block, data []byte) {
+func (d *PieceDownloader) GotBlock(block piece.Block, data []byte) {
 	if _, ok := d.done[block.Index]; ok {
 		d.Peer.Logger().Warningln("received duplicate block:", block.Index)
 	}
@@ -54,14 +54,17 @@ func (d *PieceDownloader) GotBlock(block *piece.Block, data []byte) {
 	d.done[block.Index] = struct{}{}
 }
 
-func (d *PieceDownloader) Rejected(block *piece.Block) {
+func (d *PieceDownloader) Rejected(block piece.Block) {
 	d.unrequested = append(d.unrequested, block.Index)
 	delete(d.requested, block.Index)
 }
 
 func (d *PieceDownloader) CancelPending() {
 	for i := range d.requested {
-		b := d.Piece.Blocks[i]
+		b, ok := d.Piece.GetBlock(i)
+		if !ok {
+			panic("cannot get block")
+		}
 		msg := peerprotocol.CancelMessage{RequestMessage: peerprotocol.RequestMessage{Index: d.Piece.Index, Begin: b.Begin, Length: b.Length}}
 		d.Peer.SendMessage(msg)
 	}
@@ -73,7 +76,10 @@ func (d *PieceDownloader) RequestBlocks(queueLength int) {
 		if len(d.requested) >= queueLength {
 			break
 		}
-		b := d.Piece.Blocks[i]
+		b, ok := d.Piece.GetBlock(i)
+		if !ok {
+			panic("cannot get block")
+		}
 		msg := peerprotocol.RequestMessage{Index: d.Piece.Index, Begin: b.Begin, Length: b.Length}
 		d.Peer.SendMessage(msg)
 		d.unrequested = d.unrequested[1:]
@@ -83,5 +89,5 @@ func (d *PieceDownloader) RequestBlocks(queueLength int) {
 }
 
 func (d *PieceDownloader) Done() bool {
-	return len(d.done) == len(d.Piece.Blocks)
+	return len(d.done) == int(d.Piece.NumBlocks())
 }
