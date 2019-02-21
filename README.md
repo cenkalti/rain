@@ -28,7 +28,12 @@ Installing
 
 Get the latest binary from [releases page](https://github.com/cenkalti/rain/releases) or install development version:
 
-`go get github.com/cenkalti/rain`
+```sh
+git clone git@github.com:cenkalti/rain $GOPATH/src/github.com/cenkalti/rain
+cd $GOPATH/src/github.com/cenkalti/rain
+dep ensure
+go install
+```
 
 Usage
 -----
