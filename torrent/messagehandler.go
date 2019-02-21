@@ -24,12 +24,14 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 		pe.Logger().Error("piece received but we don't have info")
 		t.resumerStats.BytesWasted += int64(len(msg.Buffer.Data))
 		t.closePeer(pe)
+		msg.Buffer.Release()
 		return
 	}
 	if msg.Index >= uint32(len(t.pieces)) {
 		pe.Logger().Errorln("invalid piece index:", msg.Index)
 		t.resumerStats.BytesWasted += int64(len(msg.Buffer.Data))
 		t.closePeer(pe)
+		msg.Buffer.Release()
 		return
 	}
 	t.downloadSpeed.Update(int64(len(msg.Buffer.Data)))
