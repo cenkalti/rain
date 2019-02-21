@@ -176,8 +176,13 @@ func (p *PeerReader) Run() {
 			if err != nil {
 				return
 			}
+			length -= 8
+			if length > piece.BlockSize {
+				err = fmt.Errorf("received a piece with block size larger than allowed (%d > %d)", length, piece.BlockSize)
+				return
+			}
+			buf := blockPool.Get(int(length))
 			var m int
-			buf := blockPool.Get(int(length - 8))
 			for {
 				err = p.conn.SetReadDeadline(time.Now().Add(p.pieceTimeout))
 				if err != nil {
