@@ -124,7 +124,7 @@ func (t *torrent) run() {
 				t.log.Error("received corrupt piece")
 				t.closePeer(pw.Peer)
 				t.startPieceDownloaders()
-				return
+				break
 			}
 			if pw.Error != nil {
 				t.stop(pw.Error)
