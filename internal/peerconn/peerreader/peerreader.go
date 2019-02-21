@@ -250,28 +250,28 @@ func (p *PeerReader) readPiece(length uint32) (buf bufferpool.Buffer, err error)
 		}
 	}()
 
-	var m int
+	var n, m int
 	for {
 		err = p.conn.SetReadDeadline(time.Now().Add(p.pieceTimeout))
 		if err != nil {
 			return
 		}
-		n, rerr := io.ReadFull(p.buf, buf.Data[m:])
-		if rerr != nil {
-			if nerr, ok := rerr.(net.Error); ok && nerr.Timeout() {
+		n, err = io.ReadFull(p.buf, buf.Data[m:])
+		if err != nil {
+			if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
 				// Peer didn't send the full block in allowed time.
-				if n == 0 {
-					// Disconnect if no bytes received.
-					return
+				if n > 0 {
+					// Some bytes received, peer appears to be slow, keep receiving the rest.
+					m += n
+					continue
 				}
-				// Some bytes received, peer appears to be slow, keep receiving the rest.
-				m += n
-				continue
+				// Disconnect if no bytes received.
+				return
 			}
+			// Error other than timeout
 			return
 		}
 		// Received full block.
-		break
+		return
 	}
-	return
 }
