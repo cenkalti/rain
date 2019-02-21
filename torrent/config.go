@@ -28,6 +28,8 @@ type Config struct {
 	// When to refresh blocklist
 	BlocklistUpdateInterval time.Duration
 
+	// Enable RPC server
+	RPCEnabled bool
 	// Host to listen for RPC server
 	RPCHost string
 	// Listen port for RPC server
@@ -120,6 +122,7 @@ var DefaultConfig = Config{
 	BlocklistUpdateInterval:         24 * time.Hour,
 
 	// RPC Server
+	RPCEnabled:         true,
 	RPCHost:            "127.0.0.1",
 	RPCPort:            7246,
 	RPCShutdownTimeout: 5 * time.Second,

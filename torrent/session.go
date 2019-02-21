@@ -165,7 +165,7 @@ func New(cfg Config) (*Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	if c.config.RPCHost != "" {
+	if c.config.RPCEnabled {
 		c.rpc = newRPCServer(c)
 		err = c.rpc.Start(c.config.RPCHost, c.config.RPCPort)
 		if err != nil {
