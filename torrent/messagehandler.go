@@ -163,6 +163,9 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 		if pd, ok := t.pieceDownloaders[pe]; ok {
 			pd.Choked()
 			t.pieceDownloadersChoked[pe] = pd
+			if _, ok := t.pieceDownloadersSnubbed[pe]; ok {
+				panic("piece download is snubbed")
+			}
 			if t.piecePicker != nil {
 				t.piecePicker.HandleChoke(pe, pd.Piece.Index)
 			}

@@ -177,6 +177,9 @@ func (t *torrent) run() {
 			pe.Snubbed = true
 			t.peersSnubbed[pe] = struct{}{}
 			if pd, ok := t.pieceDownloaders[pe]; ok {
+				if _, ok := t.pieceDownloadersChoked[pe]; ok {
+					panic("piece download is choked")
+				}
 				t.pieceDownloadersSnubbed[pe] = pd
 				if t.piecePicker != nil {
 					t.piecePicker.HandleSnubbed(pe, pd.Piece.Index)
