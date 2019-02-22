@@ -310,6 +310,7 @@ func (s *Session) loadExistingTorrents(ids []string) error {
 			s.log.Error(err)
 			continue
 		}
+		go s.checkTorrent(t)
 		delete(s.availablePorts, uint16(spec.Port))
 
 		t2 := s.newTorrent(t, id, uint16(spec.Port), spec.AddedAt, ann)
@@ -407,6 +408,7 @@ func (s *Session) AddTorrent(r io.Reader) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
+	go s.checkTorrent(t)
 	defer func() {
 		if err != nil {
 			t.Close()
@@ -482,6 +484,7 @@ func (s *Session) addMagnet(link string) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
+	go s.checkTorrent(t)
 	defer func() {
 		if err != nil {
 			t.Close()
@@ -635,5 +638,27 @@ func (s *Session) Stats() SessionStats {
 		PieceCacheUtilization:         s.pieceCache.Utilization(),
 		ActivePieceBytes:              ramStats.Used,
 		TorrentsPendingRAM:            ramStats.Count,
+	}
+}
+
+func (s *Session) checkTorrent(t *torrent) {
+	const interval = 10 * time.Second
+	const timeout = time.Minute
+	for {
+		select {
+		case <-time.After(interval):
+			done := make(chan struct{})
+			go func() {
+				t.Stats()
+				close(done)
+			}()
+			select {
+			case <-done:
+			case <-time.After(timeout):
+				panic("torrent does not responsd")
+			}
+		case <-s.closeC:
+			return
+		}
 	}
 }
