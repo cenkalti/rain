@@ -155,6 +155,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 	case peerprotocol.UnchokeMessage:
 		pe.PeerChoking = false
 		if pd, ok := t.pieceDownloaders[pe]; ok {
+			delete(t.pieceDownloadersChoked, pd.Peer)
 			pd.RequestBlocks(t.config.RequestQueueLength)
 			if t.piecePicker != nil {
 				t.piecePicker.HandleUnchoke(pe, pd.Piece.Index)
