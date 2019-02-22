@@ -121,7 +121,7 @@ func (t *torrent) run() {
 
 			if !pw.HashOK {
 				t.resumerStats.BytesWasted += int64(len(pw.Buffer.Data))
-				t.log.Error("received corrupt piece")
+				t.log.Errorln("received corrupt piece from", pw.Peer.String())
 				t.closePeer(pw.Peer)
 				t.startPieceDownloaders()
 				break
