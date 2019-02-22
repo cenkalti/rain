@@ -156,20 +156,22 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 		pe.PeerChoking = false
 		if pd, ok := t.pieceDownloaders[pe]; ok {
 			pd.RequestBlocks(t.config.RequestQueueLength)
+			if t.piecePicker != nil {
+				t.piecePicker.HandleUnchoke(pe, pd.Piece.Index)
+			}
+		} else {
+			t.startPieceDownloaderFor(pe)
 		}
-		t.startPieceDownloaderFor(pe)
 	case peerprotocol.ChokeMessage:
 		pe.PeerChoking = true
+		pe.Snubbed = false
 		if pd, ok := t.pieceDownloaders[pe]; ok {
 			pd.Choked()
 			t.pieceDownloadersChoked[pe] = pd
-			if _, ok := t.pieceDownloadersSnubbed[pe]; ok {
-				panic("piece download is snubbed")
-			}
+			delete(t.pieceDownloadersSnubbed, pe)
 			if t.piecePicker != nil {
 				t.piecePicker.HandleChoke(pe, pd.Piece.Index)
 			}
-			t.startPieceDownloaderFor(pe)
 		}
 	case peerprotocol.InterestedMessage:
 		pe.PeerInterested = true

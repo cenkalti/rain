@@ -70,10 +70,14 @@ func (p *PiecePicker) HandleAllowedFast(pe *peer.Peer, i uint32) {
 }
 
 func (p *PiecePicker) HandleSnubbed(pe *peer.Peer, i uint32) {
+	if p.pieces[i].Choked.Has(pe) {
+		panic("peer snubbed while choked")
+	}
 	p.pieces[i].Snubbed.Add(pe)
 }
 
 func (p *PiecePicker) HandleChoke(pe *peer.Peer, i uint32) {
+	p.pieces[i].Snubbed.Remove(pe)
 	p.pieces[i].Choked.Add(pe)
 }
 
