@@ -52,8 +52,6 @@ type Stats struct {
 		Incoming int
 		// Number of peers that we have connected to.
 		Outgoing int
-		// Number of active downloads
-		Downloading int
 	}
 	Handshakes struct {
 		// Number of peers that are not handshaked yet.
@@ -72,6 +70,24 @@ type Stats struct {
 		DHT int
 		// Peers found via peer exchange.
 		PEX int
+	}
+	Downloads struct {
+		// Number of active piece downloads.
+		Total int
+		// Number of pieces that are being downloaded normally.
+		Running int
+		// Number of pieces that are being downloaded too slow.
+		Snubbed int
+		// Number of piece downloads in choked state.
+		Choked int
+	}
+	MetadataDownloads struct {
+		// Number of active metadata downloads.
+		Total int
+		// Number of peers that uploading too slow.
+		Snubbed int
+		// Number of peers that are being downloaded normally.
+		Running int
 	}
 	// Name can change after metadata is downloaded.
 	Name string
@@ -108,11 +124,13 @@ func (t *torrent) stats() Stats {
 	s.Peers.Total = len(t.peers)
 	s.Peers.Incoming = len(t.incomingPeers)
 	s.Peers.Outgoing = len(t.outgoingPeers)
-	if s.Status == DownloadingMetadata {
-		s.Peers.Downloading = len(t.infoDownloaders)
-	} else {
-		s.Peers.Downloading = len(t.pieceDownloaders)
-	}
+	s.MetadataDownloads.Total = len(t.infoDownloaders)
+	s.MetadataDownloads.Snubbed = len(t.infoDownloadersSnubbed)
+	s.MetadataDownloads.Running = len(t.infoDownloaders) - len(t.infoDownloadersSnubbed)
+	s.Downloads.Total = len(t.pieceDownloaders)
+	s.Downloads.Snubbed = len(t.pieceDownloadersSnubbed)
+	s.Downloads.Choked = len(t.pieceDownloadersChoked)
+	s.Downloads.Running = len(t.pieceDownloaders) - len(t.pieceDownloadersChoked) - len(t.pieceDownloadersSnubbed)
 	s.Pieces.Available = t.avaliablePieceCount()
 	s.Bytes.Downloaded = t.resumerStats.BytesDownloaded
 	s.Bytes.Uploaded = t.resumerStats.BytesUploaded
