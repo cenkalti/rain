@@ -643,21 +643,20 @@ func (s *Session) Stats() SessionStats {
 }
 
 func (s *Session) checkTorrent(t *torrent) {
-	const interval = 10 * time.Second
-	const timeout = time.Minute
+	const interval = 5 * time.Second
+	const timeout = 30 * time.Second
 	for {
 		select {
 		case <-time.After(interval):
-			done := make(chan struct{})
-			go func() {
-				t.Stats()
-				close(done)
-			}()
 			select {
-			case <-done:
+			case t.notifyErrorCommandC <- notifyErrorCommand{errCC: make(chan chan error, 1)}:
+			case <-t.closeC:
+				return
 			case <-time.After(timeout):
 				crash("torrent does not responsd")
 			}
+		case <-t.closeC:
+			return
 		case <-s.closeC:
 			return
 		}
