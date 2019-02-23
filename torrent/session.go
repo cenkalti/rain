@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 
@@ -655,10 +656,18 @@ func (s *Session) checkTorrent(t *torrent) {
 			select {
 			case <-done:
 			case <-time.After(timeout):
-				panic("torrent does not responsd")
+				crash("torrent does not responsd")
 			}
 		case <-s.closeC:
 			return
 		}
 	}
+}
+
+func crash(msg string) {
+	b := make([]byte, 30*1024*1024)
+	runtime.Stack(b, true)
+	os.Stderr.Write(b)
+	os.Stderr.WriteString("\n")
+	panic(msg)
 }
