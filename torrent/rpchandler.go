@@ -122,13 +122,15 @@ func (h *rpcHandler) GetTorrentStats(args *rpctypes.GetTorrentStatsRequest, repl
 			Wasted:     s.Bytes.Wasted,
 		},
 		Peers: struct {
-			Total    int
-			Incoming int
-			Outgoing int
+			Total       int
+			Incoming    int
+			Outgoing    int
+			Downloading int
 		}{
-			Total:    s.Peers.Total,
-			Incoming: s.Peers.Incoming,
-			Outgoing: s.Peers.Outgoing,
+			Total:       s.Peers.Total,
+			Incoming:    s.Peers.Incoming,
+			Outgoing:    s.Peers.Outgoing,
+			Downloading: s.Peers.Downloading,
 		},
 		Handshakes: struct {
 			Total    int
@@ -149,26 +151,6 @@ func (h *rpcHandler) GetTorrentStats(args *rpctypes.GetTorrentStatsRequest, repl
 			Tracker: s.Addresses.Tracker,
 			DHT:     s.Addresses.DHT,
 			PEX:     s.Addresses.PEX,
-		},
-		Downloads: struct {
-			Total   int
-			Running int
-			Snubbed int
-			Choked  int
-		}{
-			Total:   s.Downloads.Total,
-			Running: s.Downloads.Running,
-			Snubbed: s.Downloads.Snubbed,
-			Choked:  s.Downloads.Choked,
-		},
-		MetadataDownloads: struct {
-			Total   int
-			Snubbed int
-			Running int
-		}{
-			Total:   s.MetadataDownloads.Total,
-			Snubbed: s.MetadataDownloads.Snubbed,
-			Running: s.MetadataDownloads.Running,
 		},
 		Name:        s.Name,
 		Private:     s.Private,

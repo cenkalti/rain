@@ -101,9 +101,7 @@ type torrent struct {
 	peersSnubbed  map[*peer.Peer]struct{}
 
 	// Active piece downloads are kept in this map.
-	pieceDownloaders        map[*peer.Peer]*piecedownloader.PieceDownloader
-	pieceDownloadersSnubbed map[*peer.Peer]*piecedownloader.PieceDownloader
-	pieceDownloadersChoked  map[*peer.Peer]*piecedownloader.PieceDownloader
+	pieceDownloaders map[*peer.Peer]*piecedownloader.PieceDownloader
 
 	// When a peer has snubbed us, a message sent to this channel.
 	peerSnubbedC chan *peer.Peer

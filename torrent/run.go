@@ -177,10 +177,6 @@ func (t *torrent) run() {
 			pe.Snubbed = true
 			t.peersSnubbed[pe] = struct{}{}
 			if pd, ok := t.pieceDownloaders[pe]; ok {
-				if _, ok := t.pieceDownloadersChoked[pe]; ok {
-					panic("piece download is choked")
-				}
-				t.pieceDownloadersSnubbed[pe] = pd
 				if t.piecePicker != nil {
 					t.piecePicker.HandleSnubbed(pe, pd.Piece.Index)
 				}
@@ -272,8 +268,6 @@ func (t *torrent) closePieceDownloader(pd *piecedownloader.PieceDownloader) {
 		return
 	}
 	delete(t.pieceDownloaders, pd.Peer)
-	delete(t.pieceDownloadersSnubbed, pd.Peer)
-	delete(t.pieceDownloadersChoked, pd.Peer)
 	if t.piecePicker != nil {
 		t.piecePicker.HandleCancelDownload(pd.Peer, pd.Piece.Index)
 	}

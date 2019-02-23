@@ -66,9 +66,10 @@ type Stats struct {
 		Wasted     int64
 	}
 	Peers struct {
-		Total    int
-		Incoming int
-		Outgoing int
+		Total       int
+		Incoming    int
+		Outgoing    int
+		Downloading int
 	}
 	Handshakes struct {
 		Total    int
@@ -80,17 +81,6 @@ type Stats struct {
 		Tracker int
 		DHT     int
 		PEX     int
-	}
-	Downloads struct {
-		Total   int
-		Running int
-		Snubbed int
-		Choked  int
-	}
-	MetadataDownloads struct {
-		Total   int
-		Snubbed int
-		Running int
 	}
 	Name        string
 	Private     bool
