@@ -174,6 +174,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			if t.piecePicker != nil {
 				t.piecePicker.HandleChoke(pe, pd.Piece.Index)
 			}
+			t.startPieceDownloaders()
 		}
 	case peerprotocol.InterestedMessage:
 		pe.PeerInterested = true
