@@ -43,7 +43,6 @@ func (d *PieceDownloader) Choked() {
 		d.unrequested = append(d.unrequested, i)
 		delete(d.requested, i)
 	}
-	d.Peer.StopSnubTimer()
 }
 
 func (d *PieceDownloader) GotBlock(block piece.Block, data []byte) {

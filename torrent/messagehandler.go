@@ -166,6 +166,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 	case peerprotocol.ChokeMessage:
 		pe.PeerChoking = true
 		pe.Snubbed = false
+		pe.StopSnubTimer()
 		if pd, ok := t.pieceDownloaders[pe]; ok {
 			pd.Choked()
 			t.pieceDownloadersChoked[pe] = pd
