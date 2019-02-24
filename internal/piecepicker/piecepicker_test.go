@@ -31,39 +31,39 @@ func TestPiecePicker(t *testing.T) {
 	pp.HandleHave(peers[1], 1)
 	pp.HandleHave(peers[2], 5)
 
-	assert.Equal(t, &pieces[4], pp.PickFor(peers[0]))
+	assert.Equal(t, &pieces[4], pp.pickFor(peers[0]))
 	assert.False(t, pp.endgame)
 
-	assert.Equal(t, &pieces[1], pp.PickFor(peers[1]))
+	assert.Equal(t, &pieces[1], pp.pickFor(peers[1]))
 	assert.False(t, pp.endgame)
 
-	assert.Equal(t, &pieces[5], pp.PickFor(peers[2]))
+	assert.Equal(t, &pieces[5], pp.pickFor(peers[2]))
 	assert.False(t, pp.endgame)
 
 	peers = append(peers, newPeer(3))
 	pp.HandleHave(peers[3], 5)
-	assert.Nil(t, pp.PickFor(peers[3]))
+	assert.Nil(t, pp.pickFor(peers[3]))
 	assert.False(t, pp.endgame)
 
 	pp.HandleSnubbed(peers[2], 5)
-	assert.Equal(t, &pieces[5], pp.PickFor(peers[3]))
+	assert.Equal(t, &pieces[5], pp.pickFor(peers[3]))
 	assert.False(t, pp.endgame)
 
 	peers = append(peers, newPeer(4))
 	pp.HandleHave(peers[4], 6)
-	assert.Equal(t, &pieces[6], pp.PickFor(peers[4]))
+	assert.Equal(t, &pieces[6], pp.pickFor(peers[4]))
 	assert.False(t, pp.endgame)
 
 	peers = append(peers, newPeer(5))
 	pp.HandleHave(peers[5], 0)
 	pp.HandleHave(peers[5], 5)
 	pp.HandleHave(peers[5], 6)
-	assert.Equal(t, &pieces[6], pp.PickFor(peers[5]))
+	assert.Equal(t, &pieces[6], pp.pickFor(peers[5]))
 	assert.True(t, pp.endgame)
 
 	peers = append(peers, newPeer(6))
 	pp.HandleHave(peers[6], 6)
-	assert.Nil(t, pp.PickFor(peers[6]))
+	assert.Nil(t, pp.pickFor(peers[6]))
 	assert.True(t, pp.endgame)
 }
 

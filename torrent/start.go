@@ -181,14 +181,14 @@ func (t *torrent) startSinglePieceDownloader(pe *peer.Peer) {
 		}
 		return
 	}
-	pi := t.piecePicker.PickFor(pe)
+	pi, allowedFast := t.piecePicker.PickFor(pe)
 	if pi == nil {
 		if t.ram != nil {
 			t.ram.Release(int64(t.info.PieceLength))
 		}
 		return
 	}
-	pd := piecedownloader.New(pi, pe, t.piecePool.Get(int(pi.Length)))
+	pd := piecedownloader.New(pi, pe, allowedFast, t.piecePool.Get(int(pi.Length)))
 	// t.log.Debugln("downloading piece", pd.Piece.Index, "from", pd.Peer.String())
 	if _, ok := t.pieceDownloaders[pd.Peer]; ok {
 		panic("peer already has a piece downloader")

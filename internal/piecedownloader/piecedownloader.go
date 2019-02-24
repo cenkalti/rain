@@ -9,16 +9,17 @@ import (
 
 // PieceDownloader downloads all blocks of a piece from a peer.
 type PieceDownloader struct {
-	Piece  *piece.Piece
-	Peer   *peer.Peer
-	Buffer bufferpool.Buffer
+	Piece       *piece.Piece
+	Peer        *peer.Peer
+	AllowedFast bool
+	Buffer      bufferpool.Buffer
 
 	unrequested []int
 	requested   map[int]struct{}
 	done        map[int]struct{}
 }
 
-func New(pi *piece.Piece, pe *peer.Peer, buf bufferpool.Buffer) *PieceDownloader {
+func New(pi *piece.Piece, pe *peer.Peer, allowedFast bool, buf bufferpool.Buffer) *PieceDownloader {
 	unrequested := make([]int, pi.NumBlocks())
 	for i := range unrequested {
 		unrequested[i] = int(i)
@@ -26,6 +27,7 @@ func New(pi *piece.Piece, pe *peer.Peer, buf bufferpool.Buffer) *PieceDownloader
 	return &PieceDownloader{
 		Piece:       pi,
 		Peer:        pe,
+		AllowedFast: allowedFast,
 		Buffer:      buf,
 		unrequested: unrequested,
 		requested:   make(map[int]struct{}),

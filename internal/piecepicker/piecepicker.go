@@ -111,45 +111,50 @@ func (p *PiecePicker) removeHavingPeer(i int, pe *peer.Peer) {
 	}
 }
 
-func (p *PiecePicker) PickFor(pe *peer.Peer) *piece.Piece {
-	pi := p.findPiece(pe)
+func (p *PiecePicker) pickFor(pe *peer.Peer) *piece.Piece {
+	pi, _ := p.PickFor(pe)
+	return pi
+}
+
+func (p *PiecePicker) PickFor(pe *peer.Peer) (pp *piece.Piece, allowedFast bool) {
+	pi, allowedFast := p.findPiece(pe)
 	if pi == nil {
-		return nil
+		return nil, false
 	}
 	pe.Snubbed = false
 	pi.Requested.Add(pe)
-	return pi.Piece
+	return pi.Piece, allowedFast
 }
 
-func (p *PiecePicker) findPiece(pe *peer.Peer) *myPiece {
+func (p *PiecePicker) findPiece(pe *peer.Peer) (mp *myPiece, allowedFast bool) {
 	// Peer is allowed to download only one piece at a time
 	if pe.Downloading {
-		return nil
+		return nil, false
 	}
 	// Pick allowed fast piece
 	pi := p.pickAllowedFast(pe)
 	if pi != nil {
-		return pi
+		return pi, true
 	}
 	// Must be unchoked to request a peer
 	if pe.PeerChoking {
-		return nil
+		return nil, false
 	}
 	// Short path for endgame mode.
 	if p.endgame {
-		return p.pickEndgame(pe)
+		return p.pickEndgame(pe), false
 	}
 	// Pieck rarest piece
 	pi = p.pickRarest(pe)
 	if pi != nil {
-		return pi
+		return pi, false
 	}
 	// Check if endgame mode is activated
 	if p.endgame {
-		return p.pickEndgame(pe)
+		return p.pickEndgame(pe), false
 	}
 	// Re-request stalled downloads
-	return p.pickStalled(pe)
+	return p.pickStalled(pe), false
 }
 
 func (p *PiecePicker) pickAllowedFast(pe *peer.Peer) *myPiece {

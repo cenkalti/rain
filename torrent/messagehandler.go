@@ -59,7 +59,9 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 	pd.GotBlock(block, msg.Buffer.Data)
 	msg.Buffer.Release()
 	if !pd.Done() {
-		pd.RequestBlocks(t.config.RequestQueueLength)
+		if pd.AllowedFast || !pd.Peer.PeerChoking {
+			pd.RequestBlocks(t.config.RequestQueueLength)
+		}
 		return
 	}
 	// t.log.Debugln("piece download completed. index:", pd.Piece.Index)
@@ -157,7 +159,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			t.startPieceDownloaderFor(pe)
 			break
 		}
-		if pe.AllowedFast.Has(pd.Piece) {
+		if pd.AllowedFast {
 			break
 		}
 		delete(t.pieceDownloadersChoked, pd.Peer)
@@ -171,7 +173,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 		if !ok {
 			break
 		}
-		if pe.AllowedFast.Has(pd.Piece) {
+		if pd.AllowedFast {
 			break
 		}
 		pd.Choked()
