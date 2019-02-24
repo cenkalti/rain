@@ -95,10 +95,9 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			t.closePeer(pe)
 			break
 		}
-		pi := &t.pieces[msg.Index]
 		// pe.Logger().Debug("Peer ", pe.String(), " has piece #", pi.Index)
 		if t.piecePicker != nil {
-			t.piecePicker.HandleHave(pe, pi.Index)
+			t.piecePicker.HandleHave(pe, msg.Index)
 		}
 		t.updateInterestedState(pe)
 		t.startPieceDownloaderFor(pe)
@@ -147,8 +146,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			t.closePeer(pe)
 			break
 		}
-		pi := &t.pieces[msg.Index]
-		pe.Logger().Debug("Peer ", pe.String(), " has allowed fast for piece #", pi.Index)
+		pe.Logger().Debug("Peer ", pe.String(), " has allowed fast for piece #", msg.Index)
 		if t.piecePicker != nil {
 			t.piecePicker.HandleAllowedFast(pe, msg.Index)
 		}
