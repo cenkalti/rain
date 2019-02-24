@@ -152,26 +152,35 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 		}
 	case peerprotocol.UnchokeMessage:
 		pe.PeerChoking = false
-		if pd, ok := t.pieceDownloaders[pe]; ok {
-			delete(t.pieceDownloadersChoked, pd.Peer)
-			pd.RequestBlocks(t.config.RequestQueueLength)
-			if t.piecePicker != nil {
-				t.piecePicker.HandleUnchoke(pe, pd.Piece.Index)
-			}
-		} else {
+		pd, ok := t.pieceDownloaders[pe]
+		if !ok {
 			t.startPieceDownloaderFor(pe)
+			break
+		}
+		if pe.AllowedFast.Has(pd.Piece) {
+			break
+		}
+		delete(t.pieceDownloadersChoked, pd.Peer)
+		pd.RequestBlocks(t.config.RequestQueueLength)
+		if t.piecePicker != nil {
+			t.piecePicker.HandleUnchoke(pe, pd.Piece.Index)
 		}
 	case peerprotocol.ChokeMessage:
 		pe.PeerChoking = true
-		if pd, ok := t.pieceDownloaders[pe]; ok && !pe.AllowedFast.Has(pd.Piece) {
-			pd.Choked()
-			t.pieceDownloadersChoked[pe] = pd
-			delete(t.pieceDownloadersSnubbed, pe)
-			if t.piecePicker != nil {
-				t.piecePicker.HandleChoke(pe, pd.Piece.Index)
-			}
-			t.startPieceDownloaders()
+		pd, ok := t.pieceDownloaders[pe]
+		if !ok {
+			break
 		}
+		if pe.AllowedFast.Has(pd.Piece) {
+			break
+		}
+		pd.Choked()
+		t.pieceDownloadersChoked[pe] = pd
+		delete(t.pieceDownloadersSnubbed, pe)
+		if t.piecePicker != nil {
+			t.piecePicker.HandleChoke(pe, pd.Piece.Index)
+		}
+		t.startPieceDownloaders()
 	case peerprotocol.InterestedMessage:
 		pe.PeerInterested = true
 	case peerprotocol.NotInterestedMessage:
