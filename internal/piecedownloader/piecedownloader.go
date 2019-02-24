@@ -18,11 +18,6 @@ type PieceDownloader struct {
 	done        map[int]struct{}
 }
 
-type pieceReaderResult struct {
-	BlockIndex int
-	Error      error
-}
-
 func New(pi *piece.Piece, pe *peer.Peer, buf bufferpool.Buffer) *PieceDownloader {
 	unrequested := make([]int, pi.NumBlocks())
 	for i := range unrequested {
