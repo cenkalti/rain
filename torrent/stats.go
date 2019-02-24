@@ -149,6 +149,7 @@ func (t *torrent) stats() Stats {
 		s.Name = t.info.Name
 		s.Private = (t.info.Private == 1)
 		s.PieceLength = t.info.PieceLength
+		s.Pieces.Total = t.info.NumPieces
 	} else {
 		// Some trackers don't send any peer address if don't tell we have missing bytes.
 		s.Bytes.Incomplete = math.MaxUint32
@@ -156,7 +157,6 @@ func (t *torrent) stats() Stats {
 		s.Name = t.name
 	}
 	if t.bitfield != nil {
-		s.Pieces.Total = t.bitfield.Len()
 		s.Pieces.Have = t.bitfield.Count()
 		s.Pieces.Missing = s.Pieces.Total - s.Pieces.Have
 	}
