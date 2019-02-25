@@ -293,6 +293,9 @@ func (h *rpcHandler) AddPeer(args *rpctypes.AddPeerRequest, reply *rpctypes.AddP
 		return errTorrentNotFound
 	}
 	host, portString, err := net.SplitHostPort(args.Addr)
+	if err != nil {
+		return err
+	}
 	ip := net.ParseIP(host).To4()
 	if ip == nil {
 		return errors.New("invalid v4 IP")
