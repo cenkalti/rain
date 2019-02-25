@@ -277,6 +277,16 @@ func (h *rpcHandler) StopTorrent(args *rpctypes.StopTorrentRequest, reply *rpcty
 	return nil
 }
 
+func (h *rpcHandler) StartAllTorrents(args *rpctypes.StartAllTorrentsRequest, reply *rpctypes.StartAllTorrentsResponse) error {
+	h.session.StartAll()
+	return nil
+}
+
+func (h *rpcHandler) StopAllTorrents(args *rpctypes.StopAllTorrentsRequest, reply *rpctypes.StopAllTorrentsResponse) error {
+	h.session.StopAll()
+	return nil
+}
+
 func (h *rpcHandler) AddPeer(args *rpctypes.AddPeerRequest, reply *rpctypes.AddPeerResponse) error {
 	t := h.session.GetTorrent(args.ID)
 	if t == nil {
