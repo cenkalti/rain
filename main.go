@@ -148,7 +148,7 @@ func main() {
 				},
 				{
 					Name:   "stop",
-					Usage:  "stop",
+					Usage:  "stop torrent",
 					Action: handleStop,
 				},
 				{
