@@ -90,8 +90,20 @@ func (c *Client) StopTorrent(id string) error {
 	return c.client.Call("Session.StopTorrent", args, &reply)
 }
 
-func (c *Client) AddPeer(id string, ip string, port int) error {
-	args := rpctypes.AddPeerRequest{ID: id, IP: ip, Port: port}
+func (c *Client) StartAllTorrents() error {
+	args := rpctypes.StartAllTorrentsRequest{}
+	var reply rpctypes.StartAllTorrentsResponse
+	return c.client.Call("Session.StartAllTorrents", args, &reply)
+}
+
+func (c *Client) StopAllTorrents() error {
+	args := rpctypes.StopAllTorrentsRequest{}
+	var reply rpctypes.StopAllTorrentsResponse
+	return c.client.Call("Session.StopAllTorrents", args, &reply)
+}
+
+func (c *Client) AddPeer(id string, addr string) error {
+	args := rpctypes.AddPeerRequest{ID: id, Addr: addr}
 	var reply rpctypes.AddPeerResponse
 	return c.client.Call("Session.AddPeer", args, &reply)
 }

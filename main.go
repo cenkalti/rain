@@ -132,6 +132,16 @@ func main() {
 					Action: handlePeers,
 				},
 				{
+					Name:   "add-peer",
+					Usage:  "add peer to torrent",
+					Action: handleAddPeer,
+				},
+				{
+					Name:   "add-tracker",
+					Usage:  "add tracker to torrent",
+					Action: handleAddTracker,
+				},
+				{
 					Name:   "start",
 					Usage:  "start torrent",
 					Action: handleStart,
@@ -140,6 +150,16 @@ func main() {
 					Name:   "stop",
 					Usage:  "stop",
 					Action: handleStop,
+				},
+				{
+					Name:   "start-all",
+					Usage:  "start all torrents",
+					Action: handleStartAll,
+				},
+				{
+					Name:   "stop-all",
+					Usage:  "stop all torrents",
+					Action: handleStopAll,
 				},
 				{
 					Name:   "console",
@@ -390,6 +410,18 @@ func handlePeers(c *cli.Context) error {
 	return nil
 }
 
+func handleAddPeer(c *cli.Context) error {
+	id := c.Args().Get(0)
+	addr := c.Args().Get(1)
+	return clt.AddPeer(id, addr)
+}
+
+func handleAddTracker(c *cli.Context) error {
+	id := c.Args().Get(0)
+	uri := c.Args().Get(1)
+	return clt.AddTracker(id, uri)
+}
+
 func handleStart(c *cli.Context) error {
 	id := c.Args().Get(0)
 	return clt.StartTorrent(id)
@@ -398,6 +430,14 @@ func handleStart(c *cli.Context) error {
 func handleStop(c *cli.Context) error {
 	id := c.Args().Get(0)
 	return clt.StopTorrent(id)
+}
+
+func handleStartAll(c *cli.Context) error {
+	return clt.StartAllTorrents()
+}
+
+func handleStopAll(c *cli.Context) error {
+	return clt.StopAllTorrents()
 }
 
 func handleConsole(c *cli.Context) error {

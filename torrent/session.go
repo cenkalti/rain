@@ -642,6 +642,22 @@ func (s *Session) Stats() SessionStats {
 	}
 }
 
+func (s *Session) StartAll() {
+	s.m.RLock()
+	defer s.m.RUnlock()
+	for _, t := range s.torrents {
+		t.Start()
+	}
+}
+
+func (s *Session) StopAll() {
+	s.m.RLock()
+	defer s.m.RUnlock()
+	for _, t := range s.torrents {
+		t.Stop()
+	}
+}
+
 func (s *Session) checkTorrent(t *torrent) {
 	const interval = 5 * time.Second
 	const timeout = 30 * time.Second
