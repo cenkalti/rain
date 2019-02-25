@@ -177,3 +177,20 @@ type StopTorrentRequest struct {
 
 type StopTorrentResponse struct {
 }
+
+type AddPeerRequest struct {
+	ID   string
+	IP   string
+	Port int
+}
+
+type AddPeerResponse struct {
+}
+
+type AddTrackerRequest struct {
+	ID  string
+	URL string
+}
+
+type AddTrackerResponse struct {
+}

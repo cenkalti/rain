@@ -3,6 +3,8 @@ package torrent
 import (
 	"net"
 	"time"
+
+	"github.com/cenkalti/rain/internal/tracker"
 )
 
 // Start downloading.
@@ -95,6 +97,13 @@ func (t *torrent) Stats() Stats {
 func (t *torrent) AddPeers(peers []*net.TCPAddr) {
 	select {
 	case t.addPeersCommandC <- peers:
+	case <-t.closeC:
+	}
+}
+
+func (t *torrent) AddTrackers(trackers []tracker.Tracker) {
+	select {
+	case t.addTrackersCommandC <- trackers:
 	case <-t.closeC:
 	}
 }

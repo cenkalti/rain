@@ -146,6 +146,7 @@ type torrent struct {
 	notifyErrorCommandC  chan notifyErrorCommand  // NotifyError()
 	notifyListenCommandC chan notifyListenCommand // NotifyListen()
 	addPeersCommandC     chan []*net.TCPAddr      // AddPeers()
+	addTrackersCommandC  chan []tracker.Tracker   // AddTrackers()
 
 	// Trackers send announce responses to this channel.
 	addrsFromTrackers chan []*net.TCPAddr

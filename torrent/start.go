@@ -9,6 +9,7 @@ import (
 	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/piecedownloader"
+	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/internal/verifier"
 )
 
@@ -89,22 +90,26 @@ func (t *torrent) startAnnouncers() {
 		return
 	}
 	for _, tr := range t.trackers {
-		an := announcer.NewPeriodicalAnnouncer(
-			tr,
-			t.config.TrackerNumWant,
-			t.config.TrackerMinAnnounceInterval,
-			t.announcerRequestC,
-			t.completeC,
-			t.addrsFromTrackers,
-			t.log,
-		)
-		t.announcers = append(t.announcers, an)
-		go an.Run()
+		t.startNewAnnouncer(tr)
 	}
 	if t.dhtNode != nil && t.dhtAnnouncer == nil {
 		t.dhtAnnouncer = announcer.NewDHTAnnouncer()
 		go t.dhtAnnouncer.Run(t.dhtNode.Announce, t.config.DHTAnnounceInterval, t.config.DHTMinAnnounceInterval, t.log)
 	}
+}
+
+func (t *torrent) startNewAnnouncer(tr tracker.Tracker) {
+	an := announcer.NewPeriodicalAnnouncer(
+		tr,
+		t.config.TrackerNumWant,
+		t.config.TrackerMinAnnounceInterval,
+		t.announcerRequestC,
+		t.completeC,
+		t.addrsFromTrackers,
+		t.log,
+	)
+	t.announcers = append(t.announcers, an)
+	go an.Run()
 }
 
 func (t *torrent) startAcceptor() {

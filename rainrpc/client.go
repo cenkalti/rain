@@ -89,3 +89,15 @@ func (c *Client) StopTorrent(id string) error {
 	var reply rpctypes.StopTorrentResponse
 	return c.client.Call("Session.StopTorrent", args, &reply)
 }
+
+func (c *Client) AddPeer(id string, ip string, port int) error {
+	args := rpctypes.AddPeerRequest{ID: id, IP: ip, Port: port}
+	var reply rpctypes.AddPeerResponse
+	return c.client.Call("Session.AddPeer", args, &reply)
+}
+
+func (c *Client) AddTracker(id string, uri string) error {
+	args := rpctypes.AddTrackerRequest{ID: id, URL: uri}
+	var reply rpctypes.AddTrackerResponse
+	return c.client.Call("Session.AddTracker", args, &reply)
+}

@@ -2,9 +2,11 @@ package torrent
 
 import (
 	"encoding/hex"
+	"net"
 	"time"
 
 	"github.com/boltdb/bolt"
+	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/nictuku/dht"
 )
 
@@ -57,6 +59,22 @@ func (t *Torrent) Peers() []Peer {
 
 func (t *Torrent) Port() uint16 {
 	return t.port
+}
+
+func (t *Torrent) AddPeer(addr *net.TCPAddr) {
+	if addr == nil {
+		panic("nil addr")
+	}
+	t.torrent.AddPeers([]*net.TCPAddr{addr})
+}
+
+func (t *Torrent) AddTracker(uri string) error {
+	tr, err := t.session.trackerManager.Get(uri, t.session.config.TrackerHTTPTimeout, t.session.config.TrackerHTTPUserAgent)
+	if err != nil {
+		return err
+	}
+	t.torrent.AddTrackers([]tracker.Tracker{tr})
+	return nil
 }
 
 func (t *Torrent) Start() error {

@@ -3,6 +3,7 @@ package torrent
 import (
 	"encoding/base64"
 	"errors"
+	"net"
 	"strings"
 	"time"
 
@@ -273,4 +274,29 @@ func (h *rpcHandler) StopTorrent(args *rpctypes.StopTorrentRequest, reply *rpcty
 	}
 	t.Stop()
 	return nil
+}
+
+func (h *rpcHandler) AddPeer(args *rpctypes.AddPeerRequest, reply *rpctypes.AddPeerResponse) error {
+	t := h.session.GetTorrent(args.ID)
+	if t == nil {
+		return errTorrentNotFound
+	}
+	ip := net.ParseIP(args.IP).To4()
+	if ip == nil {
+		return errors.New("invalid v4 IP")
+	}
+	addr := &net.TCPAddr{
+		IP:   ip,
+		Port: args.Port,
+	}
+	t.AddPeer(addr)
+	return nil
+}
+
+func (h *rpcHandler) AddTracker(args *rpctypes.AddTrackerRequest, reply *rpctypes.AddTrackerResponse) error {
+	t := h.session.GetTorrent(args.ID)
+	if t == nil {
+		return errTorrentNotFound
+	}
+	return t.AddTracker(args.URL)
 }

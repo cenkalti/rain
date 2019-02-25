@@ -76,6 +76,14 @@ func (t *torrent) run() {
 			t.handleNewPeers(addrs, peer.SourceManual)
 		case addrs := <-t.dhtPeersC:
 			t.handleNewPeers(addrs, peer.SourceDHT)
+		case trackers := <-t.addTrackersCommandC:
+			t.trackers = append(t.trackers, trackers...)
+			status := t.status()
+			if status != Stopping && status != Stopped {
+				for _, tr := range trackers {
+					t.startNewAnnouncer(tr)
+				}
+			}
 		case conn := <-t.incomingConnC:
 			if len(t.incomingHandshakers)+len(t.incomingPeers) >= t.config.MaxPeerAccept {
 				t.log.Debugln("peer limit reached, rejecting peer", conn.RemoteAddr().String())
