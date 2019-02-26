@@ -75,7 +75,7 @@ func New(cfg Config) (*Session, error) {
 	}
 	err := setNoFile(cfg.MaxOpenFiles)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("cannot change max open files limit: " + err.Error())
 	}
 	cfg.Database, err = homedir.Expand(cfg.Database)
 	if err != nil {
