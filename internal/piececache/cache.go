@@ -148,7 +148,9 @@ func (c *Cache) handleNewItem(i *item) ([]byte, error) {
 
 	i.timer = time.AfterFunc(c.ttl, func() {
 		c.m.Lock()
-		c.removeItem(i)
+		if i.index != -1 {
+			c.removeItem(i)
+		}
 		c.m.Unlock()
 	})
 
