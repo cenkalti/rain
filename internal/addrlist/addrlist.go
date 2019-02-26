@@ -2,8 +2,6 @@ package addrlist
 
 import (
 	"net"
-	"sort"
-	"time"
 
 	"github.com/cenkalti/rain/internal/blocklist"
 	"github.com/cenkalti/rain/internal/externalip"
@@ -14,20 +12,17 @@ import (
 
 // AddrList contains peer addresses that are ready to be connected.
 type AddrList struct {
-	peerByTime     []*peerAddr
-	peerByPriority *btree.BTree
-
-	maxItems   int
-	listenPort int
-	clientIP   *net.IP
-	blocklist  *blocklist.Blocklist
-
+	peers         *btree.BTree
+	maxItems      int
+	listenPort    int
+	clientIP      *net.IP
+	blocklist     *blocklist.Blocklist
 	countBySource map[peer.Source]int
 }
 
 func New(maxItems int, blocklist *blocklist.Blocklist, listenPort int, clientIP *net.IP) *AddrList {
 	return &AddrList{
-		peerByPriority: btree.New(2),
+		peers: btree.New(2),
 
 		maxItems:      maxItems,
 		listenPort:    listenPort,
@@ -38,13 +33,12 @@ func New(maxItems int, blocklist *blocklist.Blocklist, listenPort int, clientIP 
 }
 
 func (d *AddrList) Reset() {
-	d.peerByTime = nil
-	d.peerByPriority.Clear(false)
+	d.peers.Clear(false)
 	d.countBySource = make(map[peer.Source]int)
 }
 
 func (d *AddrList) Len() int {
-	return d.peerByPriority.Len()
+	return d.peers.Len()
 }
 
 func (d *AddrList) LenSource(s peer.Source) int {
@@ -52,18 +46,16 @@ func (d *AddrList) LenSource(s peer.Source) int {
 }
 
 func (d *AddrList) Pop() (*net.TCPAddr, peer.Source) {
-	item := d.peerByPriority.DeleteMax()
+	item := d.peers.DeleteMax()
 	if item == nil {
 		return nil, 0
 	}
 	p := item.(*peerAddr)
-	d.peerByTime[p.index] = nil
 	d.countBySource[p.source]--
 	return p.addr, p.source
 }
 
 func (d *AddrList) Push(addrs []*net.TCPAddr, source peer.Source) {
-	now := time.Now()
 	var added int
 	for _, ad := range addrs {
 		// 0 port is invalid
@@ -83,53 +75,29 @@ func (d *AddrList) Push(addrs []*net.TCPAddr, source peer.Source) {
 			continue
 		}
 		p := &peerAddr{
-			addr:      ad,
-			timestamp: now,
-			source:    source,
-			priority:  peerpriority.Calculate(ad, d.clientAddr()),
+			addr:     ad,
+			source:   source,
+			priority: peerpriority.Calculate(ad, d.clientAddr()),
 		}
-		item := d.peerByPriority.ReplaceOrInsert(p)
+		item := d.peers.ReplaceOrInsert(p)
 		if item != nil {
 			prev := item.(*peerAddr)
-			d.peerByTime[prev.index] = p
-			p.index = prev.index
 			d.countBySource[prev.source]--
-		} else {
-			d.peerByTime = append(d.peerByTime, p)
-			p.index = len(d.peerByTime) - 1
 		}
 		added++
 	}
-	d.filterNils()
-	sort.Sort(byTimestamp(d.peerByTime))
 	d.countBySource[source] += added
 
-	delta := d.peerByPriority.Len() - d.maxItems
+	delta := d.peers.Len() - d.maxItems
 	if delta > 0 {
 		d.removeExcessItems(delta)
-		d.filterNils()
 		d.countBySource[source] -= delta
 	}
-	if len(d.peerByTime) != d.peerByPriority.Len() {
-		panic("addr list data structures not in sync")
-	}
-}
-
-func (d *AddrList) filterNils() {
-	b := d.peerByTime[:0]
-	for _, x := range d.peerByTime {
-		if x != nil {
-			b = append(b, x)
-			x.index = len(b) - 1
-		}
-	}
-	d.peerByTime = b
 }
 
 func (d *AddrList) removeExcessItems(delta int) {
 	for i := 0; i < delta; i++ {
-		d.peerByPriority.Delete(d.peerByTime[i])
-		d.peerByTime[i] = nil
+		d.peers.DeleteMin()
 	}
 }
 
