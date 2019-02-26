@@ -15,8 +15,8 @@ type PieceDownloader struct {
 	Buffer      bufferpool.Buffer
 
 	unrequested []int
-	requested   map[int]struct{}
-	done        map[int]struct{}
+	requested   map[int]struct{} // in-flight requests
+	done        map[int]struct{} // downloaded requests
 }
 
 func New(pi *piece.Piece, pe *peer.Peer, allowedFast bool, buf bufferpool.Buffer) *PieceDownloader {
