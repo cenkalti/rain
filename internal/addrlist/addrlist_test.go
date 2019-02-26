@@ -14,27 +14,43 @@ func TestAddrList(t *testing.T) {
 
 	// Push 1st addr
 	al.Push([]*net.TCPAddr{newAddr("1.1.1.1")}, peer.SourceTracker)
-	assert.Equal(t, al.peers.Len(), 1)
+	assert.Equal(t, len(al.peerByTime), 1)
+	assert.Equal(t, al.peerByPriority.Len(), 1)
+	assert.Equal(t, al.peerByTime[0].index, 0)
 
 	// Push same addr again
 	al.Push([]*net.TCPAddr{newAddr("1.1.1.1")}, peer.SourceTracker)
-	assert.Equal(t, al.peers.Len(), 1)
+	assert.Equal(t, len(al.peerByTime), 1)
+	assert.Equal(t, al.peerByPriority.Len(), 1)
+	assert.Equal(t, al.peerByTime[0].index, 0)
 
 	// Push 2nd addr
 	al.Push([]*net.TCPAddr{newAddr("2.2.2.2")}, peer.SourceTracker)
-	assert.Equal(t, al.peers.Len(), 2)
+	assert.Equal(t, len(al.peerByTime), 2)
+	assert.Equal(t, al.peerByPriority.Len(), 2)
+	assert.Equal(t, al.peerByTime[0].index, 0)
+	assert.Equal(t, al.peerByTime[1].index, 1)
 
 	// Pop an addr
 	al.Pop()
-	assert.Equal(t, al.peers.Len(), 1)
+	assert.Equal(t, len(al.peerByTime), 2)
+	assert.Equal(t, al.peerByPriority.Len(), 1)
+	assert.Equal(t, al.peerByTime[1], (*peerAddr)(nil))
+	assert.Equal(t, al.peerByTime[0].index, 0)
 
 	// Push 3nd addr
 	al.Push([]*net.TCPAddr{newAddr("3.3.3.3")}, peer.SourceTracker)
-	assert.Equal(t, al.peers.Len(), 2)
+	assert.Equal(t, len(al.peerByTime), 2)
+	assert.Equal(t, al.peerByPriority.Len(), 2)
+	assert.Equal(t, al.peerByTime[0].index, 0)
+	assert.Equal(t, al.peerByTime[1].index, 1)
 
 	// Push 4nd addr
 	al.Push([]*net.TCPAddr{newAddr("4.4.4.4")}, peer.SourceTracker)
-	assert.Equal(t, al.peers.Len(), 2)
+	assert.Equal(t, len(al.peerByTime), 2)
+	assert.Equal(t, al.peerByPriority.Len(), 2)
+	assert.Equal(t, al.peerByTime[0].index, 0)
+	assert.Equal(t, al.peerByTime[1].index, 1)
 }
 
 func newAddr(ip string) *net.TCPAddr {
