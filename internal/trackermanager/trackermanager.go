@@ -23,6 +23,7 @@ type TrackerManager struct {
 func New(bl *blocklist.Blocklist) *TrackerManager {
 	m := &TrackerManager{
 		httpTransport: &http.Transport{
+			DisableKeepAlives: true,
 			// Setting TLSNextProto to non-nil map disables HTTP/2 support.
 			TLSNextProto: make(map[string]func(string, *tls.Conn) http.RoundTripper),
 		},
