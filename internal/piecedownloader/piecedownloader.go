@@ -87,5 +87,5 @@ func (d *PieceDownloader) RequestBlocks(queueLength int) {
 }
 
 func (d *PieceDownloader) Done() bool {
-	return len(d.done) == int(d.Piece.NumBlocks())
+	return len(d.done) == d.Piece.NumBlocks()
 }
