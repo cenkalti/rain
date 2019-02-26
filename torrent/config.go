@@ -75,7 +75,8 @@ type Config struct {
 	// Max number of outgoing connections to dial
 	MaxPeerDial int
 	// Max number of incoming connections to accept
-	MaxPeerAccept       int
+	MaxPeerAccept int
+	// Number of bytes allocated in memory for downloading piece data.
 	MaxActivePieceBytes int64
 	// Running metadata downloads, snubbed peers don't count
 	ParallelMetadataDownloads int
