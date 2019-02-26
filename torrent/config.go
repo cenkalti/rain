@@ -10,8 +10,6 @@ type Config struct {
 	DataDir string
 	// New torrents will be listened at selected port in this range.
 	PortBegin, PortEnd uint16
-	// At start, client will set max open files limit to this number. (like "ulimit -n" command)
-	MaxOpenFiles uint64
 	// Enable peer exchange protocol.
 	PEXEnabled bool
 	// Bitfield is saved to disk for fast resume without hash checking.
@@ -114,7 +112,6 @@ var DefaultConfig = Config{
 	DataDir:                         "~/rain/data",
 	PortBegin:                       50000,
 	PortEnd:                         60000,
-	MaxOpenFiles:                    1000000,
 	PEXEnabled:                      true,
 	BitfieldWriteInterval:           30 * time.Second,
 	StatsWriteInterval:              30 * time.Second,

@@ -73,10 +73,7 @@ func New(cfg Config) (*Session, error) {
 	if cfg.PortBegin >= cfg.PortEnd {
 		return nil, errors.New("invalid port range")
 	}
-	err := setNoFile(cfg.MaxOpenFiles)
-	if err != nil {
-		return nil, errors.New("cannot change max open files limit: " + err.Error())
-	}
+	var err error
 	cfg.Database, err = homedir.Expand(cfg.Database)
 	if err != nil {
 		return nil, err
