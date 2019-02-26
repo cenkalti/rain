@@ -134,6 +134,10 @@ func (p *PeerWriter) messageWriter() {
 
 	// Disable write deadline that is previously set by handshaker.
 	err := p.conn.SetWriteDeadline(time.Time{})
+	if _, ok := err.(*net.OpError); ok {
+		p.log.Debugln("cannot set deadline:", err)
+		return
+	}
 	if err != nil {
 		p.log.Error(err)
 		return
