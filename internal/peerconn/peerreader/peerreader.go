@@ -112,12 +112,16 @@ func (p *PeerReader) Run() {
 
 		switch id {
 		case peerprotocol.Choke:
+			p.log.Debug("Received Choke")
 			msg = peerprotocol.ChokeMessage{}
 		case peerprotocol.Unchoke:
+			p.log.Debug("Received Unchoke")
 			msg = peerprotocol.UnchokeMessage{}
 		case peerprotocol.Interested:
+			p.log.Debug("Received Interested")
 			msg = peerprotocol.InterestedMessage{}
 		case peerprotocol.NotInterested:
+			p.log.Debug("Received NotInterested")
 			msg = peerprotocol.NotInterestedMessage{}
 		case peerprotocol.Have:
 			var hm peerprotocol.HaveMessage
