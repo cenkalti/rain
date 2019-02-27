@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/internal/peerconn/peerreader"
 	"github.com/cenkalti/rain/internal/peerprotocol"
 )
 
@@ -146,28 +147,36 @@ func (p *PeerWriter) messageWriter() {
 	keepAliveTicker := time.NewTicker(keepAlivePeriod / 2)
 	defer keepAliveTicker.Stop()
 
-	buf := bytes.NewBuffer(make([]byte, 0, 4+1+8+16*1024))
+	// Use a fixed-size array for slice storage.
+	// Length is calculated for a piece message at max block size.
+	// Length = 4 bytes length + 1 byte messageID + 8 bytes piece header + <MaxBlockSize> piece data
+	// This will reduce allocations in loop below.
+	var a [4 + 1 + 8 + peerreader.MaxBlockSize]byte
+	b := a[:0]
+
 	for {
-		buf.Reset()
 		select {
 		case msg := <-p.writeC:
 			// p.log.Debugf("writing message of type: %q", msg.ID())
-			payload, err := msg.MarshalBinary()
+
+			buf := bytes.NewBuffer(b)
+
+			// Reserve space for length and message ID
+			buf.Write([]byte{0, 0, 0, 0, 0})
+
+			err = msg.WriteTo(buf)
 			if err != nil {
-				p.log.Errorf("cannot marshal message [%v]: %s", msg.ID(), err.Error())
+				p.log.Errorf("cannot write message [%v]: %s", msg.ID(), err.Error())
 				return
 			}
-			var header = struct {
-				Length uint32
-				ID     peerprotocol.MessageID
-			}{
-				Length: uint32(1 + len(payload)),
-				ID:     msg.ID(),
-			}
-			_ = binary.Write(buf, binary.BigEndian, &header)
-			buf.Write(payload)
-			n, err := p.conn.Write(buf.Bytes())
-			p.countUploadBytes(msg, n)
+
+			// Put length
+			binary.BigEndian.PutUint32(buf.Bytes()[:4], uint32(1+buf.Len()-5))
+			// Put message ID
+			buf.Bytes()[4] = uint8(msg.ID())
+
+			_, err = p.conn.Write(buf.Bytes())
+			p.countUploadBytes(msg, buf.Len())
 			if _, ok := err.(*net.OpError); ok {
 				p.log.Debugf("cannot write message [%v]: %s", msg.ID(), err.Error())
 				return

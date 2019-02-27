@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"net"
 
 	"github.com/zeebo/bencode"
@@ -33,17 +34,16 @@ type ExtensionMessage struct {
 
 func (m ExtensionMessage) ID() MessageID { return Extension }
 
-func (m ExtensionMessage) MarshalBinary() ([]byte, error) {
-	var buf bytes.Buffer
-	buf.WriteByte(m.ExtendedMessageID)
-	err := bencode.NewEncoder(&buf).Encode(m.Payload)
+func (m ExtensionMessage) WriteTo(w io.Writer) error {
+	w.Write([]byte{m.ExtendedMessageID})
+	err := bencode.NewEncoder(w).Encode(m.Payload)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if mm, ok := m.Payload.(ExtensionMetadataMessage); ok {
-		buf.Write(mm.Data)
+		_, err = w.Write(mm.Data)
 	}
-	return buf.Bytes(), nil
+	return err
 }
 
 func (m *ExtensionMessage) UnmarshalBinary(data []byte) error {

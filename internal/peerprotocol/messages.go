@@ -1,13 +1,12 @@
 package peerprotocol
 
 import (
-	"bytes"
-	"encoding"
 	"encoding/binary"
+	"io"
 )
 
 type Message interface {
-	encoding.BinaryMarshaler
+	WriteTo(w io.Writer) error
 	ID() MessageID
 }
 
@@ -17,10 +16,8 @@ type HaveMessage struct {
 
 func (m HaveMessage) ID() MessageID { return Have }
 
-func (m HaveMessage) MarshalBinary() ([]byte, error) {
-	buf := bytes.NewBuffer(make([]byte, 0, 4))
-	err := binary.Write(buf, binary.BigEndian, m)
-	return buf.Bytes(), err
+func (m HaveMessage) WriteTo(w io.Writer) error {
+	return binary.Write(w, binary.BigEndian, m)
 }
 
 type RequestMessage struct {
@@ -29,10 +26,8 @@ type RequestMessage struct {
 
 func (m RequestMessage) ID() MessageID { return Request }
 
-func (m RequestMessage) MarshalBinary() ([]byte, error) {
-	buf := bytes.NewBuffer(make([]byte, 0, 12))
-	err := binary.Write(buf, binary.BigEndian, m)
-	return buf.Bytes(), err
+func (m RequestMessage) WriteTo(w io.Writer) error {
+	return binary.Write(w, binary.BigEndian, m)
 }
 
 type PieceMessage struct {
@@ -41,10 +36,8 @@ type PieceMessage struct {
 
 func (m PieceMessage) ID() MessageID { return Piece }
 
-func (m PieceMessage) MarshalBinary() ([]byte, error) {
-	buf := bytes.NewBuffer(make([]byte, 0))
-	err := binary.Write(buf, binary.BigEndian, m)
-	return buf.Bytes(), err
+func (m PieceMessage) WriteTo(w io.Writer) error {
+	return binary.Write(w, binary.BigEndian, m)
 }
 
 type BitfieldMessage struct {
@@ -53,16 +46,15 @@ type BitfieldMessage struct {
 
 func (m BitfieldMessage) ID() MessageID { return Bitfield }
 
-func (m BitfieldMessage) MarshalBinary() ([]byte, error) {
-	buf := bytes.NewBuffer(make([]byte, 0, len(m.Data)))
-	_, err := buf.Write(m.Data)
-	return buf.Bytes(), err
+func (m BitfieldMessage) WriteTo(w io.Writer) error {
+	_, err := w.Write(m.Data)
+	return err
 }
 
 type emptyMessage struct{}
 
-func (m emptyMessage) MarshalBinary() ([]byte, error) {
-	return []byte{}, nil
+func (m emptyMessage) WriteTo(w io.Writer) error {
+	return nil
 }
 
 type AllowedFastMessage struct{ HaveMessage }

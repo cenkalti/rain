@@ -1,10 +1,10 @@
 package peerwriter
 
 import (
-	"bytes"
 	"encoding/binary"
 	"io"
 
+	"github.com/cenkalti/rain/internal/peerconn/peerreader"
 	"github.com/cenkalti/rain/internal/peerprotocol"
 )
 
@@ -17,18 +17,18 @@ type Piece struct {
 
 func (m Piece) ID() peerprotocol.MessageID { return peerprotocol.Piece }
 
-func (m Piece) MarshalBinary() ([]byte, error) {
-	b := make([]byte, m.Length)
-	_, err := m.Piece.ReadAt(b, int64(m.Begin))
-	if err != nil {
-		return nil, err
-	}
-	buf := bytes.NewBuffer(make([]byte, 0, 8+m.Length))
+func (m Piece) WriteTo(w io.Writer) error {
 	msg := struct{ Index, Begin uint32 }{Index: m.Index, Begin: m.Begin}
-	err = binary.Write(buf, binary.BigEndian, msg)
+	err := binary.Write(w, binary.BigEndian, msg)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	_, err = buf.Write(b)
-	return buf.Bytes(), err
+	var a [peerreader.MaxBlockSize]byte
+	b := a[:m.Length]
+	_, err = m.Piece.ReadAt(b, int64(m.Begin))
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(b)
+	return err
 }
