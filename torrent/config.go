@@ -27,6 +27,8 @@ type Config struct {
 	BlocklistUpdateInterval time.Duration
 	// HTTP timeout for downloading blocklist
 	BlocklistUpdateTimeout time.Duration
+	// Time to wait when adding torrent with AddURI().
+	TorrentAddHTTPTimeout time.Duration
 
 	// Enable RPC server
 	RPCEnabled bool
@@ -121,6 +123,7 @@ var DefaultConfig = Config{
 	ExtensionHandshakeClientVersion: "Rain " + Version,
 	BlocklistUpdateInterval:         24 * time.Hour,
 	BlocklistUpdateTimeout:          10 * time.Minute,
+	TorrentAddHTTPTimeout:           30 * time.Second,
 
 	// RPC Server
 	RPCEnabled:         true,

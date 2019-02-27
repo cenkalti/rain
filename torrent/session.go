@@ -448,7 +448,10 @@ func (s *Session) AddURI(uri string) (*Torrent, error) {
 }
 
 func (s *Session) addURL(u string) (*Torrent, error) {
-	resp, err := http.Get(u)
+	client := http.Client{
+		Timeout: s.config.TorrentAddHTTPTimeout,
+	}
+	resp, err := client.Get(u)
 	if err != nil {
 		return nil, err
 	}
