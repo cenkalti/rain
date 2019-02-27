@@ -146,7 +146,9 @@ func (p *PeerWriter) messageWriter() {
 	keepAliveTicker := time.NewTicker(keepAlivePeriod / 2)
 	defer keepAliveTicker.Stop()
 
+	buf := bytes.NewBuffer(make([]byte, 0, 4+1+8+16*1024))
 	for {
+		buf.Reset()
 		select {
 		case msg := <-p.writeC:
 			// p.log.Debugf("writing message of type: %q", msg.ID())
@@ -155,7 +157,6 @@ func (p *PeerWriter) messageWriter() {
 				p.log.Errorf("cannot marshal message [%v]: %s", msg.ID(), err.Error())
 				return
 			}
-			buf := bytes.NewBuffer(make([]byte, 0, 4+1+len(payload)))
 			var header = struct {
 				Length uint32
 				ID     peerprotocol.MessageID
