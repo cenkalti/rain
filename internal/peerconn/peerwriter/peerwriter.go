@@ -194,10 +194,11 @@ func (p *PeerWriter) messageWriter() {
 
 func (p *PeerWriter) countUploadBytes(msg peerprotocol.Message, n int) {
 	if _, ok := msg.(Piece); ok {
-		uploaded := uint32(n) - 13
-		if uploaded < 0 {
-			uploaded = 0
+		n -= 13
+		if n < 0 {
+			n = 0
 		}
+		uploaded := uint32(n)
 		if uploaded > 0 {
 			select {
 			case p.messages <- BlockUploaded{Length: uploaded}:
