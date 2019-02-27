@@ -164,9 +164,13 @@ func (p *PeerWriter) messageWriter() {
 			// Reserve space for length and message ID
 			buf.Write([]byte{0, 0, 0, 0, 0})
 
-			err = msg.WriteTo(buf)
+			if wt, ok := msg.(io.WriterTo); ok {
+				_, err = wt.WriteTo(buf)
+			} else {
+				_, err = buf.ReadFrom(msg)
+			}
 			if err != nil {
-				p.log.Errorf("cannot write message [%v]: %s", msg.ID(), err.Error())
+				p.log.Errorf("cannot serialize message [%v]: %s", msg.ID(), err.Error())
 				return
 			}
 

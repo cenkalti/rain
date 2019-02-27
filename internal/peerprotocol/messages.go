@@ -6,7 +6,7 @@ import (
 )
 
 type Message interface {
-	WriteTo(w io.Writer) error
+	Read([]byte) (int, error)
 	ID() MessageID
 }
 
@@ -16,8 +16,9 @@ type HaveMessage struct {
 
 func (m HaveMessage) ID() MessageID { return Have }
 
-func (m HaveMessage) WriteTo(w io.Writer) error {
-	return binary.Write(w, binary.BigEndian, m)
+func (m HaveMessage) Read(b []byte) (int, error) {
+	binary.BigEndian.PutUint32(b[0:4], m.Index)
+	return 4, io.EOF
 }
 
 type RequestMessage struct {
@@ -26,8 +27,11 @@ type RequestMessage struct {
 
 func (m RequestMessage) ID() MessageID { return Request }
 
-func (m RequestMessage) WriteTo(w io.Writer) error {
-	return binary.Write(w, binary.BigEndian, m)
+func (m RequestMessage) Read(b []byte) (int, error) {
+	binary.BigEndian.PutUint32(b[0:4], m.Index)
+	binary.BigEndian.PutUint32(b[4:8], m.Begin)
+	binary.BigEndian.PutUint32(b[8:12], m.Length)
+	return 12, io.EOF
 }
 
 type PieceMessage struct {
@@ -36,8 +40,10 @@ type PieceMessage struct {
 
 func (m PieceMessage) ID() MessageID { return Piece }
 
-func (m PieceMessage) WriteTo(w io.Writer) error {
-	return binary.Write(w, binary.BigEndian, m)
+func (m PieceMessage) Read(b []byte) (int, error) {
+	binary.BigEndian.PutUint32(b[0:4], m.Index)
+	binary.BigEndian.PutUint32(b[4:8], m.Begin)
+	return 8, io.EOF
 }
 
 type BitfieldMessage struct {
@@ -46,15 +52,15 @@ type BitfieldMessage struct {
 
 func (m BitfieldMessage) ID() MessageID { return Bitfield }
 
-func (m BitfieldMessage) WriteTo(w io.Writer) error {
-	_, err := w.Write(m.Data)
-	return err
+func (m BitfieldMessage) Read(b []byte) (int, error) {
+	copy(b[0:len(m.Data)], m.Data)
+	return len(m.Data), io.EOF
 }
 
 type emptyMessage struct{}
 
-func (m emptyMessage) WriteTo(w io.Writer) error {
-	return nil
+func (m emptyMessage) Read(b []byte) (int, error) {
+	return 0, io.EOF
 }
 
 type AllowedFastMessage struct{ HaveMessage }

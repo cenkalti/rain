@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/cenkalti/rain/internal/peerconn/peerreader"
 	"github.com/cenkalti/rain/internal/peerprotocol"
 )
 
@@ -15,20 +14,15 @@ type Piece struct {
 	Length uint32
 }
 
-func (m Piece) ID() peerprotocol.MessageID { return peerprotocol.Piece }
+func (p Piece) ID() peerprotocol.MessageID { return peerprotocol.Piece }
 
-func (m Piece) WriteTo(w io.Writer) error {
-	msg := struct{ Index, Begin uint32 }{Index: m.Index, Begin: m.Begin}
-	err := binary.Write(w, binary.BigEndian, msg)
+func (p Piece) Read(b []byte) (int, error) {
+	binary.BigEndian.PutUint32(b[0:4], p.Index)
+	binary.BigEndian.PutUint32(b[4:8], p.Begin)
+	n, err := p.Piece.ReadAt(b[8:8+p.Length], int64(p.Begin))
+	m := int(n + 8)
 	if err != nil {
-		return err
+		return m, err
 	}
-	var a [peerreader.MaxBlockSize]byte
-	b := a[:m.Length]
-	_, err = m.Piece.ReadAt(b, int64(m.Begin))
-	if err != nil {
-		return err
-	}
-	_, err = w.Write(b)
-	return err
+	return m, io.EOF
 }
