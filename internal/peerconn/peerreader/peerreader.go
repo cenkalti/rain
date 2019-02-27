@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	maxBlockSize = 16 * 1024
+	MaxBlockSize = 16 * 1024
 	// time to wait for a message. peer must send keep-alive messages to keep connection alive.
 	readTimeout = 2 * time.Minute
 )
@@ -150,8 +150,8 @@ func (p *PeerReader) Run() {
 			}
 			// p.log.Debugf("Received Request: %+v", rm)
 
-			if rm.Length > maxBlockSize {
-				err = fmt.Errorf("received a request with block size larger than allowed (%d > %d)", rm.Length, maxBlockSize)
+			if rm.Length > MaxBlockSize {
+				err = fmt.Errorf("received a request with block size larger than allowed (%d > %d)", rm.Length, MaxBlockSize)
 				return
 			}
 			msg = rm
@@ -169,8 +169,8 @@ func (p *PeerReader) Run() {
 			if err != nil {
 				return
 			}
-			if cm.Length > maxBlockSize {
-				err = fmt.Errorf("received a cancel with block size larger than allowed (%d > %d)", cm.Length, maxBlockSize)
+			if cm.Length > MaxBlockSize {
+				err = fmt.Errorf("received a cancel with block size larger than allowed (%d > %d)", cm.Length, MaxBlockSize)
 				return
 			}
 			msg = cm
