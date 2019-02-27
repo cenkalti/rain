@@ -100,7 +100,11 @@ func (s *Session) reloadBlocklist() error {
 	}()
 	req = req.WithContext(ctx)
 
-	resp, err := http.DefaultClient.Do(req)
+	client := http.Client{
+		Timeout: s.config.BlocklistUpdateTimeout,
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}

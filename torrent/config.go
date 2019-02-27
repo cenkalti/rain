@@ -25,6 +25,8 @@ type Config struct {
 	BlocklistURL string
 	// When to refresh blocklist
 	BlocklistUpdateInterval time.Duration
+	// HTTP timeout for downloading blocklist
+	BlocklistUpdateTimeout time.Duration
 
 	// Enable RPC server
 	RPCEnabled bool
@@ -118,6 +120,7 @@ var DefaultConfig = Config{
 	PeerIDPrefix:                    "-RN" + Version + "-",
 	ExtensionHandshakeClientVersion: "Rain " + Version,
 	BlocklistUpdateInterval:         24 * time.Hour,
+	BlocklistUpdateTimeout:          10 * time.Minute,
 
 	// RPC Server
 	RPCEnabled:         true,
