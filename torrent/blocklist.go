@@ -35,6 +35,12 @@ func (s *Session) startBlocklistReloader() error {
 	} else if deadline.Before(now) {
 		s.log.Infof("Last blocklist reload was %s ago. Reloading blocklist...", delta.String())
 		s.retryReloadBlocklist()
+	} else {
+		s.log.Infof("Loading blocklist from session db...")
+		err = s.loadBlocklistFromDB()
+		if err != nil {
+			return err
+		}
 	}
 	go s.blocklistReloader(deadline.Sub(now))
 	return nil
@@ -117,11 +123,10 @@ func (s *Session) reloadBlocklist() error {
 	buf := bytes.NewBuffer(make([]byte, 0, resp.ContentLength))
 	r = io.TeeReader(r, buf)
 
-	n, err := s.blocklist.Reload(r)
+	err = s.loadBlocklistReader(r)
 	if err != nil {
 		return err
 	}
-	s.log.Infof("Loaded %d rules from blocklist.", n)
 
 	now := time.Now()
 
@@ -137,6 +142,26 @@ func (s *Session) reloadBlocklist() error {
 		}
 		return b.Put(blocklistTimestampKey, []byte(now.UTC().Format(time.RFC3339)))
 	})
+}
+
+func (s *Session) loadBlocklistFromDB() error {
+	return s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(sessionBucket)
+		val := b.Get(blocklistKey)
+		if len(val) == 0 {
+			return errors.New("no blocklist data in db")
+		}
+		return s.loadBlocklistReader(bytes.NewReader(val))
+	})
+}
+
+func (s *Session) loadBlocklistReader(r io.Reader) error {
+	n, err := s.blocklist.Reload(r)
+	if err != nil {
+		return err
+	}
+	s.log.Infof("Loaded %d rules from blocklist.", n)
+	return nil
 }
 
 func (s *Session) blocklistReloader(d time.Duration) {
