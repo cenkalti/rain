@@ -28,12 +28,8 @@ func (t *torrent) Stop() {
 // Close this torrent and release all resources.
 // Close must be called before discarding the torrent.
 func (t *torrent) Close() {
-	doneC := make(chan struct{})
-	select {
-	case t.closeC <- doneC:
-		<-doneC
-	default:
-	}
+	close(t.closeC)
+	<-t.doneC
 }
 
 // NotifyComplete returns a channel for notifying completion.

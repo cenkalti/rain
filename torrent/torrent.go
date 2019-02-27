@@ -135,6 +135,7 @@ type torrent struct {
 	// When Stop() is called, it will close this channel to signal run() function to stop.
 	closeC chan chan struct{}
 
+	// Close() blocks until doneC is closed.
 	doneC chan struct{}
 
 	// These are the channels for sending a message to run() loop.

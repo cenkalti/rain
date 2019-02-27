@@ -35,10 +35,9 @@ func (t *torrent) close() {
 func (t *torrent) run() {
 	for {
 		select {
-		case done := <-t.closeC:
+		case <-t.closeC:
 			t.close()
 			close(t.doneC)
-			close(done)
 			return
 		case <-t.startCommandC:
 			t.start()
