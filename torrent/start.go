@@ -2,7 +2,6 @@ package torrent
 
 import (
 	"net"
-	"time"
 
 	"github.com/cenkalti/rain/internal/acceptor"
 	"github.com/cenkalti/rain/internal/allocator"
@@ -36,7 +35,6 @@ func (t *torrent) start() {
 				t.startAcceptor()
 				t.startAnnouncers()
 				t.startPieceDownloaders()
-				t.startUnchokeTimers()
 			} else {
 				t.startVerifier()
 			}
@@ -106,17 +104,6 @@ func (t *torrent) startAcceptor() {
 		t.portC <- t.port
 		t.acceptor = acceptor.New(listener, t.incomingConnC, t.log)
 		go t.acceptor.Run()
-	}
-}
-
-func (t *torrent) startUnchokeTimers() {
-	if t.unchokeTimer == nil {
-		t.unchokeTimer = time.NewTicker(10 * time.Second)
-		t.unchokeTimerC = t.unchokeTimer.C
-	}
-	if t.optimisticUnchokeTimer == nil {
-		t.optimisticUnchokeTimer = time.NewTicker(30 * time.Second)
-		t.optimisticUnchokeTimerC = t.optimisticUnchokeTimer.C
 	}
 }
 

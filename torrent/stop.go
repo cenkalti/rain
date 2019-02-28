@@ -36,9 +36,6 @@ func (t *torrent) stop(err error) {
 		t.writeBitfield(false)
 	}
 
-	t.log.Debugln("stopping unchoke timers")
-	t.stopUnchokeTimers()
-
 	// Closing data is necessary to cancel ongoing IO operations on files.
 	t.log.Debugln("closing open files")
 	t.closeData()
@@ -144,19 +141,6 @@ func (t *torrent) stopAcceptor() {
 func (t *torrent) stopPeers() {
 	for p := range t.peers {
 		t.closePeer(p)
-	}
-}
-
-func (t *torrent) stopUnchokeTimers() {
-	if t.unchokeTimer != nil {
-		t.unchokeTimer.Stop()
-		t.unchokeTimer = nil
-		t.unchokeTimerC = nil
-	}
-	if t.optimisticUnchokeTimer != nil {
-		t.optimisticUnchokeTimer.Stop()
-		t.optimisticUnchokeTimer = nil
-		t.optimisticUnchokeTimerC = nil
 	}
 }
 

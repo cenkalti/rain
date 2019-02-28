@@ -39,6 +39,12 @@ func (t *torrent) run() {
 	t.speedCounterTicker = time.NewTicker(5 * time.Second)
 	defer t.speedCounterTicker.Stop()
 
+	t.unchokeTimer = time.NewTicker(10 * time.Second)
+	defer t.unchokeTimer.Stop()
+
+	t.optimisticUnchokeTimer = time.NewTicker(30 * time.Second)
+	defer t.optimisticUnchokeTimer.Stop()
+
 	for {
 		select {
 		case <-t.closeC:
@@ -201,9 +207,9 @@ func (t *torrent) run() {
 				t.infoDownloadersSnubbed[pe] = id
 				t.startInfoDownloaders()
 			}
-		case <-t.unchokeTimerC:
+		case <-t.unchokeTimer.C:
 			t.tickUnchoke()
-		case <-t.optimisticUnchokeTimerC:
+		case <-t.optimisticUnchokeTimer.C:
 			t.tickOptimisticUnchoke()
 		case ih := <-t.incomingHandshakerResultC:
 			delete(t.incomingHandshakers, ih)
