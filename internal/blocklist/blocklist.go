@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"sync"
@@ -69,7 +70,7 @@ func load(r io.Reader) (stree.Stree, int, error) {
 		}
 		r, err := parseCIDR(l)
 		if err != nil {
-			continue
+			return tree, n, fmt.Errorf("cannot parse blocklist line (%q): %s", string(l), err.Error())
 		}
 		tree.AddRange(stree.ValueType(r.first), stree.ValueType(r.last))
 		n++
