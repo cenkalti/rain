@@ -107,20 +107,6 @@ func (r *Resumer) WriteBitfield(value []byte) error {
 	})
 }
 
-func (r *Resumer) WriteStats(s resumer.Stats) error {
-	return r.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(r.mainBucket).Bucket(r.subBucket)
-		if b == nil {
-			return nil
-		}
-		b.Put(Keys.BytesDownloaded, []byte(strconv.FormatInt(s.BytesDownloaded, 10)))
-		b.Put(Keys.BytesUploaded, []byte(strconv.FormatInt(s.BytesUploaded, 10)))
-		b.Put(Keys.BytesWasted, []byte(strconv.FormatInt(s.BytesWasted, 10)))
-		b.Put(Keys.SeededFor, []byte(time.Duration(s.SeededFor).String()))
-		return nil
-	})
-}
-
 func (r *Resumer) Read() (*Spec, error) {
 	var spec *Spec
 	err := r.db.View(func(tx *bolt.Tx) error {

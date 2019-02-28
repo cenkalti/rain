@@ -12,7 +12,9 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/boltdb/bolt"
@@ -168,7 +170,41 @@ func New(cfg Config) (*Session, error) {
 			return nil, err
 		}
 	}
+	go c.updateStatsLoop()
 	return c, nil
+}
+
+func (s *Session) updateStatsLoop() {
+	ticker := time.NewTicker(s.config.StatsWriteInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			s.updateStats()
+		case <-s.closeC:
+			return
+		}
+	}
+}
+
+func (s *Session) updateStats() {
+	err := s.db.Update(func(tx *bolt.Tx) error {
+		mb := tx.Bucket(torrentsBucket)
+		s.m.RLock()
+		for _, t := range s.torrents {
+			b := mb.Bucket([]byte(t.id))
+			b.Put(boltdbresumer.Keys.BytesDownloaded, []byte(strconv.FormatInt(atomic.LoadInt64(&t.torrent.resumerStats.BytesDownloaded), 10)))
+			b.Put(boltdbresumer.Keys.BytesDownloaded, []byte(strconv.FormatInt(atomic.LoadInt64(&t.torrent.resumerStats.BytesDownloaded), 10)))
+			b.Put(boltdbresumer.Keys.BytesUploaded, []byte(strconv.FormatInt(atomic.LoadInt64(&t.torrent.resumerStats.BytesUploaded), 10)))
+			b.Put(boltdbresumer.Keys.BytesWasted, []byte(strconv.FormatInt(atomic.LoadInt64(&t.torrent.resumerStats.BytesWasted), 10)))
+			b.Put(boltdbresumer.Keys.SeededFor, []byte(time.Duration(atomic.LoadInt64(&t.torrent.resumerStats.SeededFor)).String()))
+		}
+		s.m.RUnlock()
+		return nil
+	})
+	if err != nil {
+		s.log.Errorln("cannot update stats:", err.Error())
+	}
 }
 
 func (s *Session) processDHTResults() {
@@ -270,7 +306,7 @@ func (s *Session) loadExistingTorrents(ids []string) error {
 				BytesDownloaded: spec.BytesDownloaded,
 				BytesUploaded:   spec.BytesUploaded,
 				BytesWasted:     spec.BytesWasted,
-				SeededFor:       spec.SeededFor,
+				SeededFor:       int64(spec.SeededFor),
 			},
 		}
 		var private bool
@@ -342,6 +378,8 @@ func (s *Session) Close() error {
 	if s.config.DHTEnabled {
 		s.dht.Stop()
 	}
+
+	s.updateStats()
 
 	var wg sync.WaitGroup
 	s.m.Lock()

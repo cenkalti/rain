@@ -49,16 +49,7 @@ func (t *torrent) start() {
 		t.startInfoDownloaders()
 	}
 
-	t.startStatsWriter()
 	t.startSpeedCounter()
-}
-
-func (t *torrent) startStatsWriter() {
-	if t.statsWriteTicker != nil {
-		return
-	}
-	t.statsWriteTicker = time.NewTicker(t.config.StatsWriteInterval)
-	t.statsWriteTickerC = t.statsWriteTicker.C
 }
 
 func (t *torrent) startSpeedCounter() {

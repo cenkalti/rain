@@ -1,8 +1,6 @@
 package torrent
 
 import (
-	"time"
-
 	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/handshaker/incominghandshaker"
 	"github.com/cenkalti/rain/internal/handshaker/outgoinghandshaker"
@@ -65,9 +63,6 @@ func (t *torrent) stop(err error) {
 	t.log.Debugln("stopping incoming handshakers")
 	t.stopIncomingHandshakers()
 
-	t.log.Debugln("stopping stats writer")
-	t.stopStatsWriter()
-
 	t.stopSpeedCounter()
 
 	// Stop periodical announcers first.
@@ -93,14 +88,6 @@ func (t *torrent) stop(err error) {
 
 	t.addrList.Reset()
 
-}
-
-func (t *torrent) stopStatsWriter() {
-	t.writeStats()
-	t.seedDurationUpdatedAt = time.Time{}
-	t.statsWriteTicker.Stop()
-	t.statsWriteTicker = nil
-	t.statsWriteTickerC = nil
 }
 
 func (t *torrent) stopSpeedCounter() {

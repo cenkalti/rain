@@ -33,6 +33,9 @@ func (t *torrent) close() {
 
 // Torrent event loop
 func (t *torrent) run() {
+	t.seedDurationTicker = time.NewTicker(time.Second)
+	defer t.seedDurationTicker.Stop()
+
 	for {
 		select {
 		case <-t.closeC:
@@ -174,8 +177,8 @@ func (t *torrent) run() {
 			}
 		case <-t.resumeWriteTimerC:
 			t.writeBitfield(true)
-		case <-t.statsWriteTickerC:
-			t.writeStats()
+		case now := <-t.seedDurationTicker.C:
+			t.updateSeedDuration(now)
 		case <-t.speedCounterTickerC:
 			t.downloadSpeed.Tick()
 			t.uploadSpeed.Tick()
@@ -484,13 +487,6 @@ func (t *torrent) checkCompletion() bool {
 		pd.CancelPending()
 	}
 	t.piecePicker = nil
-	t.updateSeedDuration()
+	t.updateSeedDuration(time.Now())
 	return true
-}
-
-func (t *torrent) writeStats() {
-	t.updateSeedDuration()
-	if t.resume != nil {
-		t.resume.WriteStats(t.resumerStats)
-	}
 }

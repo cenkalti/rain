@@ -2,6 +2,7 @@ package torrent
 
 import (
 	"math"
+	"sync/atomic"
 	"time"
 
 	"github.com/cenkalti/rain/internal/mse"
@@ -109,7 +110,7 @@ type Stats struct {
 }
 
 func (t *torrent) stats() Stats {
-	t.updateSeedDuration()
+	t.updateSeedDuration(time.Now())
 
 	var s Stats
 	s.Status = t.status()
@@ -135,7 +136,7 @@ func (t *torrent) stats() Stats {
 	s.Bytes.Downloaded = t.resumerStats.BytesDownloaded
 	s.Bytes.Uploaded = t.resumerStats.BytesUploaded
 	s.Bytes.Wasted = t.resumerStats.BytesWasted
-	s.SeededFor = t.resumerStats.SeededFor
+	s.SeededFor = time.Duration(t.resumerStats.SeededFor)
 	s.Bytes.Allocated = t.bytesAllocated
 	s.Pieces.Checked = t.checkedPieces
 	s.Speed.Download = uint(t.downloadSpeed.Rate())
@@ -261,16 +262,15 @@ func (t *torrent) getPeers() []Peer {
 	return peers
 }
 
-func (t *torrent) updateSeedDuration() {
+func (t *torrent) updateSeedDuration(now time.Time) {
 	if t.status() != Seeding {
 		t.seedDurationUpdatedAt = time.Time{}
 		return
 	}
 	if t.seedDurationUpdatedAt.IsZero() {
-		t.seedDurationUpdatedAt = time.Now()
+		t.seedDurationUpdatedAt = now
 		return
 	}
-	now := time.Now()
-	t.resumerStats.SeededFor += now.Sub(t.seedDurationUpdatedAt)
+	atomic.AddInt64(&t.resumerStats.SeededFor, int64(now.Sub(t.seedDurationUpdatedAt)))
 	t.seedDurationUpdatedAt = now
 }
