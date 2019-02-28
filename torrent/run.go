@@ -188,7 +188,6 @@ func (t *torrent) run() {
 		case pe := <-t.peerSnubbedC:
 			// Mark slow peer as snubbed and don't select that peer in piece picker
 			pe.Snubbed = true
-			t.peersSnubbed[pe] = struct{}{}
 			if pd, ok := t.pieceDownloaders[pe]; ok {
 				if _, ok := t.pieceDownloadersChoked[pe]; ok {
 					panic("piece download is choked")
@@ -269,7 +268,6 @@ func (t *torrent) closePeer(pe *peer.Peer) {
 	delete(t.peers, pe)
 	delete(t.incomingPeers, pe)
 	delete(t.outgoingPeers, pe)
-	delete(t.peersSnubbed, pe)
 	delete(t.peerIDs, pe.ID)
 	delete(t.connectedPeerIPs, pe.Conn.IP())
 	if t.piecePicker != nil {

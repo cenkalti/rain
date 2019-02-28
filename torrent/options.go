@@ -91,7 +91,6 @@ func (o *options) NewTorrent(infoHash []byte, sto storage.Storage) (*torrent, er
 		peers:                     make(map[*peer.Peer]struct{}),
 		incomingPeers:             make(map[*peer.Peer]struct{}),
 		outgoingPeers:             make(map[*peer.Peer]struct{}),
-		peersSnubbed:              make(map[*peer.Peer]struct{}),
 		pieceDownloaders:          make(map[*peer.Peer]*piecedownloader.PieceDownloader),
 		pieceDownloadersSnubbed:   make(map[*peer.Peer]*piecedownloader.PieceDownloader),
 		pieceDownloadersChoked:    make(map[*peer.Peer]*piecedownloader.PieceDownloader),

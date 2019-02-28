@@ -98,7 +98,6 @@ type torrent struct {
 	// Also keep a reference to incoming and outgoing peers seperately to count them quickly.
 	incomingPeers map[*peer.Peer]struct{}
 	outgoingPeers map[*peer.Peer]struct{}
-	peersSnubbed  map[*peer.Peer]struct{}
 
 	// Active piece downloads are kept in this map.
 	pieceDownloaders        map[*peer.Peer]*piecedownloader.PieceDownloader
