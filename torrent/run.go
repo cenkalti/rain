@@ -446,40 +446,6 @@ func (t *torrent) sendFirstMessage(p *peer.Peer) {
 	}
 }
 
-func (t *torrent) fastUnchoke(pe *peer.Peer) {
-	if pe.ClientChoking && pe.PeerInterested && len(t.peersUnchoked) < t.config.UnchokedPeers {
-		t.unchokePeer(pe, false)
-	}
-	if pe.ClientChoking && pe.PeerInterested && len(t.peersUnchokedOptimistic) < t.config.OptimisticUnchokedPeers {
-		t.unchokePeer(pe, true)
-	}
-}
-
-func (t *torrent) chokePeer(pe *peer.Peer) {
-	if !pe.ClientChoking {
-		pe.ClientChoking = true
-		pe.OptimisticUnchoked = false
-		msg := peerprotocol.ChokeMessage{}
-		pe.SendMessage(msg)
-		delete(t.peersUnchoked, pe)
-		delete(t.peersUnchokedOptimistic, pe)
-	}
-}
-
-func (t *torrent) unchokePeer(pe *peer.Peer, optimistic bool) {
-	if pe.ClientChoking {
-		pe.ClientChoking = false
-		pe.OptimisticUnchoked = optimistic
-		msg := peerprotocol.UnchokeMessage{}
-		pe.SendMessage(msg)
-		if optimistic {
-			t.peersUnchokedOptimistic[pe] = struct{}{}
-		} else {
-			t.peersUnchoked[pe] = struct{}{}
-		}
-	}
-}
-
 func (t *torrent) checkCompletion() bool {
 	if t.completed {
 		return true
