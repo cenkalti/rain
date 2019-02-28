@@ -45,7 +45,9 @@ type Session struct {
 	db             *bolt.DB
 	log            logger.Logger
 	dht            *dht.DHT
+	rpc            *rpcServer
 	trackerManager *trackermanager.TrackerManager
+	ram            *resourcemanager.ResourceManager
 	pieceCache     *piececache.Cache
 	closeC         chan struct{}
 
@@ -62,10 +64,6 @@ type Session struct {
 	mBlocklist         sync.RWMutex
 	blocklist          *blocklist.Blocklist
 	blocklistTimestamp time.Time
-
-	rpc *rpcServer
-
-	ram *resourcemanager.ResourceManager
 }
 
 // New returns a pointer to new Rain BitTorrent client.
