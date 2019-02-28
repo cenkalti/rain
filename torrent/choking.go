@@ -20,7 +20,7 @@ func (t *torrent) candidatesUnchoke() []*peer.Peer {
 func (t *torrent) candidatesUnchokeOptimistic() []*peer.Peer {
 	peers := make([]*peer.Peer, 0, len(t.peers))
 	for pe := range t.peers {
-		if pe.PeerInterested && pe.ClientChoking {
+		if pe.PeerInterested && pe.ClientChoking && pe.OptimisticUnchoked {
 			peers = append(peers, pe)
 		}
 	}
