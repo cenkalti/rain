@@ -95,6 +95,13 @@ type torrent struct {
 	// We keep connected peers in this map after they complete handshake phase.
 	peers map[*peer.Peer]struct{}
 
+	// Need to know the count of the unchoked peers before running choke logic.
+	// Optimistic unchoked peers are not included.
+	peersUnchoked map[*peer.Peer]struct{}
+
+	// Some peers are optimistically unchoked regardless of their download rate.
+	peersUnchokedOptimistic map[*peer.Peer]struct{}
+
 	// Also keep a reference to incoming and outgoing peers seperately to count them quickly.
 	incomingPeers map[*peer.Peer]struct{}
 	outgoingPeers map[*peer.Peer]struct{}
@@ -112,9 +119,6 @@ type torrent struct {
 	infoDownloadersSnubbed map[*peer.Peer]*infodownloader.InfoDownloader
 
 	pieceWriterResultC chan *piecewriter.PieceWriter
-
-	// Some peers are optimistically unchoked regardless of their download rate.
-	optimisticUnchokedPeers []*peer.Peer
 
 	// This channel is closed once all pieces are downloaded and verified.
 	completeC chan struct{}

@@ -185,8 +185,10 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 		t.startPieceDownloaders()
 	case peerprotocol.InterestedMessage:
 		pe.PeerInterested = true
+		t.fastUnchoke(pe)
 	case peerprotocol.NotInterestedMessage:
 		pe.PeerInterested = false
+		t.chokePeer(pe)
 	case peerprotocol.RequestMessage:
 		if t.pieces == nil || t.bitfield == nil {
 			pe.Logger().Error("request received but we don't have info")
