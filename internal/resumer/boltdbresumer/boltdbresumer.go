@@ -11,20 +11,33 @@ import (
 	"github.com/cenkalti/rain/internal/resumer"
 )
 
-var (
-	infoHashKey        = []byte("info_hash")
-	portKey            = []byte("port")
-	nameKey            = []byte("name")
-	trackersKey        = []byte("trackers")
-	destKey            = []byte("dest")
-	infoKey            = []byte("info")
-	bitfieldKey        = []byte("bitfield")
-	addedAtKey         = []byte("added_at")
-	bytesDownloadedKey = []byte("bytes_downloaded")
-	bytesUploadedKey   = []byte("bytes_uploaded")
-	bytesWastedKey     = []byte("bytes_wasted")
-	seededForKey       = []byte("seeded_for")
-)
+var Keys = struct {
+	InfoHash        []byte
+	Port            []byte
+	Name            []byte
+	Trackers        []byte
+	Dest            []byte
+	Info            []byte
+	Bitfield        []byte
+	AddedAt         []byte
+	BytesDownloaded []byte
+	BytesUploaded   []byte
+	BytesWasted     []byte
+	SeededFor       []byte
+}{
+	InfoHash:        []byte("info_hash"),
+	Port:            []byte("port"),
+	Name:            []byte("name"),
+	Trackers:        []byte("trackers"),
+	Dest:            []byte("dest"),
+	Info:            []byte("info"),
+	Bitfield:        []byte("bitfield"),
+	AddedAt:         []byte("added_at"),
+	BytesDownloaded: []byte("bytes_downloaded"),
+	BytesUploaded:   []byte("bytes_uploaded"),
+	BytesWasted:     []byte("bytes_wasted"),
+	SeededFor:       []byte("seeded_for"),
+}
 
 type Resumer struct {
 	db                    *bolt.DB
@@ -59,17 +72,17 @@ func (r *Resumer) Write(spec *Spec) error {
 		if err != nil {
 			return err
 		}
-		b.Put(infoHashKey, spec.InfoHash)
-		b.Put(portKey, []byte(port))
-		b.Put(nameKey, []byte(spec.Name))
-		b.Put(destKey, []byte(spec.Dest))
-		b.Put(trackersKey, trackers)
-		b.Put(infoKey, spec.Info)
-		b.Put(bitfieldKey, spec.Bitfield)
-		b.Put(addedAtKey, []byte(spec.AddedAt.Format(time.RFC3339)))
-		b.Put(bytesDownloadedKey, []byte(strconv.FormatInt(spec.BytesDownloaded, 10)))
-		b.Put(bytesUploadedKey, []byte(strconv.FormatInt(spec.BytesUploaded, 10)))
-		b.Put(bytesWastedKey, []byte(strconv.FormatInt(spec.BytesWasted, 10)))
+		b.Put(Keys.InfoHash, spec.InfoHash)
+		b.Put(Keys.Port, []byte(port))
+		b.Put(Keys.Name, []byte(spec.Name))
+		b.Put(Keys.Dest, []byte(spec.Dest))
+		b.Put(Keys.Trackers, trackers)
+		b.Put(Keys.Info, spec.Info)
+		b.Put(Keys.Bitfield, spec.Bitfield)
+		b.Put(Keys.AddedAt, []byte(spec.AddedAt.Format(time.RFC3339)))
+		b.Put(Keys.BytesDownloaded, []byte(strconv.FormatInt(spec.BytesDownloaded, 10)))
+		b.Put(Keys.BytesUploaded, []byte(strconv.FormatInt(spec.BytesUploaded, 10)))
+		b.Put(Keys.SeededFor, []byte(strconv.FormatInt(spec.BytesWasted, 10)))
 		return nil
 	})
 }
@@ -80,7 +93,7 @@ func (r *Resumer) WriteInfo(value []byte) error {
 		if b == nil {
 			return nil
 		}
-		return b.Put(infoKey, value)
+		return b.Put(Keys.Info, value)
 	})
 }
 
@@ -90,7 +103,7 @@ func (r *Resumer) WriteBitfield(value []byte) error {
 		if b == nil {
 			return nil
 		}
-		return b.Put(bitfieldKey, value)
+		return b.Put(Keys.Bitfield, value)
 	})
 }
 
@@ -100,10 +113,10 @@ func (r *Resumer) WriteStats(s resumer.Stats) error {
 		if b == nil {
 			return nil
 		}
-		b.Put(bytesDownloadedKey, []byte(strconv.FormatInt(s.BytesDownloaded, 10)))
-		b.Put(bytesUploadedKey, []byte(strconv.FormatInt(s.BytesUploaded, 10)))
-		b.Put(bytesWastedKey, []byte(strconv.FormatInt(s.BytesWasted, 10)))
-		b.Put(seededForKey, []byte(s.SeededFor.String()))
+		b.Put(Keys.BytesDownloaded, []byte(strconv.FormatInt(s.BytesDownloaded, 10)))
+		b.Put(Keys.BytesUploaded, []byte(strconv.FormatInt(s.BytesUploaded, 10)))
+		b.Put(Keys.BytesWasted, []byte(strconv.FormatInt(s.BytesWasted, 10)))
+		b.Put(Keys.SeededFor, []byte(time.Duration(s.SeededFor).String()))
 		return nil
 	})
 }
@@ -116,9 +129,9 @@ func (r *Resumer) Read() (*Spec, error) {
 			return fmt.Errorf("bucket not found: %q", string(r.subBucket))
 		}
 
-		value := b.Get(infoHashKey)
+		value := b.Get(Keys.InfoHash)
 		if value == nil {
-			return fmt.Errorf("key not found: %q", string(infoHashKey))
+			return fmt.Errorf("key not found: %q", string(Keys.InfoHash))
 		}
 
 		spec = new(Spec)
@@ -126,18 +139,18 @@ func (r *Resumer) Read() (*Spec, error) {
 		copy(spec.InfoHash, value)
 
 		var err error
-		value = b.Get(portKey)
+		value = b.Get(Keys.Port)
 		spec.Port, err = strconv.Atoi(string(value))
 		if err != nil {
 			return err
 		}
 
-		value = b.Get(nameKey)
+		value = b.Get(Keys.Name)
 		if value != nil {
 			spec.Name = string(value)
 		}
 
-		value = b.Get(trackersKey)
+		value = b.Get(Keys.Trackers)
 		if value != nil {
 			err = json.Unmarshal(value, &spec.Trackers)
 			if err != nil {
@@ -145,22 +158,22 @@ func (r *Resumer) Read() (*Spec, error) {
 			}
 		}
 
-		value = b.Get(destKey)
+		value = b.Get(Keys.Dest)
 		spec.Dest = string(value)
 
-		value = b.Get(infoKey)
+		value = b.Get(Keys.Info)
 		if value != nil {
 			spec.Info = make([]byte, len(value))
 			copy(spec.Info, value)
 		}
 
-		value = b.Get(bitfieldKey)
+		value = b.Get(Keys.Bitfield)
 		if value != nil {
 			spec.Bitfield = make([]byte, len(value))
 			copy(spec.Bitfield, value)
 		}
 
-		value = b.Get(addedAtKey)
+		value = b.Get(Keys.AddedAt)
 		if value != nil {
 			spec.AddedAt, err = time.Parse(time.RFC3339, string(value))
 			if err != nil {
@@ -168,7 +181,7 @@ func (r *Resumer) Read() (*Spec, error) {
 			}
 		}
 
-		value = b.Get(bytesDownloadedKey)
+		value = b.Get(Keys.BytesDownloaded)
 		if value != nil {
 			spec.BytesDownloaded, err = strconv.ParseInt(string(value), 10, 64)
 			if err != nil {
@@ -176,7 +189,7 @@ func (r *Resumer) Read() (*Spec, error) {
 			}
 		}
 
-		value = b.Get(bytesUploadedKey)
+		value = b.Get(Keys.BytesUploaded)
 		if value != nil {
 			spec.BytesUploaded, err = strconv.ParseInt(string(value), 10, 64)
 			if err != nil {
@@ -184,7 +197,7 @@ func (r *Resumer) Read() (*Spec, error) {
 			}
 		}
 
-		value = b.Get(bytesWastedKey)
+		value = b.Get(Keys.BytesWasted)
 		if value != nil {
 			spec.BytesWasted, err = strconv.ParseInt(string(value), 10, 64)
 			if err != nil {
@@ -192,7 +205,7 @@ func (r *Resumer) Read() (*Spec, error) {
 			}
 		}
 
-		value = b.Get(seededForKey)
+		value = b.Get(Keys.SeededFor)
 		if value != nil {
 			spec.SeededFor, err = time.ParseDuration(string(value))
 			if err != nil {
