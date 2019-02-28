@@ -36,6 +36,9 @@ func (t *torrent) run() {
 	t.seedDurationTicker = time.NewTicker(time.Second)
 	defer t.seedDurationTicker.Stop()
 
+	t.speedCounterTicker = time.NewTicker(5 * time.Second)
+	defer t.speedCounterTicker.Stop()
+
 	for {
 		select {
 		case <-t.closeC:
@@ -179,7 +182,7 @@ func (t *torrent) run() {
 			t.writeBitfield(true)
 		case now := <-t.seedDurationTicker.C:
 			t.updateSeedDuration(now)
-		case <-t.speedCounterTickerC:
+		case <-t.speedCounterTicker.C:
 			t.downloadSpeed.Tick()
 			t.uploadSpeed.Tick()
 		case pe := <-t.peerSnubbedC:

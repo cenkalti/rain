@@ -63,7 +63,7 @@ func (t *torrent) stop(err error) {
 	t.log.Debugln("stopping incoming handshakers")
 	t.stopIncomingHandshakers()
 
-	t.stopSpeedCounter()
+	t.resetSpeeds()
 
 	// Stop periodical announcers first.
 	t.log.Debugln("stopping announcers")
@@ -90,10 +90,7 @@ func (t *torrent) stop(err error) {
 
 }
 
-func (t *torrent) stopSpeedCounter() {
-	t.speedCounterTicker.Stop()
-	t.speedCounterTicker = nil
-	t.speedCounterTickerC = nil
+func (t *torrent) resetSpeeds() {
 	t.downloadSpeed = metrics.NewEWMA1()
 	t.uploadSpeed = metrics.NewEWMA1()
 }

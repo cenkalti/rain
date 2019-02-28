@@ -245,10 +245,9 @@ type torrent struct {
 	externalIP net.IP
 
 	// Rate counters for download and upload speeds.
-	downloadSpeed       metrics.EWMA
-	uploadSpeed         metrics.EWMA
-	speedCounterTicker  *time.Ticker
-	speedCounterTickerC <-chan time.Time
+	downloadSpeed      metrics.EWMA
+	uploadSpeed        metrics.EWMA
+	speedCounterTicker *time.Ticker
 
 	ram        *resourcemanager.ResourceManager
 	ramNotifyC chan interface{}

@@ -48,16 +48,6 @@ func (t *torrent) start() {
 		t.startAnnouncers()
 		t.startInfoDownloaders()
 	}
-
-	t.startSpeedCounter()
-}
-
-func (t *torrent) startSpeedCounter() {
-	if t.speedCounterTicker != nil {
-		return
-	}
-	t.speedCounterTicker = time.NewTicker(5 * time.Second)
-	t.speedCounterTickerC = t.speedCounterTicker.C
 }
 
 func (t *torrent) startVerifier() {
