@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestParseCIDR(t *testing.T) {
@@ -14,12 +16,8 @@ func TestParseCIDR(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.first != 256 {
-		t.Errorf("first: %d", r.first)
-	}
-	if r.last != 511 {
-		t.Errorf("first: %d", r.first)
-	}
+	assert.Equal(t, uint32(256), r.first)
+	assert.Equal(t, uint32(511), r.last)
 }
 
 func TestContains(t *testing.T) {
@@ -34,12 +32,8 @@ func TestContains(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("loaded %d values", n)
-	if !b.Blocked(net.ParseIP("6.1.2.3")) {
-		t.Errorf("must contain")
-	}
-	if b.Blocked(net.ParseIP("176.240.195.107")) {
-		t.Errorf("must not contain")
-	}
+	assert.True(t, b.Blocked(net.ParseIP("6.1.2.3")))
+	assert.False(t, b.Blocked(net.ParseIP("176.240.195.107")))
 }
 
 func TestEmptyList(t *testing.T) {
@@ -52,10 +46,6 @@ func TestEmptyList(t *testing.T) {
 	if n != 0 {
 		t.Fatalf("loaded %d values", n)
 	}
-	if b.Blocked(net.ParseIP("0.0.0.0")) {
-		t.Errorf("must not contain")
-	}
-	if b.Blocked(net.ParseIP("176.240.195.107")) {
-		t.Errorf("must not contain")
-	}
+	assert.False(t, b.Blocked(net.ParseIP("0.0.0.0")))
+	assert.False(t, b.Blocked(net.ParseIP("176.240.195.107")))
 }
