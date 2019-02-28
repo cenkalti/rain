@@ -196,11 +196,11 @@ type torrent struct {
 	// Announcers send a request to this channel to get information about the torrent.
 	announcerRequestC chan *announcer.Request
 
-	// A timer that ticks periodically to keep a certain number of peers unchoked.
-	unchokeTimer *time.Ticker
+	// A ticker that ticks periodically to keep a certain number of peers unchoked.
+	unchokeTicker *time.Ticker
 
-	// A timer that ticks periodically to keep a random peer unchoked regardless of its upload rate.
-	optimisticUnchokeTimer *time.Ticker
+	// A ticker that ticks periodically to keep a random peer unchoked regardless of its upload rate.
+	optimisticUnchokeTicker *time.Ticker
 
 	// A worker that opens and allocates files on the disk.
 	allocator          *allocator.Allocator
