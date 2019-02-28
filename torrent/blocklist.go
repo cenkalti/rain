@@ -27,22 +27,26 @@ func (s *Session) startBlocklistReloader() error {
 	s.mBlocklist.Unlock()
 
 	deadline := blocklistTimestamp.Add(s.config.BlocklistUpdateInterval)
-	now := time.Now().UTC()
+	now := time.Now()
 	delta := now.Sub(deadline)
+	var nextReload time.Duration
 	if blocklistTimestamp.IsZero() {
 		s.log.Infof("Blocklist is empty. Loading blocklist...")
 		s.retryReloadBlocklist()
+		nextReload = s.config.BlocklistUpdateInterval
 	} else if deadline.Before(now) {
 		s.log.Infof("Last blocklist reload was %s ago. Reloading blocklist...", delta.String())
 		s.retryReloadBlocklist()
+		nextReload = s.config.BlocklistUpdateInterval
 	} else {
 		s.log.Infof("Loading blocklist from session db...")
 		err = s.loadBlocklistFromDB()
 		if err != nil {
 			return err
 		}
+		nextReload = deadline.Sub(now)
 	}
-	go s.blocklistReloader(deadline.Sub(now))
+	go s.blocklistReloader(nextReload)
 	return nil
 }
 
@@ -55,7 +59,7 @@ func (s *Session) getBlocklistTimestamp() (time.Time, error) {
 			return nil
 		}
 		var err2 error
-		t, err2 = time.ParseInLocation(time.RFC3339, string(val), time.UTC)
+		t, err2 = time.Parse(time.RFC3339, string(val))
 		return err2
 	})
 	return t, err
@@ -144,7 +148,7 @@ func (s *Session) reloadBlocklist() error {
 		if err2 != nil {
 			return err2
 		}
-		return b.Put(blocklistTimestampKey, []byte(now.UTC().Format(time.RFC3339)))
+		return b.Put(blocklistTimestampKey, []byte(now.Format(time.RFC3339)))
 	})
 }
 
