@@ -100,11 +100,11 @@ func New(cfg Config) (*Session, error) {
 	}()
 	var ids []string
 	err = db.Update(func(tx *bolt.Tx) error {
-		b, err2 := tx.CreateBucketIfNotExists(sessionBucket)
+		_, err2 := tx.CreateBucketIfNotExists(sessionBucket)
 		if err2 != nil {
 			return err2
 		}
-		b, err2 = tx.CreateBucketIfNotExists(torrentsBucket)
+		b, err2 := tx.CreateBucketIfNotExists(torrentsBucket)
 		if err2 != nil {
 			return err2
 		}
