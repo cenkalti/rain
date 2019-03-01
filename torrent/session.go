@@ -716,8 +716,9 @@ func (s *Session) checkTorrent(t *torrent) {
 }
 
 func crash(msg string) {
-	b := make([]byte, 30*1024*1024)
-	runtime.Stack(b, true)
+	b := make([]byte, 1024*1024*1024)
+	n := runtime.Stack(b, true)
+	b = b[:n]
 	os.Stderr.Write(b)
 	os.Stderr.WriteString("\n")
 	panic(msg)
