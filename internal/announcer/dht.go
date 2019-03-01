@@ -37,33 +37,30 @@ func (a *DHTAnnouncer) NeedMorePeers(val bool) {
 func (a *DHTAnnouncer) Run(announceFunc func(), interval, minInterval time.Duration, l logger.Logger) {
 	defer close(a.doneC)
 
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
+	timer := time.NewTimer(interval)
+	defer timer.Stop()
+
+	resetTimer := func() {
+		if a.needMorePeers {
+			timer.Reset(time.Until(a.lastAnnounce.Add(minInterval)))
+		} else {
+			timer.Reset(time.Until(a.lastAnnounce.Add(interval)))
+		}
+	}
 
 	announce := func() {
 		announceFunc()
 		a.lastAnnounce = time.Now()
+		resetTimer()
 	}
 
 	announce()
 	for {
 		select {
-		case <-ticker.C:
+		case <-timer.C:
 			announce()
-		case val := <-a.needMorePeersC:
-			if val {
-				if !a.needMorePeers {
-					announce()
-					ticker.Stop()
-					ticker = time.NewTicker(minInterval)
-				}
-			} else {
-				if a.needMorePeers {
-					ticker.Stop()
-					ticker = time.NewTicker(interval)
-				}
-			}
-			a.needMorePeers = val
+		case a.needMorePeers = <-a.needMorePeersC:
+			resetTimer()
 		case <-a.closeC:
 			return
 		}
