@@ -7,7 +7,7 @@ install:
 before_script:
 - GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -gcflags=-e -o /dev/null
 - curl -L https://git.io/vp6lP | sh
-- PATH=~/bin:$PATH gometalinter --config=gometalinter.json
+- PATH=$(pwd)/bin:$PATH gometalinter --config=gometalinter.json
 script: go test -v -race ./...
 deploy:
 - provider: script
