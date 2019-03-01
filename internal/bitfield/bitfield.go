@@ -28,7 +28,7 @@ func New(length uint32) *Bitfield {
 // Bytes in b are not copied. Unused bits in last byte are cleared.
 // Panics if b is not big enough to hold "length" bits.
 func NewBytes(b []byte, length uint32) (*Bitfield, error) {
-	div, mod := divMod32(length, 8)
+	div, mod := divMod32(length)
 	lastByteIncomplete := mod != 0
 	requiredBytes := div
 	if lastByteIncomplete {
@@ -69,7 +69,7 @@ func (b *Bitfield) Hex() string {
 // Set bit i. 0 is the most significant bit. Panics if i >= b.Len().
 func (b *Bitfield) Set(i uint32) {
 	b.checkIndex(i)
-	div, mod := divMod32(i, 8)
+	div, mod := divMod32(i)
 	b.bytes[div] |= 1 << (7 - mod)
 }
 
@@ -86,7 +86,7 @@ func (b *Bitfield) SetTo(i uint32, value bool) {
 // Clear bit i. 0 is the most significant bit. Panics if i >= b.Len().
 func (b *Bitfield) Clear(i uint32) {
 	b.checkIndex(i)
-	div, mod := divMod32(i, 8)
+	div, mod := divMod32(i)
 	b.bytes[div] &= ^(1 << (7 - mod))
 }
 
@@ -120,7 +120,7 @@ func (b *Bitfield) ClearAll() {
 // Test bit i. 0 is the most significant bit. Panics if i >= b.Len().
 func (b *Bitfield) Test(i uint32) bool {
 	b.checkIndex(i)
-	div, mod := divMod32(i, 8)
+	div, mod := divMod32(i)
 	return (b.bytes[div] & (1 << (7 - mod))) > 0
 }
 
@@ -181,4 +181,4 @@ func (b *Bitfield) Or(b2 *Bitfield) {
 	}
 }
 
-func divMod32(a, b uint32) (uint32, uint32) { return a / b, a % b }
+func divMod32(a uint32) (uint32, uint32) { return a / 8, a % 8 }

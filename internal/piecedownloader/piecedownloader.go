@@ -22,7 +22,7 @@ type PieceDownloader struct {
 func New(pi *piece.Piece, pe *peer.Peer, allowedFast bool, buf bufferpool.Buffer) *PieceDownloader {
 	unrequested := make([]int, pi.NumBlocks())
 	for i := range unrequested {
-		unrequested[i] = int(i)
+		unrequested[i] = i
 	}
 	return &PieceDownloader{
 		Piece:       pi,

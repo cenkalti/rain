@@ -126,7 +126,8 @@ func Dial(
 		}
 	} else {
 		// Send BT handshake
-		if _, err = conn.Write(out.Bytes()); err != nil {
+		_, err = conn.Write(out.Bytes())
+		if err != nil {
 			return
 		}
 	}

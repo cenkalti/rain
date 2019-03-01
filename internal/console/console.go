@@ -277,11 +277,12 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 }
 
 func (c *Console) switchRow(v *gocui.View, row int) error {
-	if len(c.torrents) == 0 {
+	switch {
+	case len(c.torrents) == 0:
 		return nil
-	} else if row < 0 {
+	case row < 0:
 		row = 0
-	} else if row >= len(c.torrents) {
+	case row >= len(c.torrents):
 		row = len(c.torrents) - 1
 	}
 
@@ -510,11 +511,12 @@ func flags(p rpctypes.Peer) string {
 	default:
 		sb.WriteString(" ")
 	}
-	if p.EncryptedStream {
+	switch {
+	case p.EncryptedStream:
 		sb.WriteString("E")
-	} else if p.EncryptedHandshake {
+	case p.EncryptedHandshake:
 		sb.WriteString("e")
-	} else {
+	default:
 		sb.WriteString(" ")
 	}
 	return sb.String()
@@ -527,7 +529,7 @@ func printableID(id string) string {
 func clientID(id string) string {
 	// ID follows BEP 20 convention
 	if id[7] == '-' {
-		return string(id[:8])
+		return id[:8]
 	}
 
 	// Rain convention

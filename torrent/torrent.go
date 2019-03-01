@@ -96,7 +96,7 @@ type torrent struct {
 	// We keep connected peers in this map after they complete handshake phase.
 	peers map[*peer.Peer]struct{}
 
-	// Also keep a reference to incoming and outgoing peers seperately to count them quickly.
+	// Also keep a reference to incoming and outgoing peers separately to count them quickly.
 	incomingPeers map[*peer.Peer]struct{}
 	outgoingPeers map[*peer.Peer]struct{}
 

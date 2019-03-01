@@ -22,7 +22,7 @@ type Torrent struct {
 
 type InfoHash [20]byte
 
-// String encodes info hash in hex as 40 charachters.
+// String encodes info hash in hex as 40 characters.
 func (h InfoHash) String() string {
 	return hex.EncodeToString(h[:])
 }

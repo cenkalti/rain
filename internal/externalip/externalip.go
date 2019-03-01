@@ -34,7 +34,7 @@ func isPublicIP(ip4 net.IP) bool {
 	if ip4.IsLoopback() || ip4.IsLinkLocalMulticast() || ip4.IsLinkLocalUnicast() {
 		return false
 	}
-	switch true {
+	switch {
 	case ip4[0] == 10:
 		return false
 	case ip4[0] == 172 && ip4[1] >= 16 && ip4[1] <= 31:

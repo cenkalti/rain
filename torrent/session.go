@@ -159,10 +159,7 @@ func New(cfg Config) (*Session, error) {
 		c.dhtPeerRequests = make(map[dht.InfoHash]struct{})
 		go c.processDHTResults()
 	}
-	err = c.loadExistingTorrents(ids)
-	if err != nil {
-		return nil, err
-	}
+	c.loadExistingTorrents(ids)
 	if c.config.RPCEnabled {
 		c.rpc = newRPCServer(c)
 		err = c.rpc.Start(c.config.RPCHost, c.config.RPCPort)
@@ -246,7 +243,7 @@ func (s *Session) handleDHTtick() {
 }
 
 func parseDHTPeers(peers []string) []*net.TCPAddr {
-	var addrs []*net.TCPAddr
+	addrs := make([]*net.TCPAddr, 0, len(peers))
 	for _, peer := range peers {
 		if len(peer) != 6 {
 			// only IPv4 is supported for now
@@ -262,7 +259,7 @@ func parseDHTPeers(peers []string) []*net.TCPAddr {
 }
 
 func (s *Session) parseTrackers(trackers []string) []tracker.Tracker {
-	var ret []tracker.Tracker
+	ret := make([]tracker.Tracker, 0, len(trackers))
 	for _, tr := range trackers {
 		t, err := s.trackerManager.Get(tr, s.config.TrackerHTTPTimeout, s.config.TrackerHTTPUserAgent)
 		if err != nil {
@@ -274,7 +271,7 @@ func (s *Session) parseTrackers(trackers []string) []tracker.Tracker {
 	return ret
 }
 
-func (s *Session) loadExistingTorrents(ids []string) error {
+func (s *Session) loadExistingTorrents(ids []string) {
 	var loaded int
 	var started []*Torrent
 	for _, id := range ids {
@@ -356,7 +353,7 @@ func (s *Session) loadExistingTorrents(ids []string) error {
 	for _, t := range started {
 		t.Start()
 	}
-	return nil
+	return
 }
 
 func (s *Session) hasStarted(id string) (bool, error) {

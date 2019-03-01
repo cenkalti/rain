@@ -209,23 +209,22 @@ func (t *torrent) bytesComplete() int64 {
 }
 
 func (t *torrent) getTrackers() []Tracker {
-	var trackers []Tracker
-	for _, an := range t.announcers {
+	trackers := make([]Tracker, len(t.announcers))
+	for i, an := range t.announcers {
 		st := an.Stats()
-		t := Tracker{
+		trackers[i] = Tracker{
 			URL:      an.Tracker.URL(),
 			Status:   TrackerStatus(st.Status),
 			Seeders:  st.Seeders,
 			Leechers: st.Leechers,
 			Error:    st.Error,
 		}
-		trackers = append(trackers, t)
 	}
 	return trackers
 }
 
 func (t *torrent) getPeers() []Peer {
-	var peers []Peer
+	peers := make([]Peer, 0, len(t.peers))
 	for pe := range t.peers {
 		var source PeerSource
 		switch pe.Source {

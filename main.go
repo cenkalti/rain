@@ -241,11 +241,12 @@ func handleServer(c *cli.Context) error {
 			return err
 		}
 		b, err := ioutil.ReadFile(cp) // nolint: gosec
-		if os.IsNotExist(err) {
+		switch {
+		case os.IsNotExist(err):
 			log.Noticef("config file not found at %q, using default config", cp)
-		} else if err != nil {
+		case err != nil:
 			return err
-		} else {
+		default:
 			err = yaml.Unmarshal(b, &cfg)
 			if err != nil {
 				return err
