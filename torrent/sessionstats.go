@@ -12,4 +12,5 @@ type SessionStats struct {
 	PieceCacheUtilization         int
 	ActivePieceBytes              int64
 	TorrentsPendingRAM            int
+	Uptime                        time.Duration
 }

@@ -51,6 +51,7 @@ type Session struct {
 	trackerManager *trackermanager.TrackerManager
 	ram            *resourcemanager.ResourceManager
 	pieceCache     *piececache.Cache
+	createdAt      time.Time
 	closeC         chan struct{}
 
 	mPeerRequests   sync.Mutex
@@ -149,6 +150,7 @@ func New(cfg Config) (*Session, error) {
 		dht:                dhtNode,
 		pieceCache:         piececache.New(cfg.PieceCacheSize, cfg.PieceCacheTTL),
 		ram:                resourcemanager.New(cfg.MaxActivePieceBytes),
+		createdAt:          time.Now(),
 		closeC:             make(chan struct{}),
 	}
 	err = c.startBlocklistReloader()
@@ -672,6 +674,7 @@ func (s *Session) Stats() SessionStats {
 		PieceCacheUtilization:         s.pieceCache.Utilization(),
 		ActivePieceBytes:              ramStats.Used,
 		TorrentsPendingRAM:            ramStats.Count,
+		Uptime:                        time.Since(s.createdAt),
 	}
 }
 
