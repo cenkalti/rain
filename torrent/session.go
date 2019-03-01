@@ -694,6 +694,9 @@ func (s *Session) StopAll() {
 	}
 }
 
+// checkTorrent pings the torrent run loop periodically and crashes the program if a torrent does not respond in
+// specified timeout. This is not a good behavior for a production program but it helps to find deadlocks easily,
+// at least while developing.
 func (s *Session) checkTorrent(t *torrent) {
 	const interval = 10 * time.Second
 	const timeout = 60 * time.Second
@@ -716,7 +719,7 @@ func (s *Session) checkTorrent(t *torrent) {
 }
 
 func crash(msg string) {
-	b := make([]byte, 1024*1024*1024)
+	b := make([]byte, 100*1024*1024)
 	n := runtime.Stack(b, true)
 	b = b[:n]
 	os.Stderr.Write(b)
