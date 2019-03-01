@@ -163,8 +163,19 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 				}
 			}
 		case peers:
+			format := "%2s %21s %7s %8s %6s %20s\n"
+			fmt.Fprintf(v, format, "#", "Addr", "Flags", "Download", "Upload", "ID")
 			for i, p := range c.peers {
-				fmt.Fprintf(v, "#%s Addr: %21s Flags: %s DL: %5d KiB/s UL: %5d KiB/s ID: %s\n", fmt.Sprintf("%2d", i), p.Addr, flags(p), p.DownloadSpeed/1024, p.UploadSpeed/1024, printableID(p.ID))
+				num := fmt.Sprintf("%d", i)
+				var dl string
+				if p.DownloadSpeed > 0 {
+					dl = fmt.Sprintf("%d", p.DownloadSpeed/1024)
+				}
+				var ul string
+				if p.UploadSpeed > 0 {
+					ul = fmt.Sprintf("%d", p.UploadSpeed/1024)
+				}
+				fmt.Fprintf(v, format, num, p.Addr, flags(p), dl, ul, printableID(p.ID))
 			}
 		}
 	}
