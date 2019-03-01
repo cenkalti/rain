@@ -9,6 +9,7 @@ before_script:
 - curl -L https://git.io/vp6lP | sh
 - PATH=$(pwd)/bin:$PATH gometalinter --config=gometalinter.json
 script: go test -v -race ./...
+before_deploy: rm -r bin
 deploy:
 - provider: script
   skip_cleanup: true
