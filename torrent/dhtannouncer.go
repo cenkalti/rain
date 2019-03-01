@@ -2,28 +2,32 @@ package torrent
 
 import (
 	"net"
-
-	node "github.com/nictuku/dht"
+	"sync"
 )
 
 type dhtAnnouncer struct {
-	node     *node.DHT
 	infoHash string
 	port     int
 	peersC   chan []*net.TCPAddr
+
+	mRequests *sync.Mutex
+	requests  map[*dhtAnnouncer]struct{}
 }
 
-func newDHTAnnouncer(node *node.DHT, infoHash []byte, port int) *dhtAnnouncer {
+func newDHTAnnouncer(infoHash []byte, port int, requests map[*dhtAnnouncer]struct{}, mRequests *sync.Mutex) *dhtAnnouncer {
 	return &dhtAnnouncer{
-		node:     node,
-		infoHash: string(infoHash),
-		port:     port,
-		peersC:   make(chan []*net.TCPAddr, 1),
+		infoHash:  string(infoHash),
+		port:      port,
+		peersC:    make(chan []*net.TCPAddr, 1),
+		mRequests: mRequests,
+		requests:  requests,
 	}
 }
 
 func (a *dhtAnnouncer) Announce() {
-	a.node.PeersRequestPort(a.infoHash, true, a.port)
+	a.mRequests.Lock()
+	a.requests[a] = struct{}{}
+	a.mRequests.Unlock()
 }
 
 func (a *dhtAnnouncer) Peers() chan []*net.TCPAddr {

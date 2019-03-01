@@ -55,7 +55,7 @@ type Session struct {
 	closeC         chan struct{}
 
 	mPeerRequests   sync.Mutex
-	dhtPeerRequests map[dht.InfoHash]struct{}
+	dhtPeerRequests map[*dhtAnnouncer]struct{}
 
 	m                  sync.RWMutex
 	torrents           map[string]*Torrent
@@ -158,7 +158,7 @@ func New(cfg Config) (*Session, error) {
 		return nil, err
 	}
 	if cfg.DHTEnabled {
-		c.dhtPeerRequests = make(map[dht.InfoHash]struct{})
+		c.dhtPeerRequests = make(map[*dhtAnnouncer]struct{})
 		go c.processDHTResults()
 	}
 	c.loadExistingTorrents(ids)
@@ -237,9 +237,9 @@ func (s *Session) processDHTResults() {
 func (s *Session) handleDHTtick() {
 	s.mPeerRequests.Lock()
 	defer s.mPeerRequests.Unlock()
-	for ih := range s.dhtPeerRequests {
-		s.dht.PeersRequest(string(ih), true)
-		delete(s.dhtPeerRequests, ih)
+	for ann := range s.dhtPeerRequests {
+		s.dht.PeersRequestPort(ann.infoHash, true, ann.port)
+		delete(s.dhtPeerRequests, ann)
 		return
 	}
 }
@@ -328,7 +328,7 @@ func (s *Session) loadExistingTorrents(ids []string) {
 			}
 		}
 		if s.config.DHTEnabled && !private {
-			ann = newDHTAnnouncer(s.dht, spec.InfoHash, spec.Port)
+			ann = newDHTAnnouncer(spec.InfoHash, spec.Port, s.dhtPeerRequests, &s.mPeerRequests)
 			opt.DHT = ann
 		}
 		sto, err := filestorage.New(spec.Dest)
@@ -434,7 +434,7 @@ func (s *Session) AddTorrent(r io.Reader) (*Torrent, error) {
 	opt.Info = mi.Info
 	var ann *dhtAnnouncer
 	if s.config.DHTEnabled && mi.Info.Private != 1 {
-		ann = newDHTAnnouncer(s.dht, mi.Info.Hash[:], opt.Port)
+		ann = newDHTAnnouncer(mi.Info.Hash[:], opt.Port, s.dhtPeerRequests, &s.mPeerRequests)
 		opt.DHT = ann
 	}
 	t, err := opt.NewTorrent(mi.Info.Hash[:], sto)
@@ -513,7 +513,7 @@ func (s *Session) addMagnet(link string) (*Torrent, error) {
 	opt.Trackers = s.parseTrackers(ma.Trackers)
 	var ann *dhtAnnouncer
 	if s.config.DHTEnabled {
-		ann = newDHTAnnouncer(s.dht, ma.InfoHash[:], opt.Port)
+		ann = newDHTAnnouncer(ma.InfoHash[:], opt.Port, s.dhtPeerRequests, &s.mPeerRequests)
 		opt.DHT = ann
 	}
 	t, err := opt.NewTorrent(ma.InfoHash[:], sto)

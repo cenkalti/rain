@@ -7,7 +7,6 @@ import (
 
 	"github.com/boltdb/bolt"
 	"github.com/cenkalti/rain/internal/tracker"
-	"github.com/nictuku/dht"
 )
 
 type Torrent struct {
@@ -86,11 +85,6 @@ func (t *Torrent) Start() error {
 		return err
 	}
 	t.torrent.Start()
-	if t.session.config.DHTEnabled && !t.torrent.Stats().Private {
-		t.session.mPeerRequests.Lock()
-		t.session.dhtPeerRequests[dht.InfoHash(t.torrent.InfoHash())] = struct{}{}
-		t.session.mPeerRequests.Unlock()
-	}
 	return nil
 }
 
