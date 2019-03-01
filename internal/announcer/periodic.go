@@ -1,7 +1,7 @@
 package announcer
 
 import (
-	"context"
+	"math"
 	"net"
 	"time"
 
@@ -109,35 +109,22 @@ func (a *PeriodicalAnnouncer) Run() {
 	defer close(a.doneC)
 	a.backoff.Reset()
 
-	var timer *time.Timer
-	defer func() {
-		if timer != nil {
-			timer.Stop()
-		}
-	}()
-
-	var timerC <-chan time.Time
-	setTimer := func(d time.Duration) {
-		if timer != nil {
-			timer.Stop()
-		}
-		timer = time.NewTimer(d)
-		timerC = timer.C
-	}
+	timer := time.NewTimer(math.MaxInt64)
+	defer timer.Stop()
 
 	var needMorePeers bool
 
-	announcer := newAnnouncer(a.Tracker, a.requests, a.newPeers)
-	defer announcer.Cancel()
+	ca := newCancelableAnnouncer(a.Tracker, a.requests, a.newPeers)
+	defer ca.Cancel()
 
-	announcer.Announce(tracker.EventStarted, a.numWant)
+	ca.Announce(tracker.EventStarted, a.numWant)
 	for {
 		select {
-		case <-timerC:
+		case <-timer.C:
 			a.status = Contacting
-			announcer.Announce(tracker.EventNone, a.numWant)
-		case resp := <-announcer.ResponseC:
-			announcer.announcing = false
+			ca.Announce(tracker.EventNone, a.numWant)
+		case resp := <-ca.ResponseC:
+			ca.announcing = false
 			a.lastAnnounce = time.Now()
 			a.seeders = int(resp.Seeders)
 			a.leechers = int(resp.Leechers)
@@ -150,35 +137,32 @@ func (a *PeriodicalAnnouncer) Run() {
 			a.status = Working
 			a.backoff.Reset()
 			if needMorePeers {
-				setTimer(a.minInterval)
+				timer.Reset(a.minInterval)
 			} else {
-				setTimer(a.interval)
+				timer.Reset(a.interval)
 			}
-		case a.lastError = <-announcer.ErrorC:
-			announcer.announcing = false
+		case a.lastError = <-ca.ErrorC:
+			ca.announcing = false
 			a.status = NotWorking
 			a.log.Debugln("announce error:", a.lastError)
-			setTimer(a.backoff.NextBackOff())
+			timer.Reset(a.backoff.NextBackOff())
 		case needMorePeers = <-a.needMorePeersC:
-			if announcer.announcing {
+			if ca.announcing {
 				break
 			}
 			if needMorePeers {
-				setTimer(time.Until(a.lastAnnounce.Add(a.minInterval)))
+				timer.Reset(time.Until(a.lastAnnounce.Add(a.minInterval)))
 			} else {
-				setTimer(time.Until(a.lastAnnounce.Add(a.interval)))
+				timer.Reset(time.Until(a.lastAnnounce.Add(a.interval)))
 			}
 		case <-a.completedC:
-			announcer.Cancel()
+			ca.Cancel()
 			a.status = Contacting
-			announcer.Announce(tracker.EventCompleted, 0)
+			ca.Announce(tracker.EventCompleted, 0)
 			a.completedC = nil
 		case req := <-a.statsCommandC:
 			req.Response <- a.stats()
 		case <-a.closeC:
-			if timer != nil {
-				timer.Stop()
-			}
 			return
 		}
 	}
@@ -197,110 +181,5 @@ func (a *PeriodicalAnnouncer) stats() Stats {
 		Error:    a.lastError,
 		Seeders:  a.seeders,
 		Leechers: a.leechers,
-	}
-}
-
-type announcer struct {
-	ResponseC  chan *tracker.AnnounceResponse
-	ErrorC     chan error
-	requestC   chan *Request
-	newPeers   chan []*net.TCPAddr
-	tracker    tracker.Tracker
-	announcing bool
-	stopC      chan struct{}
-	doneC      chan struct{}
-}
-
-func newAnnouncer(trk tracker.Tracker, requestC chan *Request, newPeers chan []*net.TCPAddr) *announcer {
-	return &announcer{
-		tracker:   trk,
-		requestC:  requestC,
-		newPeers:  newPeers,
-		ResponseC: make(chan *tracker.AnnounceResponse),
-		ErrorC:    make(chan error),
-	}
-}
-
-func (a *announcer) Announce(e tracker.Event, numWant int) {
-	a.Cancel()
-	a.announcing = true
-	a.stopC = make(chan struct{})
-	a.doneC = make(chan struct{})
-	go announce(a.tracker, e, numWant, a.requestC, a.newPeers, a.ResponseC, a.ErrorC, a.stopC, a.doneC)
-}
-
-func (a *announcer) Cancel() {
-	if a.announcing {
-		close(a.stopC)
-		<-a.doneC
-		a.announcing = false
-	}
-}
-
-func announce(
-	trk tracker.Tracker,
-	e tracker.Event,
-	numWant int,
-	requestC chan *Request,
-	newPeers chan []*net.TCPAddr,
-	responseC chan *tracker.AnnounceResponse,
-	errC chan error,
-	stopC, doneC chan struct{},
-) {
-	defer close(doneC)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	go func() {
-		select {
-		case <-doneC:
-		case <-stopC:
-			cancel()
-		}
-	}()
-
-	req := &Request{
-		Response: make(chan Response),
-		Cancel:   make(chan struct{}),
-	}
-	defer close(req.Cancel)
-
-	select {
-	case requestC <- req:
-	case <-stopC:
-		return
-	}
-
-	var resp Response
-	select {
-	case resp = <-req.Response:
-	case <-stopC:
-		return
-	}
-
-	annReq := tracker.AnnounceRequest{
-		Torrent: resp.Torrent,
-		Event:   e,
-		NumWant: numWant,
-	}
-	annResp, err := trk.Announce(ctx, annReq)
-	if err == context.Canceled {
-		return
-	}
-	if err != nil {
-		select {
-		case errC <- err:
-		case <-stopC:
-		}
-		return
-	}
-	select {
-	case newPeers <- annResp.Peers:
-	case <-stopC:
-	}
-	select {
-	case responseC <- annResp:
-	case <-stopC:
 	}
 }
