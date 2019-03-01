@@ -199,25 +199,23 @@ func (t *Transport) connect(ctx context.Context, addr net.Addr) (connectionID in
 	trx := newTransaction(req, "")
 	trx.addr = addr
 
-	for {
-		data, err := t.retryTransaction(ctx, t.writeTrx, trx) // Does not return until transaction is completed.
-		if err != nil {
-			return 0, err
-		}
-
-		var response connectResponse
-		err = binary.Read(bytes.NewReader(data), binary.BigEndian, &response)
-		if err != nil {
-			return 0, err
-		}
-
-		if response.Action != actionConnect {
-			return 0, errors.New("invalid action in connect response")
-		}
-
-		t.log.Debugf("connect Response: %#v\n", response)
-		return response.ConnectionID, nil
+	data, err := t.retryTransaction(ctx, t.writeTrx, trx) // Does not return until transaction is completed.
+	if err != nil {
+		return 0, err
 	}
+
+	var response connectResponse
+	err = binary.Read(bytes.NewReader(data), binary.BigEndian, &response)
+	if err != nil {
+		return 0, err
+	}
+
+	if response.Action != actionConnect {
+		return 0, errors.New("invalid action in connect response")
+	}
+
+	t.log.Debugf("connect Response: %#v\n", response)
+	return response.ConnectionID, nil
 }
 
 func (t *Transport) retryTransaction(ctx context.Context, f func(*transaction), trx *transaction) ([]byte, error) {
