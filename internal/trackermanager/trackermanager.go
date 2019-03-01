@@ -2,7 +2,6 @@ package trackermanager
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
@@ -22,11 +21,8 @@ type TrackerManager struct {
 
 func New(bl *blocklist.Blocklist) *TrackerManager {
 	m := &TrackerManager{
-		httpTransport: &http.Transport{
-			// Setting TLSNextProto to non-nil map disables HTTP/2 support.
-			TLSNextProto: make(map[string]func(string, *tls.Conn) http.RoundTripper),
-		},
-		udpTransport: udptracker.NewTransport(bl),
+		httpTransport: new(http.Transport),
+		udpTransport:  udptracker.NewTransport(bl),
 	}
 	m.httpTransport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 		ip, port, err := tracker.ResolveHost(ctx, addr, bl)
