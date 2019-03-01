@@ -91,15 +91,27 @@ func (t *Transport) Do(ctx context.Context, trx *transaction) ([]byte, error) {
 	trx.addr = &net.UDPAddr{IP: ip, Port: port}
 
 	conn := t.getConnection(trx.addr.String())
-	if time.Since(conn.timestamp) > connectionIDInterval {
-		conn.id, err = t.connect(ctx, trx.addr)
-		if err != nil {
-			return nil, err
-		}
-		conn.timestamp = time.Now()
+	err = t.connectConnection(ctx, conn, trx.addr)
+	if err != nil {
+		return nil, err
 	}
 	trx.request.SetConnectionID(conn.id)
 	return t.retryTransaction(ctx, t.writeTrx, trx)
+}
+
+func (t *Transport) connectConnection(ctx context.Context, conn *connection, addr net.Addr) error {
+	conn.m.Lock()
+	defer conn.m.Unlock()
+	if time.Since(conn.timestamp) < connectionIDInterval {
+		return nil
+	}
+	id, err := t.connect(ctx, addr)
+	if err != nil {
+		return err
+	}
+	conn.id = id
+	conn.timestamp = time.Now()
+	return nil
 }
 
 // Close the tracker connection.
