@@ -29,6 +29,7 @@ import (
 	"github.com/cenkalti/rain/internal/storage"
 	"github.com/cenkalti/rain/internal/suspendchan"
 	"github.com/cenkalti/rain/internal/tracker"
+	"github.com/cenkalti/rain/internal/unchoker"
 	"github.com/cenkalti/rain/internal/verifier"
 	"github.com/rcrowley/go-metrics"
 )
@@ -95,16 +96,12 @@ type torrent struct {
 	// We keep connected peers in this map after they complete handshake phase.
 	peers map[*peer.Peer]struct{}
 
-	// Need to know the count of the unchoked peers before running choke logic.
-	// Optimistic unchoked peers are not included.
-	peersUnchoked map[*peer.Peer]struct{}
-
-	// Some peers are optimistically unchoked regardless of their download rate.
-	peersUnchokedOptimistic map[*peer.Peer]struct{}
-
 	// Also keep a reference to incoming and outgoing peers seperately to count them quickly.
 	incomingPeers map[*peer.Peer]struct{}
 	outgoingPeers map[*peer.Peer]struct{}
+
+	// Unchoker implements an algorithm to select peers to unchoke based on their download speed.
+	unchoker *unchoker.Unchoker
 
 	// Active piece downloads are kept in this map.
 	pieceDownloaders        map[*peer.Peer]*piecedownloader.PieceDownloader

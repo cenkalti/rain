@@ -27,6 +27,7 @@ import (
 	"github.com/cenkalti/rain/internal/storage"
 	"github.com/cenkalti/rain/internal/suspendchan"
 	"github.com/cenkalti/rain/internal/tracker"
+	"github.com/cenkalti/rain/internal/unchoker"
 	"github.com/cenkalti/rain/internal/verifier"
 	"github.com/rcrowley/go-metrics"
 )
@@ -98,8 +99,6 @@ func (o *options) NewTorrent(infoHash []byte, sto storage.Storage) (*torrent, er
 		infoDownloaders:           make(map[*peer.Peer]*infodownloader.InfoDownloader),
 		infoDownloadersSnubbed:    make(map[*peer.Peer]*infodownloader.InfoDownloader),
 		pieceWriterResultC:        make(chan *piecewriter.PieceWriter),
-		peersUnchoked:             make(map[*peer.Peer]struct{}, cfg.UnchokedPeers),
-		peersUnchokedOptimistic:   make(map[*peer.Peer]struct{}, cfg.OptimisticUnchokedPeers),
 		completeC:                 make(chan struct{}),
 		closeC:                    make(chan chan struct{}),
 		startCommandC:             make(chan struct{}),
@@ -150,6 +149,15 @@ func (o *options) NewTorrent(infoHash []byte, sto storage.Storage) (*torrent, er
 	if t.dhtNode != nil {
 		t.dhtPeersC = t.dhtNode.Peers()
 	}
+	t.unchoker = unchoker.New(t.getPeersForUnchoker, &t.completed, cfg.UnchokedPeers, cfg.OptimisticUnchokedPeers)
 	go t.run()
 	return t, nil
+}
+
+func (t *torrent) getPeersForUnchoker() []unchoker.Peer {
+	peers := make([]unchoker.Peer, 0, len(t.peers))
+	for pe := range t.peers {
+		peers = append(peers, pe)
+	}
+	return peers
 }

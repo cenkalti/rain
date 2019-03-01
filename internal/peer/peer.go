@@ -179,3 +179,29 @@ func (p *Peer) DownloadSpeed() uint {
 func (p *Peer) UploadSpeed() uint {
 	return uint(p.uploadSpeed.Rate())
 }
+
+func (p *Peer) Choke() {
+	p.ClientChoking = true
+	p.SendMessage(peerprotocol.ChokeMessage{})
+}
+
+func (p *Peer) Unchoke() {
+	p.ClientChoking = false
+	p.SendMessage(peerprotocol.UnchokeMessage{})
+}
+
+func (p *Peer) Choking() bool {
+	return p.ClientChoking
+}
+
+func (p *Peer) Interested() bool {
+	return p.PeerInterested
+}
+
+func (p *Peer) Optimistic() bool {
+	return p.OptimisticUnchoked
+}
+
+func (p *Peer) SetOptimistic(value bool) {
+	p.OptimisticUnchoked = value
+}

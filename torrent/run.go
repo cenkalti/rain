@@ -208,9 +208,9 @@ func (t *torrent) run() {
 				t.startInfoDownloaders()
 			}
 		case <-t.unchokeTicker.C:
-			t.tickUnchoke()
+			t.unchoker.TickUnchoke()
 		case <-t.optimisticUnchokeTicker.C:
-			t.tickOptimisticUnchoke()
+			t.unchoker.TickOptimisticUnchoke()
 		case ih := <-t.incomingHandshakerResultC:
 			delete(t.incomingHandshakers, ih)
 			if ih.Error != nil {
@@ -272,8 +272,6 @@ func (t *torrent) closePeer(pe *peer.Peer) {
 		t.closeInfoDownloader(id)
 	}
 	delete(t.peers, pe)
-	delete(t.peersUnchoked, pe)
-	delete(t.peersUnchokedOptimistic, pe)
 	delete(t.incomingPeers, pe)
 	delete(t.outgoingPeers, pe)
 	delete(t.peerIDs, pe.ID)
@@ -399,7 +397,6 @@ func (t *torrent) startPeer(
 	}
 	go pe.Run(t.messages, t.pieceMessagesC.SendC(), t.peerSnubbedC, t.peerDisconnectedC)
 	t.sendFirstMessage(pe)
-	t.fastUnchoke(pe)
 }
 
 func (t *torrent) pexAddPeer(addr *net.TCPAddr) {
