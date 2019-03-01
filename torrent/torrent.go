@@ -196,9 +196,6 @@ type torrent struct {
 	// A ticker that ticks periodically to keep a certain number of peers unchoked.
 	unchokeTicker *time.Ticker
 
-	// A ticker that ticks periodically to keep a random peer unchoked regardless of its upload rate.
-	optimisticUnchokeTicker *time.Ticker
-
 	// A worker that opens and allocates files on the disk.
 	allocator          *allocator.Allocator
 	allocatorProgressC chan allocator.Progress

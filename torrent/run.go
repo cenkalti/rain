@@ -42,9 +42,6 @@ func (t *torrent) run() {
 	t.unchokeTicker = time.NewTicker(10 * time.Second)
 	defer t.unchokeTicker.Stop()
 
-	t.optimisticUnchokeTicker = time.NewTicker(30 * time.Second)
-	defer t.optimisticUnchokeTicker.Stop()
-
 	for {
 		select {
 		case <-t.closeC:
@@ -209,8 +206,6 @@ func (t *torrent) run() {
 			}
 		case <-t.unchokeTicker.C:
 			t.unchoker.TickUnchoke()
-		case <-t.optimisticUnchokeTicker.C:
-			t.unchoker.TickOptimisticUnchoke()
 		case ih := <-t.incomingHandshakerResultC:
 			delete(t.incomingHandshakers, ih)
 			if ih.Error != nil {

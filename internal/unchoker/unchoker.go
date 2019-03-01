@@ -1,12 +1,18 @@
 package unchoker
 
-import "sort"
+import (
+	"math/rand"
+	"sort"
+)
 
 type Unchoker struct {
 	getPeers              func() []Peer
 	torrentCompleted      *bool
 	numUnchoked           int
 	numOptimisticUnchoked int
+
+	// Every 3rd round an optimistic unchoke logic is applied.
+	round uint8
 
 	peersUnchoked           map[Peer]struct{}
 	peersUnchokedOptimistic map[Peer]struct{}
@@ -59,17 +65,6 @@ func (u *Unchoker) candidatesUnchoke() []Peer {
 	return peers
 }
 
-func (u *Unchoker) candidatesUnchokeOptimistic() []Peer {
-	allPeers := u.getPeers()
-	peers := make([]Peer, 0, len(allPeers))
-	for _, pe := range allPeers {
-		if pe.Interested() && (pe.Choking() || pe.Optimistic()) {
-			peers = append(peers, pe)
-		}
-	}
-	return peers
-}
-
 func (u *Unchoker) sortPeers(peers []Peer) {
 	byUploadSpeed := func(i, j int) bool { return peers[i].UploadSpeed() > peers[j].UploadSpeed() }
 	byDownloadSpeed := func(i, j int) bool { return peers[i].DownloadSpeed() > peers[j].DownloadSpeed() }
@@ -80,31 +75,32 @@ func (u *Unchoker) sortPeers(peers []Peer) {
 	}
 }
 
+// TickUnchoke must be called at every 10 seconds.
 func (u *Unchoker) TickUnchoke() {
+	optimistic := u.round == 0
 	peers := u.candidatesUnchoke()
 	u.sortPeers(peers)
-	var unchoked int
-	for _, pe := range peers {
-		if unchoked < u.numUnchoked {
-			u.unchokePeer(pe)
-			unchoked++
-		} else {
-			u.chokePeer(pe)
+	var i, unchoked int
+	for ; i < len(peers) && unchoked < u.numUnchoked; i++ {
+		if !optimistic && peers[i].Optimistic() {
+			continue
 		}
+		u.unchokePeer(peers[i])
+		unchoked++
 	}
-}
-
-func (u *Unchoker) TickOptimisticUnchoke() {
-	peers := u.candidatesUnchokeOptimistic()
-	var unchoked int
-	for _, pe := range peers {
-		if unchoked < u.numOptimisticUnchoked {
+	peers = peers[i:]
+	if optimistic {
+		for i = 0; i < u.numOptimisticUnchoked && len(peers) > 0; i++ {
+			n := rand.Intn(len(peers))
+			pe := peers[n]
 			u.optimisticUnchokePeer(pe)
-			unchoked++
-		} else {
-			u.chokePeer(pe)
+			peers[n], peers = peers[len(peers)-1], peers[:len(peers)-1]
 		}
 	}
+	for _, pe := range peers {
+		u.chokePeer(pe)
+	}
+	u.round = (u.round + 1) % 3
 }
 
 func (u *Unchoker) chokePeer(pe Peer) {
@@ -134,7 +130,10 @@ func (u *Unchoker) unchokePeer(pe Peer) {
 func (u *Unchoker) optimisticUnchokePeer(pe Peer) {
 	if !pe.Choking() {
 		if !pe.Optimistic() {
-			panic("must not optimistic unchoke already unchoked peer")
+			// Move into optimistic unchoked peers
+			pe.SetOptimistic(true)
+			delete(u.peersUnchoked, pe)
+			u.peersUnchokedOptimistic[pe] = struct{}{}
 		}
 		return
 	}
