@@ -8,10 +8,6 @@ import (
 	"github.com/cenkalti/rain/internal/storage"
 )
 
-const StorageType = "file"
-
-const destKey = "dest"
-
 type FileStorage struct {
 	dest string
 }
