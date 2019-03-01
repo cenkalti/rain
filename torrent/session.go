@@ -695,8 +695,8 @@ func (s *Session) StopAll() {
 }
 
 func (s *Session) checkTorrent(t *torrent) {
-	const interval = 5 * time.Second
-	const timeout = 30 * time.Second
+	const interval = 10 * time.Second
+	const timeout = 60 * time.Second
 	for {
 		select {
 		case <-time.After(interval):
