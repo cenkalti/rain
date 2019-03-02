@@ -1,6 +1,6 @@
 dist: xenial
 language: go
-go: 1.11.1  # preinstalled on travis xenial environment
+go: 1.12
 cache:
   directories:
     - $GOPATH/pkg/dep
