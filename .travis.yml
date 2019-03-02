@@ -14,8 +14,7 @@ before_script:
 - curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.15.0
 script:
 - golangci-lint run
-- go test -v -race ./...
-before_deploy: rm -r bin
+- go test -race ./...
 deploy:
 - provider: script
   skip_cleanup: true
