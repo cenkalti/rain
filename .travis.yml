@@ -5,10 +5,13 @@ before_install:
 install:
 - dep ensure
 before_script:
+# Stop if code does not build
 - GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -gcflags=-e -o /dev/null
-- curl -L https://git.io/vp6lP | sh
-- PATH=$(pwd)/bin:$PATH gometalinter --config=gometalinter.json
-script: go test -v -race ./...
+# Install golangci-list
+- curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.15.0
+script:
+- golangci-lint run
+- go test -v -race ./...
 before_deploy: rm -r bin
 deploy:
 - provider: script
