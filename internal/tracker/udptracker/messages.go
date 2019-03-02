@@ -94,8 +94,14 @@ func (r *transferAnnounceRequest) WriteTo(w io.Writer) (int64, error) {
 			} else {
 				size = remaining
 			}
-			buf.Write([]byte{0x2, byte(size)})
-			buf.WriteString(r.urlData[pos : pos+size])
+			_, err = buf.Write([]byte{0x2, byte(size)})
+			if err != nil {
+				return 0, err
+			}
+			_, err = buf.WriteString(r.urlData[pos : pos+size])
+			if err != nil {
+				return 0, err
+			}
 			pos += size
 		}
 	}

@@ -336,7 +336,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			pe.StopSnubTimer()
 
 			hash := sha1.New()                              // nolint: gosec
-			hash.Write(id.Bytes)                            // nolint: gosec
+			_, _ = hash.Write(id.Bytes)                     // nolint: gosec
 			if !bytes.Equal(hash.Sum(nil), t.infoHash[:]) { // nolint: gosec
 				pe.Logger().Errorln("received info does not match with hash")
 				t.closePeer(id.Peer)

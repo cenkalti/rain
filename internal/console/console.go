@@ -53,18 +53,18 @@ func (c *Console) Run() error {
 
 	g.SetManagerFunc(c.layout)
 
-	g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit)
-	g.SetKeybinding("", 'q', gocui.ModNone, quit)
-	g.SetKeybinding("torrents", 'j', gocui.ModNone, c.cursorDown)
-	g.SetKeybinding("torrents", 'k', gocui.ModNone, c.cursorUp)
-	g.SetKeybinding("torrents", 'R', gocui.ModNone, c.removeTorrent)
-	g.SetKeybinding("torrents", 's', gocui.ModNone, c.startTorrent)
-	g.SetKeybinding("torrents", 'S', gocui.ModNone, c.stopTorrent)
-	g.SetKeybinding("torrents", 'g', gocui.ModNone, c.goTop)
-	g.SetKeybinding("torrents", 'G', gocui.ModNone, c.goBottom)
-	g.SetKeybinding("torrents", gocui.KeyCtrlG, gocui.ModNone, c.switchGeneral)
-	g.SetKeybinding("torrents", gocui.KeyCtrlT, gocui.ModNone, c.switchTrackers)
-	g.SetKeybinding("torrents", gocui.KeyCtrlP, gocui.ModNone, c.switchPeers)
+	_ = g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit)
+	_ = g.SetKeybinding("", 'q', gocui.ModNone, quit)
+	_ = g.SetKeybinding("torrents", 'j', gocui.ModNone, c.cursorDown)
+	_ = g.SetKeybinding("torrents", 'k', gocui.ModNone, c.cursorUp)
+	_ = g.SetKeybinding("torrents", 'R', gocui.ModNone, c.removeTorrent)
+	_ = g.SetKeybinding("torrents", 's', gocui.ModNone, c.startTorrent)
+	_ = g.SetKeybinding("torrents", 'S', gocui.ModNone, c.stopTorrent)
+	_ = g.SetKeybinding("torrents", 'g', gocui.ModNone, c.goTop)
+	_ = g.SetKeybinding("torrents", 'G', gocui.ModNone, c.goBottom)
+	_ = g.SetKeybinding("torrents", gocui.KeyCtrlG, gocui.ModNone, c.switchGeneral)
+	_ = g.SetKeybinding("torrents", gocui.KeyCtrlT, gocui.ModNone, c.switchTrackers)
+	_ = g.SetKeybinding("torrents", gocui.KeyCtrlP, gocui.ModNone, c.switchPeers)
 
 	go c.updateLoop(g)
 
@@ -297,24 +297,24 @@ func (c *Console) switchRow(v *gocui.View, row int) error {
 			// sroll down
 			if row >= oy+height {
 				// move origin
-				v.SetOrigin(0, row-height+1)
-				v.SetCursor(0, height-1)
+				_ = v.SetOrigin(0, row-height+1)
+				_ = v.SetCursor(0, height-1)
 			} else {
-				v.SetCursor(0, row-oy)
+				_ = v.SetCursor(0, row-oy)
 			}
 		} else {
 			// scroll up
 			if row < oy {
 				// move origin
-				v.SetOrigin(0, row)
-				v.SetCursor(0, 0)
+				_ = v.SetOrigin(0, row)
+				_ = v.SetCursor(0, 0)
 			} else {
-				v.SetCursor(0, row-oy)
+				_ = v.SetCursor(0, row-oy)
 			}
 		}
 	} else {
-		v.SetOrigin(0, 0)
-		v.SetCursor(0, row)
+		_ = v.SetOrigin(0, 0)
+		_ = v.SetCursor(0, row)
 	}
 
 	c.setSelectedID(c.torrents[row].ID)

@@ -61,8 +61,7 @@ func newTorrent(t *Torrent) rpctypes.Torrent {
 }
 
 func (h *rpcHandler) RemoveTorrent(args *rpctypes.RemoveTorrentRequest, reply *rpctypes.RemoveTorrentResponse) error {
-	h.session.RemoveTorrent(args.ID)
-	return nil
+	return h.session.RemoveTorrent(args.ID)
 }
 
 func (h *rpcHandler) GetSessionStats(args *rpctypes.GetSessionStatsRequest, reply *rpctypes.GetSessionStatsResponse) error {
@@ -265,8 +264,7 @@ func (h *rpcHandler) StartTorrent(args *rpctypes.StartTorrentRequest, reply *rpc
 	if t == nil {
 		return errTorrentNotFound
 	}
-	t.Start()
-	return nil
+	return t.Start()
 }
 
 func (h *rpcHandler) StopTorrent(args *rpctypes.StopTorrentRequest, reply *rpctypes.StopTorrentResponse) error {
@@ -274,18 +272,15 @@ func (h *rpcHandler) StopTorrent(args *rpctypes.StopTorrentRequest, reply *rpcty
 	if t == nil {
 		return errTorrentNotFound
 	}
-	t.Stop()
-	return nil
+	return t.Stop()
 }
 
 func (h *rpcHandler) StartAllTorrents(args *rpctypes.StartAllTorrentsRequest, reply *rpctypes.StartAllTorrentsResponse) error {
-	h.session.StartAll()
-	return nil
+	return h.session.StartAll()
 }
 
 func (h *rpcHandler) StopAllTorrents(args *rpctypes.StopAllTorrentsRequest, reply *rpctypes.StopAllTorrentsResponse) error {
-	h.session.StopAll()
-	return nil
+	return h.session.StopAll()
 }
 
 func (h *rpcHandler) AddPeer(args *rpctypes.AddPeerRequest, reply *rpctypes.AddPeerResponse) error {

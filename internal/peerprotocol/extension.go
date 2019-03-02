@@ -39,8 +39,11 @@ func (m ExtensionMessage) Read([]byte) (int, error) {
 }
 
 func (m ExtensionMessage) WriteTo(w io.Writer) (int64, error) {
-	w.Write([]byte{m.ExtendedMessageID})
-	err := bencode.NewEncoder(w).Encode(m.Payload)
+	_, err := w.Write([]byte{m.ExtendedMessageID})
+	if err != nil {
+		return 0, err
+	}
+	err = bencode.NewEncoder(w).Encode(m.Payload)
 	if err != nil {
 		return 0, err
 	}

@@ -473,25 +473,25 @@ func hashes(S *big.Int, sKey []byte) (hashS, hashSKey []byte) {
 
 func hashInt(prefix string, i *big.Int) []byte {
 	h := sha1.New()
-	h.Write([]byte(prefix))
-	h.Write(bytesWithPad(i))
+	_, _ = h.Write([]byte(prefix))
+	_, _ = h.Write(bytesWithPad(i))
 	return h.Sum(nil)
 }
 
 func HashSKey(key []byte) [20]byte {
 	var sum [20]byte
 	h := sha1.New()
-	h.Write([]byte("req2"))
-	h.Write(key)
+	_, _ = h.Write([]byte("req2"))
+	_, _ = h.Write(key)
 	copy(sum[:], h.Sum(nil))
 	return sum
 }
 
 func rc4Key(prefix string, S *big.Int, sKey []byte) []byte {
 	h := sha1.New()
-	h.Write([]byte(prefix))
-	h.Write(bytesWithPad(S))
-	h.Write(sKey)
+	_, _ = h.Write([]byte(prefix))
+	_, _ = h.Write(bytesWithPad(S))
+	_, _ = h.Write(sKey)
 	return h.Sum(nil)
 }
 

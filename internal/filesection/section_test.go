@@ -75,9 +75,9 @@ func TestFiles(t *testing.T) {
 }
 
 func content(f *os.File) string {
-	f.Seek(0, io.SeekStart)
+	_, _ = f.Seek(0, io.SeekStart)
 	fi, _ := f.Stat()
 	b := make([]byte, fi.Size())
-	f.Read(b)
+	_, _ = f.Read(b)
 	return string(b)
 }

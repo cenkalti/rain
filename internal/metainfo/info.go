@@ -73,8 +73,8 @@ func NewInfo(b []byte) (*Info, error) {
 	}
 	i.InfoSize = uint32(len(b))
 	i.Bytes = b
-	hash := sha1.New() // nolint: gosec
-	hash.Write(b)      // nolint: gosec
+	hash := sha1.New()   // nolint: gosec
+	_, _ = hash.Write(b) // nolint: gosec
 	copy(i.Hash[:], hash.Sum(nil))
 	return &i, nil
 }

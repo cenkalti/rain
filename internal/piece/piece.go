@@ -144,7 +144,7 @@ func (p *Piece) VerifyHash(buf []byte, h hash.Hash) bool {
 	if uint32(len(buf)) != p.Length {
 		return false
 	}
-	h.Write(buf)
+	_, _ = h.Write(buf)
 	sum := h.Sum(nil)
 	return bytes.Equal(sum, p.Hash)
 }

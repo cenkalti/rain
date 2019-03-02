@@ -22,7 +22,7 @@ type rpcServer struct {
 func newRPCServer(ses *Session) *rpcServer {
 	h := &rpcHandler{session: ses}
 	srv := rpc.NewServer()
-	srv.RegisterName("Session", h)
+	_ = srv.RegisterName("Session", h)
 
 	mux := http.NewServeMux()
 	mux.Handle("/debug/vars", expvar.Handler())

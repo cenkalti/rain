@@ -114,7 +114,7 @@ func TestStream(t *testing.T) {
 
 func testRws(a io.Writer, b io.Reader) error {
 	data := []byte("ABCD")
-	go a.Write(data)
+	go func() { _, _ = a.Write(data) }()
 
 	buf := make([]byte, 10)
 	n, err := b.Read(buf)

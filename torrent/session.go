@@ -192,11 +192,11 @@ func (s *Session) updateStats() {
 		s.m.RLock()
 		for _, t := range s.torrents {
 			b := mb.Bucket([]byte(t.id))
-			b.Put(boltdbresumer.Keys.BytesDownloaded, []byte(strconv.FormatInt(atomic.LoadInt64(&t.torrent.resumerStats.BytesDownloaded), 10)))
-			b.Put(boltdbresumer.Keys.BytesDownloaded, []byte(strconv.FormatInt(atomic.LoadInt64(&t.torrent.resumerStats.BytesDownloaded), 10)))
-			b.Put(boltdbresumer.Keys.BytesUploaded, []byte(strconv.FormatInt(atomic.LoadInt64(&t.torrent.resumerStats.BytesUploaded), 10)))
-			b.Put(boltdbresumer.Keys.BytesWasted, []byte(strconv.FormatInt(atomic.LoadInt64(&t.torrent.resumerStats.BytesWasted), 10)))
-			b.Put(boltdbresumer.Keys.SeededFor, []byte(time.Duration(atomic.LoadInt64(&t.torrent.resumerStats.SeededFor)).String()))
+			_ = b.Put(boltdbresumer.Keys.BytesDownloaded, []byte(strconv.FormatInt(atomic.LoadInt64(&t.torrent.resumerStats.BytesDownloaded), 10)))
+			_ = b.Put(boltdbresumer.Keys.BytesDownloaded, []byte(strconv.FormatInt(atomic.LoadInt64(&t.torrent.resumerStats.BytesDownloaded), 10)))
+			_ = b.Put(boltdbresumer.Keys.BytesUploaded, []byte(strconv.FormatInt(atomic.LoadInt64(&t.torrent.resumerStats.BytesUploaded), 10)))
+			_ = b.Put(boltdbresumer.Keys.BytesWasted, []byte(strconv.FormatInt(atomic.LoadInt64(&t.torrent.resumerStats.BytesWasted), 10)))
+			_ = b.Put(boltdbresumer.Keys.SeededFor, []byte(time.Duration(atomic.LoadInt64(&t.torrent.resumerStats.SeededFor)).String()))
 		}
 		s.m.RUnlock()
 		return nil
@@ -353,9 +353,8 @@ func (s *Session) loadExistingTorrents(ids []string) {
 	}
 	s.log.Infof("loaded %d existing torrents", loaded)
 	for _, t := range started {
-		t.Start()
+		t.torrent.Start()
 	}
-	return
 }
 
 func (s *Session) hasStarted(id string) (bool, error) {
@@ -678,20 +677,44 @@ func (s *Session) Stats() SessionStats {
 	}
 }
 
-func (s *Session) StartAll() {
-	s.m.RLock()
-	defer s.m.RUnlock()
-	for _, t := range s.torrents {
-		t.Start()
+func (s *Session) StartAll() error {
+	err := s.db.Update(func(tx *bolt.Tx) error {
+		tb := tx.Bucket(torrentsBucket)
+		s.m.RLock()
+		for _, t := range s.torrents {
+			b := tb.Bucket([]byte(t.id))
+			_ = b.Put([]byte("started"), []byte("1"))
+		}
+		defer s.m.RUnlock()
+		return nil
+	})
+	if err != nil {
+		return err
 	}
+	for _, t := range s.torrents {
+		t.torrent.Start()
+	}
+	return nil
 }
 
-func (s *Session) StopAll() {
-	s.m.RLock()
-	defer s.m.RUnlock()
-	for _, t := range s.torrents {
-		t.Stop()
+func (s *Session) StopAll() error {
+	err := s.db.Update(func(tx *bolt.Tx) error {
+		tb := tx.Bucket(torrentsBucket)
+		s.m.RLock()
+		for _, t := range s.torrents {
+			b := tb.Bucket([]byte(t.id))
+			_ = b.Put([]byte("started"), []byte("0"))
+		}
+		defer s.m.RUnlock()
+		return nil
+	})
+	if err != nil {
+		return err
 	}
+	for _, t := range s.torrents {
+		t.torrent.Stop()
+	}
+	return nil
 }
 
 // checkTorrent pings the torrent run loop periodically and crashes the program if a torrent does not respond in

@@ -72,17 +72,17 @@ func (r *Resumer) Write(spec *Spec) error {
 		if err != nil {
 			return err
 		}
-		b.Put(Keys.InfoHash, spec.InfoHash)
-		b.Put(Keys.Port, []byte(port))
-		b.Put(Keys.Name, []byte(spec.Name))
-		b.Put(Keys.Dest, []byte(spec.Dest))
-		b.Put(Keys.Trackers, trackers)
-		b.Put(Keys.Info, spec.Info)
-		b.Put(Keys.Bitfield, spec.Bitfield)
-		b.Put(Keys.AddedAt, []byte(spec.AddedAt.Format(time.RFC3339)))
-		b.Put(Keys.BytesDownloaded, []byte(strconv.FormatInt(spec.BytesDownloaded, 10)))
-		b.Put(Keys.BytesUploaded, []byte(strconv.FormatInt(spec.BytesUploaded, 10)))
-		b.Put(Keys.SeededFor, []byte(strconv.FormatInt(spec.BytesWasted, 10)))
+		_ = b.Put(Keys.InfoHash, spec.InfoHash)
+		_ = b.Put(Keys.Port, []byte(port))
+		_ = b.Put(Keys.Name, []byte(spec.Name))
+		_ = b.Put(Keys.Dest, []byte(spec.Dest))
+		_ = b.Put(Keys.Trackers, trackers)
+		_ = b.Put(Keys.Info, spec.Info)
+		_ = b.Put(Keys.Bitfield, spec.Bitfield)
+		_ = b.Put(Keys.AddedAt, []byte(spec.AddedAt.Format(time.RFC3339)))
+		_ = b.Put(Keys.BytesDownloaded, []byte(strconv.FormatInt(spec.BytesDownloaded, 10)))
+		_ = b.Put(Keys.BytesUploaded, []byte(strconv.FormatInt(spec.BytesUploaded, 10)))
+		_ = b.Put(Keys.SeededFor, []byte(strconv.FormatInt(spec.BytesWasted, 10)))
 		return nil
 	})
 }

@@ -16,11 +16,11 @@ func Calculate(a, b *net.TCPAddr) Priority {
 	bs := calculateBytes(a, b)
 	d := crc32.New(table)
 	if bytes.Compare(bs[0], bs[1]) < 0 {
-		d.Write(bs[0])
-		d.Write(bs[1])
+		_, _ = d.Write(bs[0])
+		_, _ = d.Write(bs[1])
 	} else {
-		d.Write(bs[1])
-		d.Write(bs[0])
+		_, _ = d.Write(bs[1])
+		_, _ = d.Write(bs[0])
 	}
 	return d.Sum32()
 }
