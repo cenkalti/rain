@@ -24,7 +24,6 @@ type AnnounceRequest struct {
 }
 
 type AnnounceResponse struct {
-	Error       error
 	Interval    time.Duration
 	MinInterval time.Duration
 	Leechers    int32

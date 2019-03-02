@@ -62,13 +62,7 @@ func (t *UDPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest) 
 	trx := newTransaction(request2, t.dest)
 
 	reply, err := t.transport.Do(ctx, trx)
-	if err == context.Canceled {
-		return nil, err
-	}
 	if err != nil {
-		if err, ok := err.(tracker.Error); ok {
-			return &tracker.AnnounceResponse{Error: err}, nil
-		}
 		return nil, err
 	}
 
