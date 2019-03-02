@@ -1,6 +1,7 @@
 package announcer
 
 import (
+	"context"
 	"math"
 	"net"
 	"sync"
@@ -37,6 +38,8 @@ type PeriodicalAnnouncer struct {
 	getTorrent    func() tracker.Torrent
 	lastAnnounce  time.Time
 	HasAnnounced  bool
+	responseC     chan *tracker.AnnounceResponse
+	errC          chan error
 	closeC        chan struct{}
 	doneC         chan struct{}
 
@@ -57,6 +60,8 @@ func NewPeriodicalAnnouncer(trk tracker.Tracker, numWant int, minInterval time.D
 		newPeers:       newPeers,
 		getTorrent:     getTorrent,
 		needMorePeersC: make(chan struct{}, 1),
+		responseC:      make(chan *tracker.AnnounceResponse),
+		errC:           make(chan error),
 		closeC:         make(chan struct{}),
 		doneC:          make(chan struct{}),
 		backoff: &backoff.ExponentialBackOff{
@@ -111,17 +116,21 @@ func (a *PeriodicalAnnouncer) Run() {
 	timer := time.NewTimer(math.MaxInt64)
 	defer timer.Stop()
 
-	ca := newCancelableAnnouncer(a.Tracker, a.getTorrent, a.newPeers)
-	defer ca.Cancel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	ca.Announce(tracker.EventStarted, a.numWant)
+	go a.announce(ctx, tracker.EventStarted, a.numWant)
+	a.status = Contacting
 	for {
 		select {
 		case <-timer.C:
+			if a.status == Contacting {
+				break
+			}
+			go a.announce(ctx, tracker.EventNone, a.numWant)
 			a.status = Contacting
-			ca.Announce(tracker.EventNone, a.numWant)
-		case resp := <-ca.ResponseC:
-			ca.announcing = false
+		case resp := <-a.responseC:
+			a.status = Working
 			a.lastAnnounce = time.Now()
 			a.seeders = int(resp.Seeders)
 			a.leechers = int(resp.Leechers)
@@ -131,7 +140,6 @@ func (a *PeriodicalAnnouncer) Run() {
 			}
 			a.HasAnnounced = true
 			a.lastError = nil
-			a.status = Working
 			a.backoff.Reset()
 			a.mNeedMorePeers.RLock()
 			needMorePeers := a.needMorePeers
@@ -141,35 +149,40 @@ func (a *PeriodicalAnnouncer) Run() {
 			} else {
 				timer.Reset(a.interval)
 			}
-		case a.lastError = <-ca.ErrorC:
-			ca.announcing = false
-			a.lastAnnounce = time.Now()
+		case a.lastError = <-a.errC:
 			a.status = NotWorking
+			a.lastAnnounce = time.Now()
 			a.log.Debugln("announce error:", a.lastError)
 			timer.Reset(a.backoff.NextBackOff())
 		case <-a.needMorePeersC:
-			if ca.announcing {
-				break
-			}
 			a.mNeedMorePeers.RLock()
 			needMorePeers := a.needMorePeers
 			a.mNeedMorePeers.RUnlock()
+			if a.status == Contacting {
+				break
+			}
 			if needMorePeers {
 				timer.Reset(time.Until(a.lastAnnounce.Add(a.minInterval)))
 			} else {
 				timer.Reset(time.Until(a.lastAnnounce.Add(a.interval)))
 			}
 		case <-a.completedC:
-			ca.Cancel()
+			if a.status == Contacting {
+				cancel()
+			}
+			go a.announce(ctx, tracker.EventCompleted, 0)
 			a.status = Contacting
-			ca.Announce(tracker.EventCompleted, 0)
-			a.completedC = nil
+			a.completedC = nil // do not send more than one "completed" event
 		case req := <-a.statsCommandC:
 			req.Response <- a.stats()
 		case <-a.closeC:
 			return
 		}
 	}
+}
+
+func (a *PeriodicalAnnouncer) announce(ctx context.Context, event tracker.Event, numWant int) {
+	announce(ctx, a.Tracker, event, numWant, a.getTorrent(), a.responseC, a.errC)
 }
 
 type Stats struct {
