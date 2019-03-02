@@ -1,7 +1,6 @@
 package torrent
 
 import (
-	"math"
 	"sync/atomic"
 	"time"
 
@@ -152,9 +151,6 @@ func (t *torrent) stats() Stats {
 		s.PieceLength = t.info.PieceLength
 		s.Pieces.Total = t.info.NumPieces
 	} else {
-		// Some trackers don't send any peer address if don't tell we have missing bytes.
-		s.Bytes.Incomplete = math.MaxUint32
-
 		s.Name = t.name
 	}
 	if t.bitfield != nil {

@@ -82,7 +82,7 @@ func (t *torrent) startNewAnnouncer(tr tracker.Tracker) {
 		tr,
 		t.config.TrackerNumWant,
 		t.config.TrackerMinAnnounceInterval,
-		t.announcerRequestC,
+		t.announcerFields,
 		t.completeC,
 		t.addrsFromTrackers,
 		t.log,

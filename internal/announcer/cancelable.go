@@ -10,7 +10,7 @@ import (
 type cancelableAnnouncer struct {
 	ResponseC  chan *tracker.AnnounceResponse
 	ErrorC     chan error
-	requestC   chan *Request
+	getTorrent func() tracker.Torrent
 	newPeers   chan []*net.TCPAddr
 	tracker    tracker.Tracker
 	announcing bool
@@ -18,13 +18,13 @@ type cancelableAnnouncer struct {
 	doneC      chan struct{}
 }
 
-func newCancelableAnnouncer(trk tracker.Tracker, requestC chan *Request, newPeers chan []*net.TCPAddr) *cancelableAnnouncer {
+func newCancelableAnnouncer(trk tracker.Tracker, getTorrent func() tracker.Torrent, newPeers chan []*net.TCPAddr) *cancelableAnnouncer {
 	return &cancelableAnnouncer{
-		tracker:   trk,
-		requestC:  requestC,
-		newPeers:  newPeers,
-		ResponseC: make(chan *tracker.AnnounceResponse),
-		ErrorC:    make(chan error),
+		tracker:    trk,
+		getTorrent: getTorrent,
+		newPeers:   newPeers,
+		ResponseC:  make(chan *tracker.AnnounceResponse),
+		ErrorC:     make(chan error),
 	}
 }
 
@@ -33,7 +33,8 @@ func (a *cancelableAnnouncer) Announce(e tracker.Event, numWant int) {
 	a.announcing = true
 	a.stopC = make(chan struct{})
 	a.doneC = make(chan struct{})
-	go announce(a.tracker, e, numWant, a.requestC, a.newPeers, a.ResponseC, a.ErrorC, a.stopC, a.doneC)
+	torrent := a.getTorrent() // get latests stats
+	go announce(a.tracker, e, numWant, torrent, a.newPeers, a.ResponseC, a.ErrorC, a.stopC, a.doneC)
 }
 
 func (a *cancelableAnnouncer) Cancel() {
@@ -48,7 +49,7 @@ func announce(
 	trk tracker.Tracker,
 	e tracker.Event,
 	numWant int,
-	requestC chan *Request,
+	torrent tracker.Torrent,
 	newPeers chan []*net.TCPAddr,
 	responseC chan *tracker.AnnounceResponse,
 	errC chan error,
@@ -67,27 +68,8 @@ func announce(
 		}
 	}()
 
-	req := &Request{
-		Response: make(chan Response),
-		Cancel:   make(chan struct{}),
-	}
-	defer close(req.Cancel)
-
-	select {
-	case requestC <- req:
-	case <-stopC:
-		return
-	}
-
-	var resp Response
-	select {
-	case resp = <-req.Response:
-	case <-stopC:
-		return
-	}
-
 	annReq := tracker.AnnounceRequest{
-		Torrent: resp.Torrent,
+		Torrent: torrent,
 		Event:   e,
 		NumWant: numWant,
 	}

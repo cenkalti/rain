@@ -6,7 +6,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/handshaker/incominghandshaker"
 	"github.com/cenkalti/rain/internal/handshaker/outgoinghandshaker"
@@ -122,12 +121,6 @@ func (t *torrent) run() {
 				ourExtensions,
 				t.config.ForceIncomingEncryption,
 			)
-		case req := <-t.announcerRequestC:
-			tr := t.announcerFields()
-			select {
-			case req.Response <- announcer.Response{Torrent: tr}:
-			case <-req.Cancel:
-			}
 		case pw := <-t.pieceWriterResultC:
 			pw.Piece.Writing = false
 
@@ -151,7 +144,9 @@ func (t *torrent) run() {
 			if t.bitfield.Test(pw.Piece.Index) {
 				panic("already have the piece")
 			}
+			t.mBitfield.Lock()
 			t.bitfield.Set(pw.Piece.Index)
+			t.mBitfield.Unlock()
 
 			if t.piecePicker != nil {
 				for _, pe := range t.piecePicker.RequestedPeers(pw.Piece.Index) {

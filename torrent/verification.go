@@ -19,7 +19,9 @@ func (t *torrent) handleVerificationDone(ve *verifier.Verifier) {
 	}
 
 	// Now we have a constructed and verified bitfield.
+	t.mBitfield.Lock()
 	t.bitfield = ve.Bitfield
+	t.mBitfield.Unlock()
 
 	// Save the bitfield to resume db.
 	if t.resume != nil {

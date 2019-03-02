@@ -34,7 +34,7 @@ type PeriodicalAnnouncer struct {
 	completedC    chan struct{}
 	newPeers      chan []*net.TCPAddr
 	backoff       backoff.BackOff
-	requests      chan *Request
+	getTorrent    func() tracker.Torrent
 	lastAnnounce  time.Time
 	HasAnnounced  bool
 	closeC        chan struct{}
@@ -45,16 +45,7 @@ type PeriodicalAnnouncer struct {
 	needMorePeersC chan struct{}
 }
 
-type Request struct {
-	Response chan Response
-	Cancel   chan struct{}
-}
-
-type Response struct {
-	Torrent tracker.Torrent
-}
-
-func NewPeriodicalAnnouncer(trk tracker.Tracker, numWant int, minInterval time.Duration, requests chan *Request, completedC chan struct{}, newPeers chan []*net.TCPAddr, l logger.Logger) *PeriodicalAnnouncer {
+func NewPeriodicalAnnouncer(trk tracker.Tracker, numWant int, minInterval time.Duration, getTorrent func() tracker.Torrent, completedC chan struct{}, newPeers chan []*net.TCPAddr, l logger.Logger) *PeriodicalAnnouncer {
 	return &PeriodicalAnnouncer{
 		Tracker:        trk,
 		status:         NotContactedYet,
@@ -64,7 +55,7 @@ func NewPeriodicalAnnouncer(trk tracker.Tracker, numWant int, minInterval time.D
 		log:            l,
 		completedC:     completedC,
 		newPeers:       newPeers,
-		requests:       requests,
+		getTorrent:     getTorrent,
 		needMorePeersC: make(chan struct{}, 1),
 		closeC:         make(chan struct{}),
 		doneC:          make(chan struct{}),
@@ -120,7 +111,7 @@ func (a *PeriodicalAnnouncer) Run() {
 	timer := time.NewTimer(math.MaxInt64)
 	defer timer.Stop()
 
-	ca := newCancelableAnnouncer(a.Tracker, a.requests, a.newPeers)
+	ca := newCancelableAnnouncer(a.Tracker, a.getTorrent, a.newPeers)
 	defer ca.Cancel()
 
 	ca.Announce(tracker.EventStarted, a.numWant)

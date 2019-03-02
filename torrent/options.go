@@ -7,7 +7,6 @@ import (
 
 	"github.com/cenkalti/rain/internal/addrlist"
 	"github.com/cenkalti/rain/internal/allocator"
-	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/blocklist"
 	"github.com/cenkalti/rain/internal/bufferpool"
@@ -119,7 +118,6 @@ func (o *options) NewTorrent(infoHash []byte, sto storage.Storage) (*torrent, er
 		outgoingHandshakers:       make(map[*outgoinghandshaker.OutgoingHandshaker]struct{}),
 		incomingHandshakerResultC: make(chan *incominghandshaker.IncomingHandshaker),
 		outgoingHandshakerResultC: make(chan *outgoinghandshaker.OutgoingHandshaker),
-		announcerRequestC:         make(chan *announcer.Request),
 		allocatorProgressC:        make(chan allocator.Progress),
 		allocatorResultC:          make(chan *allocator.Allocator),
 		verifierProgressC:         make(chan verifier.Progress),

@@ -54,7 +54,9 @@ func (t *torrent) handleAllocationDone(al *allocator.Allocator) {
 
 	// No need to verify files if they didn't exist when we create them.
 	if !al.NeedHashCheck {
+		t.mBitfield.Lock()
 		t.bitfield = bitfield.New(t.info.NumPieces)
+		t.mBitfield.Unlock()
 		t.processQueuedMessages()
 		t.startAcceptor()
 		t.startAnnouncers()

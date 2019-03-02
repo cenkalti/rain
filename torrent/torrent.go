@@ -76,6 +76,9 @@ type torrent struct {
 	// Bitfield for pieces we have. It is created after we got info.
 	bitfield *bitfield.Bitfield
 
+	// Protects bitfield writing from torrent loop and reading from announcer loop.
+	mBitfield sync.RWMutex
+
 	// Unique peer ID is generated per downloader.
 	peerID [20]byte
 
@@ -189,9 +192,6 @@ type torrent struct {
 
 	// When metadata of the torrent downloaded completely, a message is sent to this channel.
 	infoDownloaderResultC chan *infodownloader.InfoDownloader
-
-	// Announcers send a request to this channel to get information about the torrent.
-	announcerRequestC chan *announcer.Request
 
 	// A ticker that ticks periodically to keep a certain number of peers unchoked.
 	unchokeTicker *time.Ticker
