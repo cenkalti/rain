@@ -454,7 +454,7 @@ func (s *Session) AddTorrent(r io.Reader) (*Torrent, error) {
 		Name:     opt.Name,
 		Trackers: mi.GetTrackers(),
 		Info:     opt.Info.Bytes,
-		AddedAt:  time.Now().UTC(),
+		AddedAt:  time.Now(),
 	}
 	if opt.Bitfield != nil {
 		rspec.Bitfield = opt.Bitfield.Bytes()
@@ -532,7 +532,7 @@ func (s *Session) addMagnet(link string) (*Torrent, error) {
 		Port:     opt.Port,
 		Name:     opt.Name,
 		Trackers: ma.Trackers,
-		AddedAt:  time.Now().UTC(),
+		AddedAt:  time.Now(),
 	}
 	err = opt.Resumer.(*boltdbresumer.Resumer).Write(rspec)
 	if err != nil {

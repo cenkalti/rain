@@ -243,7 +243,7 @@ func (h *rpcHandler) GetTorrentPeers(args *rpctypes.GetTorrentPeersRequest, repl
 			ID:                 string(p.ID[:]),
 			Addr:               p.Addr.String(),
 			Source:             source,
-			ConnectedAt:        rpctypes.Time{Time: p.ConnectedAt.UTC()},
+			ConnectedAt:        rpctypes.Time{Time: p.ConnectedAt},
 			Downloading:        p.Downloading,
 			ClientInterested:   p.ClientInterested,
 			ClientChoking:      p.ClientChoking,
