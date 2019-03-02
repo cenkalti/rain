@@ -40,8 +40,11 @@ func (a *StopAnnouncer) Run() {
 
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(a.timeout))
 	go func() {
-		<-a.closeC
-		cancel()
+		select {
+		case <-ctx.Done():
+		case <-a.closeC:
+			cancel()
+		}
 	}()
 
 	doneC := make(chan struct{})
