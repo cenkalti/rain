@@ -269,6 +269,7 @@ func (t *torrent) closePeer(pe *peer.Peer) {
 	if t.piecePicker != nil {
 		t.piecePicker.HandleDisconnect(pe)
 	}
+	t.unchoker.HandleDisconnect(pe)
 	t.pexDropPeer(pe.Addr())
 	t.dialAddresses()
 }
