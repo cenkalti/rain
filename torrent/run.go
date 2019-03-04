@@ -184,18 +184,20 @@ func (t *torrent) run() {
 			t.downloadSpeed.Tick()
 			t.uploadSpeed.Tick()
 		case pe := <-t.peerSnubbedC:
-			// Mark slow peer as snubbed and don't select that peer in piece picker
-			pe.Snubbed = true
+			// Mark slow peer as snubbed to skip that peer in piece picker
 			if pd, ok := t.pieceDownloaders[pe]; ok {
-				if _, ok := t.pieceDownloadersChoked[pe]; ok {
-					panic("piece download is choked")
+				// Snub timer is already stopped on choke message but may fire anyway.
+				if pe.PeerChoking {
+					break
 				}
+				pe.Snubbed = true
 				t.pieceDownloadersSnubbed[pe] = pd
 				if t.piecePicker != nil {
 					t.piecePicker.HandleSnubbed(pe, pd.Piece.Index)
 				}
 				t.startPieceDownloaders()
 			} else if id, ok := t.infoDownloaders[pe]; ok {
+				pe.Snubbed = true
 				t.infoDownloadersSnubbed[pe] = id
 				t.startInfoDownloaders()
 			}
