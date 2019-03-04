@@ -10,10 +10,8 @@ type TestPeer struct {
 	requested []uint32
 }
 
-func (p *TestPeer) ResetSnubTimer()      {}
 func (p *TestPeer) MetadataSize() uint32 { return 10*16*1024 + 42 }
 func (p *TestPeer) RequestMetadataPiece(index uint32) {
-	println("requesting piece:", index)
 	p.requested = append(p.requested, index)
 }
 
