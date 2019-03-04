@@ -13,6 +13,7 @@ import (
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peerconn/peerwriter"
 	"github.com/cenkalti/rain/internal/peerprotocol"
+	"github.com/cenkalti/rain/internal/piecedownloader"
 	"github.com/cenkalti/rain/internal/piecewriter"
 	"github.com/cenkalti/rain/internal/tracker"
 )
@@ -56,7 +57,19 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 		msg.Buffer.Release()
 		return
 	}
-	pd.GotBlock(block, msg.Buffer.Data)
+	err := pd.GotBlock(block, msg.Buffer.Data)
+	switch err {
+	case piecedownloader.ErrBlockDuplicate:
+		pe.Logger().Warningln("received duplicate block:", block.Index)
+	case piecedownloader.ErrBlockNotRequested:
+		pe.Logger().Warningln("received not requested block:", block.Index)
+	case nil:
+	default:
+		pe.Logger().Error(err)
+		t.closePeer(pe)
+		msg.Buffer.Release()
+		return
+	}
 	msg.Buffer.Release()
 	if !pd.Done() {
 		if pd.AllowedFast || !pd.Peer.(*peer.Peer).PeerChoking {
