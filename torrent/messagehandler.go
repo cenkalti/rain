@@ -283,6 +283,10 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 	case peerprotocol.ExtensionMetadataMessage:
 		switch msg.Type {
 		case peerprotocol.ExtensionMetadataMessageTypeRequest:
+			if pe.ExtensionHandshake == nil {
+				// Peer sent a request without sending handshake first.
+				break
+			}
 			extMsgID, ok := pe.ExtensionHandshake.M[peerprotocol.ExtensionKeyMetadata]
 			if !ok {
 				break
