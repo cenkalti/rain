@@ -116,9 +116,9 @@ func (t *torrent) startInfoDownloaders() {
 		if id == nil {
 			break
 		}
-		t.log.Debugln("downloading info from", id.Peer.String())
-		t.infoDownloaders[id.Peer] = id
+		t.infoDownloaders[id.Peer.(*peer.Peer)] = id
 		id.RequestBlocks(t.config.RequestQueueLength)
+		id.Peer.(*peer.Peer).ResetSnubTimer()
 	}
 }
 

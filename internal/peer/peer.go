@@ -205,3 +205,17 @@ func (p *Peer) Optimistic() bool {
 func (p *Peer) SetOptimistic(value bool) {
 	p.OptimisticUnchoked = value
 }
+
+func (p *Peer) MetadataSize() uint32 {
+	return p.ExtensionHandshake.MetadataSize
+}
+
+func (p *Peer) RequestMetadataPiece(index uint32) {
+	p.SendMessage(peerprotocol.ExtensionMessage{
+		ExtendedMessageID: p.ExtensionHandshake.M[peerprotocol.ExtensionKeyMetadata],
+		Payload: peerprotocol.ExtensionMetadataMessage{
+			Type:  peerprotocol.ExtensionMetadataMessageTypeRequest,
+			Piece: index,
+		},
+	})
+}

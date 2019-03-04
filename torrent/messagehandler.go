@@ -335,6 +335,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			}
 			if !id.Done() {
 				id.RequestBlocks(t.config.RequestQueueLength)
+				pe.ResetSnubTimer()
 				break
 			}
 			pe.StopSnubTimer()
@@ -343,7 +344,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			_, _ = hash.Write(id.Bytes)                     // nolint: gosec
 			if !bytes.Equal(hash.Sum(nil), t.infoHash[:]) { // nolint: gosec
 				pe.Logger().Errorln("received info does not match with hash")
-				t.closePeer(id.Peer)
+				t.closePeer(id.Peer.(*peer.Peer))
 				t.startInfoDownloaders()
 				break
 			}
@@ -377,7 +378,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 		case peerprotocol.ExtensionMetadataMessageTypeReject:
 			id, ok := t.infoDownloaders[pe]
 			if ok {
-				t.closePeer(id.Peer)
+				t.closePeer(id.Peer.(*peer.Peer))
 				t.startInfoDownloaders()
 			}
 		}

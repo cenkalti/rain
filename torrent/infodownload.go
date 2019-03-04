@@ -20,6 +20,7 @@ func (t *torrent) nextInfoDownload() *infodownloader.InfoDownloader {
 		if !ok {
 			continue
 		}
+		t.log.Debugln("downloading info from", pe.String())
 		return infodownloader.New(pe)
 	}
 	return nil

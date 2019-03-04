@@ -292,8 +292,8 @@ func (t *torrent) closePieceDownloader(pd *piecedownloader.PieceDownloader) {
 }
 
 func (t *torrent) closeInfoDownloader(id *infodownloader.InfoDownloader) {
-	delete(t.infoDownloaders, id.Peer)
-	delete(t.infoDownloadersSnubbed, id.Peer)
+	delete(t.infoDownloaders, id.Peer.(*peer.Peer))
+	delete(t.infoDownloadersSnubbed, id.Peer.(*peer.Peer))
 }
 
 func (t *torrent) handleNewPeers(addrs []*net.TCPAddr, source peer.Source) {

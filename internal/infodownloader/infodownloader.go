@@ -1,47 +1,50 @@
 package infodownloader
 
-import (
-	"fmt"
-
-	"github.com/cenkalti/rain/internal/peer"
-	"github.com/cenkalti/rain/internal/peerprotocol"
-)
+import "fmt"
 
 const blockSize = 16 * 1024
 
 // InfoDownloader downloads all blocks of a piece from a peer.
 type InfoDownloader struct {
-	Peer  *peer.Peer
+	Peer  Peer
 	Bytes []byte
 
 	blocks         []block
-	requested      map[uint32]struct{}
+	numRequested   int // in-flight requests
 	nextBlockIndex uint32
 }
 
 type block struct {
-	size uint32
+	size      uint32
+	requested bool
 }
 
-func New(pe *peer.Peer) *InfoDownloader {
+type Peer interface {
+	MetadataSize() uint32
+	RequestMetadataPiece(index uint32)
+}
+
+func New(pe Peer) *InfoDownloader {
 	d := &InfoDownloader{
-		Peer:      pe,
-		Bytes:     make([]byte, pe.ExtensionHandshake.MetadataSize),
-		requested: make(map[uint32]struct{}),
+		Peer:  pe,
+		Bytes: make([]byte, pe.MetadataSize()),
 	}
 	d.blocks = d.createBlocks()
 	return d
 }
 
 func (d *InfoDownloader) GotBlock(index uint32, data []byte) error {
-	if _, ok := d.requested[index]; !ok {
-		return fmt.Errorf("peer sent unrequested index for metadata message: %q", index)
+	if index >= uint32(len(d.blocks)) {
+		return fmt.Errorf("peer sent invalid metadata piece index: %q", index)
 	}
 	b := &d.blocks[index]
+	if !b.requested {
+		return fmt.Errorf("peer sent unrequested index for metadata message: %q", index)
+	}
 	if uint32(len(data)) != b.size {
 		return fmt.Errorf("peer sent invalid size for metadata message: %q", len(data))
 	}
-	delete(d.requested, index)
+	d.numRequested--
 	begin := index * blockSize
 	end := begin + b.size
 	copy(d.Bytes[begin:end], data)
@@ -49,8 +52,8 @@ func (d *InfoDownloader) GotBlock(index uint32, data []byte) error {
 }
 
 func (d *InfoDownloader) createBlocks() []block {
-	numBlocks := d.Peer.ExtensionHandshake.MetadataSize / blockSize
-	mod := d.Peer.ExtensionHandshake.MetadataSize % blockSize
+	numBlocks := d.Peer.MetadataSize() / blockSize
+	mod := d.Peer.MetadataSize() % blockSize
 	if mod != 0 {
 		numBlocks++
 	}
@@ -67,20 +70,13 @@ func (d *InfoDownloader) createBlocks() []block {
 }
 
 func (d *InfoDownloader) RequestBlocks(queueLength int) {
-	for ; d.nextBlockIndex < uint32(len(d.blocks)) && len(d.requested) < queueLength; d.nextBlockIndex++ {
-		msg := peerprotocol.ExtensionMessage{
-			ExtendedMessageID: d.Peer.ExtensionHandshake.M[peerprotocol.ExtensionKeyMetadata],
-			Payload: peerprotocol.ExtensionMetadataMessage{
-				Type:  peerprotocol.ExtensionMetadataMessageTypeRequest,
-				Piece: d.nextBlockIndex,
-			},
-		}
-		d.Peer.SendMessage(msg)
-		d.requested[d.nextBlockIndex] = struct{}{}
+	for ; d.nextBlockIndex < uint32(len(d.blocks)) && d.numRequested < queueLength; d.nextBlockIndex++ {
+		d.Peer.RequestMetadataPiece(d.nextBlockIndex)
+		d.blocks[d.nextBlockIndex].requested = true
+		d.numRequested++
 	}
-	d.Peer.ResetSnubTimer()
 }
 
 func (d *InfoDownloader) Done() bool {
-	return d.nextBlockIndex == uint32(len(d.blocks)) && len(d.requested) == 0
+	return d.nextBlockIndex == uint32(len(d.blocks)) && d.numRequested == 0
 }
