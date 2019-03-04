@@ -275,17 +275,18 @@ func (t *torrent) closePeer(pe *peer.Peer) {
 }
 
 func (t *torrent) closePieceDownloader(pd *piecedownloader.PieceDownloader) {
-	_, open := t.pieceDownloaders[pd.Peer]
+	pe := pd.Peer.(*peer.Peer)
+	_, open := t.pieceDownloaders[pe]
 	if !open {
 		return
 	}
-	delete(t.pieceDownloaders, pd.Peer)
-	delete(t.pieceDownloadersSnubbed, pd.Peer)
-	delete(t.pieceDownloadersChoked, pd.Peer)
+	delete(t.pieceDownloaders, pe)
+	delete(t.pieceDownloadersSnubbed, pe)
+	delete(t.pieceDownloadersChoked, pe)
 	if t.piecePicker != nil {
-		t.piecePicker.HandleCancelDownload(pd.Peer, pd.Piece.Index)
+		t.piecePicker.HandleCancelDownload(pe, pd.Piece.Index)
 	}
-	pd.Peer.Downloading = false
+	pe.Downloading = false
 	if t.ram != nil {
 		t.ram.Release(int64(t.info.PieceLength))
 	}

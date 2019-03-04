@@ -1,16 +1,21 @@
 package piecedownloader
 
 import (
+	"errors"
+
 	"github.com/cenkalti/rain/internal/bufferpool"
-	"github.com/cenkalti/rain/internal/peer"
-	"github.com/cenkalti/rain/internal/peerprotocol"
 	"github.com/cenkalti/rain/internal/piece"
+)
+
+var (
+	ErrBlockDuplicate    = errors.New("received duplicate block")
+	ErrBlockNotRequested = errors.New("received not requested block")
 )
 
 // PieceDownloader downloads all blocks of a piece from a peer.
 type PieceDownloader struct {
 	Piece       *piece.Piece
-	Peer        *peer.Peer
+	Peer        Peer
 	AllowedFast bool
 	Buffer      bufferpool.Buffer
 
@@ -19,7 +24,12 @@ type PieceDownloader struct {
 	done        map[int]struct{} // downloaded requests
 }
 
-func New(pi *piece.Piece, pe *peer.Peer, allowedFast bool, buf bufferpool.Buffer) *PieceDownloader {
+type Peer interface {
+	RequestPiece(index, begin, length uint32)
+	CancelPiece(index, begin, length uint32)
+}
+
+func New(pi *piece.Piece, pe Peer, allowedFast bool, buf bufferpool.Buffer) *PieceDownloader {
 	unrequested := make([]int, pi.NumBlocks())
 	for i := range unrequested {
 		unrequested[i] = i
@@ -40,16 +50,19 @@ func (d *PieceDownloader) Choked() {
 		d.unrequested = append(d.unrequested, i)
 		delete(d.requested, i)
 	}
-	d.Peer.StopSnubTimer()
 }
 
-func (d *PieceDownloader) GotBlock(block piece.Block, data []byte) {
+func (d *PieceDownloader) GotBlock(block piece.Block, data []byte) error {
+	var err error
 	if _, ok := d.done[block.Index]; ok {
-		d.Peer.Logger().Warningln("received duplicate block:", block.Index)
+		return ErrBlockDuplicate
+	} else if _, ok := d.requested[block.Index]; !ok {
+		err = ErrBlockNotRequested
 	}
 	copy(d.Buffer.Data[block.Begin:block.Begin+block.Length], data)
 	delete(d.requested, block.Index)
 	d.done[block.Index] = struct{}{}
+	return err
 }
 
 func (d *PieceDownloader) Rejected(block piece.Block) {
@@ -63,8 +76,7 @@ func (d *PieceDownloader) CancelPending() {
 		if !ok {
 			panic("cannot get block")
 		}
-		msg := peerprotocol.CancelMessage{RequestMessage: peerprotocol.RequestMessage{Index: d.Piece.Index, Begin: b.Begin, Length: b.Length}}
-		d.Peer.SendMessage(msg)
+		d.Peer.CancelPiece(d.Piece.Index, b.Begin, b.Length)
 	}
 }
 
@@ -78,12 +90,10 @@ func (d *PieceDownloader) RequestBlocks(queueLength int) {
 		if !ok {
 			panic("cannot get block")
 		}
-		msg := peerprotocol.RequestMessage{Index: d.Piece.Index, Begin: b.Begin, Length: b.Length}
-		d.Peer.SendMessage(msg)
+		d.Peer.RequestPiece(d.Piece.Index, b.Begin, b.Length)
 		d.unrequested = d.unrequested[1:]
 		d.requested[b.Index] = struct{}{}
 	}
-	d.Peer.ResetSnubTimer()
 }
 
 func (d *PieceDownloader) Done() bool {
