@@ -414,13 +414,14 @@ func (t *torrent) pexDropPeer(addr *net.TCPAddr) {
 
 func (t *torrent) sendFirstMessage(p *peer.Peer) {
 	bf := t.bitfield
-	if p.FastEnabled && bf != nil && bf.All() {
+	switch {
+	case p.FastEnabled && bf != nil && bf.All():
 		msg := peerprotocol.HaveAllMessage{}
 		p.SendMessage(msg)
-	} else if p.FastEnabled && (bf == nil || bf != nil && bf.Count() == 0) {
+	case p.FastEnabled && (bf == nil || bf != nil && bf.Count() == 0):
 		msg := peerprotocol.HaveNoneMessage{}
 		p.SendMessage(msg)
-	} else if bf != nil {
+	case bf != nil:
 		bitfieldData := make([]byte, len(bf.Bytes()))
 		copy(bitfieldData, bf.Bytes())
 		msg := peerprotocol.BitfieldMessage{Data: bitfieldData}

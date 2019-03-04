@@ -30,15 +30,16 @@ func (s *Session) startBlocklistReloader() error {
 	now := time.Now()
 	delta := now.Sub(deadline)
 	var nextReload time.Duration
-	if blocklistTimestamp.IsZero() {
+	switch {
+	case blocklistTimestamp.IsZero():
 		s.log.Infof("Blocklist is empty. Loading blocklist...")
 		s.retryReloadBlocklist()
 		nextReload = s.config.BlocklistUpdateInterval
-	} else if deadline.Before(now) {
+	case deadline.Before(now):
 		s.log.Infof("Last blocklist reload was %s ago. Reloading blocklist...", delta.String())
 		s.retryReloadBlocklist()
 		nextReload = s.config.BlocklistUpdateInterval
-	} else {
+	default:
 		s.log.Infof("Loading blocklist from session db...")
 		err = s.loadBlocklistFromDB()
 		if err != nil {

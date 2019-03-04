@@ -1,0 +1,15 @@
+linters:
+  enable-all: true
+  disable:
+    - maligned
+    - lll
+    - gochecknoglobals
+    - gochecknoinits
+    - gocyclo
+    - nakedret
+    - dupl
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - goconst

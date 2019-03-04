@@ -64,11 +64,12 @@ func infoHashString(s string) ([20]byte, error) {
 	var ih [20]byte
 	var b []byte
 	var err error
-	if len(s) == 40 {
+	switch len(s) {
+	case 40:
 		b, err = hex.DecodeString(s)
-	} else if len(s) == 32 {
+	case 32:
 		b, err = base32.StdEncoding.DecodeString(s)
-	} else {
+	default:
 		return ih, errors.New("info hash must be 32 or 40 characters")
 	}
 	if err != nil {

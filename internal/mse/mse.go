@@ -374,7 +374,7 @@ func (s *Stream) HandshakeIncoming(
 	// Step 5 | A->B: ENCRYPT2(Payload Stream)
 }
 
-func (s *Stream) initRC4(encKey, decKey string, S *big.Int, sKey []byte) error {
+func (s *Stream) initRC4(encKey, decKey string, S *big.Int, sKey []byte) error { //nolint:gocritic
 	cipherEnc, err := rc4.NewCipher(rc4Key(encKey, S, sKey))
 	if err != nil {
 		return err
@@ -461,7 +461,7 @@ func bytesWithPad(key *big.Int) []byte {
 
 func isPowerOfTwo(x uint32) bool { return (x != 0) && ((x & (x - 1)) == 0) }
 
-func hashes(S *big.Int, sKey []byte) (hashS, hashSKey []byte) {
+func hashes(S *big.Int, sKey []byte) (hashS, hashSKey []byte) { // nolint:gocritic
 	req1 := hashInt("req1", S)
 	req2 := HashSKey(sKey)
 	req3 := hashInt("req3", S)
@@ -487,7 +487,7 @@ func HashSKey(key []byte) [20]byte {
 	return sum
 }
 
-func rc4Key(prefix string, S *big.Int, sKey []byte) []byte {
+func rc4Key(prefix string, S *big.Int, sKey []byte) []byte { // nolint:gocritic
 	h := sha1.New()
 	_, _ = h.Write([]byte(prefix))
 	_, _ = h.Write(bytesWithPad(S))
