@@ -47,8 +47,8 @@ func New(pi *piece.Piece, pe Peer, allowedFast bool, buf bufferpool.Buffer) *Pie
 
 func (d *PieceDownloader) Choked() {
 	for i := range d.pending {
-		d.remaining = append(d.remaining, i)
 		delete(d.pending, i)
+		d.remaining = append(d.remaining, i)
 	}
 }
 
@@ -66,8 +66,8 @@ func (d *PieceDownloader) GotBlock(block piece.Block, data []byte) error {
 }
 
 func (d *PieceDownloader) Rejected(block piece.Block) {
-	d.remaining = append(d.remaining, block.Index)
 	delete(d.pending, block.Index)
+	d.remaining = append(d.remaining, block.Index)
 }
 
 func (d *PieceDownloader) CancelPending() {
@@ -90,9 +90,11 @@ func (d *PieceDownloader) RequestBlocks(queueLength int) {
 		if !ok {
 			panic("cannot get block")
 		}
-		d.Peer.RequestPiece(d.Piece.Index, b.Begin, b.Length)
+		if _, ok := d.done[i]; !ok {
+			d.Peer.RequestPiece(d.Piece.Index, b.Begin, b.Length)
+		}
 		d.remaining = d.remaining[1:]
-		d.pending[b.Index] = struct{}{}
+		d.pending[i] = struct{}{}
 	}
 }
 
