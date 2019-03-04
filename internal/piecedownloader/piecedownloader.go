@@ -19,9 +19,9 @@ type PieceDownloader struct {
 	AllowedFast bool
 	Buffer      bufferpool.Buffer
 
-	unrequested []int
-	requested   map[int]struct{} // in-flight requests
-	done        map[int]struct{} // downloaded requests
+	remaining []int
+	pending   map[int]struct{} // in-flight requests
+	done      map[int]struct{} // downloaded requests
 }
 
 type Peer interface {
@@ -30,25 +30,25 @@ type Peer interface {
 }
 
 func New(pi *piece.Piece, pe Peer, allowedFast bool, buf bufferpool.Buffer) *PieceDownloader {
-	unrequested := make([]int, pi.NumBlocks())
-	for i := range unrequested {
-		unrequested[i] = i
+	remaining := make([]int, pi.NumBlocks())
+	for i := range remaining {
+		remaining[i] = i
 	}
 	return &PieceDownloader{
 		Piece:       pi,
 		Peer:        pe,
 		AllowedFast: allowedFast,
 		Buffer:      buf,
-		unrequested: unrequested,
-		requested:   make(map[int]struct{}),
+		remaining:   remaining,
+		pending:     make(map[int]struct{}),
 		done:        make(map[int]struct{}),
 	}
 }
 
 func (d *PieceDownloader) Choked() {
-	for i := range d.requested {
-		d.unrequested = append(d.unrequested, i)
-		delete(d.requested, i)
+	for i := range d.pending {
+		d.remaining = append(d.remaining, i)
+		delete(d.pending, i)
 	}
 }
 
@@ -56,22 +56,22 @@ func (d *PieceDownloader) GotBlock(block piece.Block, data []byte) error {
 	var err error
 	if _, ok := d.done[block.Index]; ok {
 		return ErrBlockDuplicate
-	} else if _, ok := d.requested[block.Index]; !ok {
+	} else if _, ok := d.pending[block.Index]; !ok {
 		err = ErrBlockNotRequested
 	}
 	copy(d.Buffer.Data[block.Begin:block.Begin+block.Length], data)
-	delete(d.requested, block.Index)
+	delete(d.pending, block.Index)
 	d.done[block.Index] = struct{}{}
 	return err
 }
 
 func (d *PieceDownloader) Rejected(block piece.Block) {
-	d.unrequested = append(d.unrequested, block.Index)
-	delete(d.requested, block.Index)
+	d.remaining = append(d.remaining, block.Index)
+	delete(d.pending, block.Index)
 }
 
 func (d *PieceDownloader) CancelPending() {
-	for i := range d.requested {
+	for i := range d.pending {
 		b, ok := d.Piece.GetBlock(i)
 		if !ok {
 			panic("cannot get block")
@@ -81,9 +81,9 @@ func (d *PieceDownloader) CancelPending() {
 }
 
 func (d *PieceDownloader) RequestBlocks(queueLength int) {
-	remaining := d.unrequested
+	remaining := d.remaining
 	for _, i := range remaining {
-		if len(d.requested) >= queueLength {
+		if len(d.pending) >= queueLength {
 			break
 		}
 		b, ok := d.Piece.GetBlock(i)
@@ -91,8 +91,8 @@ func (d *PieceDownloader) RequestBlocks(queueLength int) {
 			panic("cannot get block")
 		}
 		d.Peer.RequestPiece(d.Piece.Index, b.Begin, b.Length)
-		d.unrequested = d.unrequested[1:]
-		d.requested[b.Index] = struct{}{}
+		d.remaining = d.remaining[1:]
+		d.pending[b.Index] = struct{}{}
 	}
 }
 

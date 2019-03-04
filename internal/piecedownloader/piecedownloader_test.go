@@ -44,14 +44,14 @@ func TestPieceDownloader(t *testing.T) {
 	}
 	pe := &TestPeer{}
 	d := New(pi, pe, false, buf)
-	assert.Equal(t, 11, len(d.unrequested))
-	assert.Equal(t, 0, len(d.requested))
+	assert.Equal(t, 11, len(d.remaining))
+	assert.Equal(t, 0, len(d.pending))
 	assert.Equal(t, 0, len(d.done))
 	assert.False(t, d.Done())
 
 	d.RequestBlocks(4)
-	assert.Equal(t, 7, len(d.unrequested))
-	assert.Equal(t, 4, len(d.requested))
+	assert.Equal(t, 7, len(d.remaining))
+	assert.Equal(t, 4, len(d.pending))
 	assert.Equal(t, 0, len(d.done))
 	assert.False(t, d.Done())
 	assert.Equal(t, []Message{
@@ -62,8 +62,8 @@ func TestPieceDownloader(t *testing.T) {
 	}, pe.requested)
 
 	d.RequestBlocks(4)
-	assert.Equal(t, 7, len(d.unrequested))
-	assert.Equal(t, 4, len(d.requested))
+	assert.Equal(t, 7, len(d.remaining))
+	assert.Equal(t, 4, len(d.pending))
 	assert.Equal(t, 0, len(d.done))
 	assert.False(t, d.Done())
 	assert.Equal(t, []Message{
@@ -75,14 +75,14 @@ func TestPieceDownloader(t *testing.T) {
 
 	assert.Nil(t, d.GotBlock(piece.Block{Index: 0, Begin: 0, Length: blockSize}, make([]byte, blockSize)))
 	assert.Equal(t, 4, len(pe.requested))
-	assert.Equal(t, 7, len(d.unrequested))
-	assert.Equal(t, 3, len(d.requested))
+	assert.Equal(t, 7, len(d.remaining))
+	assert.Equal(t, 3, len(d.pending))
 	assert.Equal(t, 1, len(d.done))
 	assert.False(t, d.Done())
 
 	d.RequestBlocks(4)
-	assert.Equal(t, 6, len(d.unrequested))
-	assert.Equal(t, 4, len(d.requested))
+	assert.Equal(t, 6, len(d.remaining))
+	assert.Equal(t, 4, len(d.pending))
 	assert.Equal(t, 1, len(d.done))
 	assert.False(t, d.Done())
 	assert.Equal(t, []Message{
@@ -97,14 +97,14 @@ func TestPieceDownloader(t *testing.T) {
 	assert.Nil(t, d.GotBlock(piece.Block{Index: 2, Begin: 2 * blockSize, Length: blockSize}, make([]byte, blockSize)))
 	assert.Nil(t, d.GotBlock(piece.Block{Index: 3, Begin: 3 * blockSize, Length: blockSize}, make([]byte, blockSize)))
 	assert.Nil(t, d.GotBlock(piece.Block{Index: 4, Begin: 4 * blockSize, Length: blockSize}, make([]byte, blockSize)))
-	assert.Equal(t, 6, len(d.unrequested))
-	assert.Equal(t, 0, len(d.requested))
+	assert.Equal(t, 6, len(d.remaining))
+	assert.Equal(t, 0, len(d.pending))
 	assert.Equal(t, 5, len(d.done))
 	assert.False(t, d.Done())
 
 	d.RequestBlocks(4)
-	assert.Equal(t, 2, len(d.unrequested))
-	assert.Equal(t, 4, len(d.requested))
+	assert.Equal(t, 2, len(d.remaining))
+	assert.Equal(t, 4, len(d.pending))
 	assert.Equal(t, 5, len(d.done))
 	assert.False(t, d.Done())
 	assert.Equal(t, []Message{
@@ -120,14 +120,14 @@ func TestPieceDownloader(t *testing.T) {
 	}, pe.requested)
 
 	assert.Nil(t, d.GotBlock(piece.Block{Index: 5, Begin: 5 * blockSize, Length: blockSize}, make([]byte, blockSize)))
-	assert.Equal(t, 2, len(d.unrequested))
-	assert.Equal(t, 3, len(d.requested))
+	assert.Equal(t, 2, len(d.remaining))
+	assert.Equal(t, 3, len(d.pending))
 	assert.Equal(t, 6, len(d.done))
 	assert.False(t, d.Done())
 
 	d.Choked()
-	assert.Equal(t, 5, len(d.unrequested))
-	assert.Equal(t, 0, len(d.requested))
+	assert.Equal(t, 5, len(d.remaining))
+	assert.Equal(t, 0, len(d.pending))
 	assert.Equal(t, 6, len(d.done))
 	assert.False(t, d.Done())
 
@@ -137,8 +137,8 @@ func TestPieceDownloader(t *testing.T) {
 	assert.Nil(t, d.GotBlock(piece.Block{Index: 8, Begin: 8 * blockSize, Length: blockSize}, make([]byte, blockSize)))
 	assert.Nil(t, d.GotBlock(piece.Block{Index: 9, Begin: 9 * blockSize, Length: blockSize}, make([]byte, blockSize)))
 	assert.Nil(t, d.GotBlock(piece.Block{Index: 10, Begin: 10 * blockSize, Length: 42}, make([]byte, 42)))
-	assert.Equal(t, 0, len(d.unrequested))
-	assert.Equal(t, 0, len(d.requested))
+	assert.Equal(t, 0, len(d.remaining))
+	assert.Equal(t, 0, len(d.pending))
 	assert.Equal(t, 11, len(d.done))
 	assert.True(t, d.Done())
 }

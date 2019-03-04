@@ -10,7 +10,7 @@ type InfoDownloader struct {
 	Bytes []byte
 
 	blocks         []block
-	numRequested   int // in-flight requests
+	pending        int // in-flight requests
 	nextBlockIndex uint32
 }
 
@@ -44,7 +44,7 @@ func (d *InfoDownloader) GotBlock(index uint32, data []byte) error {
 	if uint32(len(data)) != b.size {
 		return fmt.Errorf("peer sent invalid size for metadata message: %q", len(data))
 	}
-	d.numRequested--
+	d.pending--
 	begin := index * blockSize
 	end := begin + b.size
 	copy(d.Bytes[begin:end], data)
@@ -70,13 +70,13 @@ func (d *InfoDownloader) createBlocks() []block {
 }
 
 func (d *InfoDownloader) RequestBlocks(queueLength int) {
-	for ; d.nextBlockIndex < uint32(len(d.blocks)) && d.numRequested < queueLength; d.nextBlockIndex++ {
+	for ; d.nextBlockIndex < uint32(len(d.blocks)) && d.pending < queueLength; d.nextBlockIndex++ {
 		d.Peer.RequestMetadataPiece(d.nextBlockIndex)
 		d.blocks[d.nextBlockIndex].requested = true
-		d.numRequested++
+		d.pending++
 	}
 }
 
 func (d *InfoDownloader) Done() bool {
-	return d.nextBlockIndex == uint32(len(d.blocks)) && d.numRequested == 0
+	return d.nextBlockIndex == uint32(len(d.blocks)) && d.pending == 0
 }
