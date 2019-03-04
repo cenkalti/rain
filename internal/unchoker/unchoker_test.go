@@ -33,11 +33,11 @@ func TestTickUnchoke(t *testing.T) {
 		}
 		return peers
 	}
-	u := New(getPeers, new(bool), 2, 1)
+	u := New(2, 1)
 
 	// Must unchoke fastest downloading 2 peers
 	u.round = 1
-	u.TickUnchoke()
+	u.TickUnchoke(getPeers(), false)
 	assert.Equal(t, []*TestPeer{
 		{
 			interested: true,
@@ -58,7 +58,7 @@ func TestTickUnchoke(t *testing.T) {
 
 	// Nothing has changed. Same peers stays unchoked.
 	u.round = 1
-	u.TickUnchoke()
+	u.TickUnchoke(getPeers(), false)
 	assert.Equal(t, []*TestPeer{
 		{
 			interested: true,
@@ -79,7 +79,7 @@ func TestTickUnchoke(t *testing.T) {
 
 	// First choked peer must be unchoked optimistically.
 	u.round = 0
-	u.TickUnchoke()
+	u.TickUnchoke(getPeers(), false)
 	assert.Equal(t, []*TestPeer{
 		{
 			interested: true,
@@ -101,7 +101,7 @@ func TestTickUnchoke(t *testing.T) {
 	// Optimistically unchoked peer has started downloading,
 	testPeers[0].downloadSpeed = 3
 	u.round = 1
-	u.TickUnchoke()
+	u.TickUnchoke(getPeers(), false)
 	assert.Equal(t, []*TestPeer{
 		{
 			interested:    true,
@@ -122,7 +122,7 @@ func TestTickUnchoke(t *testing.T) {
 	}, testPeers)
 
 	u.round = 0
-	u.TickUnchoke()
+	u.TickUnchoke(getPeers(), false)
 	assert.Equal(t, []*TestPeer{
 		{
 			interested:    true,

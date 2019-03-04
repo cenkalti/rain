@@ -147,7 +147,7 @@ func (o *options) NewTorrent(infoHash []byte, sto storage.Storage) (*torrent, er
 	if t.dhtNode != nil {
 		t.dhtPeersC = t.dhtNode.Peers()
 	}
-	t.unchoker = unchoker.New(t.getPeersForUnchoker, &t.completed, cfg.UnchokedPeers, cfg.OptimisticUnchokedPeers)
+	t.unchoker = unchoker.New(cfg.UnchokedPeers, cfg.OptimisticUnchokedPeers)
 	go t.run()
 	return t, nil
 }

@@ -200,7 +200,7 @@ func (t *torrent) run() {
 				t.startInfoDownloaders()
 			}
 		case <-t.unchokeTicker.C:
-			t.unchoker.TickUnchoke()
+			t.unchoker.TickUnchoke(t.getPeersForUnchoker(), t.completed)
 		case ih := <-t.incomingHandshakerResultC:
 			delete(t.incomingHandshakers, ih)
 			if ih.Error != nil {
