@@ -35,6 +35,8 @@ func (p *TestPeer) CancelPiece(index, begin, length uint32) {
 	p.canceled = append(p.canceled, msg)
 }
 
+func (p *TestPeer) EnabledFast() bool { return false }
+
 func TestPieceDownloader(t *testing.T) {
 	bp := bufferpool.New(12 * blockSize)
 	buf := bp.Get(10*blockSize + 42)

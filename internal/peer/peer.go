@@ -229,3 +229,7 @@ func (p *Peer) CancelPiece(index, begin, length uint32) {
 	msg := peerprotocol.CancelMessage{RequestMessage: peerprotocol.RequestMessage{Index: index, Begin: begin, Length: length}}
 	p.SendMessage(msg)
 }
+
+func (p *Peer) EnabledFast() bool {
+	return p.FastEnabled
+}

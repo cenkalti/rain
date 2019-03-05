@@ -27,6 +27,7 @@ type PieceDownloader struct {
 type Peer interface {
 	RequestPiece(index, begin, length uint32)
 	CancelPiece(index, begin, length uint32)
+	EnabledFast() bool
 }
 
 func New(pi *piece.Piece, pe Peer, allowedFast bool, buf bufferpool.Buffer) *PieceDownloader {
@@ -46,6 +47,13 @@ func New(pi *piece.Piece, pe Peer, allowedFast bool, buf bufferpool.Buffer) *Pie
 }
 
 func (d *PieceDownloader) Choked() {
+	if d.AllowedFast {
+		return
+	}
+	if d.Peer.EnabledFast() {
+		// Peer will send cancel message for pending requests.
+		return
+	}
 	for i := range d.pending {
 		delete(d.pending, i)
 		d.remaining = append(d.remaining, i)
