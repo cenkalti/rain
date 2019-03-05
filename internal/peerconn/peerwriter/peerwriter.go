@@ -181,7 +181,7 @@ func (p *PeerWriter) messageWriter() {
 
 			n, err := p.conn.Write(buf.Bytes())
 			if _, ok := msg.(Piece); ok {
-				p.countUploadBytes(msg, n)
+				p.countUploadBytes(n)
 			}
 			if _, ok := err.(*net.OpError); ok {
 				p.log.Debugf("cannot write message [%v]: %s", msg.ID(), err.Error())
@@ -207,7 +207,7 @@ func (p *PeerWriter) messageWriter() {
 	}
 }
 
-func (p *PeerWriter) countUploadBytes(msg peerprotocol.Message, n int) {
+func (p *PeerWriter) countUploadBytes(n int) {
 	n -= 13 // message + piece header
 	if n < 0 {
 		n = 0
