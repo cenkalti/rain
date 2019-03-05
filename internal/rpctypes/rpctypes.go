@@ -10,6 +10,7 @@ type Torrent struct {
 
 type Peer struct {
 	ID                 string
+	Client             string
 	Addr               string
 	Source             string
 	ConnectedAt        Time

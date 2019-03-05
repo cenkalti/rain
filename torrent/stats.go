@@ -237,6 +237,7 @@ func (t *torrent) getPeers() []Peer {
 		}
 		p := Peer{
 			ID:                 pe.ID,
+			Client:             pe.Client(),
 			Addr:               pe.Addr(),
 			ConnectedAt:        pe.ConnectedAt,
 			Downloading:        pe.Downloading,

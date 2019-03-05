@@ -151,6 +151,7 @@ func (t *torrent) Trackers() []Tracker {
 
 type Peer struct {
 	ID                 [20]byte
+	Client             string
 	Addr               net.Addr
 	Source             PeerSource
 	ConnectedAt        time.Time

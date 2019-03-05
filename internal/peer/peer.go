@@ -233,3 +233,13 @@ func (p *Peer) CancelPiece(index, begin, length uint32) {
 func (p *Peer) EnabledFast() bool {
 	return p.FastEnabled
 }
+
+func (p *Peer) Client() string {
+	if p.ExtensionHandshake == nil {
+		return ""
+	}
+	if p.ExtensionHandshake.V != "" {
+		return p.ExtensionHandshake.V
+	}
+	return asciify(clientID(string(p.ID[:])))
+}

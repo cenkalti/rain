@@ -163,8 +163,8 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 				}
 			}
 		case peers:
-			format := "%2s %21s %7s %8s %6s %20s\n"
-			fmt.Fprintf(v, format, "#", "Addr", "Flags", "Download", "Upload", "ID")
+			format := "%2s %21s %7s %8s %6s %s\n"
+			fmt.Fprintf(v, format, "#", "Addr", "Flags", "Download", "Upload", "Client")
 			for i, p := range c.peers {
 				num := fmt.Sprintf("%d", i)
 				var dl string
@@ -175,7 +175,7 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 				if p.UploadSpeed > 0 {
 					ul = fmt.Sprintf("%d", p.UploadSpeed/1024)
 				}
-				fmt.Fprintf(v, format, num, p.Addr, flags(p), dl, ul, printableID(p.ID))
+				fmt.Fprintf(v, format, num, p.Addr, flags(p), dl, ul, p.Client)
 			}
 		}
 	}
@@ -520,37 +520,4 @@ func flags(p rpctypes.Peer) string {
 		sb.WriteString(" ")
 	}
 	return sb.String()
-}
-
-func printableID(id string) string {
-	return asciify(clientID(id))
-}
-
-func clientID(id string) string {
-	// ID follows BEP 20 convention
-	if id[7] == '-' {
-		return id[:8]
-	}
-
-	// Rain convention
-	if strings.HasPrefix(id, "-RN") {
-		i := strings.IndexRune(id[1:], '-')
-		if i != -1 {
-			return id[:i+2]
-		}
-	}
-
-	return id
-}
-
-// asciify replaces non-ascii characters with '_'.
-func asciify(id string) string {
-	b := []byte(id)
-	for i, val := range b {
-		if val >= 32 && val < 127 {
-			continue
-		}
-		b[i] = '_'
-	}
-	return string(b)
 }
