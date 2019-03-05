@@ -78,6 +78,8 @@ func (h *rpcHandler) GetSessionStats(args *rpctypes.GetSessionStatsRequest, repl
 		PieceCacheItems:               s.PieceCacheItems,
 		PieceCacheSize:                s.PieceCacheSize,
 		PieceCacheUtilization:         s.PieceCacheUtilization,
+		ReadsPerSecond:                s.ReadsPerSecond,
+		ReadsPending:                  s.ReadsPending,
 		ActivePieceBytes:              s.ActivePieceBytes,
 		TorrentsPendingRAM:            s.TorrentsPendingRAM,
 		Uptime:                        int(s.Uptime / time.Second),

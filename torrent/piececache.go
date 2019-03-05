@@ -2,7 +2,6 @@ package torrent
 
 import (
 	"encoding/binary"
-	"sync"
 
 	"github.com/cenkalti/rain/internal/piece"
 	"github.com/cenkalti/rain/internal/piececache"
@@ -12,7 +11,6 @@ type cachedPiece struct {
 	pi       *piece.Piece
 	cache    *piececache.Cache
 	readSize int64
-	m        *sync.Mutex
 	peerID   []byte
 }
 
@@ -21,7 +19,6 @@ func (t *torrent) cachedPiece(pi *piece.Piece) *cachedPiece {
 		pi:       pi,
 		cache:    t.pieceCache,
 		readSize: t.config.PieceReadSize,
-		m:        &t.readMutex,
 		peerID:   t.peerID[:],
 	}
 }
@@ -41,9 +38,7 @@ func (c *cachedPiece) ReadAt(p []byte, off int64) (n int, err error) {
 
 	buf, err := c.cache.Get(string(key), func() ([]byte, error) {
 		b := make([]byte, blkEnd-blkBegin)
-		c.m.Lock()
 		_, err = c.pi.Data.ReadAt(b, int64(blkBegin))
-		c.m.Unlock()
 		return b, err
 	})
 	if err != nil {

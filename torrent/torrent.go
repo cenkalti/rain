@@ -228,9 +228,6 @@ type torrent struct {
 	// Keeps blocks read from disk in memory.
 	pieceCache *piececache.Cache
 
-	// To limit parallel disk reads.
-	readMutex sync.Mutex
-
 	// Optional list of IP addresses to block.
 	blocklist *blocklist.Blocklist
 

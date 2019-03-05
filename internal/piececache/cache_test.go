@@ -7,7 +7,7 @@ import (
 )
 
 func TestCache(t *testing.T) {
-	c := New(10, time.Minute)
+	c := New(10, time.Minute, 1)
 
 	// Test empty cache
 	if len(c.items) != 0 {
@@ -184,7 +184,7 @@ func TestCache(t *testing.T) {
 func TestTTL(t *testing.T) {
 	const ttl = 100 * time.Millisecond
 
-	c := New(10, ttl)
+	c := New(10, ttl, 1)
 
 	var loaded bool
 	fooLoader := func() ([]byte, error) {
@@ -234,7 +234,7 @@ func TestTTL(t *testing.T) {
 func TestClear(t *testing.T) {
 	const ttl = 100 * time.Millisecond
 
-	c := New(10, ttl)
+	c := New(10, ttl, 1)
 
 	var loaded bool
 	fooLoader := func() ([]byte, error) {

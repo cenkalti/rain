@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cenkalti/rain/internal/semaphore"
 	"github.com/rcrowley/go-metrics"
 )
 
@@ -14,22 +15,26 @@ type Cache struct {
 	items         map[string]*item
 	accessList    accessList
 	m             sync.RWMutex
+	sem           *semaphore.Semaphore
 
 	numCached metrics.EWMA
 	numTotal  metrics.EWMA
+	numLoad   metrics.EWMA
 
 	closeC chan struct{}
 }
 
 type Loader func() ([]byte, error)
 
-func New(maxSize int64, ttl time.Duration) *Cache {
+func New(maxSize int64, ttl time.Duration, parallelReads uint) *Cache {
 	c := &Cache{
 		maxSize:   maxSize,
 		ttl:       ttl,
 		items:     make(map[string]*item),
+		sem:       semaphore.New(int(parallelReads)),
 		numCached: metrics.NewEWMA1(),
 		numTotal:  metrics.NewEWMA1(),
+		numLoad:   metrics.NewEWMA1(),
 		closeC:    make(chan struct{}),
 	}
 	go c.tick()
@@ -44,6 +49,7 @@ func (c *Cache) tick() {
 		case <-t.C:
 			c.numCached.Tick()
 			c.numTotal.Tick()
+			c.numLoad.Tick()
 		case <-c.closeC:
 			return
 		}
@@ -69,6 +75,14 @@ func (c *Cache) Len() int {
 	c.m.RLock()
 	defer c.m.RUnlock()
 	return len(c.items)
+}
+
+func (c *Cache) LoadsPerSecond() int {
+	return int(c.numLoad.Rate())
+}
+
+func (c *Cache) LoadsWaiting() int {
+	return int(c.sem.Waiting())
 }
 
 func (c *Cache) Size() int64 {
@@ -118,8 +132,11 @@ func (c *Cache) getValue(i *item, loader Loader) ([]byte, error) {
 		return i.value, nil
 	}
 
+	c.sem.Wait()
 	i.value, i.err = loader()
+	c.sem.Signal()
 	i.loaded = true
+	c.numLoad.Update(1)
 
 	return c.handleNewItem(i)
 }
