@@ -17,9 +17,10 @@ type Cache struct {
 	m             sync.RWMutex
 	sem           *semaphore.Semaphore
 
-	numCached metrics.EWMA
-	numTotal  metrics.EWMA
-	numLoad   metrics.EWMA
+	numCached   metrics.EWMA
+	numTotal    metrics.EWMA
+	numLoad     metrics.EWMA
+	loadedBytes metrics.EWMA
 
 	closeC chan struct{}
 }
@@ -28,14 +29,15 @@ type Loader func() ([]byte, error)
 
 func New(maxSize int64, ttl time.Duration, parallelReads uint) *Cache {
 	c := &Cache{
-		maxSize:   maxSize,
-		ttl:       ttl,
-		items:     make(map[string]*item),
-		sem:       semaphore.New(int(parallelReads)),
-		numCached: metrics.NewEWMA1(),
-		numTotal:  metrics.NewEWMA1(),
-		numLoad:   metrics.NewEWMA1(),
-		closeC:    make(chan struct{}),
+		maxSize:     maxSize,
+		ttl:         ttl,
+		items:       make(map[string]*item),
+		sem:         semaphore.New(int(parallelReads)),
+		numCached:   metrics.NewEWMA1(),
+		numTotal:    metrics.NewEWMA1(),
+		numLoad:     metrics.NewEWMA1(),
+		loadedBytes: metrics.NewEWMA1(),
+		closeC:      make(chan struct{}),
 	}
 	go c.tick()
 	return c
@@ -50,6 +52,7 @@ func (c *Cache) tick() {
 			c.numCached.Tick()
 			c.numTotal.Tick()
 			c.numLoad.Tick()
+			c.loadedBytes.Tick()
 		case <-c.closeC:
 			return
 		}
@@ -79,6 +82,10 @@ func (c *Cache) Len() int {
 
 func (c *Cache) LoadsPerSecond() int {
 	return int(c.numLoad.Rate())
+}
+
+func (c *Cache) LoadedBytesPerSecond() int {
+	return int(c.loadedBytes.Rate())
 }
 
 func (c *Cache) LoadsWaiting() int {
@@ -137,6 +144,7 @@ func (c *Cache) getValue(i *item, loader Loader) ([]byte, error) {
 	c.sem.Signal()
 	i.loaded = true
 	c.numLoad.Update(1)
+	c.loadedBytes.Update(int64(len(i.value)))
 
 	return c.handleNewItem(i)
 }

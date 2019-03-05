@@ -673,6 +673,7 @@ func (s *Session) Stats() SessionStats {
 		PieceCacheUtilization:         s.pieceCache.Utilization(),
 		ReadsPerSecond:                s.pieceCache.LoadsPerSecond(),
 		ReadsPending:                  s.pieceCache.LoadsWaiting(),
+		ReadBytesPerSecond:            s.pieceCache.LoadedBytesPerSecond(),
 		ActivePieceBytes:              ramStats.Used,
 		TorrentsPendingRAM:            ramStats.Count,
 		Uptime:                        time.Since(s.createdAt),
