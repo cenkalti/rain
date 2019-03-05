@@ -1,39 +1,21 @@
 package semaphore
 
 type Semaphore struct {
-	Ready chan token
-	n     int
+	c chan token
 }
 
 type token struct{}
 
-func New(n int) *Semaphore {
-	return &Semaphore{
-		Ready: make(chan token, n),
-		n:     n,
+func New(n int) Semaphore {
+	return Semaphore{
+		c: make(chan token, n),
 	}
 }
 
-func (s *Semaphore) Start() {
-	s.Signal(s.n)
+func (s Semaphore) Wait() {
+	s.c <- token{}
 }
 
-func (s *Semaphore) Stop() {
-	for {
-		select {
-		case <-s.Ready:
-		default:
-			return
-		}
-	}
-}
-
-func (s *Semaphore) Signal(n int) {
-	for i := 0; i < n; i++ {
-		select {
-		case s.Ready <- token{}:
-		default:
-			return
-		}
-	}
+func (s Semaphore) Signal() {
+	<-s.c
 }
