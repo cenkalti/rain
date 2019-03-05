@@ -2,6 +2,7 @@ package torrent
 
 import (
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"net"
 	"strconv"
@@ -242,7 +243,7 @@ func (h *rpcHandler) GetTorrentPeers(args *rpctypes.GetTorrentPeersRequest, repl
 			panic("unhandled peer source")
 		}
 		reply.Peers[i] = rpctypes.Peer{
-			ID:                 string(p.ID[:]),
+			ID:                 hex.EncodeToString(p.ID[:]),
 			Client:             p.Client,
 			Addr:               p.Addr.String(),
 			Source:             source,
