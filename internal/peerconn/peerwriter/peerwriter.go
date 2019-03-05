@@ -179,8 +179,10 @@ func (p *PeerWriter) messageWriter() {
 			// Put message ID
 			buf.Bytes()[4] = uint8(msg.ID())
 
-			_, err = p.conn.Write(buf.Bytes())
-			p.countUploadBytes(msg, buf.Len())
+			n, err := p.conn.Write(buf.Bytes())
+			if _, ok := msg.(Piece); ok {
+				p.countUploadBytes(msg, n)
+			}
 			if _, ok := err.(*net.OpError); ok {
 				p.log.Debugf("cannot write message [%v]: %s", msg.ID(), err.Error())
 				return
@@ -206,17 +208,15 @@ func (p *PeerWriter) messageWriter() {
 }
 
 func (p *PeerWriter) countUploadBytes(msg peerprotocol.Message, n int) {
-	if _, ok := msg.(Piece); ok {
-		n -= 13
-		if n < 0 {
-			n = 0
-		}
-		uploaded := uint32(n)
-		if uploaded > 0 {
-			select {
-			case p.messages <- BlockUploaded{Length: uploaded}:
-			case <-p.stopC:
-			}
+	n -= 13 // message + piece header
+	if n < 0 {
+		n = 0
+	}
+	uploaded := uint32(n)
+	if uploaded > 0 {
+		select {
+		case p.messages <- BlockUploaded{Length: uploaded}:
+		case <-p.stopC:
 		}
 	}
 }
