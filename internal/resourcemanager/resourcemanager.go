@@ -1,8 +1,6 @@
 package resourcemanager
 
-import (
-	"math/rand"
-)
+import "math/rand"
 
 type ResourceManager struct {
 	limit     int64
