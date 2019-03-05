@@ -18,18 +18,27 @@ func ResolveHost(ctx context.Context, addr string, bl *blocklist.Blocklist) (net
 	if err != nil {
 		return nil, 0, err
 	}
-	var ips []net.IP
 	ip := net.ParseIP(host)
 	if ip != nil {
-		ips = append(ips, ip)
-	} else {
-		addrs, err := net.DefaultResolver.LookupIPAddr(ctx, host)
-		if err != nil {
-			return nil, 0, err
+		i4 := ip.To4()
+		if i4 != nil {
+			return i4, port, nil
 		}
-		for _, ia := range addrs {
-			ips = append(ips, ia.IP)
+		return nil, 0, errors.New("ipv6 is not supported")
+	}
+	var ips []net.IP
+	addrs, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+	if err != nil {
+		return nil, 0, err
+	}
+	for _, ia := range addrs {
+		i4 := ia.IP.To4()
+		if i4 != nil {
+			ips = append(ips, i4)
 		}
+	}
+	if len(ips) == 0 {
+		return nil, 0, errors.New("not ipv4 address")
 	}
 	if bl != nil {
 		for _, ip := range ips {
