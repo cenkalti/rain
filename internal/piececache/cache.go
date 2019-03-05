@@ -88,8 +88,12 @@ func (c *Cache) LoadedBytesPerSecond() int {
 	return int(c.loadedBytes.Rate())
 }
 
+func (c *Cache) LoadsActive() int {
+	return (c.sem.Len())
+}
+
 func (c *Cache) LoadsWaiting() int {
-	return int(c.sem.Waiting())
+	return (c.sem.Waiting())
 }
 
 func (c *Cache) Size() int64 {

@@ -80,6 +80,7 @@ func (h *rpcHandler) GetSessionStats(args *rpctypes.GetSessionStatsRequest, repl
 		PieceCacheSize:                s.PieceCacheSize,
 		PieceCacheUtilization:         s.PieceCacheUtilization,
 		ReadsPerSecond:                s.ReadsPerSecond,
+		ReadsActive:                   s.ReadsActive,
 		ReadsPending:                  s.ReadsPending,
 		ReadBytesPerSecond:            s.ReadBytesPerSecond,
 		ActivePieceBytes:              s.ActivePieceBytes,
