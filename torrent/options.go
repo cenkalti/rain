@@ -33,6 +33,8 @@ import (
 
 // options for creating a new Torrent.
 type options struct {
+	// id is used in logger name
+	id string
 	// Display name
 	Name string
 	// Peer listen port. Random port will be picked if zero.
@@ -68,10 +70,6 @@ func (o *options) NewTorrent(infoHash []byte, sto storage.Storage) (*torrent, er
 	if cfg == nil {
 		cfg = &DefaultConfig
 	}
-	logName := o.Name
-	if len(logName) > 20 {
-		logName = logName[:20]
-	}
 	var ih [20]byte
 	copy(ih[:], infoHash)
 	t := &torrent{
@@ -84,7 +82,7 @@ func (o *options) NewTorrent(infoHash []byte, sto storage.Storage) (*torrent, er
 		resume:                    o.Resumer,
 		info:                      o.Info,
 		bitfield:                  o.Bitfield,
-		log:                       logger.New("torrent " + logName),
+		log:                       logger.New("torrent " + o.id),
 		peerDisconnectedC:         make(chan *peer.Peer),
 		messages:                  make(chan peer.Message),
 		pieceMessagesC:            suspendchan.New(0),

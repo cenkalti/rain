@@ -293,6 +293,7 @@ func (s *Session) loadExistingTorrents(ids []string) {
 			continue
 		}
 		opt := options{
+			id:         id,
 			Name:       spec.Name,
 			Port:       spec.Port,
 			Trackers:   s.parseTrackers(spec.Trackers),
@@ -566,6 +567,7 @@ func (s *Session) add() (*options, *filestorage.FileStorage, string, error) {
 		return nil, nil, "", err
 	}
 	return &options{
+		id:         id,
 		Port:       int(port),
 		Resumer:    res,
 		Blocklist:  s.blocklist,
