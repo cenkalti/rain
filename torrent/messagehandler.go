@@ -262,8 +262,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 		}
 
 		if msg.Index >= t.info.NumPieces {
-			pe.Logger().Errorln("invalid cancel index:", msg.Index)
-			t.closePeer(pe)
+			pe.Logger().Debugln("invalid cancel index:", msg.Index)
 			break
 		}
 		pe.CancelRequest(msg)
