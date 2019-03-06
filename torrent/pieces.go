@@ -37,7 +37,6 @@ func (t *torrent) checkCompletion() bool {
 	if !t.bitfield.All() {
 		return false
 	}
-	t.log.Info("download completed")
 	t.completed = true
 	close(t.completeC)
 	for h := range t.outgoingHandshakers {
