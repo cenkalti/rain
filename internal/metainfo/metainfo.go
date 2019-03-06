@@ -18,6 +18,7 @@ type MetaInfo struct {
 	Comment      string             `bencode:"comment"`
 	CreatedBy    string             `bencode:"created by"`
 	Encoding     string             `bencode:"encoding"`
+	URLList      URLList            `bencode:"url-list"`
 }
 
 // New returns a torrent from bencoded stream.

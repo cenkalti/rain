@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof"
@@ -22,6 +23,7 @@ import (
 	"github.com/hokaccha/go-prettyjson"
 	"github.com/mitchellh/go-homedir"
 	"github.com/urfave/cli"
+	"github.com/zeebo/bencode"
 	"gopkg.in/yaml.v2"
 )
 
@@ -172,6 +174,17 @@ func main() {
 			Name:   "boltbrowser",
 			Hidden: true,
 			Action: handleBoltBrowser,
+		},
+		{
+			Name:  "torrent",
+			Usage: "manage torrent files",
+			Subcommands: []cli.Command{
+				{
+					Name:   "show",
+					Usage:  "show contents of the torrent file",
+					Action: handleTorrentShow,
+				},
+			},
 		},
 	}
 	err := app.Run(os.Args)
@@ -444,4 +457,31 @@ func handleStopAll(c *cli.Context) error {
 func handleConsole(c *cli.Context) error {
 	con := console.New(clt)
 	return con.Run()
+}
+
+func handleTorrentShow(c *cli.Context) error {
+	arg := c.Args().Get(0)
+	f, err := os.Open(arg) // nolint: gosec
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	val := make(map[string]interface{})
+	err = bencode.NewDecoder(f).Decode(&val)
+	if err != nil {
+		return err
+	}
+	if info, ok := val["info"].(map[string]interface{}); ok {
+		if pieces, ok := info["pieces"].(string); ok {
+			info["pieces"] = fmt.Sprintf("<<< %d bytes of data >>>", len(pieces))
+		}
+	}
+	b, err := prettyjson.Marshal(val)
+	if err != nil {
+		return err
+	}
+	_, _ = os.Stdout.Write(b)
+	_, _ = os.Stdout.WriteString("\n")
+	return nil
 }
