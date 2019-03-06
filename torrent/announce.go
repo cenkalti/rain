@@ -7,6 +7,16 @@ import (
 	"github.com/cenkalti/rain/internal/tracker"
 )
 
+func (t *torrent) handleNewTrackers(trackers []tracker.Tracker) {
+	t.trackers = append(t.trackers, trackers...)
+	status := t.status()
+	if status != Stopping && status != Stopped {
+		for _, tr := range trackers {
+			t.startNewAnnouncer(tr)
+		}
+	}
+}
+
 func (t *torrent) announcerFields() tracker.Torrent {
 	tr := tracker.Torrent{
 		InfoHash:        t.infoHash,

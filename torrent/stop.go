@@ -8,6 +8,14 @@ import (
 	"github.com/rcrowley/go-metrics"
 )
 
+func (t *torrent) handleStopped() {
+	t.stoppedEventAnnouncer = nil
+	t.errC <- t.lastError
+	t.errC = nil
+	t.portC = nil
+	t.log.Info("torrent has stopped")
+}
+
 func (t *torrent) stop(err error) {
 	s := t.status()
 	if s == Stopping || s == Stopped {
