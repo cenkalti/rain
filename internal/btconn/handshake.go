@@ -2,11 +2,8 @@ package btconn
 
 import (
 	"encoding/binary"
-	"errors"
 	"io"
 )
-
-var errInvalidProtocol = errors.New("invalid protocol")
 
 var pstr = [20]byte{19, 'B', 'i', 't', 'T', 'o', 'r', 'r', 'e', 'n', 't', ' ', 'p', 'r', 'o', 't', 'o', 'c', 'o', 'l'}
 
