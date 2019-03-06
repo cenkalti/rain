@@ -84,15 +84,11 @@ func (t *torrent) handleMetadataMessage(pe *peer.Peer, msg peerprotocol.Extensio
 
 		info, err := metainfo.NewInfo(id.Bytes)
 		if err != nil {
-			err = fmt.Errorf("cannot parse info bytes: %s", err)
-			t.log.Error(err)
-			t.stop(err)
+			t.stop(fmt.Errorf("cannot parse info bytes: %s", err))
 			break
 		}
 		if info.Private == 1 {
-			err = errors.New("private torrent from magnet")
-			t.log.Error(err)
-			t.stop(err)
+			t.stop(errors.New("private torrent from magnet"))
 			break
 		}
 		t.info = info
@@ -100,9 +96,7 @@ func (t *torrent) handleMetadataMessage(pe *peer.Peer, msg peerprotocol.Extensio
 		if t.resume != nil {
 			err = t.resume.WriteInfo(t.info.Bytes)
 			if err != nil {
-				err = fmt.Errorf("cannot write resume info: %s", err)
-				t.log.Error(err)
-				t.stop(err)
+				t.stop(fmt.Errorf("cannot write resume info: %s", err))
 				break
 			}
 		}
