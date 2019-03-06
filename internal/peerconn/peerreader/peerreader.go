@@ -169,10 +169,6 @@ func (p *PeerReader) Run() {
 			if err != nil {
 				return
 			}
-			if cm.Length > MaxBlockSize {
-				err = fmt.Errorf("received a cancel with block size larger than allowed (%d > %d)", cm.Length, MaxBlockSize)
-				return
-			}
 			msg = cm
 		case peerprotocol.Piece:
 			var pm peerprotocol.PieceMessage
