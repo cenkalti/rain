@@ -68,6 +68,9 @@ func (m *ExtensionMessage) UnmarshalBinary(data []byte) error {
 		var extMsg ExtensionHandshakeMessage
 		err = dec.Decode(&extMsg)
 		m.Payload = extMsg
+		if extMsg.MetadataSize < 0 {
+			extMsg.MetadataSize = 0
+		}
 	case ExtensionIDMetadata:
 		var extMsg ExtensionMetadataMessage
 		err = dec.Decode(&extMsg)
@@ -87,7 +90,7 @@ type ExtensionHandshakeMessage struct {
 	M            map[string]uint8 `bencode:"m"`
 	V            string           `bencode:"v"`
 	YourIP       string           `bencode:"yourip,omitempty"`
-	MetadataSize uint32           `bencode:"metadata_size,omitempty"`
+	MetadataSize int              `bencode:"metadata_size,omitempty"`
 }
 
 func NewExtensionHandshake(metadataSize uint32, version string, yourip net.IP) ExtensionHandshakeMessage {
@@ -98,14 +101,14 @@ func NewExtensionHandshake(metadataSize uint32, version string, yourip net.IP) E
 		},
 		V:            version,
 		YourIP:       string(truncateIP(yourip)),
-		MetadataSize: metadataSize,
+		MetadataSize: int(metadataSize),
 	}
 }
 
 type ExtensionMetadataMessage struct {
-	Type      uint32 `bencode:"msg_type"`
+	Type      int    `bencode:"msg_type"`
 	Piece     uint32 `bencode:"piece"`
-	TotalSize uint32 `bencode:"total_size,omitempty"`
+	TotalSize int    `bencode:"total_size,omitempty"`
 	Data      []byte `bencode:"-"`
 }
 

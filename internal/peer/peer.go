@@ -207,7 +207,7 @@ func (p *Peer) SetOptimistic(value bool) {
 }
 
 func (p *Peer) MetadataSize() uint32 {
-	return p.ExtensionHandshake.MetadataSize
+	return uint32(p.ExtensionHandshake.MetadataSize)
 }
 
 func (p *Peer) RequestMetadataPiece(index uint32) {

@@ -45,7 +45,7 @@ func (t *torrent) handleMetadataMessage(pe *peer.Peer, msg peerprotocol.Extensio
 		dataMsg := peerprotocol.ExtensionMetadataMessage{
 			Type:      peerprotocol.ExtensionMetadataMessageTypeData,
 			Piece:     msg.Piece,
-			TotalSize: totalSize,
+			TotalSize: int(totalSize),
 			Data:      data,
 		}
 		extDataMsg := peerprotocol.ExtensionMessage{
