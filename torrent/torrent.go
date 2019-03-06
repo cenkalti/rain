@@ -3,6 +3,7 @@ package torrent
 import (
 	"log"
 	"net"
+	"net/http"
 	"sync"
 	"time"
 
@@ -243,6 +244,8 @@ type torrent struct {
 
 	ram        *resourcemanager.ResourceManager
 	ramNotifyC chan interface{}
+
+	webseedClient *http.Client
 
 	log logger.Logger
 }

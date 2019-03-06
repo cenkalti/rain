@@ -110,6 +110,13 @@ type Config struct {
 	ForceOutgoingEncryption bool
 	// Do not accept unencrypted connections.
 	ForceIncomingEncryption bool
+
+	WebseedNameResolveTimeout         time.Duration
+	WebseedDialTimeout                time.Duration
+	WebseedTLSHandshakeTimeout        time.Duration
+	WebseedResponseHeaderTimeout      time.Duration
+	WebseedResponseBodyReadTimeout    time.Duration
+	WebseedResponseBodyReadBufferSize int
 }
 
 var DefaultConfig = Config{
@@ -168,4 +175,12 @@ var DefaultConfig = Config{
 	PieceCacheSize: 256 * 1024 * 1024,
 	PieceCacheTTL:  5 * time.Minute,
 	ParallelReads:  1,
+
+	// Webseed settings
+	WebseedNameResolveTimeout:         10 * time.Second,
+	WebseedDialTimeout:                10 * time.Second,
+	WebseedTLSHandshakeTimeout:        10 * time.Second,
+	WebseedResponseHeaderTimeout:      10 * time.Second,
+	WebseedResponseBodyReadTimeout:    10 * time.Second,
+	WebseedResponseBodyReadBufferSize: 256 * 1024,
 }

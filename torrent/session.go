@@ -3,6 +3,7 @@ package torrent
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"errors"
 	"io"
@@ -51,6 +52,7 @@ type Session struct {
 	trackerManager *trackermanager.TrackerManager
 	ram            *resourcemanager.ResourceManager
 	pieceCache     *piececache.Cache
+	webseedClient  http.Client
 	createdAt      time.Time
 	closeC         chan struct{}
 
@@ -152,6 +154,25 @@ func New(cfg Config) (*Session, error) {
 		ram:                resourcemanager.New(cfg.MaxActivePieceBytes),
 		createdAt:          time.Now(),
 		closeC:             make(chan struct{}),
+		webseedClient: http.Client{
+			Transport: &http.Transport{
+				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+					rctx, cancel := context.WithTimeout(ctx, cfg.WebseedNameResolveTimeout)
+					defer cancel()
+					ip, port, err := tracker.ResolveHost(rctx, addr, bl)
+					if err != nil {
+						return nil, err
+					}
+					var d net.Dialer
+					taddr := &net.TCPAddr{IP: ip, Port: port}
+					dctx, cancel := context.WithTimeout(ctx, cfg.WebseedDialTimeout)
+					defer cancel()
+					return d.DialContext(dctx, network, taddr.String())
+				},
+				TLSHandshakeTimeout:   cfg.WebseedTLSHandshakeTimeout,
+				ResponseHeaderTimeout: cfg.WebseedResponseHeaderTimeout,
+			},
+		},
 	}
 	err = c.startBlocklistReloader()
 	if err != nil {
@@ -342,6 +363,7 @@ func (s *Session) loadExistingTorrents(ids []string) {
 			s.log.Error(err)
 			continue
 		}
+		t.webseedClient = &s.webseedClient
 		go s.checkTorrent(t)
 		delete(s.availablePorts, uint16(spec.Port))
 
@@ -441,6 +463,7 @@ func (s *Session) AddTorrent(r io.Reader) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
+	t.webseedClient = &s.webseedClient
 	go s.checkTorrent(t)
 	defer func() {
 		if err != nil {
@@ -520,6 +543,7 @@ func (s *Session) addMagnet(link string) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
+	t.webseedClient = &s.webseedClient
 	go s.checkTorrent(t)
 	defer func() {
 		if err != nil {
