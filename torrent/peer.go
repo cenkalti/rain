@@ -76,7 +76,7 @@ func (t *torrent) startPeer(
 	t.pexAddPeer(p.Addr())
 	_, ok := t.peerIDs[peerID]
 	if ok {
-		p.Logger().Errorln("peer with same id already connected:", peerID)
+		p.Logger().Debugln("peer with same id already connected:", peerID)
 		p.CloseConn()
 		t.pexDropPeer(p.Addr())
 		t.dialAddresses()
