@@ -267,6 +267,13 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			break
 		}
 		pe.CancelRequest(msg)
+		if pe.FastEnabled {
+			pe.SendMessage(peerprotocol.RejectMessage{RequestMessage: peerprotocol.RequestMessage{
+				Index:  msg.Index,
+				Begin:  msg.Begin,
+				Length: msg.Length,
+			}})
+		}
 	case peerwriter.BlockUploaded:
 		t.uploadSpeed.Update(int64(msg.Length))
 		t.resumerStats.BytesUploaded += int64(msg.Length)
