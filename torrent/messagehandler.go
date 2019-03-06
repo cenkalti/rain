@@ -55,9 +55,22 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 	err := pd.GotBlock(block, msg.Buffer.Data)
 	switch err {
 	case piecedownloader.ErrBlockDuplicate:
-		pe.Logger().Warningln("received duplicate block:", block.Index)
+		if pe.FastEnabled {
+			pe.Logger().Warningln("received duplicate block:", block.Index)
+		} else {
+			// If peer does not support fast extension, we cancel all pending requests on choke message.
+			// After an unchoke we request them again. Some clients appears to be sending the same block
+			// if we request it twice.
+			pe.Logger().Debugln("received duplicate block:", block.Index)
+		}
 	case piecedownloader.ErrBlockNotRequested:
-		pe.Logger().Warningln("received not requested block:", block.Index)
+		if pe.FastEnabled {
+			pe.Logger().Warningln("received not requested block:", block.Index)
+		} else {
+			// If peer does not support fast extension, we cancel all pending requests on choke message.
+			// That's why we think that we have received an unrequested block.
+			pe.Logger().Debugln("received not requested block:", block.Index)
+		}
 	case nil:
 	default:
 		pe.Logger().Error(err)
