@@ -50,6 +50,8 @@ func (h *OutgoingHandshaker) Run(dialTimeout, handshakeTimeout time.Duration, pe
 			log.Debug("peer has closed the connection: Unexpected EOF")
 		} else if _, ok := err.(*net.OpError); ok {
 			log.Debugln("net operation error:", err)
+		} else if _, ok := err.(*btconn.Error); ok {
+			log.Debugln("protocol error:", err)
 		} else {
 			log.Errorln("cannot complete outgoing handshake:", err)
 		}

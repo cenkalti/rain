@@ -148,7 +148,7 @@ func Dial(
 		return
 	}
 	if peerID == ourID {
-		err = ErrOwnConnection
+		err = errOwnConnection
 		return
 	}
 	return

@@ -82,7 +82,7 @@ func Accept(
 		return
 	}
 	if peerID == ourID {
-		err = ErrOwnConnection
+		err = errOwnConnection
 		return
 	}
 	encConn = conn

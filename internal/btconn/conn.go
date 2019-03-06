@@ -2,15 +2,8 @@
 package btconn
 
 import (
-	"errors"
 	"io"
 	"net"
-)
-
-var (
-	errInvalidInfoHash = errors.New("invalid info hash")
-	ErrOwnConnection   = errors.New("dropped own connection")
-	errNotEncrypted    = errors.New("connection is not encrypted")
 )
 
 type readWriter struct {

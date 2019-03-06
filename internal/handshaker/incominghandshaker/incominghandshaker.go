@@ -55,6 +55,8 @@ func (h *IncomingHandshaker) Run(peerID [20]byte, getSKeyFunc func([20]byte) []b
 			log.Debug("peer has closed the connection: Unexpected EOF")
 		} else if _, ok := err.(*net.OpError); ok {
 			log.Debugln("net operation error:", err)
+		} else if _, ok := err.(*btconn.Error); ok {
+			log.Debugln("protocol error:", err)
 		} else {
 			log.Debugln("cannot complete incoming handshake:", err)
 		}
