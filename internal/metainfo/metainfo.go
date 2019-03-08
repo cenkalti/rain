@@ -14,10 +14,6 @@ type MetaInfo struct {
 	RawInfo      bencode.RawMessage `bencode:"info" json:"-"`
 	Announce     string             `bencode:"announce"`
 	AnnounceList [][]string         `bencode:"announce-list"`
-	CreationDate int64              `bencode:"creation date"`
-	Comment      string             `bencode:"comment"`
-	CreatedBy    string             `bencode:"created by"`
-	Encoding     string             `bencode:"encoding"`
 	URLList      URLList            `bencode:"url-list"`
 }
 
