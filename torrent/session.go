@@ -364,6 +364,7 @@ func (s *Session) loadExistingTorrents(ids []string) {
 			continue
 		}
 		t.webseedClient = &s.webseedClient
+		t.webseedSources = spec.URLList
 		go s.checkTorrent(t)
 		delete(s.availablePorts, uint16(spec.Port))
 
@@ -464,6 +465,7 @@ func (s *Session) AddTorrent(r io.Reader) (*Torrent, error) {
 		return nil, err
 	}
 	t.webseedClient = &s.webseedClient
+	t.webseedSources = mi.URLList
 	go s.checkTorrent(t)
 	defer func() {
 		if err != nil {
@@ -543,7 +545,6 @@ func (s *Session) addMagnet(link string) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
-	t.webseedClient = &s.webseedClient
 	go s.checkTorrent(t)
 	defer func() {
 		if err != nil {

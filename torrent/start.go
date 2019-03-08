@@ -126,6 +126,9 @@ func (t *torrent) startPieceDownloaders() {
 	if t.status() != Downloading {
 		return
 	}
+	if t.webseedDownloader != nil {
+		t.webseedDownloader.Start()
+	}
 	for pe := range t.peers {
 		if !pe.Downloading {
 			t.startPieceDownloaderFor(pe)

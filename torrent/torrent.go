@@ -32,6 +32,7 @@ import (
 	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/internal/unchoker"
 	"github.com/cenkalti/rain/internal/verifier"
+	"github.com/cenkalti/rain/internal/webseeddownloader"
 	"github.com/rcrowley/go-metrics"
 )
 
@@ -247,6 +248,7 @@ type torrent struct {
 
 	webseedClient     *http.Client
 	webseedSources    []string
+	webseedDownloader *webseeddownloader.WebseedDownloader
 
 	log logger.Logger
 }
