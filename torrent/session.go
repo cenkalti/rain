@@ -430,7 +430,7 @@ func (s *Session) AddTorrent(r io.Reader) (*Torrent, error) {
 		}
 	}()
 	opt.Name = mi.Info.Name
-	opt.Trackers = s.parseTrackers(mi.GetTrackers())
+	opt.Trackers = s.parseTrackers(mi.AnnounceList)
 	opt.Info = mi.Info
 	var ann *dhtAnnouncer
 	if s.config.DHTEnabled && mi.Info.Private != 1 {
@@ -452,7 +452,7 @@ func (s *Session) AddTorrent(r io.Reader) (*Torrent, error) {
 		Dest:     sto.Dest(),
 		Port:     opt.Port,
 		Name:     opt.Name,
-		Trackers: mi.GetTrackers(),
+		Trackers: mi.AnnounceList,
 		Info:     opt.Info.Bytes,
 		AddedAt:  time.Now(),
 	}
