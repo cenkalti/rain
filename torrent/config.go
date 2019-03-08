@@ -167,5 +167,5 @@ var DefaultConfig = Config{
 	PieceReadSize:  256 * 1024,
 	PieceCacheSize: 256 * 1024 * 1024,
 	PieceCacheTTL:  5 * time.Minute,
-	ParallelReads:  10,
+	ParallelReads:  1,
 }
