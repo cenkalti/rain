@@ -111,7 +111,7 @@ func (t *torrent) sendFirstMessage(p *peer.Peer) {
 	}
 	var metadataSize uint32
 	if t.info != nil {
-		metadataSize = t.info.InfoSize
+		metadataSize = uint32(len(t.info.Bytes))
 	}
 	if p.ExtensionsEnabled {
 		extHandshakeMsg := peerprotocol.NewExtensionHandshake(metadataSize, t.config.ExtensionHandshakeClientVersion, p.Addr().IP)

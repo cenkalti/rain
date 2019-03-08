@@ -52,7 +52,7 @@ func (a *Allocator) Run(info *metainfo.Info, sto storage.Storage, progressC chan
 	var allocatedSize int64
 
 	// Single file in torrent
-	if !info.MultiFile {
+	if !info.MultiFile() {
 		var f storage.File
 		f, a.NeedHashCheck, a.Error = sto.Open(info.Name, info.Length)
 		if a.Error != nil {

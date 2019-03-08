@@ -55,7 +55,7 @@ func NewPieces(info *metainfo.Info, files []storage.File) []Piece {
 	for i := uint32(0); i < info.NumPieces; i++ {
 		p := Piece{
 			Index: i,
-			Hash:  info.PieceHashes[i],
+			Hash:  info.HashOf(i),
 		}
 
 		var sections filesection.Piece

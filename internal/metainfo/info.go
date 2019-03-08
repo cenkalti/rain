@@ -21,11 +21,8 @@ type Info struct {
 
 	// Calculated fileds
 	Hash        [20]byte `bencode:"-" json:"-"`
-	PieceHashes [][]byte `bencode:"-" json:"-"`
 	TotalLength int64    `bencode:"-" json:"-"`
 	NumPieces   uint32   `bencode:"-" json:"-"`
-	MultiFile   bool     `bencode:"-" json:"-"`
-	InfoSize    uint32   `bencode:"-" json:"-"`
 	Bytes       []byte   `bencode:"-" json:"-"`
 }
 
@@ -52,8 +49,7 @@ func NewInfo(b []byte) (*Info, error) {
 		}
 	}
 	i.NumPieces = uint32(len(i.Pieces)) / sha1.Size
-	i.MultiFile = len(i.Files) != 0
-	if !i.MultiFile {
+	if !i.MultiFile() {
 		i.TotalLength = i.Length
 	} else {
 		for _, f := range i.Files {
@@ -65,13 +61,6 @@ func NewInfo(b []byte) (*Info, error) {
 	if delta >= int64(i.PieceLength) || delta < 0 {
 		return nil, errors.New("invalid piece data")
 	}
-	i.PieceHashes = make([][]byte, i.NumPieces)
-	for idx := uint32(0); idx < i.NumPieces; idx++ {
-		begin := idx * sha1.Size
-		end := begin + sha1.Size
-		i.PieceHashes[idx] = i.Pieces[begin:end]
-	}
-	i.InfoSize = uint32(len(b))
 	i.Bytes = b
 	hash := sha1.New()   // nolint: gosec
 	_, _ = hash.Write(b) // nolint: gosec
@@ -79,9 +68,19 @@ func NewInfo(b []byte) (*Info, error) {
 	return &i, nil
 }
 
+func (i *Info) MultiFile() bool {
+	return len(i.Files) != 0
+}
+
+func (i *Info) HashOf(index uint32) []byte {
+	begin := index * sha1.Size
+	end := begin + sha1.Size
+	return i.Pieces[begin:end]
+}
+
 // GetFiles returns the files in torrent as a slice, even if there is a single file.
 func (i *Info) GetFiles() []FileDict {
-	if i.MultiFile {
+	if i.MultiFile() {
 		return i.Files
 	}
 	return []FileDict{{i.Length, []string{i.Name}}}
