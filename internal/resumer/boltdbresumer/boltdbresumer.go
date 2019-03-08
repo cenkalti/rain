@@ -16,6 +16,7 @@ var Keys = struct {
 	Port            []byte
 	Name            []byte
 	Trackers        []byte
+	URLList         []byte
 	Dest            []byte
 	Info            []byte
 	Bitfield        []byte
@@ -29,6 +30,7 @@ var Keys = struct {
 	Port:            []byte("port"),
 	Name:            []byte("name"),
 	Trackers:        []byte("trackers"),
+	URLList:         []byte("url_list"),
 	Dest:            []byte("dest"),
 	Info:            []byte("info"),
 	Bitfield:        []byte("bitfield"),
@@ -67,6 +69,10 @@ func (r *Resumer) Write(spec *Spec) error {
 	if err != nil {
 		return err
 	}
+	urlList, err := json.Marshal(spec.URLList)
+	if err != nil {
+		return err
+	}
 	return r.db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.Bucket(r.mainBucket).CreateBucketIfNotExists(r.subBucket)
 		if err != nil {
@@ -77,6 +83,7 @@ func (r *Resumer) Write(spec *Spec) error {
 		_ = b.Put(Keys.Name, []byte(spec.Name))
 		_ = b.Put(Keys.Dest, []byte(spec.Dest))
 		_ = b.Put(Keys.Trackers, trackers)
+		_ = b.Put(Keys.URLList, urlList)
 		_ = b.Put(Keys.Info, spec.Info)
 		_ = b.Put(Keys.Bitfield, spec.Bitfield)
 		_ = b.Put(Keys.AddedAt, []byte(spec.AddedAt.Format(time.RFC3339)))
@@ -139,6 +146,14 @@ func (r *Resumer) Read() (*Spec, error) {
 		value = b.Get(Keys.Trackers)
 		if value != nil {
 			err = json.Unmarshal(value, &spec.Trackers)
+			if err != nil {
+				return err
+			}
+		}
+
+		value = b.Get(Keys.URLList)
+		if value != nil {
+			err = json.Unmarshal(value, &spec.URLList)
 			if err != nil {
 				return err
 			}

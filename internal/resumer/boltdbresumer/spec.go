@@ -8,6 +8,7 @@ type Spec struct {
 	Port            int
 	Name            string
 	Trackers        []string
+	URLList         []string
 	Info            []byte
 	Bitfield        []byte
 	AddedAt         time.Time

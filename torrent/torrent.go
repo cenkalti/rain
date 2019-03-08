@@ -245,7 +245,8 @@ type torrent struct {
 	ram        *resourcemanager.ResourceManager
 	ramNotifyC chan interface{}
 
-	webseedClient *http.Client
+	webseedClient     *http.Client
+	webseedSources    []string
 
 	log logger.Logger
 }
