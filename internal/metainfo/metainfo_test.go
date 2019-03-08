@@ -4,6 +4,8 @@ import (
 	"encoding/hex"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestTorrent(t *testing.T) {
@@ -17,15 +19,8 @@ func TestTorrent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if tor.Info.Name != "ubuntu-14.04.1-server-amd64.iso" {
-		t.Errorf("invalid name: %q", tor.Info.Name)
-	}
-
-	if tor.Info.Length != 599785472 {
-		t.Errorf("invalid length: %d", tor.Info.Length)
-	}
-
-	if hex.EncodeToString(tor.Info.Hash[:]) != "2d066c94480adcf52bfd1185a75eb4ddc1777673" {
-		t.Errorf("invalid info hash: %q must be '2d066c94480adcf52bfd1185a75eb4ddc1777673'", tor.Info.Hash)
-	}
+	assert.Equal(t, "ubuntu-14.04.1-server-amd64.iso", tor.Info.Name)
+	assert.Equal(t, int64(599785472), tor.Info.Length)
+	assert.Equal(t, "2d066c94480adcf52bfd1185a75eb4ddc1777673", hex.EncodeToString(tor.Info.Hash[:]))
+	assert.Equal(t, []string{"http://torrent.ubuntu.com:6969/announce", "http://ipv6.torrent.ubuntu.com:6969/announce"}, tor.AnnounceList)
 }
