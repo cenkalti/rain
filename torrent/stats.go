@@ -1,8 +1,10 @@
 package torrent
 
 import (
+	"strings"
 	"sync/atomic"
 	"time"
+	"unicode"
 
 	"github.com/cenkalti/rain/internal/mse"
 	"github.com/cenkalti/rain/internal/peer"
@@ -153,6 +155,7 @@ func (t *torrent) stats() Stats {
 	} else {
 		s.Name = t.name
 	}
+	s.Name = printableString(s.Name)
 	if t.bitfield != nil {
 		s.Pieces.Have = t.bitfield.Count()
 		s.Pieces.Missing = s.Pieces.Total - s.Pieces.Have
@@ -183,6 +186,15 @@ func (t *torrent) stats() Stats {
 		}
 	}
 	return s
+}
+
+func printableString(s string) string {
+	return strings.Map(func(r rune) rune {
+		if !unicode.IsPrint(r) {
+			return unicode.ReplacementChar
+		}
+		return r
+	}, s)
 }
 
 func (t *torrent) avaliablePieceCount() uint32 {
