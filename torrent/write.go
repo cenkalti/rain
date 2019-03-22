@@ -1,8 +1,10 @@
 package torrent
 
 import (
+	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peerprotocol"
 	"github.com/cenkalti/rain/internal/piecewriter"
+	"github.com/cenkalti/rain/internal/urldownloader"
 )
 
 func (t *torrent) handlePieceWriteDone(pw *piecewriter.PieceWriter) {
@@ -14,8 +16,16 @@ func (t *torrent) handlePieceWriteDone(pw *piecewriter.PieceWriter) {
 
 	if !pw.HashOK {
 		t.resumerStats.BytesWasted += int64(len(pw.Buffer.Data))
-		t.log.Errorln("received corrupt piece from", pw.Peer.String())
-		t.closePeer(pw.Peer)
+		switch src := pw.Source.(type) {
+		case *peer.Peer:
+			t.log.Errorln("received corrupt piece from peer", src.String())
+			t.closePeer(src)
+		case *urldownloader.URLDownloader:
+			t.log.Errorln("received corrupt piece from webseed", src.Source)
+			t.piecePicker.DisableSource(src.Source)
+		default:
+			panic("unhandled piece source")
+		}
 		t.startPieceDownloaders()
 		return
 	}
