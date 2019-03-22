@@ -31,6 +31,7 @@ import (
 	"github.com/cenkalti/rain/internal/storage/filestorage"
 	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/internal/trackermanager"
+	"github.com/cenkalti/rain/internal/webseedsource"
 	"github.com/gofrs/uuid"
 	"github.com/mitchellh/go-homedir"
 	"github.com/nictuku/dht"
@@ -364,7 +365,7 @@ func (s *Session) loadExistingTorrents(ids []string) {
 			continue
 		}
 		t.webseedClient = &s.webseedClient
-		t.webseedSources = spec.URLList
+		t.webseedSources = webseedsource.NewList(spec.URLList)
 		go s.checkTorrent(t)
 		delete(s.availablePorts, uint16(spec.Port))
 
@@ -465,7 +466,7 @@ func (s *Session) AddTorrent(r io.Reader) (*Torrent, error) {
 		return nil, err
 	}
 	t.webseedClient = &s.webseedClient
-	t.webseedSources = mi.URLList
+	t.webseedSources = webseedsource.NewList(mi.URLList)
 	go s.checkTorrent(t)
 	defer func() {
 		if err != nil {

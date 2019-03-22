@@ -31,8 +31,9 @@ import (
 	"github.com/cenkalti/rain/internal/suspendchan"
 	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/internal/unchoker"
+	"github.com/cenkalti/rain/internal/urldownloader"
 	"github.com/cenkalti/rain/internal/verifier"
-	"github.com/cenkalti/rain/internal/webseeddownloader"
+	"github.com/cenkalti/rain/internal/webseedsource"
 	"github.com/rcrowley/go-metrics"
 )
 
@@ -119,6 +120,9 @@ type torrent struct {
 	// Active metadata downloads are kept in this map.
 	infoDownloaders        map[*peer.Peer]*infodownloader.InfoDownloader
 	infoDownloadersSnubbed map[*peer.Peer]*infodownloader.InfoDownloader
+
+	// Active downloads from URL sources are kept in this map.
+	urlDownloaders map[string]*urldownloader.URLDownloader
 
 	pieceWriterResultC chan *piecewriter.PieceWriter
 
@@ -246,9 +250,9 @@ type torrent struct {
 	ram        *resourcemanager.ResourceManager
 	ramNotifyC chan interface{}
 
-	webseedClient     *http.Client
-	webseedSources    []string
-	webseedDownloader *webseeddownloader.WebseedDownloader
+	webseedClient       *http.Client
+	webseedSources      []*webseedsource.WebseedSource
+	webseedPieceResultC chan *urldownloader.PieceResult
 
 	log logger.Logger
 }
