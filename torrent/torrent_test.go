@@ -4,9 +4,11 @@ import (
 	"encoding/hex"
 	"io/ioutil"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -89,6 +91,69 @@ func TestDownloadMagnet(t *testing.T) {
 
 	addr := &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: port}
 	t2.AddPeers([]*net.TCPAddr{addr})
+
+	select {
+	case <-t2.NotifyComplete():
+	case err = <-t2.NotifyError():
+		t.Fatal(err)
+	case <-time.After(timeout):
+		panic("download did not finish")
+	}
+
+	cmd := exec.Command("diff", "-rq",
+		filepath.Join(torrentDataDir, torrentName),
+		filepath.Join(where, torrentName))
+	err = cmd.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.RemoveAll(where)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDownloadWebseed(t *testing.T) {
+	defer leaktest.Check(t)()
+
+	l, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	port := l.Addr().(*net.TCPAddr).Port
+	go http.Serve(l, http.FileServer(http.Dir("./testdata")))
+
+	where, err := ioutil.TempDir("", "rain-")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f, err := os.Open(torrentFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	mi, err := metainfo.New(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mi.URLList = []string{"http://127.0.0.1:" + strconv.Itoa(port)}
+
+	opt2 := options{}
+	ih, err := hex.DecodeString(torrentInfoHashString)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t2, err := opt2.NewTorrent(ih, newFileStorage(t, where))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer t2.Close()
+
+	t2.Start()
 
 	select {
 	case <-t2.NotifyComplete():
