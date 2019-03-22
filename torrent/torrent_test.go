@@ -16,6 +16,7 @@ import (
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/storage/filestorage"
+	"github.com/cenkalti/rain/internal/webseedsource"
 	"github.com/fortytw2/leaktest"
 )
 
@@ -123,7 +124,15 @@ func TestDownloadWebseed(t *testing.T) {
 	}
 
 	port := l.Addr().(*net.TCPAddr).Port
-	go http.Serve(l, http.FileServer(http.Dir("./testdata")))
+	servingDone := make(chan struct{})
+	go func() {
+		http.Serve(l, http.FileServer(http.Dir("./testdata")))
+		close(servingDone)
+	}()
+	defer func() {
+		l.Close()
+		<-servingDone
+	}()
 
 	where, err := ioutil.TempDir("", "rain-")
 	if err != nil {
@@ -140,9 +149,10 @@ func TestDownloadWebseed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	mi.URLList = []string{"http://127.0.0.1:" + strconv.Itoa(port)}
 
-	opt2 := options{}
+	opt2 := options{
+		Info: mi.Info,
+	}
 	ih, err := hex.DecodeString(torrentInfoHashString)
 	if err != nil {
 		t.Fatal(err)
@@ -153,6 +163,8 @@ func TestDownloadWebseed(t *testing.T) {
 	}
 	defer t2.Close()
 
+	t2.webseedSources = webseedsource.NewList([]string{"http://127.0.0.1:" + strconv.Itoa(port)})
+	t2.webseedClient = http.DefaultClient
 	t2.Start()
 
 	select {
