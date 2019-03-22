@@ -122,15 +122,17 @@ func TestDownloadWebseed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer l.Close()
 
 	port := l.Addr().(*net.TCPAddr).Port
 	servingDone := make(chan struct{})
+	srv := &http.Server{Handler: http.FileServer(http.Dir("./testdata"))}
 	go func() {
-		http.Serve(l, http.FileServer(http.Dir("./testdata")))
+		srv.Serve(l)
 		close(servingDone)
 	}()
 	defer func() {
-		l.Close()
+		srv.Close()
 		<-servingDone
 	}()
 
