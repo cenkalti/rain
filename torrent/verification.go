@@ -51,7 +51,6 @@ func (t *torrent) handleVerificationDone(ve *verifier.Verifier) {
 	}
 
 	t.checkCompletion()
-	t.setWebseedDownloader()
 	t.processQueuedMessages()
 	t.startAcceptor()
 	t.startAnnouncers()

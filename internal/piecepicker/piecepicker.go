@@ -6,6 +6,7 @@ import (
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peerset"
 	"github.com/cenkalti/rain/internal/piece"
+	"github.com/cenkalti/rain/internal/webseedsource"
 )
 
 type PiecePicker struct {
@@ -15,6 +16,8 @@ type PiecePicker struct {
 	maxDuplicateDownload int
 	available            uint32
 	endgame              bool
+
+	webseedSources []*webseedsource.WebseedSource
 }
 
 type myPiece struct {
@@ -23,6 +26,8 @@ type myPiece struct {
 	Requested peerset.PeerSet
 	Snubbed   peerset.PeerSet
 	Choked    peerset.PeerSet
+
+	WebseedDownloads map[string]struct{}
 }
 
 func (p *myPiece) RunningDownloads() int {
@@ -49,6 +54,7 @@ func New(pieces []piece.Piece, maxDuplicateDownload int) *PiecePicker {
 		piecesByAvailability: sps,
 		piecesByStalled:      sps2,
 		maxDuplicateDownload: maxDuplicateDownload,
+		webseedSources:       webseedSources,
 	}
 }
 

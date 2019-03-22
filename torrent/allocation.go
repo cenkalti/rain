@@ -33,7 +33,7 @@ func (t *torrent) handleAllocationDone(al *allocator.Allocator) {
 	if t.piecePicker != nil {
 		panic("piece picker exists")
 	}
-	t.piecePicker = piecepicker.New(t.pieces, t.config.EndgameMaxDuplicateDownloads)
+	t.piecePicker = piecepicker.New(t.pieces, t.config.EndgameMaxDuplicateDownloads, t.webseedSources)
 
 	for pe := range t.peers {
 		pe.Bitfield = bitfield.New(t.info.NumPieces)
@@ -45,7 +45,6 @@ func (t *torrent) handleAllocationDone(al *allocator.Allocator) {
 			t.pieces[i].Done = t.bitfield.Test(i)
 		}
 		t.checkCompletion()
-		t.setWebseedDownloader()
 		t.processQueuedMessages()
 		t.startAcceptor()
 		t.startAnnouncers()
@@ -58,7 +57,6 @@ func (t *torrent) handleAllocationDone(al *allocator.Allocator) {
 		t.mBitfield.Lock()
 		t.bitfield = bitfield.New(t.info.NumPieces)
 		t.mBitfield.Unlock()
-		t.setWebseedDownloader()
 		t.processQueuedMessages()
 		t.startAcceptor()
 		t.startAnnouncers()

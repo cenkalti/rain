@@ -24,7 +24,7 @@ func TestPiecePicker(t *testing.T) {
 	pieces[0].Done = true
 	pieces[2].Done = true
 	pieces[3].Done = true
-	pp := New(pieces, 2)
+	pp := New(pieces, 2, nil)
 	pp.HandleHave(peers[0], 1)
 	pp.HandleHave(peers[0], 3)
 	pp.HandleHave(peers[0], 4)

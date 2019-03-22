@@ -59,6 +59,8 @@ func (t *torrent) run() {
 			t.handleNewTrackers(trackers)
 		case conn := <-t.incomingConnC:
 			t.handleNewConnection(conn)
+		case res := <-t.webseedPieceResultC:
+			t.handleWebseedPieceResult(res)
 		case pw := <-t.pieceWriterResultC:
 			t.handlePieceWriteDone(pw)
 		case <-t.resumeWriteTimerC:
