@@ -4,23 +4,22 @@ import (
 	"crypto/sha1" // nolint: gosec
 
 	"github.com/cenkalti/rain/internal/bufferpool"
-	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/piece"
 )
 
 type PieceWriter struct {
 	Piece  *piece.Piece
-	Peer   *peer.Peer
+	Source interface{}
 	Buffer bufferpool.Buffer
 
 	HashOK bool
 	Error  error
 }
 
-func New(p *piece.Piece, pe *peer.Peer, buf bufferpool.Buffer) *PieceWriter {
+func New(p *piece.Piece, source interface{}, buf bufferpool.Buffer) *PieceWriter {
 	return &PieceWriter{
 		Piece:  p,
-		Peer:   pe,
+		Source: source,
 		Buffer: buf,
 	}
 }
