@@ -73,48 +73,11 @@ func (b *Bitfield) Set(i uint32) {
 	b.bytes[div] |= 1 << (7 - mod)
 }
 
-// SetTo sets bit i to value. Panics if i >= b.Len().
-func (b *Bitfield) SetTo(i uint32, value bool) {
-	b.checkIndex(i)
-	if value {
-		b.Set(i)
-	} else {
-		b.Clear(i)
-	}
-}
-
 // Clear bit i. 0 is the most significant bit. Panics if i >= b.Len().
 func (b *Bitfield) Clear(i uint32) {
 	b.checkIndex(i)
 	div, mod := divMod32(i)
 	b.bytes[div] &= ^(1 << (7 - mod))
-}
-
-// FirstSet returns the index of the first bit that is set starting from start.
-func (b *Bitfield) FirstSet(start uint32) (uint32, bool) {
-	for i := start; i < b.length; i++ {
-		if b.Test(i) {
-			return i, true
-		}
-	}
-	return 0, false
-}
-
-// FirstClear returns the index of the first bit that is not set starting from start.
-func (b *Bitfield) FirstClear(start uint32) (uint32, bool) {
-	for i := start; i < b.length; i++ {
-		if !b.Test(i) {
-			return i, true
-		}
-	}
-	return 0, false
-}
-
-// ClearAll clears all bits.
-func (b *Bitfield) ClearAll() {
-	for i := range b.bytes {
-		b.bytes[i] = 0
-	}
 }
 
 // Test bit i. 0 is the most significant bit. Panics if i >= b.Len().
