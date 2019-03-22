@@ -17,11 +17,11 @@ Features
 - [x] [DHT](http://bittorrent.org/beps/bep_0005.html)
 - [x] [PEX](http://bittorrent.org/beps/bep_0011.html)
 - [x] [Message stream encryption](http://wiki.vuze.com/w/Message_Stream_Encryption)
+- [x] [WebSeed](http://bittorrent.org/beps/bep_0019.html)
 - [x] Fast resuming
 - [x] IP blocklist
 - [x] RPC server & client
 - [x] Console UI
-- [ ] [WebSeed](http://bittorrent.org/beps/bep_0019.html)
 
 Installing
 ----------
