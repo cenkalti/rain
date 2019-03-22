@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"hash"
 
+	"github.com/cenkalti/rain/internal/allocator"
 	"github.com/cenkalti/rain/internal/filesection"
 	"github.com/cenkalti/rain/internal/metainfo"
-	"github.com/cenkalti/rain/internal/storage"
 )
 
 const BlockSize = 16 * 1024
@@ -28,7 +28,7 @@ type Block struct {
 	Length uint32 // always equal to BlockSize except the last block of a piece.
 }
 
-func NewPieces(info *metainfo.Info, files []storage.File) []Piece {
+func NewPieces(info *metainfo.Info, files []allocator.File) []Piece {
 	var (
 		fileIndex  int   // index of the current file in torrent
 		fileLength int64 // length of the file in fileIndex
@@ -67,9 +67,10 @@ func NewPieces(info *metainfo.Info, files []storage.File) []Piece {
 			n := uint32(minInt64(int64(left), fileLeft())) // number of bytes to write
 
 			file := filesection.FileSection{
-				File:   files[fileIndex],
+				File:   files[fileIndex].Storage,
 				Offset: fileOffset,
 				Length: int64(n),
+				Name:   files[fileIndex].Name,
 			}
 			sections = append(sections, file)
 

@@ -84,7 +84,7 @@ type torrent struct {
 	// Unique peer ID is generated per downloader.
 	peerID [20]byte
 
-	files  []storage.File
+	files  []allocator.File
 	pieces []piece.Piece
 
 	piecePicker *piecepicker.PiecePicker

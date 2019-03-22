@@ -7,6 +7,7 @@ type FileSection struct {
 	File   ReadWriterAt
 	Offset int64
 	Length int64
+	Name   string
 }
 
 type ReadWriterAt interface {

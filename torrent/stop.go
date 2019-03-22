@@ -116,7 +116,7 @@ func (t *torrent) stopIncomingHandshakers() {
 
 func (t *torrent) closeData() {
 	for _, f := range t.files {
-		err := f.Close()
+		err := f.Storage.Close()
 		if err != nil {
 			t.log.Error(err)
 		}
