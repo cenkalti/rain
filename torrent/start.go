@@ -8,7 +8,9 @@ import (
 	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/piecedownloader"
+	"github.com/cenkalti/rain/internal/piecepicker"
 	"github.com/cenkalti/rain/internal/tracker"
+	"github.com/cenkalti/rain/internal/urldownloader"
 	"github.com/cenkalti/rain/internal/verifier"
 )
 
@@ -123,17 +125,30 @@ func (t *torrent) startInfoDownloaders() {
 }
 
 func (t *torrent) startPieceDownloaders() {
+	t.log.Debugln("starting piece downloaders")
 	if t.status() != Downloading {
 		return
 	}
-	if t.webseedDownloader != nil {
-		t.webseedDownloader.Start()
+	t.log.Debugln("picking from webseed sources")
+	specs := t.piecePicker.PickWebseed()
+	for _, sp := range specs {
+		t.log.Debugln("piece picker returned webseed source", sp.Source, sp.Begin, sp.End)
+		t.startWebseedDownloader(sp)
 	}
 	for pe := range t.peers {
 		if !pe.Downloading {
 			t.startPieceDownloaderFor(pe)
 		}
 	}
+}
+
+func (t *torrent) startWebseedDownloader(sp piecepicker.WebseedDownloadSpec) {
+	ud := urldownloader.New(sp.Source)
+	if _, ok := t.urlDownloaders[sp.Source]; ok {
+		panic("already downloading from same url source")
+	}
+	t.urlDownloaders[sp.Source] = ud
+	go ud.Run(t.webseedClient, sp.Begin, sp.End, t.pieces, t.info.MultiFile(), t.webseedPieceResultC, t.piecePool)
 }
 
 func (t *torrent) startPieceDownloaderFor(pe *peer.Peer) {
