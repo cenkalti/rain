@@ -38,10 +38,10 @@ func (p *myPiece) StalledDownloads() int {
 	return p.Snubbed.Len() + p.Choked.Len()
 }
 
-func New(pieces []piece.Piece, maxDuplicateDownload int) *PiecePicker {
+func New(pieces []piece.Piece, maxDuplicateDownload int, webseedSources []*webseedsource.WebseedSource) *PiecePicker {
 	ps := make([]myPiece, len(pieces))
 	for i := range pieces {
-		ps[i] = myPiece{Piece: &pieces[i]}
+		ps[i] = myPiece{Piece: &pieces[i], WebseedDownloads: make(map[string]struct{})}
 	}
 	sps := make([]*myPiece, len(ps))
 	sps2 := make([]*myPiece, len(ps))
