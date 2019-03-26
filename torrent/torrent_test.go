@@ -138,6 +138,8 @@ func TestDownloadWebseed(t *testing.T) {
 	defer close2()
 	where, clw := tempdir(t)
 	defer clw()
+	addr, cl := seeder(t)
+	defer cl()
 
 	f, err := os.Open(torrentFile)
 	if err != nil {
@@ -169,6 +171,7 @@ func TestDownloadWebseed(t *testing.T) {
 	})
 	t2.webseedClient = http.DefaultClient
 	t2.Start()
+	t2.AddPeers([]*net.TCPAddr{addr})
 
 	assertCompleted(t, t2, where)
 }
