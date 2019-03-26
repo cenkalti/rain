@@ -115,26 +115,32 @@ func TestDownloadMagnet(t *testing.T) {
 	}
 }
 
-func TestDownloadWebseed(t *testing.T) {
-	defer leaktest.Check(t)()
-
+func webseed(t *testing.T) (port int, c func()) {
 	l, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer l.Close()
-
-	port := l.Addr().(*net.TCPAddr).Port
+	port = l.Addr().(*net.TCPAddr).Port
 	servingDone := make(chan struct{})
 	srv := &http.Server{Handler: http.FileServer(http.Dir("./testdata"))}
 	go func() {
 		srv.Serve(l)
 		close(servingDone)
 	}()
-	defer func() {
+	return port, func() {
 		srv.Close()
+		l.Close()
 		<-servingDone
-	}()
+	}
+
+}
+
+func TestDownloadWebseed(t *testing.T) {
+	defer leaktest.Check(t)()
+	port1, close1 := webseed(t)
+	defer close1()
+	port2, close2 := webseed(t)
+	defer close2()
 
 	where, err := ioutil.TempDir("", "rain-")
 	if err != nil {
@@ -165,7 +171,10 @@ func TestDownloadWebseed(t *testing.T) {
 	}
 	defer t2.Close()
 
-	t2.webseedSources = webseedsource.NewList([]string{"http://127.0.0.1:" + strconv.Itoa(port)})
+	t2.webseedSources = webseedsource.NewList([]string{
+		"http://127.0.0.1:" + strconv.Itoa(port1),
+		"http://127.0.0.1:" + strconv.Itoa(port2),
+	})
 	t2.webseedClient = http.DefaultClient
 	t2.Start()
 
