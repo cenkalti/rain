@@ -44,13 +44,16 @@ func (t *torrent) handlePieceWriteDone(pw *piecewriter.PieceWriter) {
 	t.mBitfield.Unlock()
 
 	if t.piecePicker != nil {
+		for _, src := range t.piecePicker.RequestedSources(pw.Piece.Index) {
+			t.closeWebseedDownloader(src)
+			t.startPieceDownloaderForWebseed(src)
+		}
 		for _, pe := range t.piecePicker.RequestedPeers(pw.Piece.Index) {
 			pd2 := t.pieceDownloaders[pe]
 			t.closePieceDownloader(pd2)
 			pd2.CancelPending()
 			t.startPieceDownloaderFor(pe)
 		}
-		// TODO cancel running webseed downloads
 	}
 
 	// Tell everyone that we have this piece
