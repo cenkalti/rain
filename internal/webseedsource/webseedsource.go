@@ -10,14 +10,10 @@ type WebseedSource struct {
 	Downloader *urldownloader.URLDownloader
 }
 
-func New(source string) *WebseedSource {
-	return &WebseedSource{URL: source}
-}
-
 func NewList(sources []string) []*WebseedSource {
 	l := make([]*WebseedSource, len(sources))
 	for i := range sources {
-		l[i] = New(sources[i])
+		l[i] = &WebseedSource{URL: sources[i]}
 	}
 	return l
 }
