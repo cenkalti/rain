@@ -11,6 +11,7 @@ func (t *torrent) handlePieceWriteDone(pw *piecewriter.PieceWriter) {
 	pw.Piece.Writing = false
 
 	t.pieceMessagesC.Resume()
+	t.webseedPieceResultC.Resume()
 
 	pw.Buffer.Release()
 
@@ -49,6 +50,7 @@ func (t *torrent) handlePieceWriteDone(pw *piecewriter.PieceWriter) {
 			pd2.CancelPending()
 			t.startPieceDownloaderFor(pe)
 		}
+		// TODO cancel running webseed downloads
 	}
 
 	// Tell everyone that we have this piece

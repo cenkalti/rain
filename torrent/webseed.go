@@ -26,10 +26,9 @@ func (t *torrent) handleWebseedPieceResult(msg *urldownloader.PieceResult) {
 	}
 	piece.Writing = true
 
-	// TODO suspend webseed piece result chan
-	// TODO suspend webseed piece result chan on peer message
 	// Prevent receiving piece messages to avoid more than 1 write per torrent.
 	t.pieceMessagesC.Suspend()
+	t.webseedPieceResultC.Suspend()
 
 	pw := piecewriter.New(piece, msg.Downloader, msg.Buffer)
 	go pw.Run(t.pieceWriterResultC, t.doneC)

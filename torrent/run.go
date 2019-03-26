@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/rain/internal/peer"
+	"github.com/cenkalti/rain/internal/urldownloader"
 )
 
 // Torrent event loop
@@ -59,8 +60,8 @@ func (t *torrent) run() {
 			t.handleNewTrackers(trackers)
 		case conn := <-t.incomingConnC:
 			t.handleNewConnection(conn)
-		case res := <-t.webseedPieceResultC:
-			t.handleWebseedPieceResult(res)
+		case res := <-t.webseedPieceResultC.ReceiveC():
+			t.handleWebseedPieceResult(res.(*urldownloader.PieceResult))
 		case pw := <-t.pieceWriterResultC:
 			t.handlePieceWriteDone(pw)
 		case <-t.resumeWriteTimerC:

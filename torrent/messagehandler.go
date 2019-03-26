@@ -100,6 +100,7 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 
 	// Prevent receiving piece messages to avoid more than 1 write per torrent.
 	t.pieceMessagesC.Suspend()
+	t.webseedPieceResultC.Suspend()
 
 	pw := piecewriter.New(piece, pe, pd.Buffer)
 	go pw.Run(t.pieceWriterResultC, t.doneC)
