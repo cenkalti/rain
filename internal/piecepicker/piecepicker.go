@@ -9,6 +9,24 @@ import (
 	"github.com/cenkalti/rain/internal/webseedsource"
 )
 
+/*
+
+These are the things to consider when selecting a piece for downloading:
+
+  * Piece is done (hash checked and written to disk)
+  * Piece is writing
+  * Peer has the piece
+  * Peer is choking us
+  * Piece is marked as allowed-fast
+  * Piece is requested from another peers
+  * Piece is reserved for downloading by a webseed source
+  * Is endgame mode activated (all pieces are requested)
+  * Are there stalled peers (snubbed or choked in the middle of download)
+
+Do not forget to re-check these when making changes.
+
+*/
+
 type PiecePicker struct {
 	pieces               []myPiece
 	piecesByAvailability []*myPiece
