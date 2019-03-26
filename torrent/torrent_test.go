@@ -40,20 +40,12 @@ func newFileStorage(t *testing.T, dir string) *filestorage.FileStorage {
 	return sto
 }
 
-func TestDownloadMagnet(t *testing.T) {
-	defer leaktest.Check(t)()
-
-	where, err := ioutil.TempDir("", "rain-")
-	if err != nil {
-		t.Fatal(err)
-	}
-
+func seeder(t *testing.T) (addr *net.TCPAddr, c func()) {
 	f, err := os.Open(torrentFile)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer f.Close()
-
 	mi, err := metainfo.New(f)
 	if err != nil {
 		t.Fatal(err)
@@ -65,7 +57,40 @@ func TestDownloadMagnet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer t1.Close()
+	t1.Start()
+	var port int
+	select {
+	case port = <-t1.NotifyListen():
+	case err = <-t1.NotifyError():
+		t.Fatal(err)
+	case <-time.After(timeout):
+		t.Fatal("seeder is not ready")
+	}
+	addr = &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: port}
+	return addr, func() {
+		t1.Close()
+	}
+}
+
+func tempdir(t *testing.T) (string, func()) {
+	where, err := ioutil.TempDir("", "rain-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return where, func() {
+		err = os.RemoveAll(where)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestDownloadMagnet(t *testing.T) {
+	defer leaktest.Check(t)()
+	addr, cl := seeder(t)
+	defer cl()
+	where, clw := tempdir(t)
+	defer clw()
 
 	opt2 := options{}
 	ih, err := hex.DecodeString(torrentInfoHashString)
@@ -78,41 +103,11 @@ func TestDownloadMagnet(t *testing.T) {
 	}
 	defer t2.Close()
 
-	t1.Start()
 	t2.Start()
 
-	var port int
-	select {
-	case port = <-t1.NotifyListen():
-	case err = <-t1.NotifyError():
-		t.Fatal(err)
-	case <-time.After(timeout):
-		panic("seeder is not ready")
-	}
-
-	addr := &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: port}
 	t2.AddPeers([]*net.TCPAddr{addr})
 
-	select {
-	case <-t2.NotifyComplete():
-	case err = <-t2.NotifyError():
-		t.Fatal(err)
-	case <-time.After(timeout):
-		panic("download did not finish")
-	}
-
-	cmd := exec.Command("diff", "-rq",
-		filepath.Join(torrentDataDir, torrentName),
-		filepath.Join(where, torrentName))
-	err = cmd.Run()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = os.RemoveAll(where)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assertCompleted(t, t2, where)
 }
 
 func webseed(t *testing.T) (port int, c func()) {
@@ -141,11 +136,8 @@ func TestDownloadWebseed(t *testing.T) {
 	defer close1()
 	port2, close2 := webseed(t)
 	defer close2()
-
-	where, err := ioutil.TempDir("", "rain-")
-	if err != nil {
-		t.Fatal(err)
-	}
+	where, clw := tempdir(t)
+	defer clw()
 
 	f, err := os.Open(torrentFile)
 	if err != nil {
@@ -178,23 +170,22 @@ func TestDownloadWebseed(t *testing.T) {
 	t2.webseedClient = http.DefaultClient
 	t2.Start()
 
+	assertCompleted(t, t2, where)
+}
+
+func assertCompleted(t *testing.T, t2 *torrent, where string) {
 	select {
 	case <-t2.NotifyComplete():
-	case err = <-t2.NotifyError():
+	case err := <-t2.NotifyError():
 		t.Fatal(err)
 	case <-time.After(timeout):
-		panic("download did not finish")
+		t.Fatal("download did not finish")
 	}
 
 	cmd := exec.Command("diff", "-rq",
 		filepath.Join(torrentDataDir, torrentName),
 		filepath.Join(where, torrentName))
-	err = cmd.Run()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = os.RemoveAll(where)
+	err := cmd.Run()
 	if err != nil {
 		t.Fatal(err)
 	}
