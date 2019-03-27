@@ -28,50 +28,29 @@ func (t *torrent) stop(err error) {
 		t.log.Error(err)
 	}
 
-	t.log.Debugln("stopping acceptor")
 	t.stopAcceptor()
-
-	t.log.Debugln("closing peer connections")
 	t.stopPeers()
-
-	t.log.Debugln("stopping piece downloaders")
 	t.stopPiecedownloaders()
-
-	t.log.Debugln("stopping info downloaders")
 	t.stopInfoDownloaders()
+	t.stopWebseedDownloads()
 
 	if t.resume != nil && t.bitfield != nil {
 		t.writeBitfield(false)
 	}
 
 	// Closing data is necessary to cancel ongoing IO operations on files.
-	t.log.Debugln("closing open files")
 	t.closeData()
-
 	// Data must be closed before closing Allocator.
-	t.log.Debugln("stopping allocator")
-	if t.allocator != nil {
-		t.allocator.Close()
-		t.allocator = nil
-	}
-
+	t.stopAllocator()
 	// Data must be closed before closing Verifier.
-	t.log.Debugln("stopping verifier")
-	if t.verifier != nil {
-		t.verifier.Close()
-		t.verifier = nil
-	}
+	t.stopVerifier()
 
-	t.log.Debugln("stopping outgoing handshakers")
 	t.stopOutgoingHandshakers()
-
-	t.log.Debugln("stopping incoming handshakers")
 	t.stopIncomingHandshakers()
 
 	t.resetSpeeds()
 
 	// Stop periodical announcers first.
-	t.log.Debugln("stopping announcers")
 	announcers := t.announcers // keep a reference to the list before nilling in order to start StopAnnouncer
 	t.stopPeriodicalAnnouncers()
 
@@ -92,7 +71,28 @@ func (t *torrent) stop(err error) {
 	go t.stoppedEventAnnouncer.Run()
 
 	t.addrList.Reset()
+}
 
+func (t *torrent) stopAllocator() {
+	t.log.Debugln("stopping allocator")
+	if t.allocator != nil {
+		t.allocator.Close()
+		t.allocator = nil
+	}
+}
+
+func (t *torrent) stopVerifier() {
+	t.log.Debugln("stopping verifier")
+	if t.verifier != nil {
+		t.verifier.Close()
+		t.verifier = nil
+	}
+}
+
+func (t *torrent) stopWebseedDownloads() {
+	for _, src := range t.webseedSources {
+		t.closeWebseedDownloader(src)
+	}
 }
 
 func (t *torrent) resetSpeeds() {
@@ -101,6 +101,7 @@ func (t *torrent) resetSpeeds() {
 }
 
 func (t *torrent) stopOutgoingHandshakers() {
+	t.log.Debugln("stopping outgoing handshakers")
 	for oh := range t.outgoingHandshakers {
 		oh.Close()
 	}
@@ -108,6 +109,7 @@ func (t *torrent) stopOutgoingHandshakers() {
 }
 
 func (t *torrent) stopIncomingHandshakers() {
+	t.log.Debugln("stopping incoming handshakers")
 	for ih := range t.incomingHandshakers {
 		ih.Close()
 	}
@@ -115,6 +117,7 @@ func (t *torrent) stopIncomingHandshakers() {
 }
 
 func (t *torrent) closeData() {
+	t.log.Debugln("closing open files")
 	for _, f := range t.files {
 		err := f.Storage.Close()
 		if err != nil {
@@ -129,6 +132,7 @@ func (t *torrent) closeData() {
 }
 
 func (t *torrent) stopPeriodicalAnnouncers() {
+	t.log.Debugln("stopping announcers")
 	for _, an := range t.announcers {
 		an.Close()
 	}
@@ -140,6 +144,7 @@ func (t *torrent) stopPeriodicalAnnouncers() {
 }
 
 func (t *torrent) stopAcceptor() {
+	t.log.Debugln("stopping acceptor")
 	if t.acceptor != nil {
 		t.acceptor.Close()
 	}
@@ -147,18 +152,21 @@ func (t *torrent) stopAcceptor() {
 }
 
 func (t *torrent) stopPeers() {
+	t.log.Debugln("closing peer connections")
 	for p := range t.peers {
 		t.closePeer(p)
 	}
 }
 
 func (t *torrent) stopInfoDownloaders() {
+	t.log.Debugln("stopping info downloaders")
 	for _, id := range t.infoDownloaders {
 		t.closeInfoDownloader(id)
 	}
 }
 
 func (t *torrent) stopPiecedownloaders() {
+	t.log.Debugln("stopping piece downloaders")
 	for _, pd := range t.pieceDownloaders {
 		t.closePieceDownloader(pd)
 	}

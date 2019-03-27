@@ -35,6 +35,16 @@ func (t *torrent) handleWebseedPieceResult(msg *urldownloader.PieceResult) {
 
 	pw := piecewriter.New(piece, msg.Downloader, msg.Buffer)
 	go pw.Run(t.pieceWriterResultC, t.doneC)
+
+	if msg.Done {
+		for _, src := range t.webseedSources {
+			if src.URL != msg.Downloader.URL {
+				continue
+			}
+			t.closeWebseedDownloader(src)
+			break
+		}
+	}
 }
 
 func (t *torrent) disableSource(srcurl string, err error, retry bool) {
@@ -45,6 +55,7 @@ func (t *torrent) disableSource(srcurl string, err error, retry bool) {
 		src.Disabled = true
 		src.DisabledAt = time.Now()
 		src.LastError = err
+		t.closeWebseedDownloader(src)
 		if retry {
 			go t.notifyWebseedRetry(src)
 		}
