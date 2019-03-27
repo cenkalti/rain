@@ -3,12 +3,12 @@ github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24
 github.com/boltdb/bolt v1.3.1 h1:JQmyP4ZBrce+ZQu0dY660FMfatumYDLun9hBCUVIkF4=
 github.com/boltdb/bolt v1.3.1/go.mod h1:clJnj/oiGkjum5o1McbSZDSLxVThjynRyGBgiAx27Ps=
 github.com/br0xen/termbox-util v0.0.0-20170904143325-de1d4c83380e/go.mod h1:x9wJlgOj74OFTOBwXOuO8pBguW37EgYNx51Dbjkfzo4=
-github.com/br0xen/termbox-util v0.0.0-20190309204218-80b1bdea7475 h1:5RxjYGLvbFzuGxMULaTQENvwDKFLQ2sBewmfJQXor8I=
-github.com/br0xen/termbox-util v0.0.0-20190309204218-80b1bdea7475/go.mod h1:x9wJlgOj74OFTOBwXOuO8pBguW37EgYNx51Dbjkfzo4=
+github.com/br0xen/termbox-util v0.0.0-20190325151025-c168c0df31ca h1:UMJCb+zIdrTX68nP5byq1xjW72UIqMBNxcYPlPFhnOs=
+github.com/br0xen/termbox-util v0.0.0-20190325151025-c168c0df31ca/go.mod h1:x9wJlgOj74OFTOBwXOuO8pBguW37EgYNx51Dbjkfzo4=
 github.com/cenkalti/backoff v0.0.0-20180801153208-b7325b0f3f10 h1:ei5pfh5WYO0Lp+VLnexHjNsZObXre+j0uv9H0mLkSxo=
 github.com/cenkalti/backoff v0.0.0-20180801153208-b7325b0f3f10/go.mod h1:90ReRw6GdpyfrHakVjL/QHaoyV4aDUVVkXQJJJ3NXXM=
-github.com/cenkalti/boltbrowser v0.0.0-20190319130427-c40f4acf7423 h1:iQ3m4YYpt5xTUhBiTLjHqVZuGLGtCti2EyCalWR1gOs=
-github.com/cenkalti/boltbrowser v0.0.0-20190319130427-c40f4acf7423/go.mod h1:TRC4W+aL8EZntkBiCvi7AGR0MH3JdBZUEx29Xm8cVoU=
+github.com/cenkalti/boltbrowser v0.0.0-20190327195521-ebed13c76690 h1:cUjJIucCXCb0CWVYLvuYbUn4TID1NL+cqNboGRMekKk=
+github.com/cenkalti/boltbrowser v0.0.0-20190327195521-ebed13c76690/go.mod h1:TRC4W+aL8EZntkBiCvi7AGR0MH3JdBZUEx29Xm8cVoU=
 github.com/cenkalti/log v0.0.0-20180808170110-e1cf6d40cbc3 h1:nv2JM6LWP694ueOJwZ5OcSzKYK7JZ4v7sXrbTLW4+7A=
 github.com/cenkalti/log v0.0.0-20180808170110-e1cf6d40cbc3/go.mod h1:tZQKVjO9EM2I22rk9cNNoboHztmdUb2nLgScA/+0Iu4=
 github.com/chihaya/chihaya v0.0.0-20190113170711-5f99a7e77885 h1:HkDKeaaS74nwsubgO2SwymSwJzc0IDU2gFapa7B6DPs=
@@ -61,8 +61,8 @@ github.com/nictuku/dht v0.0.0-20190124164602-cd9a716ed885/go.mod h1:98Ow1YQgkMOI
 github.com/nictuku/nettools v0.0.0-20150117095333-8867a2107ad3 h1:q6P6rwaWsdWQlaDt0DYPtmpj37fq2S4/IrZQO0zx488=
 github.com/nictuku/nettools v0.0.0-20150117095333-8867a2107ad3/go.mod h1:m19Kd92g5zm0IuGkdZo/OHBSPp9mqGlevOJu00nBoYs=
 github.com/nsf/termbox-go v0.0.0-20180819125858-b66b20ab708e/go.mod h1:IuKpRQcYE1Tfu+oAQqaLisqDeXgjyyltCfsaoYN18NQ=
-github.com/nsf/termbox-go v0.0.0-20190121233118-02980233997d h1:x3S6kxmy49zXVVyhcnrFqxvNVCBPb2KZ9hV2RBdS840=
-github.com/nsf/termbox-go v0.0.0-20190121233118-02980233997d/go.mod h1:IuKpRQcYE1Tfu+oAQqaLisqDeXgjyyltCfsaoYN18NQ=
+github.com/nsf/termbox-go v0.0.0-20190325093121-288510b9734e h1:Vbib8wJAaMEF9jusI/kMSYMr/LtRzM7+F9MJgt/nH8k=
+github.com/nsf/termbox-go v0.0.0-20190325093121-288510b9734e/go.mod h1:IuKpRQcYE1Tfu+oAQqaLisqDeXgjyyltCfsaoYN18NQ=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/powerman/rpc-codec v1.0.0 h1:V36ZsJwl+PQqG9DHrOSqDspfc7RpdsBk+cIkbFVWE9w=

@@ -5,9 +5,9 @@ go 1.12
 require (
 	github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973 // indirect
 	github.com/boltdb/bolt v1.3.1
-	github.com/br0xen/termbox-util v0.0.0-20190309204218-80b1bdea7475 // indirect
+	github.com/br0xen/termbox-util v0.0.0-20190325151025-c168c0df31ca // indirect
 	github.com/cenkalti/backoff v0.0.0-20180801153208-b7325b0f3f10
-	github.com/cenkalti/boltbrowser v0.0.0-20190319130427-c40f4acf7423
+	github.com/cenkalti/boltbrowser v0.0.0-20190327195521-ebed13c76690
 	github.com/cenkalti/log v0.0.0-20180808170110-e1cf6d40cbc3
 	github.com/chihaya/chihaya v0.0.0-20190113170711-5f99a7e77885
 	github.com/fatih/color v1.7.0 // indirect
@@ -31,7 +31,7 @@ require (
 	github.com/mitchellh/go-homedir v1.0.0
 	github.com/nictuku/dht v0.0.0-20190124164602-cd9a716ed885
 	github.com/nictuku/nettools v0.0.0-20150117095333-8867a2107ad3 // indirect
-	github.com/nsf/termbox-go v0.0.0-20190121233118-02980233997d // indirect
+	github.com/nsf/termbox-go v0.0.0-20190325093121-288510b9734e // indirect
 	github.com/powerman/rpc-codec v1.0.0
 	github.com/prometheus/client_golang v0.8.0 // indirect
 	github.com/prometheus/client_model v0.0.0-20180712105110-5c3871d89910 // indirect
