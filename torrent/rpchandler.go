@@ -278,7 +278,6 @@ func (h *rpcHandler) GetTorrentWebseeds(args *rpctypes.GetTorrentWebseedsRequest
 		reply.Webseeds[i] = rpctypes.Webseed{
 			URL:           p.URL,
 			DownloadSpeed: p.DownloadSpeed,
-			UploadSpeed:   p.UploadSpeed,
 		}
 		if p.Error != nil {
 			errStr := p.Error.Error()

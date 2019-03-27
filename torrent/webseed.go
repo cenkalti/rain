@@ -23,6 +23,13 @@ func (t *torrent) handleWebseedPieceResult(msg *urldownloader.PieceResult) {
 
 	t.resumerStats.BytesDownloaded += int64(len(msg.Buffer.Data))
 	t.downloadSpeed.Update(int64(len(msg.Buffer.Data)))
+	for _, src := range t.webseedSources {
+		if src.URL != msg.Downloader.URL {
+			continue
+		}
+		src.UpdateSpeed(len(msg.Buffer.Data))
+		break
+	}
 
 	if piece.Writing {
 		panic("piece is already writing")

@@ -31,7 +31,6 @@ type Webseed struct {
 	URL           string
 	Error         *string
 	DownloadSpeed uint
-	UploadSpeed   uint
 }
 
 type Tracker struct {

@@ -180,6 +180,21 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 				}
 				fmt.Fprintf(v, format, num, p.Addr, flags(p), dl, ul, p.Client)
 			}
+		case webseeds:
+			format := "%2s %40s %8s %s\n"
+			fmt.Fprintf(v, format, "#", "URL", "Speed", "Error")
+			for i, p := range c.webseeds {
+				num := fmt.Sprintf("%d", i)
+				var dl string
+				if p.DownloadSpeed > 0 {
+					dl = fmt.Sprintf("%d", p.DownloadSpeed/1024)
+				}
+				var errstr string
+				if p.Error != nil {
+					errstr = *p.Error
+				}
+				fmt.Fprintf(v, format, num, p.URL, dl, errstr)
+			}
 		}
 	}
 	return nil

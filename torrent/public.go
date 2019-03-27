@@ -200,7 +200,6 @@ type Webseed struct {
 	URL           string
 	Error         error
 	DownloadSpeed uint
-	UploadSpeed   uint
 }
 
 type webseedsRequest struct {

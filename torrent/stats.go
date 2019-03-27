@@ -270,6 +270,19 @@ func (t *torrent) getPeers() []Peer {
 	return peers
 }
 
+func (t *torrent) getWebseeds() []Webseed {
+	webseeds := make([]Webseed, 0, len(t.webseedSources))
+	for _, src := range t.webseedSources {
+		ws := Webseed{
+			URL:           src.URL,
+			Error:         src.LastError,
+			DownloadSpeed: src.DownloadSpeed(),
+		}
+		webseeds = append(webseeds, ws)
+	}
+	return webseeds
+}
+
 func (t *torrent) updateSeedDuration(now time.Time) {
 	if t.status() != Seeding {
 		t.seedDurationUpdatedAt = time.Time{}
