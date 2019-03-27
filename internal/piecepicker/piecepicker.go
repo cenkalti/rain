@@ -98,6 +98,7 @@ func (p *PiecePicker) CloseWebseedDownloader(src *webseedsource.WebseedSource) {
 	}
 	src.Downloader.Close()
 	src.Downloader = nil
+	src.ResetSpeed()
 }
 
 func (p *PiecePicker) Available() uint32 {

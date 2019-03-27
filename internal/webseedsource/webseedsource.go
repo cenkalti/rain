@@ -51,3 +51,7 @@ func (s *WebseedSource) TickSpeed() {
 func (s *WebseedSource) UpdateSpeed(length int) {
 	s.downloadSpeed.Update(int64(length))
 }
+
+func (s *WebseedSource) ResetSpeed() {
+	s.downloadSpeed = metrics.NewEWMA1()
+}
