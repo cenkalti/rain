@@ -508,8 +508,8 @@ func flags(p rpctypes.Peer) string {
 		sb.WriteString("X")
 	case "INCOMING":
 		sb.WriteString("I")
-	case "WEBSEED":
-		sb.WriteString("W")
+	case "MANUAL":
+		sb.WriteString("M")
 	default:
 		sb.WriteString(" ")
 	}

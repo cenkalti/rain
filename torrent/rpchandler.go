@@ -240,8 +240,8 @@ func (h *rpcHandler) GetTorrentPeers(args *rpctypes.GetTorrentPeersRequest, repl
 			source = "PEX"
 		case SourceIncoming:
 			source = "INCOMING"
-		case SourceWebseed:
-			source = "WEBSEED"
+		case SourceManual:
+			source = "MANUAL"
 		default:
 			panic("unhandled peer source")
 		}

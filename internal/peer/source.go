@@ -8,7 +8,6 @@ const (
 	SourcePEX
 	SourceManual
 	SourceIncoming
-	SourceWebseed
 )
 
 func (s Source) String() string {
@@ -23,8 +22,6 @@ func (s Source) String() string {
 		return "manual"
 	case SourceIncoming:
 		return "incoming"
-	case SourceWebseed:
-		return "webseed"
 	default:
 		panic("unhandled source")
 	}

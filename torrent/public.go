@@ -175,7 +175,7 @@ const (
 	SourceDHT
 	SourcePEX
 	SourceIncoming
-	SourceWebseed
+	SourceManual
 )
 
 type peersRequest struct {
