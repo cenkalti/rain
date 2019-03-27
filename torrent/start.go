@@ -126,11 +126,9 @@ func (t *torrent) startInfoDownloaders() {
 }
 
 func (t *torrent) startPieceDownloaders() {
-	t.log.Debugln("starting piece downloaders")
 	if t.status() != Downloading {
 		return
 	}
-	t.log.Debugln("picking from webseed sources")
 	for _, src := range t.webseedSources {
 		if !src.Downloading() && !src.Disabled {
 			started := t.startPieceDownloaderForWebseed(src)
@@ -166,7 +164,7 @@ func (t *torrent) startWebseedDownloader(sp *piecepicker.WebseedDownloadSpec) {
 		}
 		src.Downloader = ud
 	}
-	go ud.Run(t.webseedClient, t.pieces, t.info.MultiFile(), t.webseedPieceResultC.SendC(), t.piecePool, &t.piecePicker.MutexWebseed)
+	go ud.Run(t.webseedClient, t.pieces, t.info.MultiFile(), t.webseedPieceResultC.SendC(), t.piecePool, &t.piecePicker.MutexWebseed, t.config.WebseedResponseBodyReadTimeout)
 }
 
 func (t *torrent) startPieceDownloaderFor(pe *peer.Peer) {
@@ -198,7 +196,6 @@ func (t *torrent) startSinglePieceDownloader(pe *peer.Peer) {
 		return
 	}
 	pd := piecedownloader.New(pi, pe, allowedFast, t.piecePool.Get(int(pi.Length)))
-	// t.log.Debugln("downloading piece", pd.Piece.Index, "from", pd.Peer.String())
 	if _, ok := t.pieceDownloaders[pe]; ok {
 		panic("peer already has a piece downloader")
 	}

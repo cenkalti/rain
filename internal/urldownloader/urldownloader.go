@@ -72,7 +72,7 @@ func (d *URLDownloader) Run(client *http.Client, pieces []piece.Piece, multifile
 			d.sendResult(resultC, &PieceResult{Downloader: d, Error: err})
 			return
 		}
-		defer resp.Body.Close()
+		defer resp.Body.Close() // TODO close response body on next request
 		err = checkStatus(resp)
 		if err != nil {
 			d.sendResult(resultC, &PieceResult{Downloader: d, Error: err})

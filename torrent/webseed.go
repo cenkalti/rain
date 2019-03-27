@@ -8,11 +8,14 @@ import (
 func (t *torrent) handleWebseedPieceResult(msg *urldownloader.PieceResult) {
 	if msg.Error != nil {
 		t.log.Errorln("webseed download error:", msg.Error)
+		// Possible causes:
+		// * Client.Do error
+		// * Unexpected status code
+		// * Response.Body.Read error
+
 		// TODO handle error
 		return
 	}
-
-	t.log.Debugln("piece download completed. index:", msg.Index)
 
 	piece := &t.pieces[msg.Index]
 

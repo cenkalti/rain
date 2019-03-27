@@ -86,7 +86,6 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 		}
 		return
 	}
-	// t.log.Debugln("piece download completed. index:", pd.Piece.Index)
 	t.closePieceDownloader(pd)
 	pe.StopSnubTimer()
 

@@ -22,8 +22,8 @@ func (t *torrent) handlePieceWriteDone(pw *piecewriter.PieceWriter) {
 			t.log.Errorln("received corrupt piece from peer", src.String())
 			t.closePeer(src)
 		case *urldownloader.URLDownloader:
-			t.log.Errorln("received corrupt piece from webseed", src.Source)
-			t.piecePicker.DisableSource(src.Source)
+			t.log.Errorln("received corrupt piece from webseed", src.URL)
+			t.piecePicker.DisableSource(src.URL)
 		default:
 			panic("unhandled piece source")
 		}
