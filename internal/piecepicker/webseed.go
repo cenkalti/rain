@@ -69,7 +69,7 @@ func (p *PiecePicker) webseedStealsFromAnotherWebseed() (r Range) {
 		return
 	}
 	sort.Slice(downloading, func(i, j int) bool { return downloading[i].Remaining() > downloading[j].Remaining() })
-	src := p.webseedSources[0]
+	src := downloading[0]
 	r.End = src.Downloader.End
 	r.Begin = (src.Downloader.Current + src.Downloader.End + 1) / 2
 	src.Downloader.End = r.Begin
