@@ -1,6 +1,8 @@
 package webseedsource
 
 import (
+	"time"
+
 	"github.com/cenkalti/rain/internal/urldownloader"
 )
 
@@ -8,6 +10,8 @@ type WebseedSource struct {
 	URL        string
 	Disabled   bool
 	Downloader *urldownloader.URLDownloader
+	LastError  error
+	DisabledAt time.Time
 }
 
 func NewList(sources []string) []*WebseedSource {

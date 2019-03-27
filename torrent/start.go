@@ -163,6 +163,9 @@ func (t *torrent) startWebseedDownloader(sp *piecepicker.WebseedDownloadSpec) {
 			panic("already downloading from same url source")
 		}
 		src.Downloader = ud
+		src.Disabled = false
+		src.LastError = nil
+		break
 	}
 	go ud.Run(t.webseedClient, t.pieces, t.info.MultiFile(), t.webseedPieceResultC.SendC(), t.piecePool, &t.piecePicker.MutexWebseed, t.config.WebseedResponseBodyReadTimeout)
 }

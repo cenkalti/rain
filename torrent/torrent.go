@@ -249,6 +249,7 @@ type torrent struct {
 	webseedClient       *http.Client
 	webseedSources      []*webseedsource.WebseedSource
 	webseedPieceResultC *suspendchan.Chan
+	webseedRetryC       chan *webseedsource.WebseedSource
 
 	log logger.Logger
 }

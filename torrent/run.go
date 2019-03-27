@@ -62,6 +62,8 @@ func (t *torrent) run() {
 			t.handleNewConnection(conn)
 		case res := <-t.webseedPieceResultC.ReceiveC():
 			t.handleWebseedPieceResult(res.(*urldownloader.PieceResult))
+		case src := <-t.webseedRetryC:
+			t.startPieceDownloaderForWebseed(src)
 		case pw := <-t.pieceWriterResultC:
 			t.handlePieceWriteDone(pw)
 		case <-t.resumeWriteTimerC:

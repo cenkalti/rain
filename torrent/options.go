@@ -28,6 +28,7 @@ import (
 	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/internal/unchoker"
 	"github.com/cenkalti/rain/internal/verifier"
+	"github.com/cenkalti/rain/internal/webseedsource"
 	"github.com/rcrowley/go-metrics"
 )
 
@@ -132,6 +133,7 @@ func (o *options) NewTorrent(infoHash []byte, sto storage.Storage) (*torrent, er
 		ram:                       o.RAM,
 		ramNotifyC:                make(chan interface{}),
 		webseedPieceResultC:       suspendchan.New(0),
+		webseedRetryC:             make(chan *webseedsource.WebseedSource),
 		doneC:                     make(chan struct{}),
 	}
 	t.addrList = addrlist.New(cfg.MaxPeerAddresses, o.Blocklist, o.Port, &t.externalIP)

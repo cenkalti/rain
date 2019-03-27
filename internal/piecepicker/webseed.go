@@ -32,13 +32,6 @@ func (p *PiecePicker) PickWebseed(src *webseedsource.WebseedSource) *WebseedDown
 	}
 }
 
-func (p *PiecePicker) DisableSource(s string) {
-	for _, src := range p.webseedSources {
-		// TODO enable after a while
-		src.Disabled = true
-	}
-}
-
 func (p *PiecePicker) downloadingWebseed() bool {
 	for _, src := range p.webseedSources {
 		if src.Downloading() {

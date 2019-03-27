@@ -1,8 +1,11 @@
 package torrent
 
 import (
+	"time"
+
 	"github.com/cenkalti/rain/internal/piecewriter"
 	"github.com/cenkalti/rain/internal/urldownloader"
+	"github.com/cenkalti/rain/internal/webseedsource"
 )
 
 func (t *torrent) handleWebseedPieceResult(msg *urldownloader.PieceResult) {
@@ -12,8 +15,7 @@ func (t *torrent) handleWebseedPieceResult(msg *urldownloader.PieceResult) {
 		// * Client.Do error
 		// * Unexpected status code
 		// * Response.Body.Read error
-
-		// TODO handle error
+		t.disableSource(msg.Downloader.URL, msg.Error, true)
 		return
 	}
 
@@ -33,4 +35,30 @@ func (t *torrent) handleWebseedPieceResult(msg *urldownloader.PieceResult) {
 
 	pw := piecewriter.New(piece, msg.Downloader, msg.Buffer)
 	go pw.Run(t.pieceWriterResultC, t.doneC)
+}
+
+func (t *torrent) disableSource(srcurl string, err error, retry bool) {
+	for _, src := range t.webseedSources {
+		if src.URL != srcurl {
+			continue
+		}
+		src.Disabled = true
+		src.DisabledAt = time.Now()
+		src.LastError = err
+		if retry {
+			go t.notifyWebseedRetry(src)
+		}
+		break
+	}
+}
+
+func (t *torrent) notifyWebseedRetry(src *webseedsource.WebseedSource) {
+	select {
+	case <-time.After(time.Minute):
+		select {
+		case t.webseedRetryC <- src:
+		case <-t.closeC:
+		}
+	case <-t.closeC:
+	}
 }

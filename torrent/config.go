@@ -116,6 +116,7 @@ type Config struct {
 	WebseedTLSHandshakeTimeout     time.Duration
 	WebseedResponseHeaderTimeout   time.Duration
 	WebseedResponseBodyReadTimeout time.Duration
+	WebseedRetryInterval           time.Duration
 }
 
 var DefaultConfig = Config{
@@ -181,4 +182,5 @@ var DefaultConfig = Config{
 	WebseedTLSHandshakeTimeout:     10 * time.Second,
 	WebseedResponseHeaderTimeout:   10 * time.Second,
 	WebseedResponseBodyReadTimeout: 10 * time.Second,
+	WebseedRetryInterval:           time.Minute,
 }

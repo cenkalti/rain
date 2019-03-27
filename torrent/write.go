@@ -1,6 +1,8 @@
 package torrent
 
 import (
+	"errors"
+
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peerprotocol"
 	"github.com/cenkalti/rain/internal/piecewriter"
@@ -23,7 +25,7 @@ func (t *torrent) handlePieceWriteDone(pw *piecewriter.PieceWriter) {
 			t.closePeer(src)
 		case *urldownloader.URLDownloader:
 			t.log.Errorln("received corrupt piece from webseed", src.URL)
-			t.piecePicker.DisableSource(src.URL)
+			t.disableSource(src.URL, errors.New("corrupt piece"), false)
 		default:
 			panic("unhandled piece source")
 		}
