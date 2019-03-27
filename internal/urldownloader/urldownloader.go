@@ -6,16 +6,16 @@ import (
 	"io"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/cenkalti/rain/internal/bufferpool"
 	"github.com/cenkalti/rain/internal/piece"
 )
 
 type URLDownloader struct {
-	Source string
-	closeC chan struct{}
-	doneC  chan struct{}
-	sync.Mutex
+	URL                 string
+	Begin, End, Current uint32
+	closeC, doneC       chan struct{}
 }
 
 type PieceResult struct {
@@ -26,13 +26,15 @@ type PieceResult struct {
 	Done       bool
 }
 
-func New(source string) *URLDownloader {
-	ud := &URLDownloader{
-		Source: source,
-		closeC: make(chan struct{}),
-		doneC:  make(chan struct{}),
+func New(source string, begin, end uint32) *URLDownloader {
+	return &URLDownloader{
+		URL:     source,
+		Begin:   begin,
+		Current: begin,
+		End:     end,
+		closeC:  make(chan struct{}),
+		doneC:   make(chan struct{}),
 	}
-	return ud
 }
 
 func (d *URLDownloader) Close() {
@@ -40,48 +42,7 @@ func (d *URLDownloader) Close() {
 	<-d.doneC
 }
 
-type downloadJob struct {
-	Filename   string
-	RangeBegin int64
-	Length     int64
-}
-
-func createJobs(pieces []piece.Piece, begin, end uint32) []downloadJob {
-	if begin == end {
-		return nil
-	}
-	jobs := make([]downloadJob, 0)
-	lastSec := pieces[0].Data[0]
-	job := downloadJob{
-		Filename: lastSec.Name,
-		Length:   lastSec.Length,
-	}
-	for i := begin; i < end; i++ {
-		pi := &pieces[i]
-		for j, sec := range pi.Data {
-			if i == 0 && j == 0 {
-				continue
-			}
-			if sec.Name == lastSec.Name {
-				lastSec.Length += sec.Length
-			} else {
-				if job.Length > 0 { // do not request 0 byte files
-					jobs = append(jobs, job)
-				}
-				job = downloadJob{
-					Filename: sec.Name,
-					Length:   sec.Length,
-				}
-			}
-		}
-	}
-	if job.Length > 0 { // do not request 0 byte files
-		jobs = append(jobs, job)
-	}
-	return jobs
-}
-
-func (d *URLDownloader) Run(client *http.Client, begin, end uint32, pieces []piece.Piece, multifile bool, resultC chan *PieceResult, pool *bufferpool.Pool) {
+func (d *URLDownloader) Run(client *http.Client, pieces []piece.Piece, multifile bool, resultC chan interface{}, pool *bufferpool.Pool, mu sync.Locker, readTimeout time.Duration) {
 	defer close(d.doneC)
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
@@ -91,12 +52,15 @@ func (d *URLDownloader) Run(client *http.Client, begin, end uint32, pieces []pie
 		}
 		cancel()
 	}()
-	pieceIndex := begin
+
+	mu.Lock()
+	jobs := createJobs(pieces, d.Begin, d.End)
+	mu.Unlock()
+
 	var n int // position in piece
-	var buf bufferpool.Buffer
-	for _, job := range createJobs(pieces, begin, end) {
+	buf := pool.Get(int(pieces[d.Current].Length))
+	for _, job := range jobs {
 		u := d.getURL(job.Filename, multifile)
-		println("url:", u)
 		req, err := http.NewRequest(http.MethodGet, u, nil)
 		if err != nil {
 			panic(err)
@@ -105,7 +69,6 @@ func (d *URLDownloader) Run(client *http.Client, begin, end uint32, pieces []pie
 		req = req.WithContext(ctx)
 		resp, err := client.Do(req)
 		if err != nil {
-			println("do request error")
 			d.sendResult(resultC, &PieceResult{Downloader: d, Error: err})
 			return
 		}
@@ -115,48 +78,61 @@ func (d *URLDownloader) Run(client *http.Client, begin, end uint32, pieces []pie
 			d.sendResult(resultC, &PieceResult{Downloader: d, Error: err})
 			return
 		}
+		timer := time.AfterFunc(readTimeout, cancel)
 		var m int64 // position in response
 		for m < job.Length {
-			if n == 0 {
-				println("creating new piece buffer of length:", pieces[pieceIndex].Length)
-				buf = pool.Get(int(pieces[pieceIndex].Length))
-			}
-			toPieceEnd := int64(len(buf.Data) - n)
-			toResponseEnd := job.Length - m
-			var readSize int64
-			if toPieceEnd < toResponseEnd {
-				readSize = toPieceEnd
-			} else {
-				readSize = toResponseEnd
-			}
-			// TODO set read deadline
-			// TODO do not use read full, write for loop, update downloaded bytes counter
-			println("read", pieceIndex, n, m, readSize)
-			o, err := io.ReadFull(resp.Body, buf.Data[n:int64(n)+readSize])
+			readSize := calcReadSize(buf, n, job, m)
+			o, err := readFull(resp.Body, buf.Data[n:int64(n)+readSize], timer, readTimeout)
 			if err != nil {
-				println("piece length", pieces[pieceIndex].Length)
-				println("read", n, "bytes")
-				println("read bytes:", string(buf.Data[:n]))
 				d.sendResult(resultC, &PieceResult{Downloader: d, Error: err})
 				return
 			}
 			n += o
 			m += int64(o)
-			if n == len(buf.Data) {
-				done := pieceIndex == end
-				d.sendResult(resultC, &PieceResult{Downloader: d, Buffer: buf, Index: pieceIndex, Done: done})
+			if n == len(buf.Data) { // piece completed
+				mu.Lock()
+				index := d.Current
+				d.Current++
+				done := d.Current >= d.End
+				mu.Unlock()
+
+				d.sendResult(resultC, &PieceResult{Downloader: d, Buffer: buf, Index: index, Done: done})
 				if done {
 					return
 				}
-				pieceIndex++
+				// Allocate new buffer for next piece
 				n = 0
+				buf = pool.Get(int(pieces[d.Current].Length))
 			}
 		}
 	}
 }
 
+func calcReadSize(buf bufferpool.Buffer, bufPos int, job downloadJob, jobPos int64) int64 {
+	toPieceEnd := int64(len(buf.Data) - bufPos)
+	toResponseEnd := job.Length - jobPos
+	if toPieceEnd < toResponseEnd {
+		return toPieceEnd
+	}
+	return toResponseEnd
+}
+
+// readFull is similar to io.ReadFull call, plus it resets the read timer on each iteration.
+func readFull(r io.Reader, b []byte, t *time.Timer, d time.Duration) (o int, err error) {
+	for o < len(b) && err == nil {
+		var nn int
+		nn, err = r.Read(b[o:])
+		o += nn
+		t.Reset(d)
+	}
+	if o >= len(b) {
+		err = nil
+	}
+	return
+}
+
 func (d *URLDownloader) getURL(filename string, multifile bool) string {
-	src := d.Source
+	src := d.URL
 	if !multifile {
 		if src[len(src)-1] == '/' {
 			src += filename
@@ -169,7 +145,7 @@ func (d *URLDownloader) getURL(filename string, multifile bool) string {
 	return src + filename
 }
 
-func (d *URLDownloader) sendResult(resultC chan *PieceResult, res *PieceResult) {
+func (d *URLDownloader) sendResult(resultC chan interface{}, res *PieceResult) {
 	select {
 	case resultC <- res:
 	case <-d.closeC:
@@ -178,12 +154,9 @@ func (d *URLDownloader) sendResult(resultC chan *PieceResult, res *PieceResult) 
 
 func checkStatus(resp *http.Response) error {
 	switch resp.StatusCode {
-	case 200:
-		// TODO assert content length header
-	case 206:
-		// TODO assert content length header
+	case 200, 206:
+		return nil
 	default:
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
-	return nil
 }
