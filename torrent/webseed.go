@@ -49,6 +49,7 @@ func (t *torrent) handleWebseedPieceResult(msg *urldownloader.PieceResult) {
 				continue
 			}
 			t.closeWebseedDownloader(src)
+			t.startPieceDownloaderForWebseed(src)
 			break
 		}
 	}
