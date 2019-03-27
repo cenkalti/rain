@@ -479,6 +479,7 @@ func (s *Session) AddTorrent(r io.Reader) (*Torrent, error) {
 		Port:     opt.Port,
 		Name:     opt.Name,
 		Trackers: mi.AnnounceList,
+		URLList:  mi.URLList,
 		Info:     opt.Info.Bytes,
 		AddedAt:  time.Now(),
 	}
