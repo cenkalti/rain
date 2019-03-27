@@ -89,6 +89,9 @@ func New(pieces []piece.Piece, maxDuplicateDownload int, webseedSources []*webse
 }
 
 func (p *PiecePicker) CloseWebseedDownloader(src *webseedsource.WebseedSource) {
+	if src.Downloader == nil {
+		return
+	}
 	for i := src.Downloader.Begin; i < src.Downloader.End; i++ {
 		pi := &p.pieces[i]
 		delete(pi.WebseedDownloads, src)
