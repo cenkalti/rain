@@ -40,6 +40,8 @@ func (t *torrent) run() {
 			req.Response <- t.getTrackers()
 		case req := <-t.peersCommandC:
 			req.Response <- t.getPeers()
+		case req := <-t.webseedsCommandC:
+			req.Response <- t.getWebseeds()
 		case p := <-t.allocatorProgressC:
 			t.bytesAllocated = p.AllocatedSize
 		case al := <-t.allocatorResultC:

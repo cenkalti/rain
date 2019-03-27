@@ -27,6 +27,13 @@ type Peer struct {
 	UploadSpeed        uint
 }
 
+type Webseed struct {
+	URL           string
+	Error         *string
+	DownloadSpeed uint
+	UploadSpeed   uint
+}
+
 type Tracker struct {
 	URL      string
 	Status   string
@@ -168,6 +175,14 @@ type GetTorrentPeersRequest struct {
 
 type GetTorrentPeersResponse struct {
 	Peers []Peer
+}
+
+type GetTorrentWebseedsRequest struct {
+	ID string
+}
+
+type GetTorrentWebseedsResponse struct {
+	Webseeds []Webseed
 }
 
 type StartTorrentRequest struct {

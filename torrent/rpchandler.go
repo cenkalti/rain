@@ -267,6 +267,27 @@ func (h *rpcHandler) GetTorrentPeers(args *rpctypes.GetTorrentPeersRequest, repl
 	return nil
 }
 
+func (h *rpcHandler) GetTorrentWebseeds(args *rpctypes.GetTorrentWebseedsRequest, reply *rpctypes.GetTorrentWebseedsResponse) error {
+	t := h.session.GetTorrent(args.ID)
+	if t == nil {
+		return errTorrentNotFound
+	}
+	webseeds := t.Webseeds()
+	reply.Webseeds = make([]rpctypes.Webseed, len(webseeds))
+	for i, p := range webseeds {
+		reply.Webseeds[i] = rpctypes.Webseed{
+			URL:           p.URL,
+			DownloadSpeed: p.DownloadSpeed,
+			UploadSpeed:   p.UploadSpeed,
+		}
+		if p.Error != nil {
+			errStr := p.Error.Error()
+			reply.Webseeds[i].Error = &errStr
+		}
+	}
+	return nil
+}
+
 func (h *rpcHandler) StartTorrent(args *rpctypes.StartTorrentRequest, reply *rpctypes.StartTorrentResponse) error {
 	t := h.session.GetTorrent(args.ID)
 	if t == nil {

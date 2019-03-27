@@ -18,6 +18,7 @@ const (
 	general int = iota
 	trackers
 	peers
+	webseeds
 )
 
 type Console struct {
@@ -29,6 +30,7 @@ type Console struct {
 	stats           rpctypes.Stats
 	trackers        []rpctypes.Tracker
 	peers           []rpctypes.Peer
+	webseeds        []rpctypes.Webseed
 	errDetails      error
 	updatingDetails bool
 	m               sync.Mutex
@@ -65,6 +67,7 @@ func (c *Console) Run() error {
 	_ = g.SetKeybinding("torrents", gocui.KeyCtrlG, gocui.ModNone, c.switchGeneral)
 	_ = g.SetKeybinding("torrents", gocui.KeyCtrlT, gocui.ModNone, c.switchTrackers)
 	_ = g.SetKeybinding("torrents", gocui.KeyCtrlP, gocui.ModNone, c.switchPeers)
+	_ = g.SetKeybinding("torrents", gocui.KeyCtrlW, gocui.ModNone, c.switchWebseeds)
 
 	go c.updateLoop(g)
 
@@ -261,6 +264,16 @@ func (c *Console) updateDetails(g *gocui.Gui) {
 		c.peers = peers
 		c.errDetails = err
 		c.m.Unlock()
+	case webseeds:
+		webseeds, err := c.client.GetTorrentWebseeds(selectedID)
+		sort.Slice(webseeds, func(i, j int) bool {
+			a, b := webseeds[i], webseeds[j]
+			return a.URL < b.URL
+		})
+		c.m.Lock()
+		c.webseeds = webseeds
+		c.errDetails = err
+		c.m.Unlock()
 	}
 
 	c.m.Lock()
@@ -435,6 +448,14 @@ func (c *Console) switchTrackers(g *gocui.Gui, v *gocui.View) error {
 func (c *Console) switchPeers(g *gocui.Gui, v *gocui.View) error {
 	c.m.Lock()
 	c.selectedTab = peers
+	c.m.Unlock()
+	c.triggerUpdateDetails(true)
+	return nil
+}
+
+func (c *Console) switchWebseeds(g *gocui.Gui, v *gocui.View) error {
+	c.m.Lock()
+	c.selectedTab = webseeds
 	c.m.Unlock()
 	c.triggerUpdateDetails(true)
 	return nil

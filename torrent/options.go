@@ -104,6 +104,7 @@ func (o *options) NewTorrent(infoHash []byte, sto storage.Storage) (*torrent, er
 		statsCommandC:             make(chan statsRequest),
 		trackersCommandC:          make(chan trackersRequest),
 		peersCommandC:             make(chan peersRequest),
+		webseedsCommandC:          make(chan webseedsRequest),
 		notifyErrorCommandC:       make(chan notifyErrorCommand),
 		notifyListenCommandC:      make(chan notifyListenCommand),
 		addPeersCommandC:          make(chan []*net.TCPAddr),

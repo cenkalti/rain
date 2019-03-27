@@ -147,6 +147,7 @@ type torrent struct {
 	statsCommandC        chan statsRequest        // Stats()
 	trackersCommandC     chan trackersRequest     // Trackers()
 	peersCommandC        chan peersRequest        // Peers()
+	webseedsCommandC     chan webseedsRequest     // Webseeds()
 	startCommandC        chan struct{}            // Start()
 	stopCommandC         chan struct{}            // Stop()
 	notifyErrorCommandC  chan notifyErrorCommand  // NotifyError()

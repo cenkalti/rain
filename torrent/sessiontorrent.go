@@ -56,6 +56,10 @@ func (t *Torrent) Peers() []Peer {
 	return t.torrent.Peers()
 }
 
+func (t *Torrent) Webseeds() []Webseed {
+	return t.torrent.Webseeds()
+}
+
 func (t *Torrent) Port() uint16 {
 	return t.port
 }

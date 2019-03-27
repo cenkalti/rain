@@ -78,6 +78,12 @@ func (c *Client) GetTorrentPeers(id string) ([]rpctypes.Peer, error) {
 	return reply.Peers, c.client.Call("Session.GetTorrentPeers", args, &reply)
 }
 
+func (c *Client) GetTorrentWebseeds(id string) ([]rpctypes.Webseed, error) {
+	args := rpctypes.GetTorrentWebseedsRequest{ID: id}
+	var reply rpctypes.GetTorrentWebseedsResponse
+	return reply.Webseeds, c.client.Call("Session.GetTorrentWebseeds", args, &reply)
+}
+
 func (c *Client) StartTorrent(id string) error {
 	args := rpctypes.StartTorrentRequest{ID: id}
 	var reply rpctypes.StartTorrentResponse

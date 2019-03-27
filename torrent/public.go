@@ -195,3 +195,28 @@ func (t *torrent) Peers() []Peer {
 	}
 	return peers
 }
+
+type Webseed struct {
+	URL           string
+	Error         error
+	DownloadSpeed uint
+	UploadSpeed   uint
+}
+
+type webseedsRequest struct {
+	Response chan []Webseed
+}
+
+func (t *torrent) Webseeds() []Webseed {
+	var webseeds []Webseed
+	req := webseedsRequest{Response: make(chan []Webseed, 1)}
+	select {
+	case t.webseedsCommandC <- req:
+	case <-t.closeC:
+	}
+	select {
+	case webseeds = <-req.Response:
+	case <-t.closeC:
+	}
+	return webseeds
+}
