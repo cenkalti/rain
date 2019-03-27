@@ -141,7 +141,7 @@ var DefaultConfig = Config{
 	RPCShutdownTimeout: 5 * time.Second,
 
 	// Tracker
-	TrackerNumWant:             100,
+	TrackerNumWant:             200,
 	TrackerStopTimeout:         5 * time.Second,
 	TrackerMinAnnounceInterval: time.Minute,
 	TrackerHTTPTimeout:         10 * time.Second,
