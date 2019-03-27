@@ -59,7 +59,8 @@ func (d *URLDownloader) Run(client *http.Client, pieces []piece.Piece, multifile
 
 	var n int // position in piece
 	buf := pool.Get(int(pieces[d.Current].Length))
-	for _, job := range jobs {
+
+	processJob := func(job downloadJob) bool {
 		u := d.getURL(job.Filename, multifile)
 		req, err := http.NewRequest(http.MethodGet, u, nil)
 		if err != nil {
@@ -70,22 +71,23 @@ func (d *URLDownloader) Run(client *http.Client, pieces []piece.Piece, multifile
 		resp, err := client.Do(req)
 		if err != nil {
 			d.sendResult(resultC, &PieceResult{Downloader: d, Error: err})
-			return
+			return false
 		}
-		defer resp.Body.Close() // TODO close response body on next request
+		defer resp.Body.Close()
 		err = checkStatus(resp)
 		if err != nil {
 			d.sendResult(resultC, &PieceResult{Downloader: d, Error: err})
-			return
+			return false
 		}
 		timer := time.AfterFunc(readTimeout, cancel)
+		defer timer.Stop()
 		var m int64 // position in response
 		for m < job.Length {
 			readSize := calcReadSize(buf, n, job, m)
 			o, err := readFull(resp.Body, buf.Data[n:int64(n)+readSize], timer, readTimeout)
 			if err != nil {
 				d.sendResult(resultC, &PieceResult{Downloader: d, Error: err})
-				return
+				return false
 			}
 			n += o
 			m += int64(o)
@@ -98,12 +100,19 @@ func (d *URLDownloader) Run(client *http.Client, pieces []piece.Piece, multifile
 
 				d.sendResult(resultC, &PieceResult{Downloader: d, Buffer: buf, Index: index, Done: done})
 				if done {
-					return
+					return true
 				}
 				// Allocate new buffer for next piece
 				n = 0
 				buf = pool.Get(int(pieces[d.Current].Length))
 			}
+		}
+		return true
+	}
+	for _, job := range jobs {
+		ok := processJob(job)
+		if !ok {
+			break
 		}
 	}
 }
