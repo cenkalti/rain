@@ -273,7 +273,7 @@ func handleServer(c *cli.Context) error {
 		}
 	}
 
-	ses, err := torrent.New(cfg)
+	ses, err := torrent.NewSession(cfg)
 	if err != nil {
 		return err
 	}

@@ -44,6 +44,7 @@ var (
 	blocklistTimestampKey = []byte("blocklist-timestamp")
 )
 
+// Session contains torrents, DHT node, caches and other data structures shared by multiple torrents.
 type Session struct {
 	config         Config
 	db             *bolt.DB
@@ -72,8 +73,9 @@ type Session struct {
 	blocklistTimestamp time.Time
 }
 
-// New returns a pointer to new Rain BitTorrent client.
-func New(cfg Config) (*Session, error) {
+// NewSession creates a new Session for downloading and seeding torrents.
+// Returned session must be closed after use.
+func NewSession(cfg Config) (*Session, error) {
 	if cfg.PortBegin >= cfg.PortEnd {
 		return nil, errors.New("invalid port range")
 	}
