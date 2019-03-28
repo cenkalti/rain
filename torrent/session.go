@@ -316,33 +316,22 @@ func (s *Session) loadExistingTorrents(ids []string) {
 			s.log.Error(err)
 			continue
 		}
-		opt := options{
-			id:       id,
-			Name:     spec.Name,
-			Port:     spec.Port,
-			Trackers: s.parseTrackers(spec.Trackers),
-			Resumer:  res,
-			Stats: resumer.Stats{
-				BytesDownloaded: spec.BytesDownloaded,
-				BytesUploaded:   spec.BytesUploaded,
-				BytesWasted:     spec.BytesWasted,
-				SeededFor:       int64(spec.SeededFor),
-			},
-		}
+		var info *metainfo.Info
+		var bf *bitfield.Bitfield
 		if len(spec.Info) > 0 {
-			info, err2 := metainfo.NewInfo(spec.Info)
+			info2, err2 := metainfo.NewInfo(spec.Info)
 			if err2 != nil {
 				s.log.Error(err2)
 				continue
 			}
-			opt.Info = info
+			info = info2
 			if len(spec.Bitfield) > 0 {
-				bf, err3 := bitfield.NewBytes(spec.Bitfield, info.NumPieces)
+				bf3, err3 := bitfield.NewBytes(spec.Bitfield, info.NumPieces)
 				if err3 != nil {
 					s.log.Error(err3)
 					continue
 				}
-				opt.Bitfield = bf
+				bf = bf3
 			}
 		}
 		sto, err := filestorage.New(spec.Dest)
@@ -350,7 +339,24 @@ func (s *Session) loadExistingTorrents(ids []string) {
 			s.log.Error(err)
 			continue
 		}
-		t, err := opt.NewTorrent(s, spec.InfoHash, sto)
+		t, err := newTorrent2(
+			s,
+			id,
+			spec.InfoHash,
+			sto,
+			spec.Name,
+			spec.Port,
+			s.parseTrackers(spec.Trackers),
+			res,
+			info,
+			bf,
+			resumer.Stats{
+				BytesDownloaded: spec.BytesDownloaded,
+				BytesUploaded:   spec.BytesUploaded,
+				BytesWasted:     spec.BytesWasted,
+				SeededFor:       int64(spec.SeededFor),
+			},
+		)
 		if err != nil {
 			s.log.Error(err)
 			continue
@@ -443,19 +449,28 @@ func (s *Session) addTorrentStopped(r io.Reader) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
-	opt, sto, err := s.add()
+	id, port, res, sto, err := s.add()
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
 		if err != nil {
-			s.releasePort(opt.Port)
+			s.releasePort(port)
 		}
 	}()
-	opt.Name = mi.Info.Name
-	opt.Trackers = s.parseTrackers(mi.AnnounceList)
-	opt.Info = mi.Info
-	t, err := opt.NewTorrent(s, mi.Info.Hash[:], sto)
+	t, err := newTorrent2(
+		s,
+		id,
+		mi.Info.Hash[:],
+		sto,
+		mi.Info.Name,
+		port,
+		s.parseTrackers(mi.AnnounceList),
+		res,
+		mi.Info,
+		nil, // bitfield
+		resumer.Stats{},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -468,19 +483,16 @@ func (s *Session) addTorrentStopped(r io.Reader) (*Torrent, error) {
 		}
 	}()
 	rspec := &boltdbresumer.Spec{
-		InfoHash: t.InfoHash(),
+		InfoHash: mi.Info.Hash[:],
 		Dest:     sto.Dest(),
-		Port:     opt.Port,
-		Name:     opt.Name,
+		Port:     port,
+		Name:     mi.Info.Name,
 		Trackers: mi.AnnounceList,
 		URLList:  mi.URLList,
-		Info:     opt.Info.Bytes,
+		Info:     mi.Info.Bytes,
 		AddedAt:  time.Now(),
 	}
-	if opt.Bitfield != nil {
-		rspec.Bitfield = opt.Bitfield.Bytes()
-	}
-	err = opt.Resumer.(*boltdbresumer.Resumer).Write(rspec)
+	err = res.(*boltdbresumer.Resumer).Write(rspec)
 	if err != nil {
 		return nil, err
 	}
@@ -521,18 +533,28 @@ func (s *Session) addMagnet(link string) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
-	opt, sto, err := s.add()
+	id, port, res, sto, err := s.add()
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
 		if err != nil {
-			s.releasePort(opt.Port)
+			s.releasePort(port)
 		}
 	}()
-	opt.Name = ma.Name
-	opt.Trackers = s.parseTrackers(ma.Trackers)
-	t, err := opt.NewTorrent(s, ma.InfoHash[:], sto)
+	t, err := newTorrent2(
+		s,
+		id,
+		ma.InfoHash[:],
+		sto,
+		ma.Name,
+		port,
+		s.parseTrackers(ma.Trackers),
+		res,
+		nil, // info
+		nil, // bitfield
+		resumer.Stats{},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -545,12 +567,12 @@ func (s *Session) addMagnet(link string) (*Torrent, error) {
 	rspec := &boltdbresumer.Spec{
 		InfoHash: ma.InfoHash[:],
 		Dest:     sto.Dest(),
-		Port:     opt.Port,
-		Name:     opt.Name,
+		Port:     port,
+		Name:     ma.Name,
 		Trackers: ma.Trackers,
 		AddedAt:  time.Now(),
 	}
-	err = opt.Resumer.(*boltdbresumer.Resumer).Write(rspec)
+	err = res.(*boltdbresumer.Resumer).Write(rspec)
 	if err != nil {
 		return nil, err
 	}
@@ -558,10 +580,10 @@ func (s *Session) addMagnet(link string) (*Torrent, error) {
 	return t2, t2.Start()
 }
 
-func (s *Session) add() (*options, *filestorage.FileStorage, error) {
-	port, err := s.getPort()
+func (s *Session) add() (id string, port int, res resumer.Resumer, sto *filestorage.FileStorage, err error) {
+	port, err = s.getPort()
 	if err != nil {
-		return nil, nil, err
+		return
 	}
 	defer func() {
 		if err != nil {
@@ -570,23 +592,19 @@ func (s *Session) add() (*options, *filestorage.FileStorage, error) {
 	}()
 	u1, err := uuid.NewV1()
 	if err != nil {
-		return nil, nil, err
+		return
 	}
-	id := base64.RawURLEncoding.EncodeToString(u1[:])
-	res, err := boltdbresumer.New(s.db, torrentsBucket, []byte(id))
+	id = base64.RawURLEncoding.EncodeToString(u1[:])
+	res, err = boltdbresumer.New(s.db, torrentsBucket, []byte(id))
 	if err != nil {
-		return nil, nil, err
+		return
 	}
 	dest := filepath.Join(s.config.DataDir, id)
-	sto, err := filestorage.New(dest)
+	sto, err = filestorage.New(dest)
 	if err != nil {
-		return nil, nil, err
+		return
 	}
-	return &options{
-		id:      id,
-		Port:    port,
-		Resumer: res,
-	}, sto, nil
+	return
 }
 
 func (s *Session) newTorrent(t *torrent, addedAt time.Time) *Torrent {
