@@ -1,7 +1,6 @@
 package torrent
 
 import (
-	"encoding/hex"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -14,8 +13,6 @@ import (
 
 	"github.com/cenkalti/log"
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/metainfo"
-	"github.com/cenkalti/rain/internal/storage/filestorage"
 	"github.com/cenkalti/rain/internal/webseedsource"
 	"github.com/fortytw2/leaktest"
 )
@@ -23,6 +20,7 @@ import (
 var (
 	torrentFile           = filepath.Join("testdata", "sample_torrent.torrent")
 	torrentInfoHashString = "4242e334070406956b87c25f7c36251d32743461"
+	torrentMagnetLink     = "magnet:?xt=urn:btih:" + torrentInfoHashString
 	torrentDataDir        = "testdata"
 	torrentName           = "sample_torrent"
 	timeout               = 10 * time.Second
@@ -32,12 +30,30 @@ func init() {
 	logger.SetLevel(log.DEBUG)
 }
 
-func newFileStorage(t *testing.T, dir string) *filestorage.FileStorage {
-	sto, err := filestorage.New(dir)
+func newTestSession(t *testing.T) (*Session, func()) {
+	tmp, closeTmp := tempdir(t)
+	cfg := DefaultConfig
+	cfg.Database = filepath.Join(tmp, "session.db")
+	cfg.DataDir = tmp
+	cfg.DHTEnabled = false
+	cfg.PEXEnabled = false
+	cfg.RPCEnabled = false
+	s, err := NewSession(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return sto
+	return s, func() {
+		err := s.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		closeTmp()
+	}
+}
+
+func CopyDir(src, dst string) error {
+	cmd := exec.Command("cp", "-a", src, dst)
+	return cmd.Run()
 }
 
 func seeder(t *testing.T) (addr *net.TCPAddr, c func()) {
@@ -46,29 +62,34 @@ func seeder(t *testing.T) (addr *net.TCPAddr, c func()) {
 		t.Fatal(err)
 	}
 	defer f.Close()
-	mi, err := metainfo.New(f)
+	s, closeSession := newTestSession(t)
+	tor, err := s.addTorrentStopped(f)
 	if err != nil {
 		t.Fatal(err)
 	}
-	opt1 := options{
-		Info: mi.Info,
+	src := filepath.Join(torrentDataDir, torrentName)
+	dst := filepath.Join(s.config.DataDir, tor.ID(), torrentName)
+	err = os.Mkdir(filepath.Join(s.config.DataDir, tor.ID()), os.ModeDir|0750)
+	if err != nil {
+		log.Fatal(err)
 	}
-	t1, err := opt1.NewTorrent(mi.Info.Hash[:], newFileStorage(t, torrentDataDir))
+	err = CopyDir(src, dst)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t1.Start()
+	tor.torrent.trackers = nil
+	tor.Start()
 	var port int
 	select {
-	case port = <-t1.NotifyListen():
-	case err = <-t1.NotifyError():
+	case port = <-tor.torrent.NotifyListen():
+	case err = <-tor.torrent.NotifyError():
 		t.Fatal(err)
 	case <-time.After(timeout):
 		t.Fatal("seeder is not ready")
 	}
 	addr = &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: port}
 	return addr, func() {
-		t1.Close()
+		closeSession()
 	}
 }
 
@@ -89,25 +110,15 @@ func TestDownloadMagnet(t *testing.T) {
 	defer leaktest.Check(t)()
 	addr, cl := seeder(t)
 	defer cl()
-	where, clw := tempdir(t)
-	defer clw()
+	s, closeSession := newTestSession(t)
+	defer closeSession()
 
-	opt2 := options{}
-	ih, err := hex.DecodeString(torrentInfoHashString)
+	tor, err := s.AddURI(torrentMagnetLink)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t2, err := opt2.NewTorrent(ih, newFileStorage(t, where))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer t2.Close()
-
-	t2.Start()
-
-	t2.AddPeers([]*net.TCPAddr{addr})
-
-	assertCompleted(t, t2, where)
+	tor.AddPeer(addr)
+	assertCompleted(t, tor)
 }
 
 func webseed(t *testing.T) (port int, c func()) {
@@ -136,10 +147,10 @@ func TestDownloadWebseed(t *testing.T) {
 	defer close1()
 	port2, close2 := webseed(t)
 	defer close2()
-	where, clw := tempdir(t)
-	defer clw()
 	addr, cl := seeder(t)
 	defer cl()
+	s, closeSession := newTestSession(t)
+	defer closeSession()
 
 	f, err := os.Open(torrentFile)
 	if err != nil {
@@ -147,36 +158,23 @@ func TestDownloadWebseed(t *testing.T) {
 	}
 	defer f.Close()
 
-	mi, err := metainfo.New(f)
+	tor, err := s.addTorrentStopped(f)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	opt2 := options{
-		Info: mi.Info,
-	}
-	ih, err := hex.DecodeString(torrentInfoHashString)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t2, err := opt2.NewTorrent(ih, newFileStorage(t, where))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer t2.Close()
-
-	t2.webseedSources = webseedsource.NewList([]string{
+	tor.torrent.webseedSources = webseedsource.NewList([]string{
 		"http://127.0.0.1:" + strconv.Itoa(port1),
 		"http://127.0.0.1:" + strconv.Itoa(port2),
 	})
-	t2.webseedClient = http.DefaultClient
-	t2.Start()
-	t2.AddPeers([]*net.TCPAddr{addr})
+	tor.torrent.webseedClient = http.DefaultClient
+	tor.Start()
+	tor.AddPeer(addr)
 
-	assertCompleted(t, t2, where)
+	assertCompleted(t, tor)
 }
 
-func assertCompleted(t *testing.T, t2 *torrent, where string) {
+func assertCompleted(t *testing.T, tor *Torrent) {
+	t2 := tor.torrent
 	select {
 	case <-t2.NotifyComplete():
 	case err := <-t2.NotifyError():
@@ -184,10 +182,9 @@ func assertCompleted(t *testing.T, t2 *torrent, where string) {
 	case <-time.After(timeout):
 		t.Fatal("download did not finish")
 	}
-
 	cmd := exec.Command("diff", "-rq",
 		filepath.Join(torrentDataDir, torrentName),
-		filepath.Join(where, torrentName))
+		filepath.Join(tor.session.config.DataDir, tor.ID(), torrentName))
 	err := cmd.Run()
 	if err != nil {
 		t.Fatal(err)

@@ -52,7 +52,8 @@ func init() {
 
 // torrent connects to peers and downloads files from swarm.
 type torrent struct {
-	config Config
+	session *Session
+	config  Config
 
 	// Identifies the torrent being downloaded.
 	infoHash [20]byte

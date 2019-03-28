@@ -50,6 +50,7 @@ type options struct {
 	Bitfield *bitfield.Bitfield
 	// Initial stats from previous runs.
 	Stats resumer.Stats
+
 	// Config for downloading torrent. DefaultOptions will be used if nil.
 	Config *Config
 	// Optional DHT node
@@ -63,7 +64,7 @@ type options struct {
 }
 
 // NewTorrent creates a new torrent that downloads the torrent with infoHash and saves the files to the storage.
-func (o *options) NewTorrent(infoHash []byte, sto storage.Storage) (*torrent, error) {
+func (o *options) NewTorrent(s *Session, infoHash []byte, sto storage.Storage) (*torrent, error) {
 	if len(infoHash) != 20 {
 		return nil, errors.New("invalid infoHash (must be 20 bytes)")
 	}
@@ -74,6 +75,7 @@ func (o *options) NewTorrent(infoHash []byte, sto storage.Storage) (*torrent, er
 	var ih [20]byte
 	copy(ih[:], infoHash)
 	t := &torrent{
+		session:                   s,
 		config:                    *cfg,
 		infoHash:                  ih,
 		trackers:                  o.Trackers,
