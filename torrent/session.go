@@ -61,7 +61,7 @@ type Session struct {
 	mPeerRequests   sync.Mutex
 	dhtPeerRequests map[*torrent]struct{} // key is torrent ID
 
-	m                  sync.RWMutex
+	mTorrents          sync.RWMutex
 	torrents           map[string]*Torrent
 	torrentsByInfoHash map[dht.InfoHash][]*Torrent
 
@@ -213,7 +213,7 @@ func (s *Session) updateStatsLoop() {
 func (s *Session) updateStats() {
 	err := s.db.Update(func(tx *bolt.Tx) error {
 		mb := tx.Bucket(torrentsBucket)
-		s.m.RLock()
+		s.mTorrents.RLock()
 		for _, t := range s.torrents {
 			b := mb.Bucket([]byte(t.torrent.id))
 			_ = b.Put(boltdbresumer.Keys.BytesDownloaded, []byte(strconv.FormatInt(atomic.LoadInt64(&t.torrent.resumerStats.BytesDownloaded), 10)))
@@ -222,7 +222,7 @@ func (s *Session) updateStats() {
 			_ = b.Put(boltdbresumer.Keys.BytesWasted, []byte(strconv.FormatInt(atomic.LoadInt64(&t.torrent.resumerStats.BytesWasted), 10)))
 			_ = b.Put(boltdbresumer.Keys.SeededFor, []byte(time.Duration(atomic.LoadInt64(&t.torrent.resumerStats.SeededFor)).String()))
 		}
-		s.m.RUnlock()
+		s.mTorrents.RUnlock()
 		return nil
 	})
 	if err != nil {
@@ -402,7 +402,7 @@ func (s *Session) Close() error {
 	s.updateStats()
 
 	var wg sync.WaitGroup
-	s.m.Lock()
+	s.mTorrents.Lock()
 	wg.Add(len(s.torrents))
 	for _, t := range s.torrents {
 		go func(t *Torrent) {
@@ -412,7 +412,7 @@ func (s *Session) Close() error {
 	}
 	wg.Wait()
 	s.torrents = nil
-	s.m.Unlock()
+	s.mTorrents.Unlock()
 
 	if s.rpc != nil {
 		err := s.rpc.Stop(s.config.RPCShutdownTimeout)
@@ -427,8 +427,8 @@ func (s *Session) Close() error {
 }
 
 func (s *Session) ListTorrents() []*Torrent {
-	s.m.RLock()
-	defer s.m.RUnlock()
+	s.mTorrents.RLock()
+	defer s.mTorrents.RUnlock()
 	torrents := make([]*Torrent, 0, len(s.torrents))
 	for _, t := range s.torrents {
 		torrents = append(torrents, t)
@@ -614,8 +614,8 @@ func (s *Session) newTorrent(t *torrent, addedAt time.Time) *Torrent {
 		addedAt: addedAt,
 		removed: make(chan struct{}),
 	}
-	s.m.Lock()
-	defer s.m.Unlock()
+	s.mTorrents.Lock()
+	defer s.mTorrents.Unlock()
 	s.torrents[t.id] = t2
 	ih := dht.InfoHash(t.InfoHash())
 	s.torrentsByInfoHash[ih] = append(s.torrentsByInfoHash[ih], t2)
@@ -639,8 +639,8 @@ func (s *Session) releasePort(port int) {
 }
 
 func (s *Session) GetTorrent(id string) *Torrent {
-	s.m.RLock()
-	defer s.m.RUnlock()
+	s.mTorrents.RLock()
+	defer s.mTorrents.RUnlock()
 	return s.torrents[id]
 }
 
@@ -653,8 +653,8 @@ func (s *Session) RemoveTorrent(id string) error {
 }
 
 func (s *Session) removeTorrentFromClient(id string) (*Torrent, error) {
-	s.m.Lock()
-	defer s.m.Unlock()
+	s.mTorrents.Lock()
+	defer s.mTorrents.Unlock()
 	t, ok := s.torrents[id]
 	if !ok {
 		return nil, nil
@@ -678,9 +678,9 @@ func (s *Session) stopAndRemoveData(t *Torrent) {
 }
 
 func (s *Session) Stats() SessionStats {
-	s.m.RLock()
+	s.mTorrents.RLock()
 	torrents := len(s.torrents)
-	s.m.RUnlock()
+	s.mTorrents.RUnlock()
 
 	s.mPorts.RLock()
 	ports := len(s.availablePorts)
@@ -713,12 +713,12 @@ func (s *Session) Stats() SessionStats {
 func (s *Session) StartAll() error {
 	err := s.db.Update(func(tx *bolt.Tx) error {
 		tb := tx.Bucket(torrentsBucket)
-		s.m.RLock()
+		s.mTorrents.RLock()
 		for _, t := range s.torrents {
 			b := tb.Bucket([]byte(t.torrent.id))
 			_ = b.Put([]byte("started"), []byte("1"))
 		}
-		defer s.m.RUnlock()
+		defer s.mTorrents.RUnlock()
 		return nil
 	})
 	if err != nil {
@@ -733,12 +733,12 @@ func (s *Session) StartAll() error {
 func (s *Session) StopAll() error {
 	err := s.db.Update(func(tx *bolt.Tx) error {
 		tb := tx.Bucket(torrentsBucket)
-		s.m.RLock()
+		s.mTorrents.RLock()
 		for _, t := range s.torrents {
 			b := tb.Bucket([]byte(t.torrent.id))
 			_ = b.Put([]byte("started"), []byte("0"))
 		}
-		defer s.m.RUnlock()
+		defer s.mTorrents.RUnlock()
 		return nil
 	})
 	if err != nil {
