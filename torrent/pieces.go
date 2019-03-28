@@ -9,7 +9,7 @@ import (
 
 func (t *torrent) deferWriteBitfield() {
 	if t.resumeWriteTimer == nil {
-		t.resumeWriteTimer = time.NewTimer(t.config.BitfieldWriteInterval)
+		t.resumeWriteTimer = time.NewTimer(t.session.config.BitfieldWriteInterval)
 		t.resumeWriteTimerC = t.resumeWriteTimer.C
 	}
 }

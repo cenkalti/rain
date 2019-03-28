@@ -81,7 +81,7 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 	msg.Buffer.Release()
 	if !pd.Done() {
 		if pd.AllowedFast || !pd.Peer.(*peer.Peer).PeerChoking {
-			pd.RequestBlocks(t.config.RequestQueueLength)
+			pd.RequestBlocks(t.session.config.RequestQueueLength)
 			pe.ResetSnubTimer()
 		}
 		return
@@ -185,7 +185,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			break
 		}
 		delete(t.pieceDownloadersChoked, pd.Peer.(*peer.Peer))
-		pd.RequestBlocks(t.config.RequestQueueLength)
+		pd.RequestBlocks(t.session.config.RequestQueueLength)
 		pe.ResetSnubTimer()
 		if t.piecePicker != nil {
 			t.piecePicker.HandleUnchoke(pe, pd.Piece.Index)
@@ -235,7 +235,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 				pe.SendMessage(m)
 			}
 		} else {
-			if t.pieceCache != nil {
+			if t.session.pieceCache != nil {
 				pe.SendPiece(msg, t.cachedPiece(pi))
 			} else {
 				pe.SendPiece(msg, pi.Data)
@@ -303,7 +303,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 		if _, ok := msg.M[peerprotocol.ExtensionKeyMetadata]; ok {
 			t.startInfoDownloaders()
 		}
-		if t.config.PEXEnabled {
+		if t.session.config.PEXEnabled {
 			if _, ok := msg.M[peerprotocol.ExtensionKeyPEX]; ok {
 				if t.info != nil && t.info.Private != 1 {
 					pe.StartPEX(t.peers)
@@ -313,7 +313,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 	case peerprotocol.ExtensionMetadataMessage:
 		t.handleMetadataMessage(pe, msg)
 	case peerprotocol.ExtensionPEXMessage:
-		if !t.config.PEXEnabled {
+		if !t.session.config.PEXEnabled {
 			break
 		}
 		addrs, err := tracker.DecodePeersCompact([]byte(msg.Added))

@@ -50,7 +50,7 @@ func (t *torrent) dialAddresses() {
 	peersConnected := func() int {
 		return len(t.outgoingPeers) + len(t.outgoingHandshakers)
 	}
-	for peersConnected() < t.config.MaxPeerDial {
+	for peersConnected() < t.session.config.MaxPeerDial {
 		addr, src := t.addrList.Pop()
 		if addr == nil {
 			t.setNeedMorePeers(true)
@@ -64,14 +64,14 @@ func (t *torrent) dialAddresses() {
 		t.outgoingHandshakers[h] = struct{}{}
 		t.connectedPeerIPs[ip] = struct{}{}
 		go h.Run(
-			t.config.PeerConnectTimeout,
-			t.config.PeerHandshakeTimeout,
+			t.session.config.PeerConnectTimeout,
+			t.session.config.PeerHandshakeTimeout,
 			t.peerID,
 			t.infoHash,
 			t.outgoingHandshakerResultC,
 			ourExtensions,
-			t.config.DisableOutgoingEncryption,
-			t.config.ForceOutgoingEncryption,
+			t.session.config.DisableOutgoingEncryption,
+			t.session.config.ForceOutgoingEncryption,
 		)
 	}
 }
@@ -95,7 +95,7 @@ func (t *torrent) startPeer(
 	}
 	t.peerIDs[peerID] = struct{}{}
 
-	pe := peer.New(p, source, peerID, extensions, cipher, t.config.RequestTimeout)
+	pe := peer.New(p, source, peerID, extensions, cipher, t.session.config.RequestTimeout)
 	t.peers[pe] = struct{}{}
 	peers[pe] = struct{}{}
 	if t.info != nil {
@@ -125,7 +125,7 @@ func (t *torrent) sendFirstMessage(p *peer.Peer) {
 		metadataSize = uint32(len(t.info.Bytes))
 	}
 	if p.ExtensionsEnabled {
-		extHandshakeMsg := peerprotocol.NewExtensionHandshake(metadataSize, t.config.ExtensionHandshakeClientVersion, p.Addr().IP)
+		extHandshakeMsg := peerprotocol.NewExtensionHandshake(metadataSize, t.session.config.ExtensionHandshakeClientVersion, p.Addr().IP)
 		msg := peerprotocol.ExtensionMessage{
 			ExtendedMessageID: peerprotocol.ExtensionIDHandshake,
 			Payload:           extHandshakeMsg,

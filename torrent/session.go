@@ -317,15 +317,11 @@ func (s *Session) loadExistingTorrents(ids []string) {
 			continue
 		}
 		opt := options{
-			id:         id,
-			Name:       spec.Name,
-			Port:       spec.Port,
-			Trackers:   s.parseTrackers(spec.Trackers),
-			Resumer:    res,
-			Blocklist:  s.blocklist,
-			PieceCache: s.pieceCache,
-			RAM:        s.ram,
-			Config:     &s.config,
+			id:       id,
+			Name:     spec.Name,
+			Port:     spec.Port,
+			Trackers: s.parseTrackers(spec.Trackers),
+			Resumer:  res,
 			Stats: resumer.Stats{
 				BytesDownloaded: spec.BytesDownloaded,
 				BytesUploaded:   spec.BytesUploaded,
@@ -604,13 +600,9 @@ func (s *Session) add() (*options, *filestorage.FileStorage, string, error) {
 		return nil, nil, "", err
 	}
 	return &options{
-		id:         id,
-		Port:       port,
-		Resumer:    res,
-		Blocklist:  s.blocklist,
-		PieceCache: s.pieceCache,
-		RAM:        s.ram,
-		Config:     &s.config,
+		id:      id,
+		Port:    port,
+		Resumer: res,
 	}, sto, id, nil
 }
 

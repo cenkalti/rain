@@ -7,14 +7,14 @@ import (
 )
 
 func (t *torrent) handleNewConnection(conn net.Conn) {
-	if len(t.incomingHandshakers)+len(t.incomingPeers) >= t.config.MaxPeerAccept {
+	if len(t.incomingHandshakers)+len(t.incomingPeers) >= t.session.config.MaxPeerAccept {
 		t.log.Debugln("peer limit reached, rejecting peer", conn.RemoteAddr().String())
 		conn.Close()
 		return
 	}
 	ip := conn.RemoteAddr().(*net.TCPAddr).IP
 	ipstr := ip.String()
-	if t.blocklist != nil && t.blocklist.Blocked(ip) {
+	if t.session.blocklist != nil && t.session.blocklist.Blocked(ip) {
 		t.log.Debugln("peer is blocked:", conn.RemoteAddr().String())
 		conn.Close()
 		return
@@ -37,8 +37,8 @@ func (t *torrent) handleNewConnection(conn net.Conn) {
 		t.getSKey,
 		t.checkInfoHash,
 		t.incomingHandshakerResultC,
-		t.config.PeerHandshakeTimeout,
+		t.session.config.PeerHandshakeTimeout,
 		ourExtensions,
-		t.config.ForceIncomingEncryption,
+		t.session.config.ForceIncomingEncryption,
 	)
 }

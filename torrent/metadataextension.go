@@ -66,7 +66,7 @@ func (t *torrent) handleMetadataMessage(pe *peer.Peer, msg peerprotocol.Extensio
 			break
 		}
 		if !id.Done() {
-			id.RequestBlocks(t.config.RequestQueueLength)
+			id.RequestBlocks(t.session.config.RequestQueueLength)
 			pe.ResetSnubTimer()
 			break
 		}

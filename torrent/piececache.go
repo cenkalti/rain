@@ -17,8 +17,8 @@ type cachedPiece struct {
 func (t *torrent) cachedPiece(pi *piece.Piece) *cachedPiece {
 	return &cachedPiece{
 		pi:       pi,
-		cache:    t.pieceCache,
-		readSize: t.config.PieceReadSize,
+		cache:    t.session.pieceCache,
+		readSize: t.session.config.PieceReadSize,
 		peerID:   t.peerID[:],
 	}
 }

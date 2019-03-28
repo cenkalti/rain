@@ -12,7 +12,6 @@ import (
 	"github.com/cenkalti/rain/internal/allocator"
 	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/bitfield"
-	"github.com/cenkalti/rain/internal/blocklist"
 	"github.com/cenkalti/rain/internal/bufferpool"
 	"github.com/cenkalti/rain/internal/handshaker/incominghandshaker"
 	"github.com/cenkalti/rain/internal/handshaker/outgoinghandshaker"
@@ -21,11 +20,9 @@ import (
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/piece"
-	"github.com/cenkalti/rain/internal/piececache"
 	"github.com/cenkalti/rain/internal/piecedownloader"
 	"github.com/cenkalti/rain/internal/piecepicker"
 	"github.com/cenkalti/rain/internal/piecewriter"
-	"github.com/cenkalti/rain/internal/resourcemanager"
 	"github.com/cenkalti/rain/internal/resumer"
 	"github.com/cenkalti/rain/internal/storage"
 	"github.com/cenkalti/rain/internal/suspendchan"
@@ -53,7 +50,6 @@ func init() {
 // torrent connects to peers and downloads files from swarm.
 type torrent struct {
 	session *Session
-	config  Config
 
 	// Identifies the torrent being downloaded.
 	infoHash [20]byte
@@ -232,12 +228,6 @@ type torrent struct {
 	resumeWriteTimer  *time.Timer
 	resumeWriteTimerC <-chan time.Time
 
-	// Keeps blocks read from disk in memory.
-	pieceCache *piececache.Cache
-
-	// Optional list of IP addresses to block.
-	blocklist *blocklist.Blocklist
-
 	// Used to calculate canonical peer priority (BEP 40).
 	// Initialized with value found in network interfaces.
 	// Then, updated from "yourip" field in BEP 10 extension handshake message.
@@ -248,7 +238,6 @@ type torrent struct {
 	uploadSpeed        metrics.EWMA
 	speedCounterTicker *time.Ticker
 
-	ram        *resourcemanager.ResourceManager
 	ramNotifyC chan interface{}
 
 	webseedClient       *http.Client

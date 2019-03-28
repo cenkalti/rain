@@ -8,7 +8,6 @@ import (
 	"github.com/cenkalti/rain/internal/addrlist"
 	"github.com/cenkalti/rain/internal/allocator"
 	"github.com/cenkalti/rain/internal/bitfield"
-	"github.com/cenkalti/rain/internal/blocklist"
 	"github.com/cenkalti/rain/internal/bufferpool"
 	"github.com/cenkalti/rain/internal/externalip"
 	"github.com/cenkalti/rain/internal/handshaker/incominghandshaker"
@@ -18,10 +17,8 @@ import (
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/mse"
 	"github.com/cenkalti/rain/internal/peer"
-	"github.com/cenkalti/rain/internal/piececache"
 	"github.com/cenkalti/rain/internal/piecedownloader"
 	"github.com/cenkalti/rain/internal/piecewriter"
-	"github.com/cenkalti/rain/internal/resourcemanager"
 	"github.com/cenkalti/rain/internal/resumer"
 	"github.com/cenkalti/rain/internal/storage"
 	"github.com/cenkalti/rain/internal/suspendchan"
@@ -51,16 +48,8 @@ type options struct {
 	// Initial stats from previous runs.
 	Stats resumer.Stats
 
-	// Config for downloading torrent. DefaultOptions will be used if nil.
-	Config *Config
 	// Optional DHT node
 	DHT *dhtAnnouncer
-	// Optional blocklist to prevent connection to blocked IP addresses.
-	Blocklist *blocklist.Blocklist
-	// Pieces read from disk are cached in memory for a while.
-	PieceCache *piececache.Cache
-	// Optional resource manager instance.
-	RAM *resourcemanager.ResourceManager
 }
 
 // NewTorrent creates a new torrent that downloads the torrent with infoHash and saves the files to the storage.
@@ -68,15 +57,11 @@ func (o *options) NewTorrent(s *Session, infoHash []byte, sto storage.Storage) (
 	if len(infoHash) != 20 {
 		return nil, errors.New("invalid infoHash (must be 20 bytes)")
 	}
-	cfg := o.Config
-	if cfg == nil {
-		cfg = &DefaultConfig
-	}
+	cfg := s.config
 	var ih [20]byte
 	copy(ih[:], infoHash)
 	t := &torrent{
 		session:                   s,
-		config:                    *cfg,
 		infoHash:                  ih,
 		trackers:                  o.Trackers,
 		name:                      o.Name,
@@ -128,19 +113,16 @@ func (o *options) NewTorrent(s *Session, infoHash []byte, sto storage.Storage) (
 		bannedPeerIPs:             make(map[string]struct{}),
 		announcersStoppedC:        make(chan struct{}),
 		dhtNode:                   o.DHT,
-		pieceCache:                o.PieceCache,
 		resumerStats:              o.Stats,
-		blocklist:                 o.Blocklist,
 		externalIP:                externalip.FirstExternalIP(),
 		downloadSpeed:             metrics.NewEWMA1(),
 		uploadSpeed:               metrics.NewEWMA1(),
-		ram:                       o.RAM,
 		ramNotifyC:                make(chan interface{}),
 		webseedPieceResultC:       suspendchan.New(0),
 		webseedRetryC:             make(chan *webseedsource.WebseedSource),
 		doneC:                     make(chan struct{}),
 	}
-	t.addrList = addrlist.New(cfg.MaxPeerAddresses, o.Blocklist, o.Port, &t.externalIP)
+	t.addrList = addrlist.New(cfg.MaxPeerAddresses, s.blocklist, o.Port, &t.externalIP)
 	copy(t.peerID[:], []byte(cfg.PeerIDPrefix))
 	if t.info != nil {
 		t.piecePool = bufferpool.New(int(t.info.PieceLength))

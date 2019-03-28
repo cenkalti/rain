@@ -76,15 +76,15 @@ func (t *torrent) startAnnouncers() {
 	}
 	if t.dhtNode != nil && t.dhtAnnouncer == nil {
 		t.dhtAnnouncer = announcer.NewDHTAnnouncer()
-		go t.dhtAnnouncer.Run(t.dhtNode.Announce, t.config.DHTAnnounceInterval, t.config.DHTMinAnnounceInterval, t.log)
+		go t.dhtAnnouncer.Run(t.dhtNode.Announce, t.session.config.DHTAnnounceInterval, t.session.config.DHTMinAnnounceInterval, t.log)
 	}
 }
 
 func (t *torrent) startNewAnnouncer(tr tracker.Tracker) {
 	an := announcer.NewPeriodicalAnnouncer(
 		tr,
-		t.config.TrackerNumWant,
-		t.config.TrackerMinAnnounceInterval,
+		t.session.config.TrackerNumWant,
+		t.session.config.TrackerMinAnnounceInterval,
 		t.announcerFields,
 		t.completeC,
 		t.addrsFromTrackers,
@@ -114,13 +114,13 @@ func (t *torrent) startInfoDownloaders() {
 	if t.info != nil {
 		return
 	}
-	for len(t.infoDownloaders)-len(t.infoDownloadersSnubbed) < t.config.ParallelMetadataDownloads {
+	for len(t.infoDownloaders)-len(t.infoDownloadersSnubbed) < t.session.config.ParallelMetadataDownloads {
 		id := t.nextInfoDownload()
 		if id == nil {
 			break
 		}
 		t.infoDownloaders[id.Peer.(*peer.Peer)] = id
-		id.RequestBlocks(t.config.RequestQueueLength)
+		id.RequestBlocks(t.session.config.RequestQueueLength)
 		id.Peer.(*peer.Peer).ResetSnubTimer()
 	}
 }
@@ -168,18 +168,18 @@ func (t *torrent) startWebseedDownloader(sp *piecepicker.WebseedDownloadSpec) {
 		src.LastError = nil
 		break
 	}
-	go ud.Run(t.webseedClient, t.pieces, t.info.MultiFile(), t.webseedPieceResultC.SendC(), t.piecePool, &t.piecePicker.MutexWebseed, t.config.WebseedResponseBodyReadTimeout)
+	go ud.Run(t.webseedClient, t.pieces, t.info.MultiFile(), t.webseedPieceResultC.SendC(), t.piecePool, &t.piecePicker.MutexWebseed, t.session.config.WebseedResponseBodyReadTimeout)
 }
 
 func (t *torrent) startPieceDownloaderFor(pe *peer.Peer) {
 	if t.status() != Downloading {
 		return
 	}
-	if t.ram == nil {
+	if t.session.ram == nil {
 		t.startSinglePieceDownloader(pe)
 		return
 	}
-	ok := t.ram.Request(string(t.peerID[:]), pe, int64(t.info.PieceLength), t.ramNotifyC, pe.Done())
+	ok := t.session.ram.Request(string(t.peerID[:]), pe, int64(t.info.PieceLength), t.ramNotifyC, pe.Done())
 	if ok {
 		t.startSinglePieceDownloader(pe)
 	}
@@ -188,8 +188,8 @@ func (t *torrent) startPieceDownloaderFor(pe *peer.Peer) {
 func (t *torrent) startSinglePieceDownloader(pe *peer.Peer) {
 	var started bool
 	defer func() {
-		if !started && t.ram != nil {
-			t.ram.Release(int64(t.info.PieceLength))
+		if !started && t.session.ram != nil {
+			t.session.ram.Release(int64(t.info.PieceLength))
 		}
 	}()
 	if t.status() != Downloading {
@@ -205,7 +205,7 @@ func (t *torrent) startSinglePieceDownloader(pe *peer.Peer) {
 	}
 	t.pieceDownloaders[pe] = pd
 	pe.Downloading = true
-	pd.RequestBlocks(t.config.RequestQueueLength)
+	pd.RequestBlocks(t.session.config.RequestQueueLength)
 	pe.ResetSnubTimer()
 	started = true
 }

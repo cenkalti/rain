@@ -3,7 +3,7 @@ package torrent
 import "net"
 
 func (t *torrent) pexAddPeer(addr *net.TCPAddr) {
-	if !t.config.PEXEnabled {
+	if !t.session.config.PEXEnabled {
 		return
 	}
 	for pe := range t.peers {
@@ -14,7 +14,7 @@ func (t *torrent) pexAddPeer(addr *net.TCPAddr) {
 }
 
 func (t *torrent) pexDropPeer(addr *net.TCPAddr) {
-	if !t.config.PEXEnabled {
+	if !t.session.config.PEXEnabled {
 		return
 	}
 	for pe := range t.peers {
