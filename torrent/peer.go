@@ -27,19 +27,20 @@ func (t *torrent) handleNewPeers(addrs []*net.TCPAddr, source peer.Source) {
 		return
 	}
 	if !t.completed {
-		t.filterBannedIPs(addrs)
+		addrs = t.filterBannedIPs(addrs)
 		t.addrList.Push(addrs, source)
 		t.dialAddresses()
 	}
 }
 
-func (t *torrent) filterBannedIPs(a []*net.TCPAddr) {
+func (t *torrent) filterBannedIPs(a []*net.TCPAddr) []*net.TCPAddr {
 	b := a[:0]
 	for _, x := range a {
 		if _, ok := t.bannedPeerIPs[x.IP.String()]; !ok {
 			b = append(b, x)
 		}
 	}
+	return b
 }
 
 func (t *torrent) dialAddresses() {
