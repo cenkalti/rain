@@ -88,8 +88,6 @@ type Config struct {
 	PeerHandshakeTimeout time.Duration
 	// When peer has started to send piece block, if it does not send any bytes in PieceReadTimeout, the connection is closed.
 	PieceReadTimeout time.Duration
-	// Buffer size for messages read from a single peer
-	PeerReadBufferSize int
 	// Max number of peer addresses to keep in connect queue.
 	MaxPeerAddresses int
 
@@ -167,7 +165,6 @@ var DefaultConfig = Config{
 	PeerConnectTimeout:           5 * time.Second,
 	PeerHandshakeTimeout:         10 * time.Second,
 	PieceReadTimeout:             30 * time.Second,
-	PeerReadBufferSize:           17,
 	MaxPeerAddresses:             2000,
 
 	// Piece cache

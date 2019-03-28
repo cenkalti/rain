@@ -21,10 +21,10 @@ type Conn struct {
 	doneC    chan struct{}
 }
 
-func New(conn net.Conn, l logger.Logger, pieceTimeout time.Duration, readBufferSize int) *Conn {
+func New(conn net.Conn, l logger.Logger, pieceTimeout time.Duration) *Conn {
 	return &Conn{
 		conn:     conn,
-		reader:   peerreader.New(conn, l, pieceTimeout, readBufferSize),
+		reader:   peerreader.New(conn, l, pieceTimeout),
 		writer:   peerwriter.New(conn, l),
 		messages: make(chan interface{}),
 		log:      l,

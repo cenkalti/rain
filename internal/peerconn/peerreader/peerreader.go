@@ -20,13 +20,15 @@ const (
 	MaxBlockSize = 16 * 1024
 	// time to wait for a message. peer must send keep-alive messages to keep connection alive.
 	readTimeout = 2 * time.Minute
+	// length + msgid + requestmsg
+	readBufferSize = 4 + 1 + 12
 )
 
 var blockPool = bufferpool.New(piece.BlockSize)
 
 type PeerReader struct {
 	conn         net.Conn
-	buf          *bufio.Reader
+	r            io.Reader
 	log          logger.Logger
 	pieceTimeout time.Duration
 	messages     chan interface{}
@@ -34,10 +36,10 @@ type PeerReader struct {
 	doneC        chan struct{}
 }
 
-func New(conn net.Conn, l logger.Logger, pieceTimeout time.Duration, bufferSize int) *PeerReader {
+func New(conn net.Conn, l logger.Logger, pieceTimeout time.Duration) *PeerReader {
 	return &PeerReader{
 		conn:         conn,
-		buf:          bufio.NewReaderSize(conn, bufferSize),
+		r:            bufio.NewReaderSize(conn, readBufferSize),
 		log:          l,
 		pieceTimeout: pieceTimeout,
 		messages:     make(chan interface{}),
@@ -88,7 +90,7 @@ func (p *PeerReader) Run() {
 
 		var length uint32
 		// p.log.Debug("Reading message...")
-		err = binary.Read(p.buf, binary.BigEndian, &length)
+		err = binary.Read(p.r, binary.BigEndian, &length)
 		if err != nil {
 			return
 		}
@@ -100,7 +102,7 @@ func (p *PeerReader) Run() {
 		}
 
 		var id peerprotocol.MessageID
-		err = binary.Read(p.buf, binary.BigEndian, &id)
+		err = binary.Read(p.r, binary.BigEndian, &id)
 		if err != nil {
 			return
 		}
@@ -125,7 +127,7 @@ func (p *PeerReader) Run() {
 			msg = peerprotocol.NotInterestedMessage{}
 		case peerprotocol.Have:
 			var hm peerprotocol.HaveMessage
-			err = binary.Read(p.buf, binary.BigEndian, &hm)
+			err = binary.Read(p.r, binary.BigEndian, &hm)
 			if err != nil {
 				return
 			}
@@ -137,14 +139,14 @@ func (p *PeerReader) Run() {
 			}
 			var bm peerprotocol.BitfieldMessage
 			bm.Data = make([]byte, length)
-			_, err = io.ReadFull(p.buf, bm.Data)
+			_, err = io.ReadFull(p.r, bm.Data)
 			if err != nil {
 				return
 			}
 			msg = bm
 		case peerprotocol.Request:
 			var rm peerprotocol.RequestMessage
-			err = binary.Read(p.buf, binary.BigEndian, &rm)
+			err = binary.Read(p.r, binary.BigEndian, &rm)
 			if err != nil {
 				return
 			}
@@ -157,7 +159,7 @@ func (p *PeerReader) Run() {
 			msg = rm
 		case peerprotocol.Reject:
 			var rm peerprotocol.RejectMessage
-			err = binary.Read(p.buf, binary.BigEndian, &rm)
+			err = binary.Read(p.r, binary.BigEndian, &rm)
 			if err != nil {
 				return
 			}
@@ -165,14 +167,14 @@ func (p *PeerReader) Run() {
 			msg = rm
 		case peerprotocol.Cancel:
 			var cm peerprotocol.CancelMessage
-			err = binary.Read(p.buf, binary.BigEndian, &cm)
+			err = binary.Read(p.r, binary.BigEndian, &cm)
 			if err != nil {
 				return
 			}
 			msg = cm
 		case peerprotocol.Piece:
 			var pm peerprotocol.PieceMessage
-			err = binary.Read(p.buf, binary.BigEndian, &pm)
+			err = binary.Read(p.r, binary.BigEndian, &pm)
 			if err != nil {
 				return
 			}
@@ -201,14 +203,14 @@ func (p *PeerReader) Run() {
 			msg = peerprotocol.HaveNoneMessage{}
 		case peerprotocol.AllowedFast:
 			var am peerprotocol.AllowedFastMessage
-			err = binary.Read(p.buf, binary.BigEndian, &am)
+			err = binary.Read(p.r, binary.BigEndian, &am)
 			if err != nil {
 				return
 			}
 			msg = am
 		case peerprotocol.Extension:
 			buf := make([]byte, length)
-			_, err = io.ReadFull(p.buf, buf)
+			_, err = io.ReadFull(p.r, buf)
 			if err != nil {
 				return
 			}
@@ -221,7 +223,7 @@ func (p *PeerReader) Run() {
 		default:
 			p.log.Debugf("unhandled message type: %s", id)
 			p.log.Debugln("Discarding", length, "bytes...")
-			_, err = io.CopyN(ioutil.Discard, p.buf, int64(length))
+			_, err = io.CopyN(ioutil.Discard, p.r, int64(length))
 			if err != nil {
 				return
 			}
@@ -256,7 +258,7 @@ func (p *PeerReader) readPiece(length uint32) (buf bufferpool.Buffer, err error)
 		if err != nil {
 			return
 		}
-		n, err = io.ReadFull(p.buf, buf.Data[m:])
+		n, err = io.ReadFull(p.r, buf.Data[m:])
 		if err != nil {
 			if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
 				// Peer didn't send the full block in allowed time.
