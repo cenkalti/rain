@@ -10,13 +10,12 @@ import (
 )
 
 type Torrent struct {
-	id           string
-	addedAt      time.Time
-	port         int
-	dhtAnnouncer *dhtAnnouncer
-	session      *Session
-	torrent      *torrent
-	removed      chan struct{}
+	id      string
+	addedAt time.Time
+	port    int
+	session *Session
+	torrent *torrent
+	removed chan struct{}
 }
 
 type InfoHash [20]byte

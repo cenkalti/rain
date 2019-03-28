@@ -50,6 +50,7 @@ func init() {
 // torrent connects to peers and downloads files from swarm.
 type torrent struct {
 	session *Session
+	id      string
 
 	// Identifies the torrent being downloaded.
 	infoHash [20]byte
@@ -178,7 +179,6 @@ type torrent struct {
 	stoppedEventAnnouncer *announcer.StopAnnouncer
 
 	// If not nil, torrent is announced to DHT periodically.
-	dhtNode      *dhtAnnouncer
 	dhtAnnouncer *announcer.DHTAnnouncer
 	dhtPeersC    chan []*net.TCPAddr
 
@@ -260,4 +260,10 @@ func (t *torrent) InfoHash() []byte {
 	b := make([]byte, 20)
 	copy(b, t.infoHash[:])
 	return b
+}
+
+func (t *torrent) announceDHT() {
+	t.session.mPeerRequests.Lock()
+	t.session.dhtPeerRequests[t] = struct{}{}
+	t.session.mPeerRequests.Unlock()
 }

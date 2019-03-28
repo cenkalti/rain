@@ -68,15 +68,14 @@ func (t *torrent) startAllocator() {
 }
 
 func (t *torrent) startAnnouncers() {
-	if len(t.announcers) > 0 {
-		return
+	if len(t.announcers) == 0 {
+		for _, tr := range t.trackers {
+			t.startNewAnnouncer(tr)
+		}
 	}
-	for _, tr := range t.trackers {
-		t.startNewAnnouncer(tr)
-	}
-	if t.dhtNode != nil && t.dhtAnnouncer == nil {
+	if t.dhtAnnouncer == nil && t.session.config.DHTEnabled && (t.info == nil || t.info.Private != 1) {
 		t.dhtAnnouncer = announcer.NewDHTAnnouncer()
-		go t.dhtAnnouncer.Run(t.dhtNode.Announce, t.session.config.DHTAnnounceInterval, t.session.config.DHTMinAnnounceInterval, t.log)
+		go t.dhtAnnouncer.Run(t.announceDHT, t.session.config.DHTAnnounceInterval, t.session.config.DHTMinAnnounceInterval, t.log)
 	}
 }
 

@@ -47,9 +47,6 @@ type options struct {
 	Bitfield *bitfield.Bitfield
 	// Initial stats from previous runs.
 	Stats resumer.Stats
-
-	// Optional DHT node
-	DHT *dhtAnnouncer
 }
 
 // NewTorrent creates a new torrent that downloads the torrent with infoHash and saves the files to the storage.
@@ -62,6 +59,7 @@ func (o *options) NewTorrent(s *Session, infoHash []byte, sto storage.Storage) (
 	copy(ih[:], infoHash)
 	t := &torrent{
 		session:                   s,
+		id:                        o.id,
 		infoHash:                  ih,
 		trackers:                  o.Trackers,
 		name:                      o.Name,
@@ -112,7 +110,7 @@ func (o *options) NewTorrent(s *Session, infoHash []byte, sto storage.Storage) (
 		connectedPeerIPs:          make(map[string]struct{}),
 		bannedPeerIPs:             make(map[string]struct{}),
 		announcersStoppedC:        make(chan struct{}),
-		dhtNode:                   o.DHT,
+		dhtPeersC:                 make(chan []*net.TCPAddr, 1),
 		resumerStats:              o.Stats,
 		externalIP:                externalip.FirstExternalIP(),
 		downloadSpeed:             metrics.NewEWMA1(),
@@ -130,9 +128,6 @@ func (o *options) NewTorrent(s *Session, infoHash []byte, sto storage.Storage) (
 	_, err := rand.Read(t.peerID[len(cfg.PeerIDPrefix):]) // nolint: gosec
 	if err != nil {
 		return nil, err
-	}
-	if t.dhtNode != nil {
-		t.dhtPeersC = t.dhtNode.Peers()
 	}
 	t.unchoker = unchoker.New(cfg.UnchokedPeers, cfg.OptimisticUnchokedPeers)
 	go t.run()

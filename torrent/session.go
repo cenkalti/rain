@@ -59,7 +59,7 @@ type Session struct {
 	closeC         chan struct{}
 
 	mPeerRequests   sync.Mutex
-	dhtPeerRequests map[*dhtAnnouncer]struct{}
+	dhtPeerRequests map[*torrent]struct{} // key is torrent ID
 
 	m                  sync.RWMutex
 	torrents           map[string]*Torrent
@@ -182,7 +182,7 @@ func NewSession(cfg Config) (*Session, error) {
 		return nil, err
 	}
 	if cfg.DHTEnabled {
-		c.dhtPeerRequests = make(map[*dhtAnnouncer]struct{})
+		c.dhtPeerRequests = make(map[*torrent]struct{})
 		go c.processDHTResults()
 	}
 	c.loadExistingTorrents(ids)
@@ -246,7 +246,7 @@ func (s *Session) processDHTResults() {
 				addrs := parseDHTPeers(peers)
 				for _, t := range torrents {
 					select {
-					case t.dhtAnnouncer.peersC <- addrs:
+					case t.torrent.dhtPeersC <- addrs:
 					case <-t.removed:
 					default:
 					}
@@ -261,9 +261,9 @@ func (s *Session) processDHTResults() {
 func (s *Session) handleDHTtick() {
 	s.mPeerRequests.Lock()
 	defer s.mPeerRequests.Unlock()
-	for ann := range s.dhtPeerRequests {
-		s.dht.PeersRequestPort(ann.infoHash, true, ann.port)
-		delete(s.dhtPeerRequests, ann)
+	for t := range s.dhtPeerRequests {
+		s.dht.PeersRequestPort(string(t.infoHash[:]), true, t.port)
+		delete(s.dhtPeerRequests, t)
 		return
 	}
 }
@@ -329,8 +329,6 @@ func (s *Session) loadExistingTorrents(ids []string) {
 				SeededFor:       int64(spec.SeededFor),
 			},
 		}
-		var private bool
-		var ann *dhtAnnouncer
 		if len(spec.Info) > 0 {
 			info, err2 := metainfo.NewInfo(spec.Info)
 			if err2 != nil {
@@ -338,7 +336,6 @@ func (s *Session) loadExistingTorrents(ids []string) {
 				continue
 			}
 			opt.Info = info
-			private = info.Private == 1
 			if len(spec.Bitfield) > 0 {
 				bf, err3 := bitfield.NewBytes(spec.Bitfield, info.NumPieces)
 				if err3 != nil {
@@ -347,10 +344,6 @@ func (s *Session) loadExistingTorrents(ids []string) {
 				}
 				opt.Bitfield = bf
 			}
-		}
-		if s.config.DHTEnabled && !private {
-			ann = newDHTAnnouncer(spec.InfoHash, spec.Port, s.dhtPeerRequests, &s.mPeerRequests)
-			opt.DHT = ann
 		}
 		sto, err := filestorage.New(spec.Dest)
 		if err != nil {
@@ -367,7 +360,7 @@ func (s *Session) loadExistingTorrents(ids []string) {
 		go s.checkTorrent(t)
 		delete(s.availablePorts, spec.Port)
 
-		t2 := s.newTorrent(t, id, spec.Port, spec.AddedAt, ann)
+		t2 := s.newTorrent(t, id, spec.Port, spec.AddedAt)
 		s.log.Debugf("loaded existing torrent: #%d %s", id, t.Name())
 		loaded++
 		if hasStarted {
@@ -462,11 +455,6 @@ func (s *Session) addTorrentStopped(r io.Reader) (*Torrent, error) {
 	opt.Name = mi.Info.Name
 	opt.Trackers = s.parseTrackers(mi.AnnounceList)
 	opt.Info = mi.Info
-	var ann *dhtAnnouncer
-	if s.config.DHTEnabled && mi.Info.Private != 1 {
-		ann = newDHTAnnouncer(mi.Info.Hash[:], opt.Port, s.dhtPeerRequests, &s.mPeerRequests)
-		opt.DHT = ann
-	}
 	t, err := opt.NewTorrent(s, mi.Info.Hash[:], sto)
 	if err != nil {
 		return nil, err
@@ -496,7 +484,7 @@ func (s *Session) addTorrentStopped(r io.Reader) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
-	t2 := s.newTorrent(t, id, opt.Port, rspec.AddedAt, ann)
+	t2 := s.newTorrent(t, id, opt.Port, rspec.AddedAt)
 	return t2, nil
 }
 
@@ -544,11 +532,6 @@ func (s *Session) addMagnet(link string) (*Torrent, error) {
 	}()
 	opt.Name = ma.Name
 	opt.Trackers = s.parseTrackers(ma.Trackers)
-	var ann *dhtAnnouncer
-	if s.config.DHTEnabled {
-		ann = newDHTAnnouncer(ma.InfoHash[:], opt.Port, s.dhtPeerRequests, &s.mPeerRequests)
-		opt.DHT = ann
-	}
 	t, err := opt.NewTorrent(s, ma.InfoHash[:], sto)
 	if err != nil {
 		return nil, err
@@ -571,7 +554,7 @@ func (s *Session) addMagnet(link string) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
-	t2 := s.newTorrent(t, id, opt.Port, rspec.AddedAt, ann)
+	t2 := s.newTorrent(t, id, opt.Port, rspec.AddedAt)
 	return t2, t2.Start()
 }
 
@@ -606,15 +589,14 @@ func (s *Session) add() (*options, *filestorage.FileStorage, string, error) {
 	}, sto, id, nil
 }
 
-func (s *Session) newTorrent(t *torrent, id string, port int, addedAt time.Time, ann *dhtAnnouncer) *Torrent {
+func (s *Session) newTorrent(t *torrent, id string, port int, addedAt time.Time) *Torrent {
 	t2 := &Torrent{
-		session:      s,
-		torrent:      t,
-		id:           id,
-		port:         port,
-		addedAt:      addedAt,
-		dhtAnnouncer: ann,
-		removed:      make(chan struct{}),
+		session: s,
+		torrent: t,
+		id:      id,
+		port:    port,
+		addedAt: addedAt,
+		removed: make(chan struct{}),
 	}
 	s.m.Lock()
 	defer s.m.Unlock()
