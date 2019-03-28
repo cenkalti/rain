@@ -10,11 +10,9 @@ import (
 )
 
 type Torrent struct {
-	id      string
-	addedAt time.Time
-	port    int
 	session *Session
 	torrent *torrent
+	addedAt time.Time
 	removed chan struct{}
 }
 
@@ -26,7 +24,7 @@ func (h InfoHash) String() string {
 }
 
 func (t *Torrent) ID() string {
-	return t.id
+	return t.torrent.id
 }
 
 func (t *Torrent) Name() string {
@@ -60,7 +58,7 @@ func (t *Torrent) Webseeds() []Webseed {
 }
 
 func (t *Torrent) Port() int {
-	return t.port
+	return t.torrent.port
 }
 
 func (t *Torrent) AddPeer(addr *net.TCPAddr) {
@@ -81,7 +79,7 @@ func (t *Torrent) AddTracker(uri string) error {
 
 func (t *Torrent) Start() error {
 	err := t.session.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(torrentsBucket).Bucket([]byte(t.id))
+		b := tx.Bucket(torrentsBucket).Bucket([]byte(t.torrent.id))
 		return b.Put([]byte("started"), []byte("1"))
 	})
 	if err != nil {
@@ -93,7 +91,7 @@ func (t *Torrent) Start() error {
 
 func (t *Torrent) Stop() error {
 	err := t.session.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(torrentsBucket).Bucket([]byte(t.id))
+		b := tx.Bucket(torrentsBucket).Bucket([]byte(t.torrent.id))
 		return b.Put([]byte("started"), []byte("0"))
 	})
 	if err != nil {

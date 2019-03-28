@@ -215,7 +215,7 @@ func (s *Session) updateStats() {
 		mb := tx.Bucket(torrentsBucket)
 		s.m.RLock()
 		for _, t := range s.torrents {
-			b := mb.Bucket([]byte(t.id))
+			b := mb.Bucket([]byte(t.torrent.id))
 			_ = b.Put(boltdbresumer.Keys.BytesDownloaded, []byte(strconv.FormatInt(atomic.LoadInt64(&t.torrent.resumerStats.BytesDownloaded), 10)))
 			_ = b.Put(boltdbresumer.Keys.BytesDownloaded, []byte(strconv.FormatInt(atomic.LoadInt64(&t.torrent.resumerStats.BytesDownloaded), 10)))
 			_ = b.Put(boltdbresumer.Keys.BytesUploaded, []byte(strconv.FormatInt(atomic.LoadInt64(&t.torrent.resumerStats.BytesUploaded), 10)))
@@ -360,7 +360,7 @@ func (s *Session) loadExistingTorrents(ids []string) {
 		go s.checkTorrent(t)
 		delete(s.availablePorts, spec.Port)
 
-		t2 := s.newTorrent(t, id, spec.Port, spec.AddedAt)
+		t2 := s.newTorrent(t, spec.AddedAt)
 		s.log.Debugf("loaded existing torrent: #%d %s", id, t.Name())
 		loaded++
 		if hasStarted {
@@ -443,7 +443,7 @@ func (s *Session) addTorrentStopped(r io.Reader) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
-	opt, sto, id, err := s.add()
+	opt, sto, err := s.add()
 	if err != nil {
 		return nil, err
 	}
@@ -484,7 +484,7 @@ func (s *Session) addTorrentStopped(r io.Reader) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
-	t2 := s.newTorrent(t, id, opt.Port, rspec.AddedAt)
+	t2 := s.newTorrent(t, rspec.AddedAt)
 	return t2, nil
 }
 
@@ -521,7 +521,7 @@ func (s *Session) addMagnet(link string) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
-	opt, sto, id, err := s.add()
+	opt, sto, err := s.add()
 	if err != nil {
 		return nil, err
 	}
@@ -554,14 +554,14 @@ func (s *Session) addMagnet(link string) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
-	t2 := s.newTorrent(t, id, opt.Port, rspec.AddedAt)
+	t2 := s.newTorrent(t, rspec.AddedAt)
 	return t2, t2.Start()
 }
 
-func (s *Session) add() (*options, *filestorage.FileStorage, string, error) {
+func (s *Session) add() (*options, *filestorage.FileStorage, error) {
 	port, err := s.getPort()
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, err
 	}
 	defer func() {
 		if err != nil {
@@ -570,37 +570,35 @@ func (s *Session) add() (*options, *filestorage.FileStorage, string, error) {
 	}()
 	u1, err := uuid.NewV1()
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, err
 	}
 	id := base64.RawURLEncoding.EncodeToString(u1[:])
 	res, err := boltdbresumer.New(s.db, torrentsBucket, []byte(id))
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, err
 	}
 	dest := filepath.Join(s.config.DataDir, id)
 	sto, err := filestorage.New(dest)
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, err
 	}
 	return &options{
 		id:      id,
 		Port:    port,
 		Resumer: res,
-	}, sto, id, nil
+	}, sto, nil
 }
 
-func (s *Session) newTorrent(t *torrent, id string, port int, addedAt time.Time) *Torrent {
+func (s *Session) newTorrent(t *torrent, addedAt time.Time) *Torrent {
 	t2 := &Torrent{
 		session: s,
 		torrent: t,
-		id:      id,
-		port:    port,
 		addedAt: addedAt,
 		removed: make(chan struct{}),
 	}
 	s.m.Lock()
 	defer s.m.Unlock()
-	s.torrents[id] = t2
+	s.torrents[t.id] = t2
 	ih := dht.InfoHash(t.InfoHash())
 	s.torrentsByInfoHash[ih] = append(s.torrentsByInfoHash[ih], t2)
 	return t2
@@ -653,7 +651,7 @@ func (s *Session) removeTorrentFromClient(id string) (*Torrent, error) {
 
 func (s *Session) stopAndRemoveData(t *Torrent) {
 	t.torrent.Close()
-	s.releasePort(t.port)
+	s.releasePort(t.torrent.port)
 	dest := t.torrent.storage.(*filestorage.FileStorage).Dest()
 	err := os.RemoveAll(dest)
 	if err != nil {
@@ -699,7 +697,7 @@ func (s *Session) StartAll() error {
 		tb := tx.Bucket(torrentsBucket)
 		s.m.RLock()
 		for _, t := range s.torrents {
-			b := tb.Bucket([]byte(t.id))
+			b := tb.Bucket([]byte(t.torrent.id))
 			_ = b.Put([]byte("started"), []byte("1"))
 		}
 		defer s.m.RUnlock()
@@ -719,7 +717,7 @@ func (s *Session) StopAll() error {
 		tb := tx.Bucket(torrentsBucket)
 		s.m.RLock()
 		for _, t := range s.torrents {
-			b := tb.Bucket([]byte(t.id))
+			b := tb.Bucket([]byte(t.torrent.id))
 			_ = b.Put([]byte("started"), []byte("0"))
 		}
 		defer s.m.RUnlock()
