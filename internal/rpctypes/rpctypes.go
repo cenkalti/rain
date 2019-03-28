@@ -4,7 +4,7 @@ type Torrent struct {
 	ID       string
 	Name     string
 	InfoHash string
-	Port     uint16
+	Port     int
 	AddedAt  Time
 }
 

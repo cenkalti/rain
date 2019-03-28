@@ -12,7 +12,7 @@ import (
 type Torrent struct {
 	id           string
 	addedAt      time.Time
-	port         uint16
+	port         int
 	dhtAnnouncer *dhtAnnouncer
 	session      *Session
 	torrent      *torrent
@@ -60,7 +60,7 @@ func (t *Torrent) Webseeds() []Webseed {
 	return t.torrent.Webseeds()
 }
 
-func (t *Torrent) Port() uint16 {
+func (t *Torrent) Port() int {
 	return t.port
 }
 
