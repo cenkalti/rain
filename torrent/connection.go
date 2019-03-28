@@ -20,7 +20,12 @@ func (t *torrent) handleNewConnection(conn net.Conn) {
 		return
 	}
 	if _, ok := t.connectedPeerIPs[ipstr]; ok {
-		t.log.Debugln("received duplicate connection from same IP: ", conn.RemoteAddr().String())
+		t.log.Debugln("received duplicate connection from same IP: ", ipstr)
+		conn.Close()
+		return
+	}
+	if _, ok := t.bannedPeerIPs[ipstr]; ok {
+		t.log.Debugln("connection attempt from banned IP: ", ipstr)
 		conn.Close()
 		return
 	}

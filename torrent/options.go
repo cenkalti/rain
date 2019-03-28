@@ -123,6 +123,7 @@ func (o *options) NewTorrent(infoHash []byte, sto storage.Storage) (*torrent, er
 		verifierProgressC:         make(chan verifier.Progress),
 		verifierResultC:           make(chan *verifier.Verifier),
 		connectedPeerIPs:          make(map[string]struct{}),
+		bannedPeerIPs:             make(map[string]struct{}),
 		announcersStoppedC:        make(chan struct{}),
 		dhtNode:                   o.DHT,
 		pieceCache:                o.PieceCache,

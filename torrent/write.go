@@ -23,6 +23,7 @@ func (t *torrent) handlePieceWriteDone(pw *piecewriter.PieceWriter) {
 		case *peer.Peer:
 			t.log.Errorln("received corrupt piece from peer", src.String())
 			t.closePeer(src)
+			t.bannedPeerIPs[src.IP()] = struct{}{}
 		case *urldownloader.URLDownloader:
 			t.log.Errorln("received corrupt piece from webseed", src.URL)
 			t.disableSource(src.URL, errors.New("corrupt piece"), false)

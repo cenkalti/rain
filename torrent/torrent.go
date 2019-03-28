@@ -218,6 +218,9 @@ type torrent struct {
 	// Holds connected peer IPs so we don't dial/accept multiple connections to/from same IP.
 	connectedPeerIPs map[string]struct{}
 
+	// Peers that are sending corrupt data are banned.
+	bannedPeerIPs map[string]struct{}
+
 	// A signal sent to run() loop when announcers are stopped.
 	announcersStoppedC chan struct{}
 
