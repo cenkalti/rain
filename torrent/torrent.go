@@ -212,7 +212,7 @@ type torrent struct {
 	verifierResultC   chan *verifier.Verifier
 	checkedPieces     uint32
 
-	resumerStats          resumer.Stats
+	counters              counters
 	seedDurationUpdatedAt time.Time
 	seedDurationTicker    *time.Ticker
 
@@ -325,7 +325,7 @@ func newTorrent2(
 		bannedPeerIPs:             make(map[string]struct{}),
 		announcersStoppedC:        make(chan struct{}),
 		dhtPeersC:                 make(chan []*net.TCPAddr, 1),
-		resumerStats:              stats,
+		counters:                  newCounters(stats.BytesDownloaded, stats.BytesUploaded, stats.BytesWasted, stats.SeededFor),
 		externalIP:                externalip.FirstExternalIP(),
 		downloadSpeed:             metrics.NewEWMA1(),
 		uploadSpeed:               metrics.NewEWMA1(),

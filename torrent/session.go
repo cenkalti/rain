@@ -15,7 +15,6 @@ import (
 	"runtime"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/boltdb/bolt"
@@ -216,11 +215,10 @@ func (s *Session) updateStats() {
 		s.mTorrents.RLock()
 		for _, t := range s.torrents {
 			b := mb.Bucket([]byte(t.torrent.id))
-			_ = b.Put(boltdbresumer.Keys.BytesDownloaded, []byte(strconv.FormatInt(atomic.LoadInt64(&t.torrent.resumerStats.BytesDownloaded), 10)))
-			_ = b.Put(boltdbresumer.Keys.BytesDownloaded, []byte(strconv.FormatInt(atomic.LoadInt64(&t.torrent.resumerStats.BytesDownloaded), 10)))
-			_ = b.Put(boltdbresumer.Keys.BytesUploaded, []byte(strconv.FormatInt(atomic.LoadInt64(&t.torrent.resumerStats.BytesUploaded), 10)))
-			_ = b.Put(boltdbresumer.Keys.BytesWasted, []byte(strconv.FormatInt(atomic.LoadInt64(&t.torrent.resumerStats.BytesWasted), 10)))
-			_ = b.Put(boltdbresumer.Keys.SeededFor, []byte(time.Duration(atomic.LoadInt64(&t.torrent.resumerStats.SeededFor)).String()))
+			_ = b.Put(boltdbresumer.Keys.BytesDownloaded, []byte(strconv.FormatInt(t.torrent.counters.Read(counterBytesDownloaded), 10)))
+			_ = b.Put(boltdbresumer.Keys.BytesUploaded, []byte(strconv.FormatInt(t.torrent.counters.Read(counterBytesUploaded), 10)))
+			_ = b.Put(boltdbresumer.Keys.BytesWasted, []byte(strconv.FormatInt(t.torrent.counters.Read(counterBytesWasted), 10)))
+			_ = b.Put(boltdbresumer.Keys.SeededFor, []byte(time.Duration(t.torrent.counters.Read(counterSeededFor)).String()))
 		}
 		s.mTorrents.RUnlock()
 		return nil

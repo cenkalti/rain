@@ -2,7 +2,6 @@ package torrent
 
 import (
 	"strings"
-	"sync/atomic"
 	"time"
 	"unicode"
 
@@ -134,10 +133,10 @@ func (t *torrent) stats() Stats {
 	s.Downloads.Choked = len(t.pieceDownloadersChoked)
 	s.Downloads.Running = len(t.pieceDownloaders) - len(t.pieceDownloadersChoked) - len(t.pieceDownloadersSnubbed)
 	s.Pieces.Available = t.avaliablePieceCount()
-	s.Bytes.Downloaded = t.resumerStats.BytesDownloaded
-	s.Bytes.Uploaded = t.resumerStats.BytesUploaded
-	s.Bytes.Wasted = t.resumerStats.BytesWasted
-	s.SeededFor = time.Duration(t.resumerStats.SeededFor)
+	s.Bytes.Downloaded = t.counters.Read(counterBytesDownloaded)
+	s.Bytes.Uploaded = t.counters.Read(counterBytesUploaded)
+	s.Bytes.Wasted = t.counters.Read(counterBytesWasted)
+	s.SeededFor = time.Duration(t.counters.Read(counterSeededFor))
 	s.Bytes.Allocated = t.bytesAllocated
 	s.Pieces.Checked = t.checkedPieces
 	s.Speed.Download = uint(t.downloadSpeed.Rate())
@@ -292,6 +291,6 @@ func (t *torrent) updateSeedDuration(now time.Time) {
 		t.seedDurationUpdatedAt = now
 		return
 	}
-	atomic.AddInt64(&t.resumerStats.SeededFor, int64(now.Sub(t.seedDurationUpdatedAt)))
+	t.counters.Incr(counterSeededFor, int64(now.Sub(t.seedDurationUpdatedAt)))
 	t.seedDurationUpdatedAt = now
 }
