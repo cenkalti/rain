@@ -10,7 +10,7 @@ import (
 
 func (t *torrent) handleWebseedPieceResult(msg *urldownloader.PieceResult) {
 	if msg.Error != nil {
-		t.log.Errorln("webseed download error:", msg.Error)
+		t.log.Debugln("webseed download error:", msg.Error)
 		// Possible causes:
 		// * Client.Do error
 		// * Unexpected status code
