@@ -57,7 +57,7 @@ type Session struct {
 	closeC         chan struct{}
 
 	mPeerRequests   sync.Mutex
-	dhtPeerRequests map[*torrent]struct{} // key is torrent ID
+	dhtPeerRequests map[*torrent]struct{}
 
 	mTorrents          sync.RWMutex
 	torrents           map[string]*Torrent
