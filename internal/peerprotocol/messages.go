@@ -6,7 +6,7 @@ import (
 )
 
 type Message interface {
-	Read([]byte) (int, error)
+	io.Reader
 	ID() MessageID
 }
 
@@ -48,13 +48,18 @@ func (m PieceMessage) Read(b []byte) (int, error) {
 
 type BitfieldMessage struct {
 	Data []byte
+	pos  int
 }
 
 func (m BitfieldMessage) ID() MessageID { return Bitfield }
 
-func (m BitfieldMessage) Read(b []byte) (int, error) {
-	copy(b[0:len(m.Data)], m.Data)
-	return len(m.Data), io.EOF
+func (m BitfieldMessage) Read(b []byte) (n int, err error) {
+	n = copy(b, m.Data[m.pos:])
+	m.pos += n
+	if m.pos == len(m.Data) {
+		err = io.EOF
+	}
+	return
 }
 
 type emptyMessage struct{}

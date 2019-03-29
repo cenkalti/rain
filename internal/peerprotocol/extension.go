@@ -35,22 +35,26 @@ type ExtensionMessage struct {
 func (m ExtensionMessage) ID() MessageID { return Extension }
 
 func (m ExtensionMessage) Read([]byte) (int, error) {
-	panic("read must not be called")
+	panic("Read must not be called, use WriteTo")
 }
 
-func (m ExtensionMessage) WriteTo(w io.Writer) (int64, error) {
-	_, err := w.Write([]byte{m.ExtendedMessageID})
+func (m ExtensionMessage) WriteTo(w io.Writer) (n int64, err error) {
+	nn, err := w.Write([]byte{m.ExtendedMessageID})
+	n += int64(nn)
 	if err != nil {
-		return 0, err
+		return
 	}
-	err = bencode.NewEncoder(w).Encode(m.Payload)
+	wc := newWriterCounter(w)
+	err = bencode.NewEncoder(wc).Encode(m.Payload)
+	n += wc.Count()
 	if err != nil {
-		return 0, err
+		return
 	}
 	if mm, ok := m.Payload.(ExtensionMetadataMessage); ok {
-		_, err = w.Write(mm.Data)
+		nn, err = w.Write(mm.Data)
+		n += int64(nn)
 	}
-	return 0, err
+	return
 }
 
 func (m *ExtensionMessage) UnmarshalBinary(data []byte) error {
