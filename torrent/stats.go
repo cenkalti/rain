@@ -5,6 +5,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/cenkalti/rain/internal/counters"
 	"github.com/cenkalti/rain/internal/mse"
 	"github.com/cenkalti/rain/internal/peer"
 )
@@ -133,10 +134,10 @@ func (t *torrent) stats() Stats {
 	s.Downloads.Choked = len(t.pieceDownloadersChoked)
 	s.Downloads.Running = len(t.pieceDownloaders) - len(t.pieceDownloadersChoked) - len(t.pieceDownloadersSnubbed)
 	s.Pieces.Available = t.avaliablePieceCount()
-	s.Bytes.Downloaded = t.counters.Read(counterBytesDownloaded)
-	s.Bytes.Uploaded = t.counters.Read(counterBytesUploaded)
-	s.Bytes.Wasted = t.counters.Read(counterBytesWasted)
-	s.SeededFor = time.Duration(t.counters.Read(counterSeededFor))
+	s.Bytes.Downloaded = t.counters.Read(counters.BytesDownloaded)
+	s.Bytes.Uploaded = t.counters.Read(counters.BytesUploaded)
+	s.Bytes.Wasted = t.counters.Read(counters.BytesWasted)
+	s.SeededFor = time.Duration(t.counters.Read(counters.SeededFor))
 	s.Bytes.Allocated = t.bytesAllocated
 	s.Pieces.Checked = t.checkedPieces
 	s.Speed.Download = uint(t.downloadSpeed.Rate())
@@ -291,6 +292,6 @@ func (t *torrent) updateSeedDuration(now time.Time) {
 		t.seedDurationUpdatedAt = now
 		return
 	}
-	t.counters.Incr(counterSeededFor, int64(now.Sub(t.seedDurationUpdatedAt)))
+	t.counters.Incr(counters.SeededFor, int64(now.Sub(t.seedDurationUpdatedAt)))
 	t.seedDurationUpdatedAt = now
 }

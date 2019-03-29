@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/boltdb/bolt"
+	"github.com/cenkalti/rain/internal/counters"
 	"github.com/cenkalti/rain/internal/resumer/boltdbresumer"
 )
 
@@ -77,10 +78,10 @@ func (s *Session) updateStats() {
 		s.mTorrents.RLock()
 		for _, t := range s.torrents {
 			b := mb.Bucket([]byte(t.torrent.id))
-			_ = b.Put(boltdbresumer.Keys.BytesDownloaded, []byte(strconv.FormatInt(t.torrent.counters.Read(counterBytesDownloaded), 10)))
-			_ = b.Put(boltdbresumer.Keys.BytesUploaded, []byte(strconv.FormatInt(t.torrent.counters.Read(counterBytesUploaded), 10)))
-			_ = b.Put(boltdbresumer.Keys.BytesWasted, []byte(strconv.FormatInt(t.torrent.counters.Read(counterBytesWasted), 10)))
-			_ = b.Put(boltdbresumer.Keys.SeededFor, []byte(time.Duration(t.torrent.counters.Read(counterSeededFor)).String()))
+			_ = b.Put(boltdbresumer.Keys.BytesDownloaded, []byte(strconv.FormatInt(t.torrent.counters.Read(counters.BytesDownloaded), 10)))
+			_ = b.Put(boltdbresumer.Keys.BytesUploaded, []byte(strconv.FormatInt(t.torrent.counters.Read(counters.BytesUploaded), 10)))
+			_ = b.Put(boltdbresumer.Keys.BytesWasted, []byte(strconv.FormatInt(t.torrent.counters.Read(counters.BytesWasted), 10)))
+			_ = b.Put(boltdbresumer.Keys.SeededFor, []byte(time.Duration(t.torrent.counters.Read(counters.SeededFor)).String()))
 		}
 		s.mTorrents.RUnlock()
 		return nil

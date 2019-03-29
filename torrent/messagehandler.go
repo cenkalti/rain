@@ -5,6 +5,7 @@ import (
 	"net"
 
 	"github.com/cenkalti/rain/internal/bitfield"
+	"github.com/cenkalti/rain/internal/counters"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peerconn/peerwriter"
 	"github.com/cenkalti/rain/internal/peerprotocol"
@@ -18,28 +19,28 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 	pe := pm.Peer
 	if t.pieces == nil || t.bitfield == nil {
 		pe.Logger().Error("piece received but we don't have info")
-		t.counters.Incr(counterBytesWasted, int64(len(msg.Buffer.Data)))
+		t.counters.Incr(counters.BytesWasted, int64(len(msg.Buffer.Data)))
 		t.closePeer(pe)
 		msg.Buffer.Release()
 		return
 	}
 	if msg.Index >= uint32(len(t.pieces)) {
 		pe.Logger().Errorln("invalid piece index:", msg.Index)
-		t.counters.Incr(counterBytesWasted, int64(len(msg.Buffer.Data)))
+		t.counters.Incr(counters.BytesWasted, int64(len(msg.Buffer.Data)))
 		t.closePeer(pe)
 		msg.Buffer.Release()
 		return
 	}
 	t.downloadSpeed.Update(int64(len(msg.Buffer.Data)))
-	t.counters.Incr(counterBytesDownloaded, int64(len(msg.Buffer.Data)))
+	t.counters.Incr(counters.BytesDownloaded, int64(len(msg.Buffer.Data)))
 	pd, ok := t.pieceDownloaders[pe]
 	if !ok {
-		t.counters.Incr(counterBytesWasted, int64(len(msg.Buffer.Data)))
+		t.counters.Incr(counters.BytesWasted, int64(len(msg.Buffer.Data)))
 		msg.Buffer.Release()
 		return
 	}
 	if pd.Piece.Index != msg.Index {
-		t.counters.Incr(counterBytesWasted, int64(len(msg.Buffer.Data)))
+		t.counters.Incr(counters.BytesWasted, int64(len(msg.Buffer.Data)))
 		msg.Buffer.Release()
 		return
 	}
@@ -47,7 +48,7 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 	block, ok := piece.FindBlock(msg.Begin, uint32(len(msg.Buffer.Data)))
 	if !ok {
 		pe.Logger().Errorln("invalid piece index:", msg.Index, "begin:", msg.Begin, "length:", len(msg.Buffer.Data))
-		t.counters.Incr(counterBytesWasted, int64(len(msg.Buffer.Data)))
+		t.counters.Incr(counters.BytesWasted, int64(len(msg.Buffer.Data)))
 		t.closePeer(pe)
 		msg.Buffer.Release()
 		return
@@ -288,7 +289,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 		}
 	case peerwriter.BlockUploaded:
 		t.uploadSpeed.Update(int64(msg.Length))
-		t.counters.Incr(counterBytesUploaded, int64(msg.Length))
+		t.counters.Incr(counters.BytesUploaded, int64(msg.Length))
 	case peerprotocol.ExtensionHandshakeMessage:
 		pe.Logger().Debugln("extension handshake received:", msg)
 		if pe.ExtensionHandshake != nil {

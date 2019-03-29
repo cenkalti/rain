@@ -15,6 +15,7 @@ import (
 	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/bufferpool"
+	"github.com/cenkalti/rain/internal/counters"
 	"github.com/cenkalti/rain/internal/externalip"
 	"github.com/cenkalti/rain/internal/handshaker/incominghandshaker"
 	"github.com/cenkalti/rain/internal/handshaker/outgoinghandshaker"
@@ -212,7 +213,7 @@ type torrent struct {
 	verifierResultC   chan *verifier.Verifier
 	checkedPieces     uint32
 
-	counters              counters
+	counters              counters.Counters
 	seedDurationUpdatedAt time.Time
 	seedDurationTicker    *time.Ticker
 
@@ -325,7 +326,7 @@ func newTorrent2(
 		bannedPeerIPs:             make(map[string]struct{}),
 		announcersStoppedC:        make(chan struct{}),
 		dhtPeersC:                 make(chan []*net.TCPAddr, 1),
-		counters:                  newCounters(stats.BytesDownloaded, stats.BytesUploaded, stats.BytesWasted, stats.SeededFor),
+		counters:                  counters.New(stats.BytesDownloaded, stats.BytesUploaded, stats.BytesWasted, stats.SeededFor),
 		externalIP:                externalip.FirstExternalIP(),
 		downloadSpeed:             metrics.NewEWMA1(),
 		uploadSpeed:               metrics.NewEWMA1(),
