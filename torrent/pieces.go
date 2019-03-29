@@ -43,6 +43,9 @@ func (t *torrent) checkCompletion() bool {
 		h.Close()
 	}
 	t.outgoingHandshakers = make(map[*outgoinghandshaker.OutgoingHandshaker]struct{})
+	for _, src := range t.webseedSources {
+		t.closeWebseedDownloader(src)
+	}
 	for pe := range t.peers {
 		if !pe.PeerInterested {
 			t.closePeer(pe)
