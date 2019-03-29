@@ -164,10 +164,11 @@ func (p *PeerWriter) messageWriter() {
 			// Reserve space for length and message ID
 			buf.Write([]byte{0, 0, 0, 0, 0})
 
+			var m int64
 			if wt, ok := msg.(io.WriterTo); ok {
-				_, err = wt.WriteTo(buf)
+				m, err = wt.WriteTo(buf)
 			} else {
-				_, err = buf.ReadFrom(msg)
+				m, err = buf.ReadFrom(msg)
 			}
 			if err != nil {
 				p.log.Errorf("cannot serialize message [%v]: %s", msg.ID(), err.Error())
@@ -175,7 +176,7 @@ func (p *PeerWriter) messageWriter() {
 			}
 
 			// Put length
-			binary.BigEndian.PutUint32(buf.Bytes()[:4], uint32(1+buf.Len()-5))
+			binary.BigEndian.PutUint32(buf.Bytes()[:4], uint32(1+m))
 			// Put message ID
 			buf.Bytes()[4] = uint8(msg.ID())
 
