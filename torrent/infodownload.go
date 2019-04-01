@@ -16,6 +16,9 @@ func (t *torrent) nextInfoDownload() *infodownloader.InfoDownloader {
 		if pe.ExtensionHandshake.MetadataSize == 0 {
 			continue
 		}
+		if pe.ExtensionHandshake.MetadataSize > int(t.session.config.MaxMetadataSize) {
+			continue
+		}
 		_, ok := pe.ExtensionHandshake.M[peerprotocol.ExtensionKeyMetadata]
 		if !ok {
 			continue
