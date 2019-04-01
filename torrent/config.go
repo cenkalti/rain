@@ -31,6 +31,8 @@ type Config struct {
 	TorrentAddHTTPTimeout time.Duration
 	// Maximum allowed size to be received by metadata extension.
 	MaxMetadataSize uint
+	// Maximum allowed size to be read when adding torrent.
+	MaxTorrentSize uint
 
 	// Enable RPC server
 	RPCEnabled bool
@@ -136,6 +138,7 @@ var DefaultConfig = Config{
 	BlocklistUpdateTimeout:          10 * time.Minute,
 	TorrentAddHTTPTimeout:           30 * time.Second,
 	MaxMetadataSize:                 10 * 1024 * 1024,
+	MaxTorrentSize:                  10 * 1024 * 1024,
 
 	// RPC Server
 	RPCEnabled:         true,

@@ -3,6 +3,7 @@ package torrent
 import (
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -28,6 +29,7 @@ func (s *Session) AddTorrent(r io.Reader) (*Torrent, error) {
 }
 
 func (s *Session) addTorrentStopped(r io.Reader) (*Torrent, error) {
+	r = io.LimitReader(r, int64(s.config.MaxTorrentSize))
 	mi, err := metainfo.New(r)
 	if err != nil {
 		return nil, err
@@ -108,7 +110,11 @@ func (s *Session) addURL(u string) (*Torrent, error) {
 	}
 	defer resp.Body.Close()
 
-	return s.AddTorrent(resp.Body)
+	if resp.ContentLength > int64(s.config.MaxTorrentSize) {
+		return nil, fmt.Errorf("torrent too large: %d", resp.ContentLength)
+	}
+	r := io.LimitReader(resp.Body, int64(s.config.MaxTorrentSize))
+	return s.AddTorrent(r)
 }
 
 func (s *Session) addMagnet(link string) (*Torrent, error) {
