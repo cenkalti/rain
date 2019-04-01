@@ -186,7 +186,7 @@ func NewSession(cfg Config) (*Session, error) {
 func (s *Session) parseTrackers(trackers []string) []tracker.Tracker {
 	ret := make([]tracker.Tracker, 0, len(trackers))
 	for _, tr := range trackers {
-		t, err := s.trackerManager.Get(tr, s.config.TrackerHTTPTimeout, s.config.TrackerHTTPUserAgent)
+		t, err := s.trackerManager.Get(tr, s.config.TrackerHTTPTimeout, s.config.TrackerHTTPUserAgent, int64(s.config.TrackerHTTPMaxResponseSize))
 		if err != nil {
 			s.log.Debugln("cannot parse tracker url:", err)
 			continue

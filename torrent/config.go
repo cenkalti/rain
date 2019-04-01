@@ -63,6 +63,8 @@ type Config struct {
 	TrackerHTTPTimeout time.Duration
 	// User agent sent when communicating with HTTP trackers.
 	TrackerHTTPUserAgent string
+	// Max number of bytes in a tracker response.
+	TrackerHTTPMaxResponseSize uint
 
 	// Number of unchoked peers.
 	UnchokedPeers int
@@ -144,6 +146,7 @@ var DefaultConfig = Config{
 	TrackerMinAnnounceInterval: time.Minute,
 	TrackerHTTPTimeout:         10 * time.Second,
 	TrackerHTTPUserAgent:       "Rain/" + Version,
+	TrackerHTTPMaxResponseSize: 2 * 1024 * 1024,
 
 	// DHT node
 	DHTEnabled:             true,

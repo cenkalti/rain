@@ -36,14 +36,14 @@ func New(bl *blocklist.Blocklist) *TrackerManager {
 	return m
 }
 
-func (m *TrackerManager) Get(s string, httpTimeout time.Duration, httpUserAgent string) (tracker.Tracker, error) {
+func (m *TrackerManager) Get(s string, httpTimeout time.Duration, httpUserAgent string, httpMaxResponseLength int64) (tracker.Tracker, error) {
 	u, err := url.Parse(s)
 	if err != nil {
 		return nil, err
 	}
 	switch u.Scheme {
 	case "http", "https":
-		tr := httptracker.New(s, u, httpTimeout, m.httpTransport, httpUserAgent)
+		tr := httptracker.New(s, u, httpTimeout, m.httpTransport, httpUserAgent, httpMaxResponseLength)
 		return tr, nil
 	case "udp":
 		tr := udptracker.New(s, u, m.udpTransport)

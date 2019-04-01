@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -17,24 +18,26 @@ import (
 )
 
 type HTTPTracker struct {
-	rawURL    string
-	url       *url.URL
-	log       logger.Logger
-	http      *http.Client
-	transport *http.Transport
-	trackerID string
-	userAgent string
+	rawURL            string
+	url               *url.URL
+	log               logger.Logger
+	http              *http.Client
+	transport         *http.Transport
+	trackerID         string
+	userAgent         string
+	maxResponseLength int64
 }
 
 var _ tracker.Tracker = (*HTTPTracker)(nil)
 
-func New(rawURL string, u *url.URL, timeout time.Duration, t *http.Transport, userAgent string) *HTTPTracker {
+func New(rawURL string, u *url.URL, timeout time.Duration, t *http.Transport, userAgent string, maxResponseLength int64) *HTTPTracker {
 	return &HTTPTracker{
-		rawURL:    rawURL,
-		url:       u,
-		log:       logger.New("tracker " + u.String()),
-		transport: t,
-		userAgent: userAgent,
+		rawURL:            rawURL,
+		url:               u,
+		log:               logger.New("tracker " + u.String()),
+		transport:         t,
+		userAgent:         userAgent,
+		maxResponseLength: maxResponseLength,
 		http: &http.Client{
 			Timeout:   timeout,
 			Transport: t,
@@ -91,7 +94,11 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 			data, _ := ioutil.ReadAll(resp.Body)
 			return nil, fmt.Errorf("status not 200 OK (status: %d body: %q)", resp.StatusCode, string(data))
 		}
-		return ioutil.ReadAll(resp.Body)
+		if resp.ContentLength > t.maxResponseLength {
+			return nil, fmt.Errorf("tracker respsonse too large: %d", resp.ContentLength)
+		}
+		r := io.LimitReader(resp.Body, t.maxResponseLength)
+		return ioutil.ReadAll(r)
 	}
 
 	body, err := doReq()

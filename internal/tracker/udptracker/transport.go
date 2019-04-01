@@ -127,7 +127,6 @@ func (t *Transport) Close() error {
 // sends the bytes to the transaction's response channel.
 func (t *Transport) readLoop() {
 	// Read buffer must be big enough to hold a UDP packet of maximum expected size.
-	// Current value is: 320 = 20 + 50*6 (AnnounceResponse with 50 peers)
 	const maxNumWant = 1000
 	bigBuf := make([]byte, 20+6*maxNumWant)
 	for {
