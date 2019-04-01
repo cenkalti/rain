@@ -74,8 +74,13 @@ type Config struct {
 	UnchokedPeers int
 	// Number of optimistic unchoked peers.
 	OptimisticUnchokedPeers int
-	// Max number of blocks requested from a peer but not received yet
-	RequestQueueLength int
+	// Max number of blocks allowed to be queued without dropping any.
+	MaxRequestsIn int
+	// Max number of blocks requested from a peer but not received yet.
+	// `rreq` value from extended handshake cannot exceed this limit.
+	MaxRequestsOut int
+	// Number of bloks requested from peer if it does not send `rreq` value in extended handshake.
+	DefaultRequestsOut int
 	// Time to wait for a requested block to be received before marking peer as snubbed
 	RequestTimeout time.Duration
 	// Max number of running downloads on piece in endgame mode, snubbed and choed peers don't count
@@ -164,7 +169,9 @@ var DefaultConfig = Config{
 	// Peer
 	UnchokedPeers:                3,
 	OptimisticUnchokedPeers:      1,
-	RequestQueueLength:           50,
+	MaxRequestsIn:                250,
+	MaxRequestsOut:               250,
+	DefaultRequestsOut:           50,
 	RequestTimeout:               20 * time.Second,
 	EndgameMaxDuplicateDownloads: 20,
 	MaxPeerDial:                  80,

@@ -81,8 +81,9 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 	}
 	msg.Buffer.Release()
 	if !pd.Done() {
-		if pd.AllowedFast || !pd.Peer.(*peer.Peer).PeerChoking {
-			pd.RequestBlocks(t.session.config.RequestQueueLength)
+		pe := pd.Peer.(*peer.Peer)
+		if pd.AllowedFast || !pe.PeerChoking {
+			pd.RequestBlocks(t.maxAllowedRequests(pe))
 			pe.ResetSnubTimer()
 		}
 		return
@@ -186,7 +187,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			break
 		}
 		delete(t.pieceDownloadersChoked, pd.Peer.(*peer.Peer))
-		pd.RequestBlocks(t.session.config.RequestQueueLength)
+		pd.RequestBlocks(t.maxAllowedRequests(pe))
 		pe.ResetSnubTimer()
 		if t.piecePicker != nil {
 			t.piecePicker.HandleUnchoke(pe, pd.Piece.Index)

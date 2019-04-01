@@ -28,7 +28,7 @@ func (t *torrent) handleIncomingHandshakeDone(ih *incominghandshaker.IncomingHan
 		return
 	}
 	log := logger.New("peer <- " + ih.Conn.RemoteAddr().String())
-	pe := peerconn.New(ih.Conn, log, t.session.config.PieceReadTimeout)
+	pe := peerconn.New(ih.Conn, log, t.session.config.PieceReadTimeout, t.session.config.MaxRequestsIn)
 	t.startPeer(pe, peer.SourceIncoming, t.incomingPeers, ih.PeerID, ih.Extensions, ih.Cipher)
 }
 
@@ -40,6 +40,6 @@ func (t *torrent) handleOutgoingHandshakeDone(oh *outgoinghandshaker.OutgoingHan
 		return
 	}
 	log := logger.New("peer -> " + oh.Conn.RemoteAddr().String())
-	pe := peerconn.New(oh.Conn, log, t.session.config.PieceReadTimeout)
+	pe := peerconn.New(oh.Conn, log, t.session.config.PieceReadTimeout, t.session.config.MaxRequestsIn)
 	t.startPeer(pe, oh.Source, t.outgoingPeers, oh.PeerID, oh.Extensions, oh.Cipher)
 }

@@ -118,8 +118,9 @@ func (t *torrent) startInfoDownloaders() {
 		if id == nil {
 			break
 		}
-		t.infoDownloaders[id.Peer.(*peer.Peer)] = id
-		id.RequestBlocks(t.session.config.RequestQueueLength)
+		pe := id.Peer.(*peer.Peer)
+		t.infoDownloaders[pe] = id
+		id.RequestBlocks(t.maxAllowedRequests(pe))
 		id.Peer.(*peer.Peer).ResetSnubTimer()
 	}
 }
@@ -204,7 +205,18 @@ func (t *torrent) startSinglePieceDownloader(pe *peer.Peer) {
 	}
 	t.pieceDownloaders[pe] = pd
 	pe.Downloading = true
-	pd.RequestBlocks(t.session.config.RequestQueueLength)
+	pd.RequestBlocks(t.maxAllowedRequests(pe))
 	pe.ResetSnubTimer()
 	started = true
+}
+
+func (t *torrent) maxAllowedRequests(pe *peer.Peer) int {
+	ret := t.session.config.DefaultRequestsOut
+	if pe.ExtensionHandshake != nil && pe.ExtensionHandshake.RequestQueue > 0 {
+		ret = pe.ExtensionHandshake.RequestQueue
+	}
+	if ret > t.session.config.MaxRequestsOut {
+		ret = t.session.config.MaxRequestsOut
+	}
+	return ret
 }

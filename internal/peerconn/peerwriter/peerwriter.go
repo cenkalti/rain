@@ -16,28 +16,31 @@ import (
 const keepAlivePeriod = 2 * time.Minute
 
 type PeerWriter struct {
-	conn       net.Conn
-	queueC     chan peerprotocol.Message
-	cancelC    chan peerprotocol.CancelMessage
-	writeQueue *list.List
-	writeC     chan peerprotocol.Message
-	messages   chan interface{}
-	log        logger.Logger
-	stopC      chan struct{}
-	doneC      chan struct{}
+	conn                  net.Conn
+	queueC                chan peerprotocol.Message
+	cancelC               chan peerprotocol.CancelMessage
+	writeQueue            *list.List
+	maxQueuedRequests     int
+	currentQueuedRequests int
+	writeC                chan peerprotocol.Message
+	messages              chan interface{}
+	log                   logger.Logger
+	stopC                 chan struct{}
+	doneC                 chan struct{}
 }
 
-func New(conn net.Conn, l logger.Logger) *PeerWriter {
+func New(conn net.Conn, l logger.Logger, maxQueuedRequests int) *PeerWriter {
 	return &PeerWriter{
-		conn:       conn,
-		queueC:     make(chan peerprotocol.Message),
-		cancelC:    make(chan peerprotocol.CancelMessage),
-		writeQueue: list.New(),
-		writeC:     make(chan peerprotocol.Message),
-		messages:   make(chan interface{}),
-		log:        l,
-		stopC:      make(chan struct{}),
-		doneC:      make(chan struct{}),
+		conn:              conn,
+		queueC:            make(chan peerprotocol.Message),
+		cancelC:           make(chan peerprotocol.CancelMessage),
+		writeQueue:        list.New(),
+		maxQueuedRequests: maxQueuedRequests,
+		writeC:            make(chan peerprotocol.Message),
+		messages:          make(chan interface{}),
+		log:               l,
+		stopC:             make(chan struct{}),
+		doneC:             make(chan struct{}),
 	}
 }
 
@@ -96,6 +99,9 @@ func (p *PeerWriter) Run() {
 			p.queueMessage(msg)
 		case writeC <- msg:
 			p.writeQueue.Remove(e)
+			if _, ok := msg.(Piece); ok {
+				p.currentQueuedRequests--
+			}
 		case cm := <-p.cancelC:
 			p.cancelRequest(cm)
 		case <-p.stopC:
@@ -105,8 +111,14 @@ func (p *PeerWriter) Run() {
 }
 
 func (p *PeerWriter) queueMessage(msg peerprotocol.Message) {
-	if _, ok := msg.(peerprotocol.ChokeMessage); ok {
+	switch msg.(type) {
+	case peerprotocol.ChokeMessage:
 		p.cancelQueuedPieceMessages()
+	case Piece:
+		if p.currentQueuedRequests >= p.maxQueuedRequests {
+			return
+		}
+		p.currentQueuedRequests++
 	}
 	p.writeQueue.PushBack(msg)
 }
@@ -117,6 +129,7 @@ func (p *PeerWriter) cancelQueuedPieceMessages() {
 		next = e.Next()
 		if _, ok := e.Value.(Piece); ok {
 			p.writeQueue.Remove(e)
+			p.currentQueuedRequests--
 		}
 	}
 }
@@ -125,6 +138,7 @@ func (p *PeerWriter) cancelRequest(cm peerprotocol.CancelMessage) {
 	for e := p.writeQueue.Front(); e != nil; e = e.Next() {
 		if pi, ok := e.Value.(Piece); ok && pi.Index == cm.Index && pi.Begin == cm.Begin && pi.Length == cm.Length {
 			p.writeQueue.Remove(e)
+			p.currentQueuedRequests--
 			break
 		}
 	}
