@@ -56,7 +56,7 @@ func (p *PeerWriter) SendMessage(msg peerprotocol.Message) {
 }
 
 func (p *PeerWriter) SendPiece(msg peerprotocol.RequestMessage, pi io.ReaderAt) {
-	m := Piece{Piece: pi, Index: msg.Index, Begin: msg.Begin, Length: msg.Length}
+	m := Piece{Piece: pi, RequestMessage: msg}
 	select {
 	case p.queueC <- m:
 	case <-p.doneC:
@@ -111,12 +111,14 @@ func (p *PeerWriter) Run() {
 }
 
 func (p *PeerWriter) queueMessage(msg peerprotocol.Message) {
-	switch msg.(type) {
+	switch msg2 := msg.(type) {
 	case peerprotocol.ChokeMessage:
 		p.cancelQueuedPieceMessages()
 	case Piece:
+		// Reject request if peer queued to many requests
 		if p.currentQueuedRequests >= p.maxQueuedRequests {
-			return
+			msg = peerprotocol.RejectMessage{RequestMessage: msg2.RequestMessage}
+			break
 		}
 		p.currentQueuedRequests++
 	}

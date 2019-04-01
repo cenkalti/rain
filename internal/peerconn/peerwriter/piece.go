@@ -8,10 +8,8 @@ import (
 )
 
 type Piece struct {
-	Piece  io.ReaderAt
-	Index  uint32
-	Begin  uint32
-	Length uint32
+	Piece io.ReaderAt
+	peerprotocol.RequestMessage
 }
 
 func (p Piece) ID() peerprotocol.MessageID { return peerprotocol.Piece }

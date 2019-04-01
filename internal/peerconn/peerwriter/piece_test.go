@@ -3,6 +3,8 @@ package peerwriter
 import (
 	"bytes"
 	"testing"
+
+	"github.com/cenkalti/rain/internal/peerprotocol"
 )
 
 func BenchmarkRead(b *testing.B) {
@@ -10,9 +12,11 @@ func BenchmarkRead(b *testing.B) {
 	buf2 := make([]byte, 25)
 	r := bytes.NewReader(buf)
 	p := Piece{
-		Piece:  r,
-		Begin:  2,
-		Length: 5,
+		Piece: r,
+		RequestMessage: peerprotocol.RequestMessage{
+			Begin:  2,
+			Length: 5,
+		},
 	}
 	b.ReportAllocs()
 	b.ResetTimer()
