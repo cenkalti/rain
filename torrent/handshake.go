@@ -6,8 +6,8 @@ import (
 	"github.com/cenkalti/rain/internal/handshaker/incominghandshaker"
 	"github.com/cenkalti/rain/internal/handshaker/outgoinghandshaker"
 	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peerconn"
+	"github.com/cenkalti/rain/internal/peersource"
 )
 
 func (t *torrent) getSKey(sKeyHash [20]byte) []byte {
@@ -29,7 +29,7 @@ func (t *torrent) handleIncomingHandshakeDone(ih *incominghandshaker.IncomingHan
 	}
 	log := logger.New("peer <- " + ih.Conn.RemoteAddr().String())
 	pe := peerconn.New(ih.Conn, log, t.session.config.PieceReadTimeout, t.session.config.MaxRequestsIn)
-	t.startPeer(pe, peer.SourceIncoming, t.incomingPeers, ih.PeerID, ih.Extensions, ih.Cipher)
+	t.startPeer(pe, peersource.Incoming, t.incomingPeers, ih.PeerID, ih.Extensions, ih.Cipher)
 }
 
 func (t *torrent) handleOutgoingHandshakeDone(oh *outgoinghandshaker.OutgoingHandshaker) {

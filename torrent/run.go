@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/rain/internal/peer"
+	"github.com/cenkalti/rain/internal/peersource"
 	"github.com/cenkalti/rain/internal/urldownloader"
 )
 
@@ -53,11 +54,11 @@ func (t *torrent) run() {
 		case data := <-t.ramNotifyC:
 			t.startSinglePieceDownloader(data.(*peer.Peer))
 		case addrs := <-t.addrsFromTrackers:
-			t.handleNewPeers(addrs, peer.SourceTracker)
+			t.handleNewPeers(addrs, peersource.Tracker)
 		case addrs := <-t.addPeersCommandC:
-			t.handleNewPeers(addrs, peer.SourceManual)
+			t.handleNewPeers(addrs, peersource.Manual)
 		case addrs := <-t.dhtPeersC:
-			t.handleNewPeers(addrs, peer.SourceDHT)
+			t.handleNewPeers(addrs, peersource.DHT)
 		case trackers := <-t.addTrackersCommandC:
 			t.handleNewTrackers(trackers)
 		case conn := <-t.incomingConnC:

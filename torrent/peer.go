@@ -9,6 +9,7 @@ import (
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peerconn"
 	"github.com/cenkalti/rain/internal/peerprotocol"
+	"github.com/cenkalti/rain/internal/peersource"
 )
 
 func (t *torrent) setNeedMorePeers(val bool) {
@@ -20,7 +21,7 @@ func (t *torrent) setNeedMorePeers(val bool) {
 	}
 }
 
-func (t *torrent) handleNewPeers(addrs []*net.TCPAddr, source peer.Source) {
+func (t *torrent) handleNewPeers(addrs []*net.TCPAddr, source peersource.Source) {
 	t.log.Debugf("received %d peers from %s", len(addrs), source)
 	t.setNeedMorePeers(false)
 	if status := t.status(); status == Stopped || status == Stopping {
@@ -78,7 +79,7 @@ func (t *torrent) dialAddresses() {
 
 func (t *torrent) startPeer(
 	p *peerconn.Conn,
-	source peer.Source,
+	source peersource.Source,
 	peers map[*peer.Peer]struct{},
 	peerID [20]byte,
 	extensions [8]byte,

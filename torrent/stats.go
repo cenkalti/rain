@@ -7,7 +7,7 @@ import (
 
 	"github.com/cenkalti/rain/internal/counters"
 	"github.com/cenkalti/rain/internal/mse"
-	"github.com/cenkalti/rain/internal/peer"
+	"github.com/cenkalti/rain/internal/peersource"
 )
 
 // Stats contains statistics about Torrent.
@@ -117,9 +117,9 @@ func (t *torrent) stats() Stats {
 	s.Status = t.status()
 	s.Error = t.lastError
 	s.Addresses.Total = t.addrList.Len()
-	s.Addresses.Tracker = t.addrList.LenSource(peer.SourceTracker)
-	s.Addresses.DHT = t.addrList.LenSource(peer.SourceDHT)
-	s.Addresses.PEX = t.addrList.LenSource(peer.SourcePEX)
+	s.Addresses.Tracker = t.addrList.LenSource(peersource.Tracker)
+	s.Addresses.DHT = t.addrList.LenSource(peersource.DHT)
+	s.Addresses.PEX = t.addrList.LenSource(peersource.PEX)
 	s.Handshakes.Incoming = len(t.incomingHandshakers)
 	s.Handshakes.Outgoing = len(t.outgoingHandshakers)
 	s.Handshakes.Total = len(t.incomingHandshakers) + len(t.outgoingHandshakers)
@@ -236,13 +236,13 @@ func (t *torrent) getPeers() []Peer {
 	for pe := range t.peers {
 		var source PeerSource
 		switch pe.Source {
-		case peer.SourceTracker:
+		case peersource.Tracker:
 			source = SourceTracker
-		case peer.SourceDHT:
+		case peersource.DHT:
 			source = SourceDHT
-		case peer.SourcePEX:
+		case peersource.PEX:
 			source = SourcePEX
-		case peer.SourceIncoming:
+		case peersource.Incoming:
 			source = SourceIncoming
 		default:
 			panic("unhandled peer source")

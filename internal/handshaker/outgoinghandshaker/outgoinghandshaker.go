@@ -8,12 +8,12 @@ import (
 	"github.com/cenkalti/rain/internal/btconn"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/mse"
-	"github.com/cenkalti/rain/internal/peer"
+	"github.com/cenkalti/rain/internal/peersource"
 )
 
 type OutgoingHandshaker struct {
 	Addr       *net.TCPAddr
-	Source     peer.Source
+	Source     peersource.Source
 	Conn       net.Conn
 	PeerID     [20]byte
 	Extensions [8]byte
@@ -24,7 +24,7 @@ type OutgoingHandshaker struct {
 	doneC  chan struct{}
 }
 
-func New(addr *net.TCPAddr, source peer.Source) *OutgoingHandshaker {
+func New(addr *net.TCPAddr, source peersource.Source) *OutgoingHandshaker {
 	return &OutgoingHandshaker{
 		Addr:   addr,
 		Source: source,

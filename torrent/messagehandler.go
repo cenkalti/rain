@@ -9,6 +9,7 @@ import (
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peerconn/peerwriter"
 	"github.com/cenkalti/rain/internal/peerprotocol"
+	"github.com/cenkalti/rain/internal/peersource"
 	"github.com/cenkalti/rain/internal/piecedownloader"
 	"github.com/cenkalti/rain/internal/piecewriter"
 	"github.com/cenkalti/rain/internal/tracker"
@@ -323,7 +324,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			t.log.Error(err)
 			break
 		}
-		t.handleNewPeers(addrs, peer.SourcePEX)
+		t.handleNewPeers(addrs, peersource.PEX)
 	default:
 		panic(fmt.Sprintf("unhandled peer message type: %T", msg))
 	}

@@ -1,26 +1,26 @@
-package peer
+package peersource
 
 type Source int
 
 const (
-	SourceTracker Source = iota
-	SourceDHT
-	SourcePEX
-	SourceManual
-	SourceIncoming
+	Tracker Source = iota
+	DHT
+	PEX
+	Manual
+	Incoming
 )
 
 func (s Source) String() string {
 	switch s {
-	case SourceTracker:
+	case Tracker:
 		return "tracker"
-	case SourceDHT:
+	case DHT:
 		return "dht"
-	case SourcePEX:
+	case PEX:
 		return "pex"
-	case SourceManual:
+	case Manual:
 		return "manual"
-	case SourceIncoming:
+	case Incoming:
 		return "incoming"
 	default:
 		panic("unhandled source")

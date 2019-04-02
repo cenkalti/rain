@@ -10,6 +10,7 @@ import (
 	"github.com/cenkalti/rain/internal/peerconn/peerreader"
 	"github.com/cenkalti/rain/internal/peerconn/peerwriter"
 	"github.com/cenkalti/rain/internal/peerprotocol"
+	"github.com/cenkalti/rain/internal/peersource"
 	"github.com/cenkalti/rain/internal/pieceset"
 	"github.com/rcrowley/go-metrics"
 )
@@ -19,7 +20,7 @@ type Peer struct {
 
 	ConnectedAt time.Time
 
-	Source Source
+	Source peersource.Source
 
 	Bitfield    *bitfield.Bitfield
 	AllowedFast pieceset.PieceSet
@@ -68,7 +69,7 @@ type PieceMessage struct {
 	Piece peerreader.Piece
 }
 
-func New(p *peerconn.Conn, source Source, id [20]byte, extensions [8]byte, cipher mse.CryptoMethod, snubTimeout time.Duration) *Peer {
+func New(p *peerconn.Conn, source peersource.Source, id [20]byte, extensions [8]byte, cipher mse.CryptoMethod, snubTimeout time.Duration) *Peer {
 	bf, _ := bitfield.NewBytes(extensions[:], 64)
 	fastEnabled := bf.Test(61)
 	extensionsEnabled := bf.Test(43)

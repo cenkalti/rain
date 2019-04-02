@@ -7,8 +7,8 @@ import (
 
 	"github.com/cenkalti/rain/internal/blocklist"
 	"github.com/cenkalti/rain/internal/externalip"
-	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peerpriority"
+	"github.com/cenkalti/rain/internal/peersource"
 	"github.com/google/btree"
 )
 
@@ -22,7 +22,7 @@ type AddrList struct {
 	clientIP   *net.IP
 	blocklist  *blocklist.Blocklist
 
-	countBySource map[peer.Source]int
+	countBySource map[peersource.Source]int
 }
 
 func New(maxItems int, blocklist *blocklist.Blocklist, listenPort int, clientIP *net.IP) *AddrList {
@@ -33,25 +33,25 @@ func New(maxItems int, blocklist *blocklist.Blocklist, listenPort int, clientIP 
 		listenPort:    listenPort,
 		clientIP:      clientIP,
 		blocklist:     blocklist,
-		countBySource: make(map[peer.Source]int),
+		countBySource: make(map[peersource.Source]int),
 	}
 }
 
 func (d *AddrList) Reset() {
 	d.peerByTime = nil
 	d.peerByPriority.Clear(false)
-	d.countBySource = make(map[peer.Source]int)
+	d.countBySource = make(map[peersource.Source]int)
 }
 
 func (d *AddrList) Len() int {
 	return d.peerByPriority.Len()
 }
 
-func (d *AddrList) LenSource(s peer.Source) int {
+func (d *AddrList) LenSource(s peersource.Source) int {
 	return d.countBySource[s]
 }
 
-func (d *AddrList) Pop() (*net.TCPAddr, peer.Source) {
+func (d *AddrList) Pop() (*net.TCPAddr, peersource.Source) {
 	item := d.peerByPriority.DeleteMax()
 	if item == nil {
 		return nil, 0
@@ -62,7 +62,7 @@ func (d *AddrList) Pop() (*net.TCPAddr, peer.Source) {
 	return p.addr, p.source
 }
 
-func (d *AddrList) Push(addrs []*net.TCPAddr, source peer.Source) {
+func (d *AddrList) Push(addrs []*net.TCPAddr, source peersource.Source) {
 	now := time.Now()
 	var added int
 	for _, ad := range addrs {
