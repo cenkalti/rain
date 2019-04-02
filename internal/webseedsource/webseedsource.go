@@ -37,7 +37,7 @@ func (s *WebseedSource) Remaining() uint32 {
 	if s.Downloader == nil {
 		return 0
 	}
-	return s.Downloader.End - s.Downloader.Current - 1
+	return s.Downloader.End - s.Downloader.ReadCurrent() - 1
 }
 
 func (s *WebseedSource) DownloadSpeed() uint {

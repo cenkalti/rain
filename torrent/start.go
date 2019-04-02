@@ -168,7 +168,7 @@ func (t *torrent) startWebseedDownloader(sp *piecepicker.WebseedDownloadSpec) {
 		src.LastError = nil
 		break
 	}
-	go ud.Run(t.webseedClient, t.pieces, t.info.MultiFile(), t.webseedPieceResultC.SendC(), t.piecePool, &t.piecePicker.MutexWebseed, t.session.config.WebseedResponseBodyReadTimeout)
+	go ud.Run(t.webseedClient, t.pieces, t.info.MultiFile(), t.webseedPieceResultC.SendC(), t.piecePool, t.session.config.WebseedResponseBodyReadTimeout)
 }
 
 func (t *torrent) startPieceDownloaderFor(pe *peer.Peer) {
@@ -203,6 +203,7 @@ func (t *torrent) startSinglePieceDownloader(pe *peer.Peer) {
 	if _, ok := t.pieceDownloaders[pe]; ok {
 		panic("peer already has a piece downloader")
 	}
+	t.log.Debugf("requesting piece #%d from peer %s", pi.Index, pe.IP())
 	t.pieceDownloaders[pe] = pd
 	pe.Downloading = true
 	pd.RequestBlocks(t.maxAllowedRequests(pe))

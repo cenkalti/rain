@@ -20,10 +20,10 @@ func (p *PiecePicker) PickWebseed(src *webseedsource.WebseedSource) *WebseedDown
 	}
 	// Mark selected range as being downloaded so we won't select it again.
 	for i := begin; i < end; i++ {
-		if _, ok := p.pieces[i].WebseedDownloads[src]; ok {
+		if p.pieces[i].RequestedWebseed != nil {
 			panic("already downloading from webseed url")
 		}
-		p.pieces[i].WebseedDownloads[src] = struct{}{}
+		p.pieces[i].RequestedWebseed = src
 	}
 	return &WebseedDownloadSpec{
 		Source: src,
@@ -62,8 +62,6 @@ func (p *PiecePicker) getDownloadingSources() []*webseedsource.WebseedSource {
 }
 
 func (p *PiecePicker) webseedStealsFromAnotherWebseed() (r Range) {
-	p.MutexWebseed.Lock()
-	defer p.MutexWebseed.Unlock()
 	downloading := p.getDownloadingSources()
 	if len(downloading) == 0 {
 		return
@@ -71,26 +69,18 @@ func (p *PiecePicker) webseedStealsFromAnotherWebseed() (r Range) {
 	sort.Slice(downloading, func(i, j int) bool { return downloading[i].Remaining() > downloading[j].Remaining() })
 	src := downloading[0]
 	r.End = src.Downloader.End
-	r.Begin = (src.Downloader.Current + src.Downloader.End + 1) / 2
-	src.Downloader.End = r.Begin
-	for i := r.Begin; i < r.End; i++ {
-		if _, ok := p.pieces[i].WebseedDownloads[src]; !ok {
-			panic("not downloading from webseed source")
-		}
-		delete(p.pieces[i].WebseedDownloads, src)
-	}
+	r.Begin = (src.Downloader.ReadCurrent() + src.Downloader.End + 1) / 2
+	p.WebseedStopAt(src, r.Begin)
 	return
 }
 
 func (p *PiecePicker) peerStealsFromWebseed(pe *peer.Peer) *myPiece {
-	p.MutexWebseed.Lock()
-	defer p.MutexWebseed.Unlock()
 	downloading := p.getDownloadingSources()
 	for _, src := range downloading {
 		if src.Remaining() == 0 {
 			continue
 		}
-		for i := src.Downloader.End - 1; i > src.Downloader.Current; i-- {
+		for i := src.Downloader.End - 1; i > src.Downloader.ReadCurrent(); i-- {
 			pi := &p.pieces[i]
 			if pi.Done || pi.Writing {
 				continue
@@ -101,13 +91,7 @@ func (p *PiecePicker) peerStealsFromWebseed(pe *peer.Peer) *myPiece {
 			if pi.Requested.Len() > 0 {
 				continue
 			}
-			for j := pi.Index; j < src.Downloader.End; j++ {
-				if _, ok := p.pieces[j].WebseedDownloads[src]; !ok {
-					panic("not downloading from webseed source")
-				}
-				delete(p.pieces[j].WebseedDownloads, src)
-			}
-			src.Downloader.End = pi.Index
+			p.WebseedStopAt(src, i)
 			return pi
 		}
 	}

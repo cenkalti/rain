@@ -1,8 +1,8 @@
 package piecepicker
 
 import (
+	"fmt"
 	"sort"
-	"sync"
 
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peerset"
@@ -29,15 +29,13 @@ Do not forget to re-check these when making changes.
 */
 
 type PiecePicker struct {
+	webseedSources       []*webseedsource.WebseedSource
 	pieces               []myPiece
 	piecesByAvailability []*myPiece
 	piecesByStalled      []*myPiece
 	maxDuplicateDownload int
 	available            uint32
 	endgame              bool
-
-	MutexWebseed   sync.Mutex
-	webseedSources []*webseedsource.WebseedSource
 }
 
 type myPiece struct {
@@ -47,7 +45,8 @@ type myPiece struct {
 	Snubbed   peerset.PeerSet
 	Choked    peerset.PeerSet
 
-	WebseedDownloads map[*webseedsource.WebseedSource]struct{}
+	// Downloading from webseed source or marked to be downloaded later.
+	RequestedWebseed *webseedsource.WebseedSource
 }
 
 func (p *myPiece) RunningDownloads() int {
@@ -59,11 +58,11 @@ func (p *myPiece) StalledDownloads() int {
 }
 
 func (p *myPiece) AvailableForWebseed(duplicate bool) bool {
-	if p.Done || p.Writing || len(p.WebseedDownloads) != 0 {
+	if p.Done || p.Writing || p.RequestedWebseed != nil {
 		return false
 	}
 	if !duplicate {
-		return len(p.WebseedDownloads) == 0
+		return p.RequestedWebseed != nil
 	}
 	return true
 }
@@ -71,7 +70,7 @@ func (p *myPiece) AvailableForWebseed(duplicate bool) bool {
 func New(pieces []piece.Piece, maxDuplicateDownload int, webseedSources []*webseedsource.WebseedSource) *PiecePicker {
 	ps := make([]myPiece, len(pieces))
 	for i := range pieces {
-		ps[i] = myPiece{Piece: &pieces[i], WebseedDownloads: make(map[*webseedsource.WebseedSource]struct{})}
+		ps[i] = myPiece{Piece: &pieces[i]}
 	}
 	sps := make([]*myPiece, len(ps))
 	sps2 := make([]*myPiece, len(ps))
@@ -93,12 +92,31 @@ func (p *PiecePicker) CloseWebseedDownloader(src *webseedsource.WebseedSource) {
 		return
 	}
 	for i := src.Downloader.Begin; i < src.Downloader.End; i++ {
-		pi := &p.pieces[i]
-		delete(pi.WebseedDownloads, src)
+		if p.pieces[i].RequestedWebseed != src {
+			panic(fmt.Sprintf("invalid source in piece: %d", i))
+		}
+		p.pieces[i].RequestedWebseed = nil
 	}
 	src.Downloader.Close()
 	src.Downloader = nil
 	src.ResetSpeed()
+}
+
+func (p *PiecePicker) WebseedStopAt(src *webseedsource.WebseedSource, i uint32) (closed bool) {
+	oldEnd := src.Downloader.End
+	newEnd := i
+	for i := newEnd; i < oldEnd; i++ {
+		if p.pieces[i].RequestedWebseed != src {
+			panic(fmt.Sprintf("invalid source in piece #%d: %s", i, p.pieces[i].RequestedWebseed.URL))
+		}
+		p.pieces[i].RequestedWebseed = nil
+	}
+	src.Downloader.UpdateEnd(newEnd)
+	if src.Downloader.ReadCurrent() >= newEnd {
+		p.CloseWebseedDownloader(src)
+		return true
+	}
+	return false
 }
 
 func (p *PiecePicker) Available() uint32 {
@@ -109,20 +127,8 @@ func (p *PiecePicker) RequestedPeers(i uint32) []*peer.Peer {
 	return p.pieces[i].Requested.Peers
 }
 
-func (p *PiecePicker) RequestedSources(i uint32) []*webseedsource.WebseedSource {
-	p.MutexWebseed.Lock()
-	defer p.MutexWebseed.Unlock()
-	ret := make([]*webseedsource.WebseedSource, 0, len(p.webseedSources))
-	for src := range p.pieces[i].WebseedDownloads {
-		if src.Downloader == nil {
-			continue
-		}
-		if src.Downloader.Current != i {
-			continue
-		}
-		ret = append(ret, src)
-	}
-	return ret
+func (p *PiecePicker) RequestedWebseedSource(i uint32) *webseedsource.WebseedSource {
+	return p.pieces[i].RequestedWebseed
 }
 
 func (p *PiecePicker) HandleHave(pe *peer.Peer, i uint32) {

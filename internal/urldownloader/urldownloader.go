@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/cenkalti/rain/internal/bufferpool"
@@ -14,7 +14,7 @@ import (
 
 type URLDownloader struct {
 	URL                 string
-	Begin, End, Current uint32
+	Begin, End, current uint32
 	closeC, doneC       chan struct{}
 }
 
@@ -30,7 +30,7 @@ func New(source string, begin, end uint32) *URLDownloader {
 	return &URLDownloader{
 		URL:     source,
 		Begin:   begin,
-		Current: begin,
+		current: begin,
 		End:     end,
 		closeC:  make(chan struct{}),
 		doneC:   make(chan struct{}),
@@ -42,7 +42,27 @@ func (d *URLDownloader) Close() {
 	<-d.doneC
 }
 
-func (d *URLDownloader) Run(client *http.Client, pieces []piece.Piece, multifile bool, resultC chan interface{}, pool *bufferpool.Pool, mu sync.Locker, readTimeout time.Duration) {
+func (d *URLDownloader) String() string {
+	return d.URL
+}
+
+func (d *URLDownloader) UpdateEnd(value uint32) {
+	atomic.StoreUint32(&d.End, value)
+}
+
+func (d *URLDownloader) readEnd() uint32 {
+	return atomic.LoadUint32(&d.End)
+}
+
+func (d *URLDownloader) incrCurrent() uint32 {
+	return atomic.AddUint32(&d.current, 1)
+}
+
+func (d *URLDownloader) ReadCurrent() uint32 {
+	return atomic.LoadUint32(&d.current)
+}
+
+func (d *URLDownloader) Run(client *http.Client, pieces []piece.Piece, multifile bool, resultC chan interface{}, pool *bufferpool.Pool, readTimeout time.Duration) {
 	defer close(d.doneC)
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
@@ -53,12 +73,10 @@ func (d *URLDownloader) Run(client *http.Client, pieces []piece.Piece, multifile
 		cancel()
 	}()
 
-	mu.Lock()
-	jobs := createJobs(pieces, d.Begin, d.End)
-	mu.Unlock()
+	jobs := createJobs(pieces, d.Begin, d.readEnd())
 
 	var n int // position in piece
-	buf := pool.Get(int(pieces[d.Current].Length))
+	buf := pool.Get(int(pieces[d.current].Length))
 
 	processJob := func(job downloadJob) bool {
 		u := d.getURL(job.Filename, multifile)
@@ -92,19 +110,16 @@ func (d *URLDownloader) Run(client *http.Client, pieces []piece.Piece, multifile
 			n += o
 			m += int64(o)
 			if n == len(buf.Data) { // piece completed
-				mu.Lock()
-				index := d.Current
-				d.Current++
-				done := d.Current >= d.End
-				mu.Unlock()
-
+				index := d.current
+				done := d.current >= d.readEnd()-1
 				d.sendResult(resultC, &PieceResult{Downloader: d, Buffer: buf, Index: index, Done: done})
 				if done {
 					return true
 				}
+				d.incrCurrent()
 				// Allocate new buffer for next piece
 				n = 0
-				buf = pool.Get(int(pieces[d.Current].Length))
+				buf = pool.Get(int(pieces[d.current].Length))
 			}
 		}
 		return true
@@ -155,6 +170,11 @@ func (d *URLDownloader) getURL(filename string, multifile bool) string {
 }
 
 func (d *URLDownloader) sendResult(resultC chan interface{}, res *PieceResult) {
+	select {
+	case <-d.closeC:
+		return
+	default:
+	}
 	select {
 	case resultC <- res:
 	case <-d.closeC:

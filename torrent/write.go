@@ -2,6 +2,7 @@ package torrent
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/cenkalti/rain/internal/counters"
 	"github.com/cenkalti/rain/internal/peer"
@@ -41,17 +42,24 @@ func (t *torrent) handlePieceWriteDone(pw *piecewriter.PieceWriter) {
 
 	pw.Piece.Done = true
 	if t.bitfield.Test(pw.Piece.Index) {
-		panic("already have the piece")
+		panic(fmt.Sprintf("already have the piece #%d", pw.Piece.Index))
 	}
 	t.mBitfield.Lock()
 	t.bitfield.Set(pw.Piece.Index)
 	t.mBitfield.Unlock()
 
 	if t.piecePicker != nil {
-		for _, src := range t.piecePicker.RequestedSources(pw.Piece.Index) {
-			t.closeWebseedDownloader(src)
-			t.startPieceDownloaderForWebseed(src)
+
+		_, ok := pw.Source.(*urldownloader.URLDownloader)
+		src := t.piecePicker.RequestedWebseedSource(pw.Piece.Index)
+		if !ok && src != nil {
+			closed := t.piecePicker.WebseedStopAt(src, pw.Piece.Index)
+			if closed {
+				t.log.Debugf("closed webseed downloader: %s", src.URL)
+				t.startPieceDownloaderForWebseed(src)
+			}
 		}
+
 		for _, pe := range t.piecePicker.RequestedPeers(pw.Piece.Index) {
 			pd2 := t.pieceDownloaders[pe]
 			t.closePieceDownloader(pd2)
