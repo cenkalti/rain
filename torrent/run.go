@@ -74,11 +74,7 @@ func (t *torrent) run() {
 		case now := <-t.seedDurationTicker.C:
 			t.updateSeedDuration(now)
 		case <-t.speedCounterTicker.C:
-			t.downloadSpeed.Tick()
-			t.uploadSpeed.Tick()
-			for _, src := range t.webseedSources {
-				src.TickSpeed()
-			}
+			t.handleSpeedTicker()
 		case pe := <-t.peerSnubbedC:
 			t.handlePeerSnubbed(pe)
 		case <-t.unchokeTicker.C:
