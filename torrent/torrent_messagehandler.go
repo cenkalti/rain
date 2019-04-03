@@ -5,6 +5,7 @@ import (
 	"net"
 
 	"github.com/cenkalti/rain/internal/bitfield"
+	"github.com/cenkalti/rain/internal/cachedpiece"
 	"github.com/cenkalti/rain/internal/counters"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peerconn/peerwriter"
@@ -240,7 +241,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			}
 		} else {
 			if t.session.pieceCache != nil {
-				pe.SendPiece(msg, t.cachedPiece(pi))
+				pe.SendPiece(msg, cachedpiece.New(pi, t.session.pieceCache, t.session.config.PieceReadSize, t.peerID))
 			} else {
 				pe.SendPiece(msg, pi.Data)
 			}

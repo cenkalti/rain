@@ -1,4 +1,4 @@
-package torrent
+package cachedpiece
 
 import (
 	"encoding/binary"
@@ -7,23 +7,23 @@ import (
 	"github.com/cenkalti/rain/internal/piececache"
 )
 
-type cachedPiece struct {
+type CachedPiece struct {
 	pi       *piece.Piece
 	cache    *piececache.Cache
 	readSize int64
 	peerID   []byte
 }
 
-func (t *torrent) cachedPiece(pi *piece.Piece) *cachedPiece {
-	return &cachedPiece{
+func New(pi *piece.Piece, cache *piececache.Cache, readSize int64, peerID [20]byte) *CachedPiece {
+	return &CachedPiece{
 		pi:       pi,
-		cache:    t.session.pieceCache,
-		readSize: t.session.config.PieceReadSize,
-		peerID:   t.peerID[:],
+		cache:    cache,
+		readSize: readSize,
+		peerID:   peerID[:],
 	}
 }
 
-func (c *cachedPiece) ReadAt(p []byte, off int64) (n int, err error) {
+func (c *CachedPiece) ReadAt(p []byte, off int64) (n int, err error) {
 	blk := uint32(off / c.readSize)
 	blkBegin := uint32(int64(blk) * c.readSize)
 	blkEnd := uint32(int64(blkBegin) + c.readSize)
