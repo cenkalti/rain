@@ -55,14 +55,14 @@ func (s *FileStorage) Open(name string, size int64) (f storage.File, exists bool
 		if err != nil {
 			return
 		}
-		f = of
+		f = File{of}
 		err = of.Truncate(size)
 		return
 	}
 	if err != nil {
 		return
 	}
-	f = of
+	f = File{of}
 	exists = true
 	fi, err := of.Stat()
 	if err != nil {
