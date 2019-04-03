@@ -24,6 +24,7 @@ type PeerWriter struct {
 	currentQueuedRequests int
 	writeC                chan peerprotocol.Message
 	messages              chan interface{}
+	servedRequests        map[peerprotocol.RequestMessage]struct{}
 	log                   logger.Logger
 	stopC                 chan struct{}
 	doneC                 chan struct{}
@@ -38,6 +39,7 @@ func New(conn net.Conn, l logger.Logger, maxQueuedRequests int) *PeerWriter {
 		maxQueuedRequests: maxQueuedRequests,
 		writeC:            make(chan peerprotocol.Message),
 		messages:          make(chan interface{}),
+		servedRequests:    make(map[peerprotocol.RequestMessage]struct{}),
 		log:               l,
 		stopC:             make(chan struct{}),
 		doneC:             make(chan struct{}),
@@ -173,6 +175,15 @@ func (p *PeerWriter) messageWriter() {
 	for {
 		select {
 		case msg := <-p.writeC:
+			// Reject duplicate requests
+			if pi, ok := msg.(Piece); ok {
+				if _, ok = p.servedRequests[pi.RequestMessage]; ok {
+					msg = peerprotocol.RejectMessage{RequestMessage: pi.RequestMessage}
+				} else {
+					p.servedRequests[pi.RequestMessage] = struct{}{}
+				}
+			}
+
 			// p.log.Debugf("writing message of type: %q", msg.ID())
 
 			buf := bytes.NewBuffer(b)
