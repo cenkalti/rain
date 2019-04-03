@@ -21,6 +21,7 @@ type PeerWriter struct {
 	cancelC               chan peerprotocol.CancelMessage
 	writeQueue            *list.List
 	maxQueuedRequests     int
+	fastEnabled           bool
 	currentQueuedRequests int
 	writeC                chan peerprotocol.Message
 	messages              chan interface{}
@@ -30,13 +31,14 @@ type PeerWriter struct {
 	doneC                 chan struct{}
 }
 
-func New(conn net.Conn, l logger.Logger, maxQueuedRequests int) *PeerWriter {
+func New(conn net.Conn, l logger.Logger, maxQueuedRequests int, fastEnabled bool) *PeerWriter {
 	return &PeerWriter{
 		conn:              conn,
 		queueC:            make(chan peerprotocol.Message),
 		cancelC:           make(chan peerprotocol.CancelMessage),
 		writeQueue:        list.New(),
 		maxQueuedRequests: maxQueuedRequests,
+		fastEnabled:       fastEnabled,
 		writeC:            make(chan peerprotocol.Message),
 		messages:          make(chan interface{}),
 		servedRequests:    make(map[peerprotocol.RequestMessage]struct{}),
@@ -119,8 +121,13 @@ func (p *PeerWriter) queueMessage(msg peerprotocol.Message) {
 	case Piece:
 		// Reject request if peer queued to many requests
 		if p.currentQueuedRequests >= p.maxQueuedRequests {
-			msg = peerprotocol.RejectMessage{RequestMessage: msg2.RequestMessage}
-			break
+			if p.fastEnabled {
+				msg = peerprotocol.RejectMessage{RequestMessage: msg2.RequestMessage}
+				break
+			} else {
+				// Drop message silently
+				return
+			}
 		}
 		p.currentQueuedRequests++
 	}

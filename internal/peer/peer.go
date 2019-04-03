@@ -2,9 +2,11 @@ package peer
 
 import (
 	"math"
+	"net"
 	"time"
 
 	"github.com/cenkalti/rain/internal/bitfield"
+	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/mse"
 	"github.com/cenkalti/rain/internal/peerconn"
 	"github.com/cenkalti/rain/internal/peerconn/peerreader"
@@ -69,7 +71,7 @@ type PieceMessage struct {
 	Piece peerreader.Piece
 }
 
-func New(p *peerconn.Conn, source peersource.Source, id [20]byte, extensions [8]byte, cipher mse.CryptoMethod, snubTimeout time.Duration) *Peer {
+func New(conn net.Conn, source peersource.Source, id [20]byte, extensions [8]byte, cipher mse.CryptoMethod, pieceReadTimeout, snubTimeout time.Duration, maxRequestsIn int) *Peer {
 	bf, _ := bitfield.NewBytes(extensions[:], 64)
 	fastEnabled := bf.Test(61)
 	extensionsEnabled := bf.Test(43)
@@ -77,7 +79,7 @@ func New(p *peerconn.Conn, source peersource.Source, id [20]byte, extensions [8]
 	t := time.NewTimer(math.MaxInt64)
 	t.Stop()
 	return &Peer{
-		Conn:              p,
+		Conn:              peerconn.New(conn, newPeerLogger(source, conn), pieceReadTimeout, maxRequestsIn, fastEnabled),
 		Source:            source,
 		ConnectedAt:       time.Now(),
 		ID:                id,
@@ -93,6 +95,13 @@ func New(p *peerconn.Conn, source peersource.Source, id [20]byte, extensions [8]
 		downloadSpeed:     metrics.NewEWMA1(),
 		uploadSpeed:       metrics.NewEWMA1(),
 	}
+}
+
+func newPeerLogger(src peersource.Source, conn net.Conn) logger.Logger {
+	if src == peersource.Incoming {
+		return logger.New("peer <- " + conn.RemoteAddr().String())
+	}
+	return logger.New("peer -> " + conn.RemoteAddr().String())
 }
 
 func (p *Peer) Close() {

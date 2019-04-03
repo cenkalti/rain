@@ -11,6 +11,7 @@ import (
 	"github.com/cenkalti/rain/internal/peerprotocol"
 )
 
+// Conn is a peer connection that provides a channel for receiving messages and methods for sending messages.
 type Conn struct {
 	conn     net.Conn
 	reader   *peerreader.PeerReader
@@ -21,11 +22,11 @@ type Conn struct {
 	doneC    chan struct{}
 }
 
-func New(conn net.Conn, l logger.Logger, pieceTimeout time.Duration, maxRequestsIn int) *Conn {
+func New(conn net.Conn, l logger.Logger, pieceTimeout time.Duration, maxRequestsIn int, fastEnabled bool) *Conn {
 	return &Conn{
 		conn:     conn,
 		reader:   peerreader.New(conn, l, pieceTimeout),
-		writer:   peerwriter.New(conn, l, maxRequestsIn),
+		writer:   peerwriter.New(conn, l, maxRequestsIn, fastEnabled),
 		messages: make(chan interface{}),
 		log:      l,
 		closeC:   make(chan struct{}),
@@ -45,36 +46,42 @@ func (p *Conn) String() string {
 	return p.conn.RemoteAddr().String()
 }
 
+// Close stops receiving and sending messages and closes underlying net.Conn.
 func (p *Conn) Close() {
 	close(p.closeC)
 	<-p.doneC
-}
-
-func (p *Conn) CloseConn() {
-	p.conn.Close()
 }
 
 func (p *Conn) Logger() logger.Logger {
 	return p.log
 }
 
+// Messages received from the peer will be sent to the channel returned.
+// The channel and underlying net.Conn will be closed if any error occurs while receiving or sending.
 func (p *Conn) Messages() <-chan interface{} {
 	return p.messages
 }
 
+// SendMessage queues a message for sending. Does not block.
 func (p *Conn) SendMessage(msg peerprotocol.Message) {
 	p.writer.SendMessage(msg)
 }
 
+// SendPiece queues a piece message for sending. Does not block.
+// Piece data is read just before the message is sent.
+// If queued messages greater than `maxRequestsIn` specified in constructor, the last message is dropped.
 func (p *Conn) SendPiece(msg peerprotocol.RequestMessage, pi io.ReaderAt) {
 	p.writer.SendPiece(msg, pi)
 }
 
+// CancelRequest removes previously queued piece message matching msg.
 func (p *Conn) CancelRequest(msg peerprotocol.CancelMessage) {
 	p.writer.CancelRequest(msg)
 }
 
-// Run reads and processes incoming messages after handshake.
+// Run starts receiving messages from peer and starts sending queued messages.
+// If any error happens during receiving or sending messages,
+// the connection and the underlying net.Conn will be closed.
 func (p *Conn) Run() {
 	defer close(p.doneC)
 	defer close(p.messages)

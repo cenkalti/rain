@@ -7,7 +7,6 @@ import (
 	"github.com/cenkalti/rain/internal/handshaker/outgoinghandshaker"
 	"github.com/cenkalti/rain/internal/mse"
 	"github.com/cenkalti/rain/internal/peer"
-	"github.com/cenkalti/rain/internal/peerconn"
 	"github.com/cenkalti/rain/internal/peerprotocol"
 	"github.com/cenkalti/rain/internal/peersource"
 )
@@ -78,25 +77,26 @@ func (t *torrent) dialAddresses() {
 }
 
 func (t *torrent) startPeer(
-	p *peerconn.Conn,
+	conn net.Conn,
 	source peersource.Source,
 	peers map[*peer.Peer]struct{},
 	peerID [20]byte,
 	extensions [8]byte,
 	cipher mse.CryptoMethod,
 ) {
-	t.pexAddPeer(p.Addr())
+	addr := conn.RemoteAddr().(*net.TCPAddr)
+	t.pexAddPeer(addr)
 	_, ok := t.peerIDs[peerID]
 	if ok {
-		p.Logger().Debugln("peer with same id already connected:", peerID)
-		p.CloseConn()
-		t.pexDropPeer(p.Addr())
+		t.log.Debugf("peer with same id already connected. addr: %s id: %s", addr, peerID)
+		conn.Close()
+		t.pexDropPeer(addr)
 		t.dialAddresses()
 		return
 	}
 	t.peerIDs[peerID] = struct{}{}
 
-	pe := peer.New(p, source, peerID, extensions, cipher, t.session.config.RequestTimeout)
+	pe := peer.New(conn, source, peerID, extensions, cipher, t.session.config.PieceReadTimeout, t.session.config.RequestTimeout, t.session.config.MaxRequestsIn)
 	t.peers[pe] = struct{}{}
 	peers[pe] = struct{}{}
 	if t.info != nil {
