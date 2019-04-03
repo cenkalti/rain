@@ -56,7 +56,7 @@ func (p *PeerWriter) SendMessage(msg peerprotocol.Message) {
 }
 
 func (p *PeerWriter) SendPiece(msg peerprotocol.RequestMessage, pi io.ReaderAt) {
-	m := Piece{Piece: pi, RequestMessage: msg}
+	m := Piece{Data: pi, RequestMessage: msg}
 	select {
 	case p.queueC <- m:
 	case <-p.doneC:

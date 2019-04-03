@@ -12,7 +12,7 @@ func BenchmarkRead(b *testing.B) {
 	buf2 := make([]byte, 25)
 	r := bytes.NewReader(buf)
 	p := Piece{
-		Piece: r,
+		Data: r,
 		RequestMessage: peerprotocol.RequestMessage{
 			Begin:  2,
 			Length: 5,
