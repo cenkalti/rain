@@ -69,8 +69,6 @@ func (t *torrent) run() {
 			t.startPieceDownloaderForWebseed(src)
 		case pw := <-t.pieceWriterResultC:
 			t.handlePieceWriteDone(pw)
-		case <-t.resumeWriteTimerC:
-			t.writeBitfield(true)
 		case now := <-t.seedDurationTicker.C:
 			t.updateSeedDuration(now)
 		case <-t.speedCounterTicker.C:

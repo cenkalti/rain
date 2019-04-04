@@ -18,11 +18,8 @@ type Config struct {
 	PortBegin, PortEnd uint16
 	// Enable peer exchange protocol.
 	PEXEnabled bool
-	// Bitfield is saved to disk for fast resume without hash checking.
-	// There is an interval to keep IO lower.
-	BitfieldWriteInterval time.Duration
-	// Stats are written at interval to reduce write operations.
-	StatsWriteInterval time.Duration
+	// Resume data (bitfield & stats) are saved to disk at interval to keep IO lower.
+	ResumeWriteInterval time.Duration
 	// Peer id is prefixed with this string. See BEP 20. Remaining bytes of peer id will be randomized.
 	// Only applies to private torrents.
 	PrivatePeerIDPrefix string
@@ -144,8 +141,7 @@ var DefaultConfig = Config{
 	PortBegin:                              50000,
 	PortEnd:                                60000,
 	PEXEnabled:                             true,
-	BitfieldWriteInterval:                  30 * time.Second,
-	StatsWriteInterval:                     30 * time.Second,
+	ResumeWriteInterval:                    30 * time.Second,
 	PrivatePeerIDPrefix:                    "-RN" + Version + "-",
 	PrivateExtensionHandshakeClientVersion: "Rain " + Version,
 	BlocklistUpdateInterval:                24 * time.Hour,

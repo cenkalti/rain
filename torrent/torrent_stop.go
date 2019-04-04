@@ -34,8 +34,8 @@ func (t *torrent) stop(err error) {
 	t.stopInfoDownloaders()
 	t.stopWebseedDownloads()
 
-	if t.resume != nil && t.bitfield != nil {
-		t.writeBitfield(false)
+	if t.bitfield != nil {
+		_ = t.writeBitfield()
 	}
 
 	// Closing data is necessary to cancel ongoing IO operations on files.

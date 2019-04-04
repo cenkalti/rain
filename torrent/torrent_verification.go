@@ -25,9 +25,9 @@ func (t *torrent) handleVerificationDone(ve *verifier.Verifier) {
 
 	// Save the bitfield to resume db.
 	if t.resume != nil {
-		err := t.resume.WriteBitfield(t.bitfield.Bytes())
+		err := t.writeBitfield()
 		if err != nil {
-			t.stop(fmt.Errorf("cannot write bitfield to resume db: %s", err))
+			t.stop(err)
 			return
 		}
 	}

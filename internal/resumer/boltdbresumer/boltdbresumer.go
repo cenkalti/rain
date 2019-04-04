@@ -104,16 +104,6 @@ func (r *Resumer) WriteInfo(value []byte) error {
 	})
 }
 
-func (r *Resumer) WriteBitfield(value []byte) error {
-	return r.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(r.mainBucket).Bucket(r.subBucket)
-		if b == nil {
-			return nil
-		}
-		return b.Put(Keys.Bitfield, value)
-	})
-}
-
 func (r *Resumer) Read() (*Spec, error) {
 	var spec *Spec
 	err := r.db.View(func(tx *bolt.Tx) error {

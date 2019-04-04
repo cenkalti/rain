@@ -4,30 +4,24 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/boltdb/bolt"
 	"github.com/cenkalti/rain/internal/handshaker/outgoinghandshaker"
+	"github.com/cenkalti/rain/internal/resumer/boltdbresumer"
 )
 
-func (t *torrent) deferWriteBitfield() {
-	if t.resumeWriteTimer == nil {
-		t.resumeWriteTimer = time.NewTimer(t.session.config.BitfieldWriteInterval)
-		t.resumeWriteTimerC = t.resumeWriteTimer.C
-	}
-}
-
-func (t *torrent) writeBitfield(stopOnError bool) {
-	if t.resumeWriteTimer != nil {
-		t.resumeWriteTimer.Stop()
-		t.resumeWriteTimer = nil
-		t.resumeWriteTimerC = nil
-	}
-	err := t.resume.WriteBitfield(t.bitfield.Bytes())
+func (t *torrent) writeBitfield() error {
+	err := t.session.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(torrentsBucket).Bucket([]byte(t.id))
+		if b == nil {
+			return nil
+		}
+		return b.Put(boltdbresumer.Keys.Bitfield, t.bitfield.Bytes())
+	})
 	if err != nil {
 		err = fmt.Errorf("cannot write bitfield to resume db: %s", err)
 		t.log.Errorln(err)
-		if stopOnError {
-			t.stop(err)
-		}
 	}
+	return err
 }
 
 func (t *torrent) checkCompletion() bool {

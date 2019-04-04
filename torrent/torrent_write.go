@@ -82,12 +82,9 @@ func (t *torrent) handlePieceWriteDone(pw *piecewriter.PieceWriter) {
 	completed := t.checkCompletion()
 	if completed {
 		t.log.Info("download completed")
-	}
-	if t.resume != nil {
-		if completed {
-			t.writeBitfield(true)
-		} else {
-			t.deferWriteBitfield()
+		err := t.writeBitfield()
+		if err != nil {
+			t.stop(err)
 		}
 	}
 }

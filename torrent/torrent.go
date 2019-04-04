@@ -214,10 +214,6 @@ type torrent struct {
 	// Piece buffers that are being downloaded are pooled to reduce load on GC.
 	piecePool *bufferpool.Pool
 
-	// Keep a timer to write bitfield at interval to reduce IO.
-	resumeWriteTimer  *time.Timer
-	resumeWriteTimerC <-chan time.Time
-
 	// Used to calculate canonical peer priority (BEP 40).
 	// Initialized with value found in network interfaces.
 	// Then, updated from "yourip" field in BEP 10 extension handshake message.

@@ -60,7 +60,7 @@ func (s *Session) Stats() SessionStats {
 }
 
 func (s *Session) updateStatsLoop() {
-	ticker := time.NewTicker(s.config.StatsWriteInterval)
+	ticker := time.NewTicker(s.config.ResumeWriteInterval)
 	defer ticker.Stop()
 	for {
 		select {
@@ -73,19 +73,27 @@ func (s *Session) updateStatsLoop() {
 }
 
 func (s *Session) updateStats() {
+	s.mTorrents.RLock()
+	defer s.mTorrents.RUnlock()
 	err := s.db.Update(func(tx *bolt.Tx) error {
 		mb := tx.Bucket(torrentsBucket)
-		s.mTorrents.RLock()
 		for _, t := range s.torrents {
 			b := mb.Bucket([]byte(t.torrent.id))
 			_ = b.Put(boltdbresumer.Keys.BytesDownloaded, []byte(strconv.FormatInt(t.torrent.counters.Read(counters.BytesDownloaded), 10)))
 			_ = b.Put(boltdbresumer.Keys.BytesUploaded, []byte(strconv.FormatInt(t.torrent.counters.Read(counters.BytesUploaded), 10)))
 			_ = b.Put(boltdbresumer.Keys.BytesWasted, []byte(strconv.FormatInt(t.torrent.counters.Read(counters.BytesWasted), 10)))
 			_ = b.Put(boltdbresumer.Keys.SeededFor, []byte(time.Duration(t.torrent.counters.Read(counters.SeededFor)).String()))
+
+			t.torrent.mBitfield.RLock()
+			if t.torrent.bitfield != nil {
+				_ = b.Put(boltdbresumer.Keys.Bitfield, t.torrent.bitfield.Bytes())
+			}
 		}
-		s.mTorrents.RUnlock()
 		return nil
 	})
+	for _, t := range s.torrents {
+		t.torrent.mBitfield.RUnlock()
+	}
 	if err != nil {
 		s.log.Errorln("cannot update stats:", err.Error())
 	}
