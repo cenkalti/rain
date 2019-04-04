@@ -50,7 +50,7 @@ func (s *Session) addTorrentStopped(r io.Reader) (*Torrent, error) {
 		sto,
 		mi.Info.Name,
 		port,
-		s.parseTrackers(mi.AnnounceList),
+		s.parseTrackers(mi.AnnounceList, mi.Info.IsPrivate()),
 		res,
 		mi.Info,
 		nil, // bitfield
@@ -138,7 +138,7 @@ func (s *Session) addMagnet(link string) (*Torrent, error) {
 		sto,
 		ma.Name,
 		port,
-		s.parseTrackers(ma.Trackers),
+		s.parseTrackers(ma.Trackers, false),
 		res,
 		nil, // info
 		nil, // bitfield

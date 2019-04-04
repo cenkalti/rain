@@ -2,6 +2,12 @@ package torrent
 
 import "time"
 
+var (
+	publicPeerIDPrefix                    = "-RN" + Version + "-"
+	publicExtensionHandshakeClientVersion = "Rain " + Version
+	trackerHTTPPublicUserAgent            = "Rain/" + Version
+)
+
 // Config for Session.
 type Config struct {
 	// Database file to save resume data.
@@ -18,9 +24,11 @@ type Config struct {
 	// Stats are written at interval to reduce write operations.
 	StatsWriteInterval time.Duration
 	// Peer id is prefixed with this string. See BEP 20. Remaining bytes of peer id will be randomized.
-	PeerIDPrefix string
+	// Only applies to private torrents.
+	PrivatePeerIDPrefix string
 	// Client version that is sent in BEP 10 handshake message.
-	ExtensionHandshakeClientVersion string
+	// Only applies to private torrents.
+	PrivateExtensionHandshakeClientVersion string
 	// URL to the blocklist file in CIDR format.
 	BlocklistURL string
 	// When to refresh blocklist
@@ -66,7 +74,8 @@ type Config struct {
 	// This includes ConnectTimeout and TLSHandshakeTimeout.
 	TrackerHTTPTimeout time.Duration
 	// User agent sent when communicating with HTTP trackers.
-	TrackerHTTPUserAgent string
+	// Only applies to private torrents.
+	TrackerHTTPPrivateUserAgent string
 	// Max number of bytes in a tracker response.
 	TrackerHTTPMaxResponseSize uint
 
@@ -130,20 +139,20 @@ type Config struct {
 
 var DefaultConfig = Config{
 	// Session
-	Database:                        "~/rain/session.db",
-	DataDir:                         "~/rain/data",
-	PortBegin:                       50000,
-	PortEnd:                         60000,
-	PEXEnabled:                      true,
-	BitfieldWriteInterval:           30 * time.Second,
-	StatsWriteInterval:              30 * time.Second,
-	PeerIDPrefix:                    "-RN" + Version + "-",
-	ExtensionHandshakeClientVersion: "Rain " + Version,
-	BlocklistUpdateInterval:         24 * time.Hour,
-	BlocklistUpdateTimeout:          10 * time.Minute,
-	TorrentAddHTTPTimeout:           30 * time.Second,
-	MaxMetadataSize:                 10 * 1024 * 1024,
-	MaxTorrentSize:                  10 * 1024 * 1024,
+	Database:                               "~/rain/session.db",
+	DataDir:                                "~/rain/data",
+	PortBegin:                              50000,
+	PortEnd:                                60000,
+	PEXEnabled:                             true,
+	BitfieldWriteInterval:                  30 * time.Second,
+	StatsWriteInterval:                     30 * time.Second,
+	PrivatePeerIDPrefix:                    "-RN" + Version + "-",
+	PrivateExtensionHandshakeClientVersion: "Rain " + Version,
+	BlocklistUpdateInterval:                24 * time.Hour,
+	BlocklistUpdateTimeout:                 10 * time.Minute,
+	TorrentAddHTTPTimeout:                  30 * time.Second,
+	MaxMetadataSize:                        10 * 1024 * 1024,
+	MaxTorrentSize:                         10 * 1024 * 1024,
 
 	// RPC Server
 	RPCEnabled:         true,
@@ -152,12 +161,12 @@ var DefaultConfig = Config{
 	RPCShutdownTimeout: 5 * time.Second,
 
 	// Tracker
-	TrackerNumWant:             200,
-	TrackerStopTimeout:         5 * time.Second,
-	TrackerMinAnnounceInterval: time.Minute,
-	TrackerHTTPTimeout:         10 * time.Second,
-	TrackerHTTPUserAgent:       "Rain/" + Version,
-	TrackerHTTPMaxResponseSize: 2 * 1024 * 1024,
+	TrackerNumWant:              200,
+	TrackerStopTimeout:          5 * time.Second,
+	TrackerMinAnnounceInterval:  time.Minute,
+	TrackerHTTPTimeout:          10 * time.Second,
+	TrackerHTTPPrivateUserAgent: "Rain/" + Version,
+	TrackerHTTPMaxResponseSize:  2 * 1024 * 1024,
 
 	// DHT node
 	DHTEnabled:             true,

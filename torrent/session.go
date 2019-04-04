@@ -194,10 +194,10 @@ func NewSession(cfg Config) (*Session, error) {
 	return c, nil
 }
 
-func (s *Session) parseTrackers(trackers []string) []tracker.Tracker {
+func (s *Session) parseTrackers(trackers []string, private bool) []tracker.Tracker {
 	ret := make([]tracker.Tracker, 0, len(trackers))
 	for _, tr := range trackers {
-		t, err := s.trackerManager.Get(tr, s.config.TrackerHTTPTimeout, s.config.TrackerHTTPUserAgent, int64(s.config.TrackerHTTPMaxResponseSize))
+		t, err := s.trackerManager.Get(tr, s.config.TrackerHTTPTimeout, s.getTrackerUserAgent(private), int64(s.config.TrackerHTTPMaxResponseSize))
 		if err != nil {
 			s.log.Debugln("cannot parse tracker url:", err)
 			continue
@@ -205,6 +205,13 @@ func (s *Session) parseTrackers(trackers []string) []tracker.Tracker {
 		ret = append(ret, t)
 	}
 	return ret
+}
+
+func (s *Session) getTrackerUserAgent(private bool) string {
+	if private {
+		return s.config.TrackerHTTPPrivateUserAgent
+	}
+	return trackerHTTPPublicUserAgent
 }
 
 func (s *Session) Close() error {

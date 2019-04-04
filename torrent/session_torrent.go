@@ -69,7 +69,7 @@ func (t *Torrent) AddPeer(addr *net.TCPAddr) {
 }
 
 func (t *Torrent) AddTracker(uri string) error {
-	tr, err := t.session.trackerManager.Get(uri, t.session.config.TrackerHTTPTimeout, t.session.config.TrackerHTTPUserAgent, int64(t.session.config.TrackerHTTPMaxResponseSize))
+	tr, err := t.session.trackerManager.Get(uri, t.session.config.TrackerHTTPTimeout, t.session.getTrackerUserAgent(t.torrent.info.IsPrivate()), int64(t.session.config.TrackerHTTPMaxResponseSize))
 	if err != nil {
 		return err
 	}

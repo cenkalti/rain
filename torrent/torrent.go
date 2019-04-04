@@ -321,17 +321,24 @@ func newTorrent2(
 		doneC:                     make(chan struct{}),
 	}
 	t.addrList = addrlist.New(cfg.MaxPeerAddresses, s.blocklist, port, &t.externalIP)
-	copy(t.peerID[:], []byte(cfg.PeerIDPrefix))
 	if t.info != nil {
 		t.piecePool = bufferpool.New(int(t.info.PieceLength))
 	}
-	_, err := rand.Read(t.peerID[len(cfg.PeerIDPrefix):]) // nolint: gosec
+	n := t.copyPeerIDPrefix()
+	_, err := rand.Read(t.peerID[n:]) // nolint: gosec
 	if err != nil {
 		return nil, err
 	}
 	t.unchoker = unchoker.New(cfg.UnchokedPeers, cfg.OptimisticUnchokedPeers)
 	go t.run()
 	return t, nil
+}
+
+func (t *torrent) copyPeerIDPrefix() int {
+	if t.info.IsPrivate() {
+		return copy(t.peerID[:], []byte(t.session.config.PrivatePeerIDPrefix))
+	}
+	return copy(t.peerID[:], []byte(publicPeerIDPrefix))
 }
 
 func (t *torrent) getPeersForUnchoker() []unchoker.Peer {

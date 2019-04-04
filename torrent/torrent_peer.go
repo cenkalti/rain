@@ -126,7 +126,7 @@ func (t *torrent) sendFirstMessage(p *peer.Peer) {
 		metadataSize = uint32(len(t.info.Bytes))
 	}
 	if p.ExtensionsEnabled {
-		extHandshakeMsg := peerprotocol.NewExtensionHandshake(metadataSize, t.session.config.ExtensionHandshakeClientVersion, p.Addr().IP, t.session.config.MaxRequestsIn)
+		extHandshakeMsg := peerprotocol.NewExtensionHandshake(metadataSize, t.getClientVersion(), p.Addr().IP, t.session.config.MaxRequestsIn)
 		msg := peerprotocol.ExtensionMessage{
 			ExtendedMessageID: peerprotocol.ExtensionIDHandshake,
 			Payload:           extHandshakeMsg,
@@ -137,6 +137,13 @@ func (t *torrent) sendFirstMessage(p *peer.Peer) {
 		msg := peerprotocol.PortMessage{Port: t.session.config.DHTPort}
 		p.SendMessage(msg)
 	}
+}
+
+func (t *torrent) getClientVersion() string {
+	if t.info.IsPrivate() {
+		return t.session.config.PrivateExtensionHandshakeClientVersion
+	}
+	return publicExtensionHandshakeClientVersion
 }
 
 // Process messages received while we don't have metadata yet.

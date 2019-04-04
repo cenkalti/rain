@@ -85,3 +85,10 @@ func (i *Info) GetFiles() []FileDict {
 	}
 	return []FileDict{{i.Length, []string{i.Name}}}
 }
+
+func (i *Info) IsPrivate() bool {
+	if i == nil {
+		return false
+	}
+	return i.Private == 1
+}

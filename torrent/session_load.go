@@ -61,7 +61,7 @@ func (s *Session) loadExistingTorrents(ids []string) {
 			sto,
 			spec.Name,
 			spec.Port,
-			s.parseTrackers(spec.Trackers),
+			s.parseTrackers(spec.Trackers, info.IsPrivate()),
 			res,
 			info,
 			bf,
