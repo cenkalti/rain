@@ -291,6 +291,10 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 				Length: msg.Length,
 			}})
 		}
+	case peerprotocol.PortMessage:
+		if t.session.dht != nil {
+			t.session.dht.AddNode(fmt.Sprintf("%s:%d", pe.IP(), msg.Port))
+		}
 	case peerwriter.BlockUploaded:
 		t.uploadSpeed.Update(int64(msg.Length))
 		t.counters.Incr(counters.BytesUploaded, int64(msg.Length))

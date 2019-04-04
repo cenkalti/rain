@@ -53,13 +53,24 @@ type BitfieldMessage struct {
 
 func (m BitfieldMessage) ID() MessageID { return Bitfield }
 
-func (m BitfieldMessage) Read(b []byte) (n int, err error) {
+func (m *BitfieldMessage) Read(b []byte) (n int, err error) {
 	n = copy(b, m.Data[m.pos:])
 	m.pos += n
 	if m.pos == len(m.Data) {
 		err = io.EOF
 	}
 	return
+}
+
+type PortMessage struct {
+	Port uint16
+}
+
+func (m PortMessage) ID() MessageID { return Port }
+
+func (m PortMessage) Read(b []byte) (n int, err error) {
+	binary.BigEndian.PutUint16(b[0:2], m.Port)
+	return 2, io.EOF
 }
 
 type emptyMessage struct{}

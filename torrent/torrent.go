@@ -2,7 +2,6 @@ package torrent
 
 import (
 	"errors"
-	"log"
 	"math/rand"
 	"net"
 	"net/http"
@@ -37,20 +36,6 @@ import (
 	"github.com/cenkalti/rain/internal/webseedsource"
 	"github.com/rcrowley/go-metrics"
 )
-
-var (
-	// We send this in handshake tell supported extensions.
-	ourExtensions [8]byte
-)
-
-func init() {
-	bf, err := bitfield.NewBytes(ourExtensions[:], 64)
-	if err != nil {
-		log.Fatal(err)
-	}
-	bf.Set(61) // Fast Extension (BEP 6)
-	bf.Set(43) // Extension Protocol (BEP 10)
-}
 
 // torrent connects to peers and downloads files from swarm.
 type torrent struct {

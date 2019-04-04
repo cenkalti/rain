@@ -69,7 +69,7 @@ func (t *torrent) dialAddresses() {
 			t.peerID,
 			t.infoHash,
 			t.outgoingHandshakerResultC,
-			ourExtensions,
+			t.session.extensions,
 			t.session.config.DisableOutgoingEncryption,
 			t.session.config.ForceOutgoingEncryption,
 		)
@@ -119,7 +119,7 @@ func (t *torrent) sendFirstMessage(p *peer.Peer) {
 		bitfieldData := make([]byte, len(bf.Bytes()))
 		copy(bitfieldData, bf.Bytes())
 		msg := peerprotocol.BitfieldMessage{Data: bitfieldData}
-		p.SendMessage(msg)
+		p.SendMessage(&msg)
 	}
 	var metadataSize uint32
 	if t.info != nil {
@@ -131,6 +131,10 @@ func (t *torrent) sendFirstMessage(p *peer.Peer) {
 			ExtendedMessageID: peerprotocol.ExtensionIDHandshake,
 			Payload:           extHandshakeMsg,
 		}
+		p.SendMessage(msg)
+	}
+	if p.DHTEnabled {
+		msg := peerprotocol.PortMessage{Port: t.session.config.DHTPort}
 		p.SendMessage(msg)
 	}
 }

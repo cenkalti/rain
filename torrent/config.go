@@ -46,7 +46,7 @@ type Config struct {
 	// Enable DHT node.
 	DHTEnabled bool
 	// DHT node will listen on this IP.
-	DHTAddress string
+	DHTHost string
 	// DHT node will listen on this UDP port.
 	DHTPort uint16
 	// DHT announce interval
@@ -161,7 +161,7 @@ var DefaultConfig = Config{
 
 	// DHT node
 	DHTEnabled:             true,
-	DHTAddress:             "0.0.0.0",
+	DHTHost:                "0.0.0.0",
 	DHTPort:                7246,
 	DHTAnnounceInterval:    30 * time.Minute,
 	DHTMinAnnounceInterval: time.Minute,

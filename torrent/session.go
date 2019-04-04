@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/boltdb/bolt"
+	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/blocklist"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/piececache"
@@ -35,6 +36,7 @@ type Session struct {
 	config         Config
 	db             *bolt.DB
 	log            logger.Logger
+	extensions     [8]byte
 	dht            *dht.DHT
 	rpc            *rpcServer
 	trackerManager *trackermanager.TrackerManager
@@ -111,7 +113,7 @@ func NewSession(cfg Config) (*Session, error) {
 	var dhtNode *dht.DHT
 	if cfg.DHTEnabled {
 		dhtConfig := dht.NewConfig()
-		dhtConfig.Address = cfg.DHTAddress
+		dhtConfig.Address = cfg.DHTHost
 		dhtConfig.Port = int(cfg.DHTPort)
 		dhtConfig.DHTRouters = "router.bittorrent.com:6881,dht.transmissionbt.com:6881,router.utorrent.com:6881,dht.libtorrent.org:25401,dht.aelitis.com:6881"
 		dhtConfig.SaveRoutingTable = false
@@ -162,6 +164,15 @@ func NewSession(cfg Config) (*Session, error) {
 				ResponseHeaderTimeout: cfg.WebseedResponseHeaderTimeout,
 			},
 		},
+	}
+	ext, err := bitfield.NewBytes(c.extensions[:], 64)
+	if err != nil {
+		panic(err)
+	}
+	ext.Set(61) // Fast Extension (BEP 6)
+	ext.Set(43) // Extension Protocol (BEP 10)
+	if cfg.DHTEnabled {
+		ext.Set(63) // DHT Protocol (BEP 5)
 	}
 	err = c.startBlocklistReloader()
 	if err != nil {

@@ -30,6 +30,7 @@ type Peer struct {
 	ID                [20]byte
 	ExtensionsEnabled bool
 	FastEnabled       bool
+	DHTEnabled        bool
 	EncryptionCipher  mse.CryptoMethod
 
 	ClientInterested bool
@@ -75,6 +76,7 @@ func New(conn net.Conn, source peersource.Source, id [20]byte, extensions [8]byt
 	bf, _ := bitfield.NewBytes(extensions[:], 64)
 	fastEnabled := bf.Test(61)
 	extensionsEnabled := bf.Test(43)
+	dhtEnabled := bf.Test(63)
 
 	t := time.NewTimer(math.MaxInt64)
 	t.Stop()
@@ -87,6 +89,7 @@ func New(conn net.Conn, source peersource.Source, id [20]byte, extensions [8]byt
 		PeerChoking:       true,
 		ExtensionsEnabled: extensionsEnabled,
 		FastEnabled:       fastEnabled,
+		DHTEnabled:        dhtEnabled,
 		EncryptionCipher:  cipher,
 		snubTimeout:       snubTimeout,
 		snubTimer:         t,

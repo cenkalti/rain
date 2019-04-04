@@ -208,6 +208,13 @@ func (p *PeerReader) Run() {
 				return
 			}
 			msg = am
+		case peerprotocol.Port:
+			var pm peerprotocol.PortMessage
+			err = binary.Read(p.r, binary.BigEndian, &pm)
+			if err != nil {
+				return
+			}
+			msg = pm
 		case peerprotocol.Extension:
 			buf := make([]byte, length)
 			_, err = io.ReadFull(p.r, buf)

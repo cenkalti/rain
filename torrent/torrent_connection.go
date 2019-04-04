@@ -38,7 +38,7 @@ func (t *torrent) handleNewConnection(conn net.Conn) {
 		t.checkInfoHash,
 		t.incomingHandshakerResultC,
 		t.session.config.PeerHandshakeTimeout,
-		ourExtensions,
+		t.session.extensions,
 		t.session.config.ForceIncomingEncryption,
 	)
 }
