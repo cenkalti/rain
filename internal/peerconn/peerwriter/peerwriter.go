@@ -205,6 +205,11 @@ func (p *PeerWriter) messageWriter() {
 				m, err = buf.ReadFrom(msg)
 			}
 			if err != nil {
+				select {
+				case <-p.stopC:
+					return
+				default:
+				}
 				p.log.Errorf("cannot serialize message [%v]: %s", msg.ID(), err.Error())
 				return
 			}
