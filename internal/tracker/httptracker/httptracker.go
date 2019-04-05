@@ -50,7 +50,9 @@ func (t *HTTPTracker) URL() string {
 }
 
 func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest) (*tracker.AnnounceResponse, error) {
-	q := t.url.Query()
+	u := *t.url
+
+	q := u.Query()
 	q.Set("info_hash", string(req.Torrent.InfoHash[:]))
 	q.Set("peer_id", string(req.Torrent.PeerID[:]))
 	q.Set("port", strconv.FormatUint(uint64(req.Torrent.Port), 10))
@@ -67,13 +69,12 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 		q.Set("trackerid", t.trackerID)
 	}
 
-	u := t.url
 	u.RawQuery = q.Encode()
 	t.log.Debugf("making request to: %q", u.String())
 
 	httpReq := &http.Request{
 		Method:     http.MethodGet,
-		URL:        u,
+		URL:        &u,
 		Proto:      "HTTP/1.1",
 		ProtoMajor: 1,
 		ProtoMinor: 1,
