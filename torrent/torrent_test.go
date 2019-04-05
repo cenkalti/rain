@@ -56,7 +56,7 @@ func CopyDir(src, dst string) error {
 	return cmd.Run()
 }
 
-func seeder(t *testing.T) (addr *net.TCPAddr, c func()) {
+func seeder(t *testing.T) (addr string, c func()) {
 	f, err := os.Open(torrentFile)
 	if err != nil {
 		t.Fatal(err)
@@ -87,8 +87,7 @@ func seeder(t *testing.T) (addr *net.TCPAddr, c func()) {
 	case <-time.After(timeout):
 		t.Fatal("seeder is not ready")
 	}
-	addr = &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: port}
-	return addr, func() {
+	return "127.0.0.1:" + strconv.Itoa(port), func() {
 		closeSession()
 	}
 }

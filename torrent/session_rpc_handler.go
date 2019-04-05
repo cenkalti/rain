@@ -4,8 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
-	"net"
-	"strconv"
 	"strings"
 	"time"
 
@@ -316,27 +314,7 @@ func (h *rpcHandler) AddPeer(args *rpctypes.AddPeerRequest, reply *rpctypes.AddP
 	if t == nil {
 		return errTorrentNotFound
 	}
-	host, portString, err := net.SplitHostPort(args.Addr)
-	if err != nil {
-		return err
-	}
-	ip := net.ParseIP(host).To4()
-	if ip == nil {
-		return errors.New("invalid v4 IP")
-	}
-	port, err := strconv.Atoi(portString)
-	if err != nil {
-		return err
-	}
-	if port == 0 {
-		return errors.New("invalid port")
-	}
-	addr := &net.TCPAddr{
-		IP:   ip,
-		Port: port,
-	}
-	t.AddPeer(addr)
-	return nil
+	return t.AddPeer(args.Addr)
 }
 
 func (h *rpcHandler) AddTracker(args *rpctypes.AddTrackerRequest, reply *rpctypes.AddTrackerResponse) error {

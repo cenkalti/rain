@@ -1,6 +1,7 @@
 package torrent
 
 import (
+	"context"
 	"net"
 
 	"github.com/cenkalti/rain/internal/bitfield"
@@ -9,6 +10,7 @@ import (
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peerprotocol"
 	"github.com/cenkalti/rain/internal/peersource"
+	"github.com/cenkalti/rain/internal/resolver"
 )
 
 func (t *torrent) setNeedMorePeers(val bool) {
@@ -18,6 +20,23 @@ func (t *torrent) setNeedMorePeers(val bool) {
 	if t.dhtAnnouncer != nil {
 		t.dhtAnnouncer.NeedMorePeers(val)
 	}
+}
+
+func (t *torrent) resolveAndAddPeer(host string, port int) {
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-t.closeC:
+		case <-done:
+		}
+		cancel()
+	}()
+	ip, err := resolver.ResolveIPv4(ctx, t.session.config.DNSResolveTimeout, host)
+	if err != nil {
+		return
+	}
+	t.AddPeers([]*net.TCPAddr{{IP: ip, Port: port}})
 }
 
 func (t *torrent) handleNewPeers(addrs []*net.TCPAddr, source peersource.Source) {

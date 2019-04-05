@@ -3,6 +3,7 @@ package torrent
 import (
 	"encoding/hex"
 	"net"
+	"strconv"
 	"time"
 
 	"github.com/boltdb/bolt"
@@ -61,11 +62,27 @@ func (t *Torrent) Port() int {
 	return t.torrent.port
 }
 
-func (t *Torrent) AddPeer(addr *net.TCPAddr) {
-	if addr == nil {
-		panic("nil addr")
+func (t *Torrent) AddPeer(addr string) error {
+	hoststr, portstr, err := net.SplitHostPort(addr)
+	if err != nil {
+		return err
 	}
-	t.torrent.AddPeers([]*net.TCPAddr{addr})
+	port64, err := strconv.ParseUint(portstr, 10, 16)
+	if err != nil {
+		return err
+	}
+	port := int(port64)
+	ip := net.ParseIP(hoststr)
+	if ip == nil {
+		go t.torrent.resolveAndAddPeer(hoststr, port)
+		return nil
+	}
+	taddr := &net.TCPAddr{
+		IP:   ip,
+		Port: port,
+	}
+	t.torrent.AddPeers([]*net.TCPAddr{taddr})
+	return nil
 }
 
 func (t *Torrent) AddTracker(uri string) error {
