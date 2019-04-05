@@ -206,7 +206,6 @@ func (s *Session) parseTrackers(trackers []string, private bool) []tracker.Track
 	for _, tr := range trackers {
 		t, err := s.trackerManager.Get(tr, s.config.TrackerHTTPTimeout, s.getTrackerUserAgent(private), int64(s.config.TrackerHTTPMaxResponseSize))
 		if err != nil {
-			s.log.Debugln("cannot parse tracker url:", err)
 			continue
 		}
 		ret = append(ret, t)
