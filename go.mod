@@ -27,8 +27,8 @@ require (
 	github.com/mattn/go-isatty v0.0.3 // indirect
 	github.com/mattn/go-runewidth v0.0.4 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
-	github.com/minio/sha256-simd v0.0.0-20171213220625-ad98a36ba0da // indirect
 	github.com/mitchellh/go-homedir v1.0.0
+	github.com/multiformats/go-multihash v0.0.1 // indirect
 	github.com/nictuku/dht v0.0.0-20190124164602-cd9a716ed885
 	github.com/nictuku/nettools v0.0.0-20150117095333-8867a2107ad3 // indirect
 	github.com/nsf/termbox-go v0.0.0-20190325093121-288510b9734e // indirect
@@ -43,7 +43,6 @@ require (
 	github.com/urfave/cli v1.20.0
 	github.com/youtube/vitess v2.2.0-rc.1+incompatible // indirect
 	github.com/zeebo/bencode v0.0.0-20180308174530-d522839ac797
-	golang.org/x/crypto v0.0.0-20180910181607-0e37d006457b // indirect
 	golang.org/x/sync v0.0.0-20190227155943-e225da77a7e6 // indirect
 	gopkg.in/yaml.v2 v2.2.1
 )
