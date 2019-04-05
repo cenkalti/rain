@@ -28,7 +28,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.4 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/mitchellh/go-homedir v1.0.0
-	github.com/multiformats/go-multihash v0.0.1 // indirect
+	github.com/multiformats/go-multihash v0.0.1
 	github.com/nictuku/dht v0.0.0-20190124164602-cd9a716ed885
 	github.com/nictuku/nettools v0.0.0-20150117095333-8867a2107ad3 // indirect
 	github.com/nsf/termbox-go v0.0.0-20190325093121-288510b9734e // indirect
