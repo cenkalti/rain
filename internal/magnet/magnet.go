@@ -13,6 +13,7 @@ type Magnet struct {
 	InfoHash [20]byte
 	Name     string
 	Trackers []string
+	Peers    []string
 }
 
 func New(s string) (*Magnet, error) {
@@ -54,6 +55,7 @@ func New(s string) (*Magnet, error) {
 	}
 
 	magnet.Trackers = params["tr"]
+	magnet.Peers = params["x.pe"]
 
 	return &magnet, nil
 }

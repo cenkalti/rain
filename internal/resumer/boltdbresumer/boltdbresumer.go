@@ -16,6 +16,7 @@ var Keys = struct {
 	Name            []byte
 	Trackers        []byte
 	URLList         []byte
+	MagnetPeers     []byte
 	Dest            []byte
 	Info            []byte
 	Bitfield        []byte
@@ -30,6 +31,7 @@ var Keys = struct {
 	Name:            []byte("name"),
 	Trackers:        []byte("trackers"),
 	URLList:         []byte("url_list"),
+	MagnetPeers:     []byte("magnet_peers"),
 	Dest:            []byte("dest"),
 	Info:            []byte("info"),
 	Bitfield:        []byte("bitfield"),
@@ -69,6 +71,10 @@ func (r *Resumer) Write(torrentID string, spec *Spec) error {
 	if err != nil {
 		return err
 	}
+	magnetPeers, err := json.Marshal(spec.MagnetPeers)
+	if err != nil {
+		return err
+	}
 	return r.db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.Bucket(r.bucket).CreateBucketIfNotExists([]byte(torrentID))
 		if err != nil {
@@ -80,6 +86,7 @@ func (r *Resumer) Write(torrentID string, spec *Spec) error {
 		_ = b.Put(Keys.Dest, []byte(spec.Dest))
 		_ = b.Put(Keys.Trackers, trackers)
 		_ = b.Put(Keys.URLList, urlList)
+		_ = b.Put(Keys.MagnetPeers, magnetPeers)
 		_ = b.Put(Keys.Info, spec.Info)
 		_ = b.Put(Keys.Bitfield, spec.Bitfield)
 		_ = b.Put(Keys.AddedAt, []byte(spec.AddedAt.Format(time.RFC3339)))
@@ -150,6 +157,14 @@ func (r *Resumer) Read(torrentID string) (*Spec, error) {
 		value = b.Get(Keys.URLList)
 		if value != nil {
 			err = json.Unmarshal(value, &spec.URLList)
+			if err != nil {
+				return err
+			}
+		}
+
+		value = b.Get(Keys.MagnetPeers)
+		if value != nil {
+			err = json.Unmarshal(value, &spec.MagnetPeers)
 			if err != nil {
 				return err
 			}

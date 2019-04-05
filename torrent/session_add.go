@@ -152,12 +152,13 @@ func (s *Session) addMagnet(link string) (*Torrent, error) {
 		}
 	}()
 	rspec := &boltdbresumer.Spec{
-		InfoHash: ma.InfoHash[:],
-		Dest:     sto.Dest(),
-		Port:     port,
-		Name:     ma.Name,
-		Trackers: ma.Trackers,
-		AddedAt:  time.Now(),
+		InfoHash:    ma.InfoHash[:],
+		Dest:        sto.Dest(),
+		Port:        port,
+		Name:        ma.Name,
+		Trackers:    ma.Trackers,
+		MagnetPeers: ma.Peers,
+		AddedAt:     time.Now(),
 	}
 	err = s.resumer.Write(id, rspec)
 	if err != nil {

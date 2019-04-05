@@ -9,6 +9,7 @@ type Spec struct {
 	Name            string
 	Trackers        []string
 	URLList         []string
+	MagnetPeers     []string
 	Info            []byte
 	Bitfield        []byte
 	AddedAt         time.Time
