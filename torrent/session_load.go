@@ -75,7 +75,7 @@ func (s *Session) loadExistingTorrents(ids []string) {
 		go s.checkTorrent(t)
 		delete(s.availablePorts, spec.Port)
 
-		t2 := s.newTorrent(t)
+		t2 := s.insertTorrent(t)
 		s.log.Debugf("loaded existing torrent: #%d %s", id, t.Name())
 		loaded++
 		if hasStarted {

@@ -81,7 +81,7 @@ func (s *Session) addTorrentStopped(r io.Reader) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
-	t2 := s.newTorrent(t)
+	t2 := s.insertTorrent(t)
 	return t2, nil
 }
 
@@ -166,7 +166,7 @@ func (s *Session) addMagnet(link string) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
-	t2 := s.newTorrent(t)
+	t2 := s.insertTorrent(t)
 	return t2, t2.Start()
 }
 
@@ -193,7 +193,7 @@ func (s *Session) add() (id string, port int, sto *filestorage.FileStorage, err 
 	return
 }
 
-func (s *Session) newTorrent(t *torrent) *Torrent {
+func (s *Session) insertTorrent(t *torrent) *Torrent {
 	t2 := &Torrent{
 		torrent: t,
 	}
