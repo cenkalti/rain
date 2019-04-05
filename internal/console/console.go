@@ -546,8 +546,6 @@ func flags(p rpctypes.Peer) string {
 		sb.WriteString("I")
 	case "MANUAL":
 		sb.WriteString("M")
-	case "MAGNET":
-		sb.WriteString("U")
 	default:
 		sb.WriteString(" ")
 	}
