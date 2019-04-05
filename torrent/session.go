@@ -301,7 +301,6 @@ func (s *Session) removeTorrentFromClient(id string) (*Torrent, error) {
 	if !ok {
 		return nil, nil
 	}
-	close(t.removed)
 	delete(s.torrents, id)
 	delete(s.torrentsByInfoHash, dht.InfoHash(t.torrent.InfoHash()))
 	return t, s.db.Update(func(tx *bolt.Tx) error {

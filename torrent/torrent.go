@@ -41,6 +41,7 @@ import (
 type torrent struct {
 	session *Session
 	id      string
+	addedAt time.Time
 
 	// Identifies the torrent being downloaded.
 	infoHash [20]byte
@@ -234,6 +235,7 @@ type torrent struct {
 func newTorrent2(
 	s *Session,
 	id string,
+	addedAt time.Time,
 	infoHash []byte,
 	sto storage.Storage,
 	name string, // display name
@@ -252,6 +254,7 @@ func newTorrent2(
 	t := &torrent{
 		session:                   s,
 		id:                        id,
+		addedAt:                   addedAt,
 		infoHash:                  ih,
 		trackers:                  trackers,
 		name:                      name,

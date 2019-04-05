@@ -22,7 +22,7 @@ func (s *Session) processDHTResults() {
 				for _, t := range torrents {
 					select {
 					case t.torrent.dhtPeersC <- addrs:
-					case <-t.removed:
+					case <-t.torrent.closeC:
 					default:
 					}
 				}

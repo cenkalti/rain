@@ -183,7 +183,7 @@ func assertCompleted(t *testing.T, tor *Torrent) {
 	}
 	cmd := exec.Command("diff", "-rq",
 		filepath.Join(torrentDataDir, torrentName),
-		filepath.Join(tor.session.config.DataDir, tor.ID(), torrentName))
+		filepath.Join(tor.torrent.session.config.DataDir, tor.ID(), torrentName))
 	err := cmd.Run()
 	if err != nil {
 		t.Fatal(err)

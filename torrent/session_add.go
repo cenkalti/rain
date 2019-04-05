@@ -46,6 +46,7 @@ func (s *Session) addTorrentStopped(r io.Reader) (*Torrent, error) {
 	t, err := newTorrent2(
 		s,
 		id,
+		time.Now(),
 		mi.Info.Hash[:],
 		sto,
 		mi.Info.Name,
@@ -74,13 +75,13 @@ func (s *Session) addTorrentStopped(r io.Reader) (*Torrent, error) {
 		Trackers: mi.AnnounceList,
 		URLList:  mi.URLList,
 		Info:     mi.Info.Bytes,
-		AddedAt:  time.Now(),
+		AddedAt:  t.addedAt,
 	}
 	err = s.resumer.Write(id, rspec)
 	if err != nil {
 		return nil, err
 	}
-	t2 := s.newTorrent(t, rspec.AddedAt)
+	t2 := s.newTorrent(t)
 	return t2, nil
 }
 
@@ -133,6 +134,7 @@ func (s *Session) addMagnet(link string) (*Torrent, error) {
 	t, err := newTorrent2(
 		s,
 		id,
+		time.Now(),
 		ma.InfoHash[:],
 		sto,
 		ma.Name,
@@ -158,13 +160,13 @@ func (s *Session) addMagnet(link string) (*Torrent, error) {
 		Name:        ma.Name,
 		Trackers:    ma.Trackers,
 		MagnetPeers: ma.Peers,
-		AddedAt:     time.Now(),
+		AddedAt:     t.addedAt,
 	}
 	err = s.resumer.Write(id, rspec)
 	if err != nil {
 		return nil, err
 	}
-	t2 := s.newTorrent(t, rspec.AddedAt)
+	t2 := s.newTorrent(t)
 	return t2, t2.Start()
 }
 
@@ -191,12 +193,9 @@ func (s *Session) add() (id string, port int, sto *filestorage.FileStorage, err 
 	return
 }
 
-func (s *Session) newTorrent(t *torrent, addedAt time.Time) *Torrent {
+func (s *Session) newTorrent(t *torrent) *Torrent {
 	t2 := &Torrent{
-		session: s,
 		torrent: t,
-		addedAt: addedAt,
-		removed: make(chan struct{}),
 	}
 	s.mTorrents.Lock()
 	defer s.mTorrents.Unlock()

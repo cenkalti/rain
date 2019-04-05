@@ -11,10 +11,7 @@ import (
 )
 
 type Torrent struct {
-	session *Session
 	torrent *torrent
-	addedAt time.Time
-	removed chan struct{}
 }
 
 type InfoHash [20]byte
@@ -39,7 +36,7 @@ func (t *Torrent) InfoHash() InfoHash {
 }
 
 func (t *Torrent) AddedAt() time.Time {
-	return t.addedAt
+	return t.torrent.addedAt
 }
 
 func (t *Torrent) Stats() Stats {
@@ -86,7 +83,7 @@ func (t *Torrent) AddPeer(addr string) error {
 }
 
 func (t *Torrent) AddTracker(uri string) error {
-	tr, err := t.session.trackerManager.Get(uri, t.session.config.TrackerHTTPTimeout, t.session.getTrackerUserAgent(t.torrent.info.IsPrivate()), int64(t.session.config.TrackerHTTPMaxResponseSize))
+	tr, err := t.torrent.session.trackerManager.Get(uri, t.torrent.session.config.TrackerHTTPTimeout, t.torrent.session.getTrackerUserAgent(t.torrent.info.IsPrivate()), int64(t.torrent.session.config.TrackerHTTPMaxResponseSize))
 	if err != nil {
 		return err
 	}
@@ -95,7 +92,7 @@ func (t *Torrent) AddTracker(uri string) error {
 }
 
 func (t *Torrent) Start() error {
-	err := t.session.db.Update(func(tx *bolt.Tx) error {
+	err := t.torrent.session.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(torrentsBucket).Bucket([]byte(t.torrent.id))
 		return b.Put([]byte("started"), []byte("1"))
 	})
@@ -107,7 +104,7 @@ func (t *Torrent) Start() error {
 }
 
 func (t *Torrent) Stop() error {
-	err := t.session.db.Update(func(tx *bolt.Tx) error {
+	err := t.torrent.session.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(torrentsBucket).Bucket([]byte(t.torrent.id))
 		return b.Put([]byte("started"), []byte("0"))
 	})
