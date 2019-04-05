@@ -49,6 +49,9 @@ type torrent struct {
 	// List of addresses to announce this torrent.
 	trackers []tracker.Tracker
 
+	// Peers added from magnet URLS with x.pe parameter.
+	fixedPeers []string
+
 	// Name of the torrent.
 	name string
 
@@ -241,6 +244,7 @@ func newTorrent2(
 	name string, // display name
 	port int, // tcp peer port
 	trackers []tracker.Tracker,
+	fixedPeers []string,
 	info *metainfo.Info,
 	bf *bitfield.Bitfield,
 	stats resumer.Stats, // initial stats from previous run
@@ -257,6 +261,7 @@ func newTorrent2(
 		addedAt:                   addedAt,
 		infoHash:                  ih,
 		trackers:                  trackers,
+		fixedPeers:                fixedPeers,
 		name:                      name,
 		storage:                   sto,
 		port:                      port,

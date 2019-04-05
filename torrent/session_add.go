@@ -52,6 +52,7 @@ func (s *Session) addTorrentStopped(r io.Reader) (*Torrent, error) {
 		mi.Info.Name,
 		port,
 		s.parseTrackers(mi.AnnounceList, mi.Info.IsPrivate()),
+		nil, // fixedPeers
 		mi.Info,
 		nil, // bitfield
 		resumer.Stats{},
@@ -140,6 +141,7 @@ func (s *Session) addMagnet(link string) (*Torrent, error) {
 		ma.Name,
 		port,
 		s.parseTrackers(ma.Trackers, false),
+		ma.Peers,
 		nil, // info
 		nil, // bitfield
 		resumer.Stats{},
@@ -154,13 +156,13 @@ func (s *Session) addMagnet(link string) (*Torrent, error) {
 		}
 	}()
 	rspec := &boltdbresumer.Spec{
-		InfoHash:    ma.InfoHash[:],
-		Dest:        sto.Dest(),
-		Port:        port,
-		Name:        ma.Name,
-		Trackers:    ma.Trackers,
-		MagnetPeers: ma.Peers,
-		AddedAt:     t.addedAt,
+		InfoHash:   ma.InfoHash[:],
+		Dest:       sto.Dest(),
+		Port:       port,
+		Name:       ma.Name,
+		Trackers:   ma.Trackers,
+		FixedPeers: ma.Peers,
+		AddedAt:    t.addedAt,
 	}
 	err = s.resumer.Write(id, rspec)
 	if err != nil {
