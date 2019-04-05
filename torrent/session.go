@@ -17,6 +17,7 @@ import (
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/piececache"
 	"github.com/cenkalti/rain/internal/resourcemanager"
+	"github.com/cenkalti/rain/internal/resumer/boltdbresumer"
 	"github.com/cenkalti/rain/internal/storage/filestorage"
 	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/internal/trackermanager"
@@ -35,6 +36,7 @@ var (
 type Session struct {
 	config         Config
 	db             *bolt.DB
+	resumer        *boltdbresumer.Resumer
 	log            logger.Logger
 	extensions     [8]byte
 	dht            *dht.DHT
@@ -110,6 +112,10 @@ func NewSession(cfg Config) (*Session, error) {
 	if err != nil {
 		return nil, err
 	}
+	res, err := boltdbresumer.New(db, torrentsBucket)
+	if err != nil {
+		return nil, err
+	}
 	var dhtNode *dht.DHT
 	if cfg.DHTEnabled {
 		dhtConfig := dht.NewConfig()
@@ -134,6 +140,7 @@ func NewSession(cfg Config) (*Session, error) {
 	c := &Session{
 		config:             cfg,
 		db:                 db,
+		resumer:            res,
 		blocklist:          bl,
 		trackerManager:     trackermanager.New(bl),
 		log:                l,

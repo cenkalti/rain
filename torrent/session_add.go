@@ -34,7 +34,7 @@ func (s *Session) addTorrentStopped(r io.Reader) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
-	id, port, res, sto, err := s.add()
+	id, port, sto, err := s.add()
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,6 @@ func (s *Session) addTorrentStopped(r io.Reader) (*Torrent, error) {
 		mi.Info.Name,
 		port,
 		s.parseTrackers(mi.AnnounceList, mi.Info.IsPrivate()),
-		res,
 		mi.Info,
 		nil, // bitfield
 		resumer.Stats{},
@@ -77,7 +76,7 @@ func (s *Session) addTorrentStopped(r io.Reader) (*Torrent, error) {
 		Info:     mi.Info.Bytes,
 		AddedAt:  time.Now(),
 	}
-	err = res.(*boltdbresumer.Resumer).Write(rspec)
+	err = s.resumer.Write(id, rspec)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +121,7 @@ func (s *Session) addMagnet(link string) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
-	id, port, res, sto, err := s.add()
+	id, port, sto, err := s.add()
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +138,6 @@ func (s *Session) addMagnet(link string) (*Torrent, error) {
 		ma.Name,
 		port,
 		s.parseTrackers(ma.Trackers, false),
-		res,
 		nil, // info
 		nil, // bitfield
 		resumer.Stats{},
@@ -161,7 +159,7 @@ func (s *Session) addMagnet(link string) (*Torrent, error) {
 		Trackers: ma.Trackers,
 		AddedAt:  time.Now(),
 	}
-	err = res.(*boltdbresumer.Resumer).Write(rspec)
+	err = s.resumer.Write(id, rspec)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +167,7 @@ func (s *Session) addMagnet(link string) (*Torrent, error) {
 	return t2, t2.Start()
 }
 
-func (s *Session) add() (id string, port int, res resumer.Resumer, sto *filestorage.FileStorage, err error) {
+func (s *Session) add() (id string, port int, sto *filestorage.FileStorage, err error) {
 	port, err = s.getPort()
 	if err != nil {
 		return
@@ -184,10 +182,6 @@ func (s *Session) add() (id string, port int, res resumer.Resumer, sto *filestor
 		return
 	}
 	id = base64.RawURLEncoding.EncodeToString(u1[:])
-	res, err = boltdbresumer.New(s.db, torrentsBucket, []byte(id))
-	if err != nil {
-		return
-	}
 	dest := filepath.Join(s.config.DataDir, id)
 	sto, err = filestorage.New(dest)
 	if err != nil {

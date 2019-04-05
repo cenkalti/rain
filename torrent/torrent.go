@@ -57,9 +57,6 @@ type torrent struct {
 	// TCP Port to listen for peer connections.
 	port int
 
-	// Optional DB implementation to save resume state of the torrent.
-	resume resumer.Resumer
-
 	// Contains info about files in torrent. This can be nil at start for magnet downloads.
 	info *metainfo.Info
 
@@ -242,7 +239,6 @@ func newTorrent2(
 	name string, // display name
 	port int, // tcp peer port
 	trackers []tracker.Tracker,
-	res resumer.Resumer, // for saving fast resume data
 	info *metainfo.Info,
 	bf *bitfield.Bitfield,
 	stats resumer.Stats, // initial stats from previous run
@@ -261,7 +257,6 @@ func newTorrent2(
 		name:                      name,
 		storage:                   sto,
 		port:                      port,
-		resume:                    res,
 		info:                      info,
 		bitfield:                  bf,
 		log:                       logger.New("torrent " + id),

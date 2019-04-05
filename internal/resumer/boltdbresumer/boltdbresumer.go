@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/boltdb/bolt"
-	"github.com/cenkalti/rain/internal/resumer"
 )
 
 var Keys = struct {
@@ -42,28 +41,25 @@ var Keys = struct {
 }
 
 type Resumer struct {
-	db                    *bolt.DB
-	mainBucket, subBucket []byte
+	db     *bolt.DB
+	bucket []byte
 }
 
-var _ resumer.Resumer = (*Resumer)(nil)
-
-func New(db *bolt.DB, mainBucket, subBucket []byte) (*Resumer, error) {
+func New(db *bolt.DB, bucket []byte) (*Resumer, error) {
 	err := db.Update(func(tx *bolt.Tx) error {
-		_, err2 := tx.CreateBucketIfNotExists(mainBucket)
+		_, err2 := tx.CreateBucketIfNotExists(bucket)
 		return err2
 	})
 	if err != nil {
 		return nil, err
 	}
 	return &Resumer{
-		db:         db,
-		mainBucket: mainBucket,
-		subBucket:  subBucket,
+		db:     db,
+		bucket: bucket,
 	}, nil
 }
 
-func (r *Resumer) Write(spec *Spec) error {
+func (r *Resumer) Write(torrentID string, spec *Spec) error {
 	port := strconv.Itoa(spec.Port)
 	trackers, err := json.Marshal(spec.Trackers)
 	if err != nil {
@@ -74,7 +70,7 @@ func (r *Resumer) Write(spec *Spec) error {
 		return err
 	}
 	return r.db.Update(func(tx *bolt.Tx) error {
-		b, err := tx.Bucket(r.mainBucket).CreateBucketIfNotExists(r.subBucket)
+		b, err := tx.Bucket(r.bucket).CreateBucketIfNotExists([]byte(torrentID))
 		if err != nil {
 			return err
 		}
@@ -94,9 +90,9 @@ func (r *Resumer) Write(spec *Spec) error {
 	})
 }
 
-func (r *Resumer) WriteInfo(value []byte) error {
+func (r *Resumer) WriteInfo(torrentID string, value []byte) error {
 	return r.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(r.mainBucket).Bucket(r.subBucket)
+		b := tx.Bucket(r.bucket).Bucket([]byte(torrentID))
 		if b == nil {
 			return nil
 		}
@@ -104,12 +100,22 @@ func (r *Resumer) WriteInfo(value []byte) error {
 	})
 }
 
-func (r *Resumer) Read() (*Spec, error) {
+func (r *Resumer) WriteBitfield(torrentID string, value []byte) error {
+	return r.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(r.bucket).Bucket([]byte(torrentID))
+		if b == nil {
+			return nil
+		}
+		return b.Put(Keys.Bitfield, value)
+	})
+}
+
+func (r *Resumer) Read(torrentID string) (*Spec, error) {
 	var spec *Spec
 	err := r.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(r.mainBucket).Bucket(r.subBucket)
+		b := tx.Bucket(r.bucket).Bucket([]byte(torrentID))
 		if b == nil {
-			return fmt.Errorf("bucket not found: %q", string(r.subBucket))
+			return fmt.Errorf("bucket not found: %q", torrentID)
 		}
 
 		value := b.Get(Keys.InfoHash)

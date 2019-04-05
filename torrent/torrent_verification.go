@@ -24,12 +24,10 @@ func (t *torrent) handleVerificationDone(ve *verifier.Verifier) {
 	t.mBitfield.Unlock()
 
 	// Save the bitfield to resume db.
-	if t.resume != nil {
-		err := t.writeBitfield()
-		if err != nil {
-			t.stop(err)
-			return
-		}
+	err := t.writeBitfield()
+	if err != nil {
+		t.stop(err)
+		return
 	}
 
 	var haveMessages []peerprotocol.HaveMessage

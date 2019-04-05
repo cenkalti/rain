@@ -7,7 +7,6 @@ import (
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/resumer"
-	"github.com/cenkalti/rain/internal/resumer/boltdbresumer"
 	"github.com/cenkalti/rain/internal/storage/filestorage"
 	"github.com/cenkalti/rain/internal/webseedsource"
 )
@@ -16,17 +15,12 @@ func (s *Session) loadExistingTorrents(ids []string) {
 	var loaded int
 	var started []*Torrent
 	for _, id := range ids {
-		res, err := boltdbresumer.New(s.db, torrentsBucket, []byte(id))
-		if err != nil {
-			s.log.Error(err)
-			continue
-		}
 		hasStarted, err := s.hasStarted(id)
 		if err != nil {
 			s.log.Error(err)
 			continue
 		}
-		spec, err := res.Read()
+		spec, err := s.resumer.Read(id)
 		if err != nil {
 			s.log.Error(err)
 			continue
@@ -62,7 +56,6 @@ func (s *Session) loadExistingTorrents(ids []string) {
 			spec.Name,
 			spec.Port,
 			s.parseTrackers(spec.Trackers, info.IsPrivate()),
-			res,
 			info,
 			bf,
 			resumer.Stats{

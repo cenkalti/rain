@@ -93,12 +93,10 @@ func (t *torrent) handleMetadataMessage(pe *peer.Peer, msg peerprotocol.Extensio
 		}
 		t.info = info
 		t.piecePool = bufferpool.New(int(info.PieceLength))
-		if t.resume != nil {
-			err = t.resume.WriteInfo(t.info.Bytes)
-			if err != nil {
-				t.stop(fmt.Errorf("cannot write resume info: %s", err))
-				break
-			}
+		err = t.session.resumer.WriteInfo(t.id, t.info.Bytes)
+		if err != nil {
+			t.stop(fmt.Errorf("cannot write resume info: %s", err))
+			break
 		}
 		t.startAllocator()
 	case peerprotocol.ExtensionMetadataMessageTypeReject:
