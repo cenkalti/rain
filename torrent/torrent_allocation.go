@@ -46,6 +46,7 @@ func (t *torrent) handleAllocationDone(al *allocator.Allocator) {
 		}
 		t.checkCompletion()
 		t.processQueuedMessages()
+		t.addFixedPeers()
 		t.startAcceptor()
 		t.startAnnouncers()
 		t.startPieceDownloaders()
@@ -58,6 +59,7 @@ func (t *torrent) handleAllocationDone(al *allocator.Allocator) {
 		t.bitfield = bitfield.New(t.info.NumPieces)
 		t.mBitfield.Unlock()
 		t.processQueuedMessages()
+		t.addFixedPeers()
 		t.startAcceptor()
 		t.startAnnouncers()
 		t.startPieceDownloaders()

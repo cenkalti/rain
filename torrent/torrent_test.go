@@ -112,11 +112,10 @@ func TestDownloadMagnet(t *testing.T) {
 	s, closeSession := newTestSession(t)
 	defer closeSession()
 
-	tor, err := s.AddURI(torrentMagnetLink)
+	tor, err := s.AddURI(torrentMagnetLink + "&x.pe=" + addr)
 	if err != nil {
 		t.Fatal(err)
 	}
-	tor.AddPeer(addr)
 	assertCompleted(t, tor)
 }
 

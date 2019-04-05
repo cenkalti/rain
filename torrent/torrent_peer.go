@@ -3,6 +3,7 @@ package torrent
 import (
 	"context"
 	"net"
+	"strconv"
 
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/handshaker/outgoinghandshaker"
@@ -20,6 +21,29 @@ func (t *torrent) setNeedMorePeers(val bool) {
 	if t.dhtAnnouncer != nil {
 		t.dhtAnnouncer.NeedMorePeers(val)
 	}
+}
+
+func (t *torrent) addPeerString(addr string) error {
+	hoststr, portstr, err := net.SplitHostPort(addr)
+	if err != nil {
+		return err
+	}
+	port64, err := strconv.ParseUint(portstr, 10, 16)
+	if err != nil {
+		return err
+	}
+	port := int(port64)
+	ip := net.ParseIP(hoststr)
+	if ip == nil {
+		go t.resolveAndAddPeer(hoststr, port)
+		return nil
+	}
+	taddr := &net.TCPAddr{
+		IP:   ip,
+		Port: port,
+	}
+	go t.AddPeers([]*net.TCPAddr{taddr})
+	return nil
 }
 
 func (t *torrent) resolveAndAddPeer(host string, port int) {

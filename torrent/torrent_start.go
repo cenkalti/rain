@@ -35,6 +35,7 @@ func (t *torrent) start() {
 	if t.info != nil {
 		if t.pieces != nil {
 			if t.bitfield != nil {
+				t.addFixedPeers()
 				t.startAcceptor()
 				t.startAnnouncers()
 				t.startPieceDownloaders()
@@ -45,6 +46,7 @@ func (t *torrent) start() {
 			t.startAllocator()
 		}
 	} else {
+		t.addFixedPeers()
 		t.startAcceptor()
 		t.startAnnouncers()
 		t.startInfoDownloaders()
@@ -65,6 +67,12 @@ func (t *torrent) startAllocator() {
 	}
 	t.allocator = allocator.New()
 	go t.allocator.Run(t.info, t.storage, t.allocatorProgressC, t.allocatorResultC)
+}
+
+func (t *torrent) addFixedPeers() {
+	for _, pe := range t.fixedPeers {
+		_ = t.addPeerString(pe)
+	}
 }
 
 func (t *torrent) startAnnouncers() {

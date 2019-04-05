@@ -50,6 +50,7 @@ func (t *torrent) handleVerificationDone(ve *verifier.Verifier) {
 
 	t.checkCompletion()
 	t.processQueuedMessages()
+	t.addFixedPeers()
 	t.startAcceptor()
 	t.startAnnouncers()
 	t.startPieceDownloaders()
