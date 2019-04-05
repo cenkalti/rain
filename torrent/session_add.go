@@ -15,7 +15,6 @@ import (
 	"github.com/cenkalti/rain/internal/resumer"
 	"github.com/cenkalti/rain/internal/resumer/boltdbresumer"
 	"github.com/cenkalti/rain/internal/storage/filestorage"
-	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/internal/webseedsource"
 	"github.com/gofrs/uuid"
 	"github.com/nictuku/dht"
@@ -51,6 +50,7 @@ func (s *Session) addTorrentStopped(r io.Reader) (*Torrent, error) {
 		sto,
 		mi.Info.Name,
 		port,
+		s.parseTrackers(mi.AnnounceList, mi.Info.IsPrivate()),
 		mi.Info,
 		nil, // bitfield
 		resumer.Stats{},
@@ -80,7 +80,7 @@ func (s *Session) addTorrentStopped(r io.Reader) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
-	t2 := s.newTorrent(t, rspec.AddedAt, mi.AnnounceList)
+	t2 := s.newTorrent(t, rspec.AddedAt)
 	return t2, nil
 }
 
@@ -137,6 +137,7 @@ func (s *Session) addMagnet(link string) (*Torrent, error) {
 		sto,
 		ma.Name,
 		port,
+		s.parseTrackers(ma.Trackers, false),
 		nil, // info
 		nil, // bitfield
 		resumer.Stats{},
@@ -162,7 +163,7 @@ func (s *Session) addMagnet(link string) (*Torrent, error) {
 	if err != nil {
 		return nil, err
 	}
-	t2 := s.newTorrent(t, rspec.AddedAt, ma.Trackers)
+	t2 := s.newTorrent(t, rspec.AddedAt)
 	return t2, t2.Start()
 }
 
@@ -189,8 +190,7 @@ func (s *Session) add() (id string, port int, sto *filestorage.FileStorage, err 
 	return
 }
 
-func (s *Session) newTorrent(t *torrent, addedAt time.Time, trackers []string) *Torrent {
-	s.addTrackers(t, trackers)
+func (s *Session) newTorrent(t *torrent, addedAt time.Time) *Torrent {
 	t2 := &Torrent{
 		session: s,
 		torrent: t,
@@ -203,15 +203,4 @@ func (s *Session) newTorrent(t *torrent, addedAt time.Time, trackers []string) *
 	ih := dht.InfoHash(t.InfoHash())
 	s.torrentsByInfoHash[ih] = append(s.torrentsByInfoHash[ih], t2)
 	return t2
-}
-
-func (s *Session) addTrackers(tor *torrent, trackers []string) {
-	ret := make([]tracker.Tracker, 0, len(trackers))
-	for _, tr := range trackers {
-		t, err := s.trackerManager.Get(tr, s.config.TrackerHTTPTimeout, s.getTrackerUserAgent(tor.info.IsPrivate()), int64(s.config.TrackerHTTPMaxResponseSize))
-		if err == nil {
-			ret = append(ret, t)
-		}
-	}
-	tor.AddTrackers(ret)
 }

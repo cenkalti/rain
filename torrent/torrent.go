@@ -238,6 +238,7 @@ func newTorrent2(
 	sto storage.Storage,
 	name string, // display name
 	port int, // tcp peer port
+	trackers []tracker.Tracker,
 	info *metainfo.Info,
 	bf *bitfield.Bitfield,
 	stats resumer.Stats, // initial stats from previous run
@@ -252,6 +253,7 @@ func newTorrent2(
 		session:                   s,
 		id:                        id,
 		infoHash:                  ih,
+		trackers:                  trackers,
 		name:                      name,
 		storage:                   sto,
 		port:                      port,
