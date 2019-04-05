@@ -58,6 +58,8 @@ type Config struct {
 	DHTAnnounceInterval time.Duration
 	// Minimum announce interval when announcing to DHT.
 	DHTMinAnnounceInterval time.Duration
+	// Known routers to bootstrap local DHT node.
+	DHTBootstrapNodes []string
 
 	// Number of peer addresses to request in announce request.
 	TrackerNumWant int
@@ -170,6 +172,13 @@ var DefaultConfig = Config{
 	DHTPort:                7246,
 	DHTAnnounceInterval:    30 * time.Minute,
 	DHTMinAnnounceInterval: time.Minute,
+	DHTBootstrapNodes: []string{
+		"router.bittorrent.com:6881",
+		"dht.transmissionbt.com:6881",
+		"router.utorrent.com:6881",
+		"dht.libtorrent.org:25401",
+		"dht.aelitis.com:6881",
+	},
 
 	// Peer
 	UnchokedPeers:                3,

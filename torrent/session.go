@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -121,7 +122,7 @@ func NewSession(cfg Config) (*Session, error) {
 		dhtConfig := dht.NewConfig()
 		dhtConfig.Address = cfg.DHTHost
 		dhtConfig.Port = int(cfg.DHTPort)
-		dhtConfig.DHTRouters = "router.bittorrent.com:6881,dht.transmissionbt.com:6881,router.utorrent.com:6881,dht.libtorrent.org:25401,dht.aelitis.com:6881"
+		dhtConfig.DHTRouters = strings.Join(cfg.DHTBootstrapNodes, ",")
 		dhtConfig.SaveRoutingTable = false
 		dhtNode, err = dht.New(dhtConfig)
 		if err != nil {
