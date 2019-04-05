@@ -55,7 +55,6 @@ func (s *Session) loadExistingTorrents(ids []string) {
 			sto,
 			spec.Name,
 			spec.Port,
-			s.parseTrackers(spec.Trackers, info.IsPrivate()),
 			info,
 			bf,
 			resumer.Stats{
@@ -74,7 +73,7 @@ func (s *Session) loadExistingTorrents(ids []string) {
 		go s.checkTorrent(t)
 		delete(s.availablePorts, spec.Port)
 
-		t2 := s.newTorrent(t, spec.AddedAt)
+		t2 := s.newTorrent(t, spec.AddedAt, spec.Trackers)
 		s.log.Debugf("loaded existing torrent: #%d %s", id, t.Name())
 		loaded++
 		if hasStarted {
