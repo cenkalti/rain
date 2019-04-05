@@ -39,7 +39,7 @@ type Config struct {
 	// Maximum allowed size to be read when adding torrent.
 	MaxTorrentSize uint
 	// Time to wait when resolving host names for trackers and peers.
-	DNSResolveTimetout time.Duration
+	DNSResolveTimeout time.Duration
 
 	// Enable RPC server
 	RPCEnabled bool
@@ -152,7 +152,7 @@ var DefaultConfig = Config{
 	TorrentAddHTTPTimeout:                  30 * time.Second,
 	MaxMetadataSize:                        10 * 1024 * 1024,
 	MaxTorrentSize:                         10 * 1024 * 1024,
-	DNSResolveTimetout:                     5 * time.Second,
+	DNSResolveTimeout:                      5 * time.Second,
 
 	// RPC Server
 	RPCEnabled:         true,

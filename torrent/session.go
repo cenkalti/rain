@@ -144,7 +144,7 @@ func NewSession(cfg Config) (*Session, error) {
 		db:                 db,
 		resumer:            res,
 		blocklist:          bl,
-		trackerManager:     trackermanager.New(bl, cfg.DNSResolveTimetout),
+		trackerManager:     trackermanager.New(bl, cfg.DNSResolveTimeout),
 		log:                l,
 		torrents:           make(map[string]*Torrent),
 		torrentsByInfoHash: make(map[dht.InfoHash][]*Torrent),
@@ -157,7 +157,7 @@ func NewSession(cfg Config) (*Session, error) {
 		webseedClient: http.Client{
 			Transport: &http.Transport{
 				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-					ip, port, err := resolver.Resolve(ctx, addr, cfg.DNSResolveTimetout, bl)
+					ip, port, err := resolver.Resolve(ctx, addr, cfg.DNSResolveTimeout, bl)
 					if err != nil {
 						return nil, err
 					}
