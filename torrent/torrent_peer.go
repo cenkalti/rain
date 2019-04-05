@@ -61,7 +61,7 @@ func (t *torrent) resolveAndAddPeer(host string, port int) {
 		return
 	}
 	addrs := []*net.TCPAddr{{IP: ip, Port: port}}
-	t.handleNewPeers(addrs, peersource.Magnet)
+	t.handleNewPeers(addrs, peersource.Manual)
 }
 
 func (t *torrent) handleNewPeers(addrs []*net.TCPAddr, source peersource.Source) {
