@@ -244,6 +244,8 @@ func (t *torrent) getPeers() []Peer {
 			source = SourcePEX
 		case peersource.Incoming:
 			source = SourceIncoming
+		case peersource.Magnet:
+			source = SourceMagnet
 		default:
 			panic("unhandled peer source")
 		}

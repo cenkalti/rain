@@ -240,6 +240,8 @@ func (h *rpcHandler) GetTorrentPeers(args *rpctypes.GetTorrentPeersRequest, repl
 			source = "INCOMING"
 		case SourceManual:
 			source = "MANUAL"
+		case SourceMagnet:
+			source = "MAGNET"
 		default:
 			panic("unhandled peer source")
 		}

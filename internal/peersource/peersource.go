@@ -8,6 +8,7 @@ const (
 	PEX
 	Manual
 	Incoming
+	Magnet
 )
 
 func (s Source) String() string {
@@ -22,6 +23,8 @@ func (s Source) String() string {
 		return "manual"
 	case Incoming:
 		return "incoming"
+	case Magnet:
+		return "magnet"
 	default:
 		panic("unhandled source")
 	}

@@ -176,6 +176,7 @@ const (
 	SourcePEX
 	SourceIncoming
 	SourceManual
+	SourceMagnet
 )
 
 type peersRequest struct {
