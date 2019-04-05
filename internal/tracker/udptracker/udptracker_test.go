@@ -60,7 +60,7 @@ func TestUDPTracker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tr := udptracker.NewTransport(nil)
+	tr := udptracker.NewTransport(nil, 5*time.Second)
 	trk := udptracker.New(rawURL, u, tr)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)

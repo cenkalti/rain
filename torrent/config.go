@@ -38,6 +38,8 @@ type Config struct {
 	MaxMetadataSize uint
 	// Maximum allowed size to be read when adding torrent.
 	MaxTorrentSize uint
+	// Time to wait when resolving host names for trackers and peers.
+	DNSResolveTimetout time.Duration
 
 	// Enable RPC server
 	RPCEnabled bool
@@ -128,7 +130,6 @@ type Config struct {
 	// Do not accept unencrypted connections.
 	ForceIncomingEncryption bool
 
-	WebseedNameResolveTimeout      time.Duration
 	WebseedDialTimeout             time.Duration
 	WebseedTLSHandshakeTimeout     time.Duration
 	WebseedResponseHeaderTimeout   time.Duration
@@ -151,6 +152,7 @@ var DefaultConfig = Config{
 	TorrentAddHTTPTimeout:                  30 * time.Second,
 	MaxMetadataSize:                        10 * 1024 * 1024,
 	MaxTorrentSize:                         10 * 1024 * 1024,
+	DNSResolveTimetout:                     5 * time.Second,
 
 	// RPC Server
 	RPCEnabled:         true,
@@ -204,7 +206,6 @@ var DefaultConfig = Config{
 	ParallelReads:  1,
 
 	// Webseed settings
-	WebseedNameResolveTimeout:      10 * time.Second,
 	WebseedDialTimeout:             10 * time.Second,
 	WebseedTLSHandshakeTimeout:     10 * time.Second,
 	WebseedResponseHeaderTimeout:   10 * time.Second,

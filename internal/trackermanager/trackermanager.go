@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/rain/internal/blocklist"
+	"github.com/cenkalti/rain/internal/resolver"
 	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/internal/tracker/httptracker"
 	"github.com/cenkalti/rain/internal/tracker/udptracker"
@@ -19,13 +20,13 @@ type TrackerManager struct {
 	udpTransport  *udptracker.Transport
 }
 
-func New(bl *blocklist.Blocklist) *TrackerManager {
+func New(bl *blocklist.Blocklist, dnsTimeout time.Duration) *TrackerManager {
 	m := &TrackerManager{
 		httpTransport: new(http.Transport),
-		udpTransport:  udptracker.NewTransport(bl),
+		udpTransport:  udptracker.NewTransport(bl, dnsTimeout),
 	}
 	m.httpTransport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-		ip, port, err := tracker.ResolveHost(ctx, addr, bl)
+		ip, port, err := resolver.Resolve(ctx, addr, dnsTimeout, bl)
 		if err != nil {
 			return nil, err
 		}

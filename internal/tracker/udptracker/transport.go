@@ -15,6 +15,7 @@ import (
 	"github.com/cenkalti/backoff"
 	"github.com/cenkalti/rain/internal/blocklist"
 	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/internal/resolver"
 	"github.com/cenkalti/rain/internal/tracker"
 )
 
@@ -22,9 +23,10 @@ const connectionIDMagic = 0x41727101980
 const connectionIDInterval = time.Minute
 
 type Transport struct {
-	blocklist *blocklist.Blocklist
-	conn      *net.UDPConn
-	log       logger.Logger
+	blocklist  *blocklist.Blocklist
+	conn       *net.UDPConn
+	log        logger.Logger
+	dnsTimeout time.Duration
 
 	connections  map[string]*connection
 	transactions map[int32]*transaction
@@ -39,10 +41,11 @@ type connection struct {
 	m         sync.Mutex
 }
 
-func NewTransport(bl *blocklist.Blocklist) *Transport {
+func NewTransport(bl *blocklist.Blocklist, dnsTimeout time.Duration) *Transport {
 	return &Transport{
 		blocklist:    bl,
 		log:          logger.New("udp tracker transport"),
+		dnsTimeout:   dnsTimeout,
 		connections:  make(map[string]*connection),
 		transactions: make(map[int32]*transaction),
 		closeC:       make(chan struct{}),
@@ -84,7 +87,7 @@ func (t *Transport) Do(ctx context.Context, trx *transaction) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	ip, port, err := tracker.ResolveHost(ctx, trx.dest, t.blocklist)
+	ip, port, err := resolver.Resolve(ctx, trx.dest, t.dnsTimeout, t.blocklist)
 	if err != nil {
 		return nil, err
 	}

@@ -17,6 +17,7 @@ import (
 	"github.com/cenkalti/rain/internal/blocklist"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/piececache"
+	"github.com/cenkalti/rain/internal/resolver"
 	"github.com/cenkalti/rain/internal/resourcemanager"
 	"github.com/cenkalti/rain/internal/resumer/boltdbresumer"
 	"github.com/cenkalti/rain/internal/storage/filestorage"
@@ -143,7 +144,7 @@ func NewSession(cfg Config) (*Session, error) {
 		db:                 db,
 		resumer:            res,
 		blocklist:          bl,
-		trackerManager:     trackermanager.New(bl),
+		trackerManager:     trackermanager.New(bl, cfg.DNSResolveTimetout),
 		log:                l,
 		torrents:           make(map[string]*Torrent),
 		torrentsByInfoHash: make(map[dht.InfoHash][]*Torrent),
@@ -156,9 +157,7 @@ func NewSession(cfg Config) (*Session, error) {
 		webseedClient: http.Client{
 			Transport: &http.Transport{
 				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-					rctx, cancel := context.WithTimeout(ctx, cfg.WebseedNameResolveTimeout)
-					defer cancel()
-					ip, port, err := tracker.ResolveHost(rctx, addr, bl)
+					ip, port, err := resolver.Resolve(ctx, addr, cfg.DNSResolveTimetout, bl)
 					if err != nil {
 						return nil, err
 					}
