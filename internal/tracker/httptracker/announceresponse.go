@@ -6,6 +6,7 @@ import (
 
 type announceResponse struct {
 	FailureReason  string             `bencode:"failure reason"`
+	RetryIn        string             `bencode:"retry in"`
 	WarningMessage string             `bencode:"warning message"`
 	Interval       int32              `bencode:"interval"`
 	MinInterval    int32              `bencode:"min interval"`

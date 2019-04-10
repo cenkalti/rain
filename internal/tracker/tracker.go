@@ -32,6 +32,9 @@ type AnnounceResponse struct {
 }
 
 // Error is the string that is sent by the tracker from announce or scrape.
-type Error string
+type Error struct {
+	FailureReason string
+	RetryIn       time.Duration
+}
 
-func (e Error) Error() string { return string(e) }
+func (e *Error) Error() string { return e.FailureReason }

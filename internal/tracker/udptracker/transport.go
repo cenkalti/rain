@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"net"
+	"strconv"
 	"sync"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/resolver"
 	"github.com/cenkalti/rain/internal/tracker"
+	"github.com/zeebo/bencode"
 )
 
 const connectionIDMagic = 0x41727101980
@@ -164,7 +166,23 @@ func (t *Transport) readLoop() {
 		// Tracker has sent and error.
 		if header.Action == actionError {
 			// The part after the header is the error message.
-			trx.err = tracker.Error(buf[binary.Size(header):])
+			rest := buf[binary.Size(header):]
+			var terr struct {
+				FailureReason string `bencode:"failure reason"`
+				RetryIn       string `bencode:"retry in"`
+			}
+			err = bencode.DecodeBytes(rest, &terr)
+			if err != nil {
+				trx.err = &tracker.Error{
+					FailureReason: string(rest),
+				}
+			} else {
+				retryIn, _ := strconv.Atoi(terr.RetryIn)
+				trx.err = &tracker.Error{
+					FailureReason: terr.FailureReason,
+					RetryIn:       time.Duration(retryIn) * time.Minute,
+				}
+			}
 			trx.Done()
 			continue
 		}

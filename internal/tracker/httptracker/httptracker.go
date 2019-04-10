@@ -117,7 +117,11 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 		t.log.Warning(response.WarningMessage)
 	}
 	if response.FailureReason != "" {
-		return nil, tracker.Error(response.FailureReason)
+		retryIn, _ := strconv.Atoi(response.RetryIn)
+		return nil, &tracker.Error{
+			FailureReason: response.FailureReason,
+			RetryIn:       time.Duration(retryIn) * time.Minute,
+		}
 	}
 
 	if response.TrackerID != "" {
