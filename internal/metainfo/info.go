@@ -10,6 +10,8 @@ import (
 	"github.com/zeebo/bencode"
 )
 
+var errInvalidPieceData = errors.New("invalid piece data")
+
 // Info contains information about torrent.
 type Info struct {
 	PieceLength uint32     `bencode:"piece length" json:"piece_length"`
@@ -38,7 +40,7 @@ func NewInfo(b []byte) (*Info, error) {
 		return nil, err
 	}
 	if uint32(len(i.Pieces))%sha1.Size != 0 {
-		return nil, errors.New("invalid piece data")
+		return nil, errInvalidPieceData
 	}
 	// ".." is not allowed in file names
 	for _, file := range i.Files {
@@ -59,7 +61,7 @@ func NewInfo(b []byte) (*Info, error) {
 	totalPieceDataLength := int64(i.PieceLength) * int64(i.NumPieces)
 	delta := totalPieceDataLength - i.TotalLength
 	if delta >= int64(i.PieceLength) || delta < 0 {
-		return nil, errors.New("invalid piece data")
+		return nil, errInvalidPieceData
 	}
 	i.Bytes = b
 	hash := sha1.New()   // nolint: gosec
