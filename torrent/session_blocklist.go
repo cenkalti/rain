@@ -28,7 +28,6 @@ func (s *Session) startBlocklistReloader() error {
 
 	deadline := blocklistTimestamp.Add(s.config.BlocklistUpdateInterval)
 	now := time.Now()
-	delta := now.Sub(deadline)
 	var nextReload time.Duration
 	switch {
 	case blocklistTimestamp.IsZero():
@@ -36,7 +35,7 @@ func (s *Session) startBlocklistReloader() error {
 		s.retryReloadBlocklist()
 		nextReload = s.config.BlocklistUpdateInterval
 	case deadline.Before(now):
-		s.log.Infof("Last blocklist reload was %s ago. Reloading blocklist...", delta.String())
+		s.log.Infof("Last blocklist reload was %s ago. Reloading blocklist...", now.Sub(s.blocklistTimestamp).Truncate(time.Second).String())
 		s.retryReloadBlocklist()
 		nextReload = s.config.BlocklistUpdateInterval
 	default:
