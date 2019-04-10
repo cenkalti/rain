@@ -153,7 +153,11 @@ func (a *PeriodicalAnnouncer) Run() {
 			a.status = NotWorking
 			a.lastAnnounce = time.Now()
 			a.log.Debugln("announce error:", a.lastError)
-			timer.Reset(a.backoff.NextBackOff())
+			if terr, ok := a.lastError.(*tracker.Error); ok && terr.RetryIn > 0 {
+				timer.Reset(terr.RetryIn)
+			} else {
+				timer.Reset(a.backoff.NextBackOff())
+			}
 		case <-a.needMorePeersC:
 			a.mNeedMorePeers.RLock()
 			needMorePeers := a.needMorePeers
