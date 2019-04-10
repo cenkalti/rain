@@ -251,8 +251,11 @@ func (p *Peer) Client() string {
 	if p.ExtensionHandshake == nil {
 		return ""
 	}
+	var client string
 	if p.ExtensionHandshake.V != "" {
-		return p.ExtensionHandshake.V
+		client = p.ExtensionHandshake.V
+	} else {
+		client = clientID(string(p.ID[:]))
 	}
-	return asciify(clientID(string(p.ID[:])))
+	return asciify(client)
 }
