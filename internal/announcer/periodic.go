@@ -2,6 +2,7 @@ package announcer
 
 import (
 	"context"
+	"errors"
 	"math"
 	"net"
 	"sync"
@@ -152,6 +153,9 @@ func (a *PeriodicalAnnouncer) Run() {
 		case a.lastError = <-a.errC:
 			a.status = NotWorking
 			a.lastAnnounce = time.Now()
+			if a.lastError == context.Canceled {
+				a.lastError = errors.New("timeout")
+			}
 			a.log.Debugln("announce error:", a.lastError)
 			if terr, ok := a.lastError.(*tracker.Error); ok && terr.RetryIn > 0 {
 				timer.Reset(terr.RetryIn)
