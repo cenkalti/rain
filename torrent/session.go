@@ -201,14 +201,19 @@ func NewSession(cfg Config) (*Session, error) {
 	return c, nil
 }
 
-func (s *Session) parseTrackers(trackers []string, private bool) []tracker.Tracker {
-	ret := make([]tracker.Tracker, 0, len(trackers))
-	for _, tr := range trackers {
-		t, err := s.trackerManager.Get(tr, s.config.TrackerHTTPTimeout, s.getTrackerUserAgent(private), int64(s.config.TrackerHTTPMaxResponseSize))
-		if err != nil {
-			continue
+func (s *Session) parseTrackers(tiers [][]string, private bool) []tracker.Tracker {
+	ret := make([]tracker.Tracker, 0, len(tiers))
+	for _, tier := range tiers {
+		trackers := make([]tracker.Tracker, 0, len(tier))
+		for _, tr := range tier {
+			t, err := s.trackerManager.Get(tr, s.config.TrackerHTTPTimeout, s.getTrackerUserAgent(private), int64(s.config.TrackerHTTPMaxResponseSize))
+			if err != nil {
+				continue
+			}
+			trackers = append(trackers, t)
 		}
-		ret = append(ret, t)
+		tra := tracker.NewTier(trackers)
+		ret = append(ret, tra)
 	}
 	return ret
 }
