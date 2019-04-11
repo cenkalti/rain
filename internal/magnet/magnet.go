@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"net/url"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/multiformats/go-multihash"
@@ -14,7 +16,7 @@ import (
 type Magnet struct {
 	InfoHash [20]byte
 	Name     string
-	Trackers []string
+	Trackers [][]string
 	Peers    []string
 }
 
@@ -50,10 +52,33 @@ func New(s string) (*Magnet, error) {
 		magnet.Name = names[0]
 	}
 
-	magnet.Trackers = params["tr"]
+	var tiers []trackerTier
+	for key, tier := range params {
+		if key == "tr" {
+			tiers = append(tiers, trackerTier{trackers: tier, index: -1})
+		} else if strings.HasPrefix(key, "tr.") {
+			index, err := strconv.Atoi(key[3:])
+			if err == nil {
+				tiers = append(tiers, trackerTier{trackers: tier, index: index})
+			}
+		}
+	}
+
+	sort.Slice(tiers, func(i, j int) bool { return tiers[i].index < tiers[j].index })
+
+	magnet.Trackers = make([][]string, len(tiers))
+	for i, ti := range tiers {
+		magnet.Trackers[i] = ti.trackers
+	}
+
 	magnet.Peers = params["x.pe"]
 
 	return &magnet, nil
+}
+
+type trackerTier struct {
+	trackers []string
+	index    int
 }
 
 // infoHashString returns a new info hash value from a string.

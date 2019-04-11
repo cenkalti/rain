@@ -21,7 +21,7 @@ func TestParse(t *testing.T) {
 	if len(m.Trackers) != 1 {
 		t.Fatal("invalid trackers")
 	}
-	if m.Trackers[0] != "udp://tracker.rain:2710" {
+	if m.Trackers[0][0] != "udp://tracker.rain:2710" {
 		t.Fatal("invalid tracker")
 	}
 }
