@@ -212,8 +212,10 @@ func (s *Session) parseTrackers(tiers [][]string, private bool) []tracker.Tracke
 			}
 			trackers = append(trackers, t)
 		}
-		tra := tracker.NewTier(trackers)
-		ret = append(ret, tra)
+		if len(trackers) > 0 {
+			tra := tracker.NewTier(trackers)
+			ret = append(ret, tra)
+		}
 	}
 	return ret
 }
