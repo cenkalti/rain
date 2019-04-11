@@ -55,10 +55,12 @@ func New(s string) (*Magnet, error) {
 	var tiers []trackerTier
 	for key, tier := range params {
 		if key == "tr" {
-			tiers = append(tiers, trackerTier{trackers: tier, index: -1})
+			for i, tr := range tier {
+				tiers = append(tiers, trackerTier{trackers: []string{tr}, index: i - len(tier)})
+			}
 		} else if strings.HasPrefix(key, "tr.") {
 			index, err := strconv.Atoi(key[3:])
-			if err == nil {
+			if err == nil && index >= 0 {
 				tiers = append(tiers, trackerTier{trackers: tier, index: index})
 			}
 		}
