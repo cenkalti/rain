@@ -12,11 +12,9 @@ import (
 // MetaInfo file dictionary
 type MetaInfo struct {
 	Info         *Info
-	AnnounceList []Tier
+	AnnounceList [][]string
 	URLList      []string
 }
-
-type Tier []string
 
 type metaInfo struct {
 	Info         bencode.RawMessage `bencode:"info"`
@@ -46,7 +44,7 @@ func New(r io.Reader) (*MetaInfo, error) {
 		err = bencode.DecodeBytes(t.AnnounceList, &ll)
 		if err == nil {
 			for _, tier := range ll {
-				var ti Tier
+				var ti []string
 				for _, t := range tier {
 					if isTrackerSupported(t) {
 						ti = append(ti, t)
