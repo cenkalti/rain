@@ -153,7 +153,8 @@ func (a *PeriodicalAnnouncer) Run() {
 		case a.lastError = <-a.errC:
 			a.status = NotWorking
 			a.lastAnnounce = time.Now()
-			if a.lastError == context.Canceled {
+			if oerr, ok := a.lastError.(*net.OpError); ok && oerr.Error() == "operation was canceled" {
+				// Give more friendly error to the user
 				a.lastError = errors.New("timeout")
 			}
 			a.log.Debugln("announce error:", a.lastError)
