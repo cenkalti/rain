@@ -7,7 +7,7 @@ type Spec struct {
 	Dest            string
 	Port            int
 	Name            string
-	Trackers        []string
+	Trackers        [][]string
 	URLList         []string
 	FixedPeers      []string
 	Info            []byte

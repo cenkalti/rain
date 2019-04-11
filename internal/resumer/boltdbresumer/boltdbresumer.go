@@ -119,7 +119,7 @@ func (r *Resumer) WriteBitfield(torrentID string, value []byte) error {
 
 func (r *Resumer) Read(torrentID string) (*Spec, error) {
 	var spec *Spec
-	err := r.db.View(func(tx *bolt.Tx) error {
+	err := r.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(r.bucket).Bucket([]byte(torrentID))
 		if b == nil {
 			return fmt.Errorf("bucket not found: %q", torrentID)
@@ -150,7 +150,26 @@ func (r *Resumer) Read(torrentID string) (*Spec, error) {
 		if value != nil {
 			err = json.Unmarshal(value, &spec.Trackers)
 			if err != nil {
-				return err
+				// Try to unmarshal old format `[]string`
+				trackers := make([]string, 0)
+				err = json.Unmarshal(value, &trackers)
+				if err != nil {
+					return err
+				}
+				// Migrate to new format `[][]string`
+				spec.Trackers = make([][]string, len(trackers))
+				for i, t := range trackers {
+					spec.Trackers[i] = []string{t}
+				}
+				// Save in new format
+				bt, err := json.Marshal(spec.Trackers)
+				if err != nil {
+					return err
+				}
+				err = b.Put(Keys.Trackers, bt)
+				if err != nil {
+					return err
+				}
 			}
 		}
 
