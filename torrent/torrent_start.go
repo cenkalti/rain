@@ -153,6 +153,9 @@ func (t *torrent) startPieceDownloaders() {
 }
 
 func (t *torrent) startPieceDownloaderForWebseed(src *webseedsource.WebseedSource) (started bool) {
+	if t.status() != Downloading {
+		return false
+	}
 	sp := t.piecePicker.PickWebseed(src)
 	if sp == nil {
 		return false
