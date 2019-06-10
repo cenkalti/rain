@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"sync/atomic"
 	"time"
 
@@ -159,14 +160,14 @@ func (d *URLDownloader) getURL(filename string, multifile bool) string {
 	src := d.URL
 	if !multifile {
 		if src[len(src)-1] == '/' {
-			src += filename
+			src += url.PathEscape(filename)
 		}
 		return src
 	}
 	if src[len(src)-1] != '/' {
 		src += "/"
 	}
-	return src + filename
+	return src + url.PathEscape(filename)
 }
 
 func (d *URLDownloader) sendResult(resultC chan interface{}, res *PieceResult) {
