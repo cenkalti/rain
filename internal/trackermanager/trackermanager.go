@@ -2,6 +2,7 @@ package trackermanager
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
@@ -20,10 +21,12 @@ type TrackerManager struct {
 	udpTransport  *udptracker.Transport
 }
 
-func New(bl *blocklist.Blocklist, dnsTimeout time.Duration) *TrackerManager {
+func New(bl *blocklist.Blocklist, dnsTimeout time.Duration, tlsSkipVerify bool) *TrackerManager {
 	m := &TrackerManager{
-		httpTransport: new(http.Transport),
-		udpTransport:  udptracker.NewTransport(bl, dnsTimeout),
+		httpTransport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: tlsSkipVerify},
+		},
+		udpTransport: udptracker.NewTransport(bl, dnsTimeout),
 	}
 	m.httpTransport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 		ip, port, err := resolver.Resolve(ctx, addr, dnsTimeout, bl)

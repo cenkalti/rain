@@ -79,6 +79,8 @@ type Config struct {
 	TrackerHTTPPrivateUserAgent string
 	// Max number of bytes in a tracker response.
 	TrackerHTTPMaxResponseSize uint
+	// Check and validate TLS ceritificates.
+	TrackerHTTPVerifyTLS bool
 
 	// Number of unchoked peers.
 	UnchokedPeers int
@@ -135,6 +137,7 @@ type Config struct {
 	WebseedResponseHeaderTimeout   time.Duration
 	WebseedResponseBodyReadTimeout time.Duration
 	WebseedRetryInterval           time.Duration
+	WebseedVerifyTLS               bool
 }
 
 var DefaultConfig = Config{
@@ -167,6 +170,7 @@ var DefaultConfig = Config{
 	TrackerHTTPTimeout:          10 * time.Second,
 	TrackerHTTPPrivateUserAgent: "Rain/" + Version,
 	TrackerHTTPMaxResponseSize:  2 * 1024 * 1024,
+	TrackerHTTPVerifyTLS:        true,
 
 	// DHT node
 	DHTEnabled:             true,
@@ -211,4 +215,5 @@ var DefaultConfig = Config{
 	WebseedResponseHeaderTimeout:   10 * time.Second,
 	WebseedResponseBodyReadTimeout: 10 * time.Second,
 	WebseedRetryInterval:           time.Minute,
+	WebseedVerifyTLS:               true,
 }

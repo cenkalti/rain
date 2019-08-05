@@ -3,6 +3,7 @@ package torrent
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"net"
 	"net/http"
@@ -144,7 +145,7 @@ func NewSession(cfg Config) (*Session, error) {
 		db:                 db,
 		resumer:            res,
 		blocklist:          bl,
-		trackerManager:     trackermanager.New(bl, cfg.DNSResolveTimeout),
+		trackerManager:     trackermanager.New(bl, cfg.DNSResolveTimeout, !cfg.TrackerHTTPVerifyTLS),
 		log:                l,
 		torrents:           make(map[string]*Torrent),
 		torrentsByInfoHash: make(map[dht.InfoHash][]*Torrent),
@@ -168,6 +169,7 @@ func NewSession(cfg Config) (*Session, error) {
 					return d.DialContext(dctx, network, taddr.String())
 				},
 				TLSHandshakeTimeout:   cfg.WebseedTLSHandshakeTimeout,
+				TLSClientConfig:       &tls.Config{InsecureSkipVerify: !cfg.WebseedVerifyTLS},
 				ResponseHeaderTimeout: cfg.WebseedResponseHeaderTimeout,
 			},
 		},
