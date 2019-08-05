@@ -156,7 +156,7 @@ func (t *torrent) sendFirstMessage(p *peer.Peer) {
 	case p.FastEnabled && bf != nil && bf.All():
 		msg := peerprotocol.HaveAllMessage{}
 		p.SendMessage(msg)
-	case p.FastEnabled && (bf == nil || bf != nil && bf.Count() == 0):
+	case p.FastEnabled && (bf == nil || bf.Count() == 0):
 		msg := peerprotocol.HaveNoneMessage{}
 		p.SendMessage(msg)
 	case bf != nil:
