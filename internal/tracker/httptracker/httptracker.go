@@ -106,6 +106,9 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 	if uerr, ok := err.(*url.Error); ok && uerr.Err == context.Canceled {
 		return nil, context.Canceled
 	}
+	if err != nil {
+		return nil, err
+	}
 
 	var response announceResponse
 	err = bencode.DecodeBytes(body, &response)
