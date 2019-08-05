@@ -169,7 +169,7 @@ func NewSession(cfg Config) (*Session, error) {
 					return d.DialContext(dctx, network, taddr.String())
 				},
 				TLSHandshakeTimeout:   cfg.WebseedTLSHandshakeTimeout,
-				TLSClientConfig:       &tls.Config{InsecureSkipVerify: !cfg.WebseedVerifyTLS},
+				TLSClientConfig:       &tls.Config{InsecureSkipVerify: !cfg.WebseedVerifyTLS}, // nolint: gosec
 				ResponseHeaderTimeout: cfg.WebseedResponseHeaderTimeout,
 			},
 		},

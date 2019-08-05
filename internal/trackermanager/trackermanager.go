@@ -24,7 +24,7 @@ type TrackerManager struct {
 func New(bl *blocklist.Blocklist, dnsTimeout time.Duration, tlsSkipVerify bool) *TrackerManager {
 	m := &TrackerManager{
 		httpTransport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: tlsSkipVerify},
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: tlsSkipVerify}, // nolint: gosec
 		},
 		udpTransport: udptracker.NewTransport(bl, dnsTimeout),
 	}
