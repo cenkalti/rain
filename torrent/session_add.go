@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/cenkalti/rain/internal/magnet"
@@ -87,6 +88,8 @@ func (s *Session) addTorrentStopped(r io.Reader) (*Torrent, error) {
 }
 
 func (s *Session) AddURI(uri string) (*Torrent, error) {
+	uri = filterOutControlChars(uri)
+
 	u, err := url.Parse(uri)
 	if err != nil {
 		return nil, err
@@ -99,6 +102,19 @@ func (s *Session) AddURI(uri string) (*Torrent, error) {
 	default:
 		return nil, errors.New("unsupported uri scheme: " + u.Scheme)
 	}
+}
+
+func filterOutControlChars(s string) string {
+	var sb strings.Builder
+	sb.Grow(len(s))
+	for i := 0; i < len(s); i++ {
+		b := s[i]
+		if b < ' ' || b == 0x7f {
+			continue
+		}
+		sb.WriteByte(b)
+	}
+	return sb.String()
 }
 
 func (s *Session) addURL(u string) (*Torrent, error) {

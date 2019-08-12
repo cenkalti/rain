@@ -21,8 +21,6 @@ type Magnet struct {
 }
 
 func New(s string) (*Magnet, error) {
-	s = filterOutControlChars(s)
-
 	u, err := url.Parse(s)
 	if err != nil {
 		return nil, err
@@ -119,17 +117,4 @@ func infoHashString(xt string) ([20]byte, error) {
 	}
 	copy(ih[:], b)
 	return ih, nil
-}
-
-func filterOutControlChars(s string) string {
-	var sb strings.Builder
-	sb.Grow(len(s))
-	for i := 0; i < len(s); i++ {
-		b := s[i]
-		if b < ' ' || b == 0x7f {
-			continue
-		}
-		sb.WriteByte(b)
-	}
-	return sb.String()
 }
