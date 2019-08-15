@@ -14,18 +14,19 @@ var errInvalidPieceData = errors.New("invalid piece data")
 
 // Info contains information about torrent.
 type Info struct {
-	PieceLength uint32     `bencode:"piece length" json:"piece_length"`
-	Pieces      []byte     `bencode:"pieces" json:"pieces"`
-	Private     byte       `bencode:"private" json:"private"`
-	Name        string     `bencode:"name" json:"name"`
-	Length      int64      `bencode:"length" json:"length"` // Single File Mode
-	Files       []FileDict `bencode:"files" json:"files"`   // Multiple File mode
+	PieceLength uint32             `bencode:"piece length" json:"piece_length"`
+	Pieces      []byte             `bencode:"pieces" json:"pieces"`
+	Private     bencode.RawMessage `bencode:"private" json:"private"`
+	Name        string             `bencode:"name" json:"name"`
+	Length      int64              `bencode:"length" json:"length"` // Single File Mode
+	Files       []FileDict         `bencode:"files" json:"files"`   // Multiple File mode
 
 	// Calculated fileds
 	Hash        [20]byte `bencode:"-" json:"-"`
 	TotalLength int64    `bencode:"-" json:"-"`
 	NumPieces   uint32   `bencode:"-" json:"-"`
 	Bytes       []byte   `bencode:"-" json:"-"`
+	private     bool
 }
 
 type FileDict struct {
@@ -41,6 +42,19 @@ func NewInfo(b []byte) (*Info, error) {
 	}
 	if uint32(len(i.Pieces))%sha1.Size != 0 {
 		return nil, errInvalidPieceData
+	}
+	if len(i.Private) > 0 {
+		var intVal int64
+		var stringVal string
+		err := bencode.DecodeBytes(i.Private, &intVal)
+		if err != nil {
+			err = bencode.DecodeBytes(i.Private, &stringVal)
+			if err == nil {
+				i.private = stringVal == "1"
+			}
+		} else {
+			i.private = intVal == 1
+		}
 	}
 	// ".." is not allowed in file names
 	for _, file := range i.Files {
@@ -92,5 +106,5 @@ func (i *Info) IsPrivate() bool {
 	if i == nil {
 		return false
 	}
-	return i.Private == 1
+	return i.private
 }

@@ -87,7 +87,7 @@ func (t *torrent) handleMetadataMessage(pe *peer.Peer, msg peerprotocol.Extensio
 			t.stop(fmt.Errorf("cannot parse info bytes: %s", err))
 			break
 		}
-		if info.Private == 1 {
+		if info.IsPrivate() {
 			t.stop(errors.New("private torrent from magnet"))
 			break
 		}
