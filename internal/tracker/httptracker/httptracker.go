@@ -85,24 +85,21 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 
 	httpReq.Header.Set("User-Agent", t.userAgent)
 
-	doReq := func() ([]byte, error) {
+	doReq := func() (int, []byte, error) {
 		resp, err := t.http.Do(httpReq)
 		if err != nil {
-			return nil, err
+			return 0, nil, err
 		}
 		defer resp.Body.Close()
-		if resp.StatusCode != 200 {
-			data, _ := ioutil.ReadAll(resp.Body)
-			return nil, fmt.Errorf("status not 200 OK (status: %d body: %q)", resp.StatusCode, string(data))
-		}
 		if resp.ContentLength > t.maxResponseLength {
-			return nil, fmt.Errorf("tracker respsonse too large: %d", resp.ContentLength)
+			return 0, nil, fmt.Errorf("tracker respsonse too large: %d", resp.ContentLength)
 		}
 		r := io.LimitReader(resp.Body, t.maxResponseLength)
-		return ioutil.ReadAll(r)
+		data, err := ioutil.ReadAll(r)
+		return resp.StatusCode, data, err
 	}
 
-	body, err := doReq()
+	code, body, err := doReq()
 	if uerr, ok := err.(*url.Error); ok && uerr.Err == context.Canceled {
 		return nil, context.Canceled
 	}
@@ -113,6 +110,9 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 	var response announceResponse
 	err = bencode.DecodeBytes(body, &response)
 	if err != nil {
+		if code != 200 {
+			return nil, fmt.Errorf("status not 200 OK (status: %d body: %q)", code, string(body))
+		}
 		return nil, err
 	}
 
