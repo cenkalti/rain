@@ -124,8 +124,6 @@ func (a *PeriodicalAnnouncer) Run() {
 	defer timer.Stop()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	go a.announce(ctx, tracker.EventStarted, a.numWant)
 	a.status = Contacting
 	for {
@@ -190,6 +188,7 @@ func (a *PeriodicalAnnouncer) Run() {
 		case <-a.completedC:
 			if a.status == Contacting {
 				cancel()
+				ctx, cancel = context.WithCancel(context.Background())
 			}
 			go a.announce(ctx, tracker.EventCompleted, 0)
 			a.status = Contacting
@@ -197,6 +196,7 @@ func (a *PeriodicalAnnouncer) Run() {
 		case req := <-a.statsCommandC:
 			req.Response <- a.stats()
 		case <-a.closeC:
+			cancel()
 			return
 		}
 	}
