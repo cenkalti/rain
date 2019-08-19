@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math"
 	"net"
+	"net/url"
 	"sync"
 	"time"
 
@@ -20,6 +21,11 @@ const (
 	Contacting
 	Working
 	NotWorking
+)
+
+var (
+	errTimeout = errors.New("timeout")
+	errUnknown = errors.New("unknown error")
 )
 
 type PeriodicalAnnouncer struct {
@@ -153,11 +159,17 @@ func (a *PeriodicalAnnouncer) Run() {
 		case a.lastError = <-a.errC:
 			a.status = NotWorking
 			a.lastAnnounce = time.Now()
+			// Give more friendly error to the user
 			if oerr, ok := a.lastError.(*net.OpError); ok && oerr.Error() == "operation was canceled" {
-				// Give more friendly error to the user
-				a.lastError = errors.New("timeout")
+				a.log.Debugln("announce error:", a.lastError)
+				a.lastError = errTimeout
+			} else if uerr, ok := a.lastError.(*url.Error); ok && uerr.Timeout() {
+				a.log.Debugln("announce error:", a.lastError)
+				a.lastError = errTimeout
+			} else {
+				a.log.Errorln("announce error:", a.lastError)
+				a.lastError = errUnknown
 			}
-			a.log.Debugln("announce error:", a.lastError)
 			if terr, ok := a.lastError.(*tracker.Error); ok && terr.RetryIn > 0 {
 				timer.Reset(terr.RetryIn)
 			} else {
