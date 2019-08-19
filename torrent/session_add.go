@@ -21,12 +21,19 @@ import (
 	"github.com/nictuku/dht"
 )
 
-func (s *Session) AddTorrent(r io.Reader) (*Torrent, error) {
+type AddTorrentOptions struct {
+	Stopped bool
+}
+
+func (s *Session) AddTorrent(r io.Reader, opt *AddTorrentOptions) (*Torrent, error) {
 	t, err := s.addTorrentStopped(r)
 	if err != nil {
 		return nil, err
 	}
-	return t, t.Start()
+	if opt == nil || !opt.Stopped {
+		err = t.Start()
+	}
+	return t, err
 }
 
 func (s *Session) addTorrentStopped(r io.Reader) (*Torrent, error) {
@@ -87,7 +94,7 @@ func (s *Session) addTorrentStopped(r io.Reader) (*Torrent, error) {
 	return t2, nil
 }
 
-func (s *Session) AddURI(uri string) (*Torrent, error) {
+func (s *Session) AddURI(uri string, opt *AddTorrentOptions) (*Torrent, error) {
 	uri = filterOutControlChars(uri)
 
 	u, err := url.Parse(uri)
@@ -96,9 +103,9 @@ func (s *Session) AddURI(uri string) (*Torrent, error) {
 	}
 	switch u.Scheme {
 	case "http", "https":
-		return s.addURL(uri)
+		return s.addURL(uri, opt)
 	case "magnet":
-		return s.addMagnet(uri)
+		return s.addMagnet(uri, opt)
 	default:
 		return nil, errors.New("unsupported uri scheme: " + u.Scheme)
 	}
@@ -117,7 +124,7 @@ func filterOutControlChars(s string) string {
 	return sb.String()
 }
 
-func (s *Session) addURL(u string) (*Torrent, error) {
+func (s *Session) addURL(u string, opt *AddTorrentOptions) (*Torrent, error) {
 	client := http.Client{
 		Timeout: s.config.TorrentAddHTTPTimeout,
 	}
@@ -131,10 +138,10 @@ func (s *Session) addURL(u string) (*Torrent, error) {
 		return nil, fmt.Errorf("torrent too large: %d", resp.ContentLength)
 	}
 	r := io.LimitReader(resp.Body, int64(s.config.MaxTorrentSize))
-	return s.AddTorrent(r)
+	return s.AddTorrent(r, opt)
 }
 
-func (s *Session) addMagnet(link string) (*Torrent, error) {
+func (s *Session) addMagnet(link string, opt *AddTorrentOptions) (*Torrent, error) {
 	ma, err := magnet.New(link)
 	if err != nil {
 		return nil, err
@@ -185,7 +192,10 @@ func (s *Session) addMagnet(link string) (*Torrent, error) {
 		return nil, err
 	}
 	t2 := s.insertTorrent(t)
-	return t2, t2.Start()
+	if opt == nil || !opt.Stopped {
+		err = t2.Start()
+	}
+	return t2, err
 }
 
 func (s *Session) add() (id string, port int, sto *filestorage.FileStorage, err error) {

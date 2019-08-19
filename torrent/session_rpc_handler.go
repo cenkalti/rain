@@ -32,7 +32,10 @@ func (h *rpcHandler) ListTorrents(args *rpctypes.ListTorrentsRequest, reply *rpc
 
 func (h *rpcHandler) AddTorrent(args *rpctypes.AddTorrentRequest, reply *rpctypes.AddTorrentResponse) error {
 	r := base64.NewDecoder(base64.StdEncoding, strings.NewReader(args.Torrent))
-	t, err := h.session.AddTorrent(r)
+	opt := &AddTorrentOptions{
+		Stopped: args.AddTorrentOptions.Stopped,
+	}
+	t, err := h.session.AddTorrent(r, opt)
 	if err != nil {
 		return err
 	}
@@ -41,7 +44,10 @@ func (h *rpcHandler) AddTorrent(args *rpctypes.AddTorrentRequest, reply *rpctype
 }
 
 func (h *rpcHandler) AddURI(args *rpctypes.AddURIRequest, reply *rpctypes.AddURIResponse) error {
-	t, err := h.session.AddURI(args.URI)
+	opt := &AddTorrentOptions{
+		Stopped: args.AddTorrentOptions.Stopped,
+	}
+	t, err := h.session.AddURI(args.URI, opt)
 	if err != nil {
 		return err
 	}

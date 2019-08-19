@@ -107,6 +107,11 @@ func main() {
 					Name:   "add",
 					Usage:  "add torrent or magnet",
 					Action: handleAdd,
+					Flags: []cli.Flag{
+						cli.BoolFlag{
+							Name: "stopped",
+						},
+					},
 				},
 				{
 					Name:   "remove",
@@ -334,8 +339,11 @@ func handleAdd(c *cli.Context) error {
 	var b []byte
 	var marshalErr error
 	arg := c.Args().Get(0)
+	addOpt := &rainrpc.AddTorrentOptions{
+		Stopped: c.Bool("stopped"),
+	}
 	if strings.HasPrefix(arg, "magnet:") || strings.HasPrefix(arg, "http://") || strings.HasPrefix(arg, "https://") {
-		resp, err := clt.AddURI(arg)
+		resp, err := clt.AddURI(arg, addOpt)
 		if err != nil {
 			return err
 		}
@@ -345,7 +353,7 @@ func handleAdd(c *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		resp, err := clt.AddTorrent(f)
+		resp, err := clt.AddTorrent(f, addOpt)
 		_ = f.Close()
 		if err != nil {
 			return err

@@ -32,18 +32,28 @@ func (c *Client) ListTorrents() ([]rpctypes.Torrent, error) {
 	return reply.Torrents, c.client.Call("Session.ListTorrents", nil, &reply)
 }
 
-func (c *Client) AddTorrent(f io.Reader) (*rpctypes.Torrent, error) {
+type AddTorrentOptions struct {
+	Stopped bool
+}
+
+func (c *Client) AddTorrent(f io.Reader, options *AddTorrentOptions) (*rpctypes.Torrent, error) {
 	b, err := ioutil.ReadAll(f)
 	if err != nil {
 		return nil, err
 	}
 	args := rpctypes.AddTorrentRequest{Torrent: base64.StdEncoding.EncodeToString(b)}
+	if options != nil {
+		args.AddTorrentOptions.Stopped = options.Stopped
+	}
 	var reply rpctypes.AddTorrentResponse
 	return &reply.Torrent, c.client.Call("Session.AddTorrent", args, &reply)
 }
 
-func (c *Client) AddURI(uri string) (*rpctypes.Torrent, error) {
+func (c *Client) AddURI(uri string, options *AddTorrentOptions) (*rpctypes.Torrent, error) {
 	args := rpctypes.AddURIRequest{URI: uri}
+	if options != nil {
+		args.AddTorrentOptions.Stopped = options.Stopped
+	}
 	var reply rpctypes.AddURIResponse
 	return &reply.Torrent, c.client.Call("Session.AddURI", args, &reply)
 }

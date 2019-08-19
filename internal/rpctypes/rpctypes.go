@@ -122,8 +122,13 @@ type ListTorrentsResponse struct {
 	Torrents []Torrent
 }
 
+type AddTorrentOptions struct {
+	Stopped bool
+}
+
 type AddTorrentRequest struct {
 	Torrent string
+	AddTorrentOptions
 }
 
 type AddTorrentResponse struct {
@@ -132,6 +137,7 @@ type AddTorrentResponse struct {
 
 type AddURIRequest struct {
 	URI string
+	AddTorrentOptions
 }
 
 type AddURIResponse struct {
