@@ -123,6 +123,13 @@ func (a *PeriodicalAnnouncer) Run() {
 	timer := time.NewTimer(math.MaxInt64)
 	defer timer.Stop()
 
+	// BEP 0003: No completed is sent if the file was complete when started.
+	select {
+	case <-a.completedC:
+		a.completedC = nil
+	default:
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	go a.announce(ctx, tracker.EventStarted, a.numWant)
 	a.status = Contacting
