@@ -31,7 +31,10 @@ type Config struct {
 	// When to refresh blocklist
 	BlocklistUpdateInterval time.Duration
 	// HTTP timeout for downloading blocklist
-	BlocklistUpdateTimeout time.Duration
+	BlocklistUpdateTimeout                 time.Duration
+	BlocklistEnabledForTrackers            bool
+	BlocklistEnabledForOutgoingConnections bool
+	BlocklistEnabledForIncomingConnections bool
 	// Time to wait when adding torrent with AddURI().
 	TorrentAddHTTPTimeout time.Duration
 	// Maximum allowed size to be received by metadata extension.
@@ -152,6 +155,9 @@ var DefaultConfig = Config{
 	PrivateExtensionHandshakeClientVersion: "Rain " + Version,
 	BlocklistUpdateInterval:                24 * time.Hour,
 	BlocklistUpdateTimeout:                 10 * time.Minute,
+	BlocklistEnabledForTrackers:            true,
+	BlocklistEnabledForOutgoingConnections: true,
+	BlocklistEnabledForIncomingConnections: true,
 	TorrentAddHTTPTimeout:                  30 * time.Second,
 	MaxMetadataSize:                        10 * 1024 * 1024,
 	MaxTorrentSize:                         10 * 1024 * 1024,

@@ -13,6 +13,7 @@ import (
 	"github.com/cenkalti/rain/internal/allocator"
 	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/bitfield"
+	"github.com/cenkalti/rain/internal/blocklist"
 	"github.com/cenkalti/rain/internal/bufferpool"
 	"github.com/cenkalti/rain/internal/counters"
 	"github.com/cenkalti/rain/internal/externalip"
@@ -319,7 +320,11 @@ func newTorrent2(
 		webseedRetryC:             make(chan *webseedsource.WebseedSource),
 		doneC:                     make(chan struct{}),
 	}
-	t.addrList = addrlist.New(cfg.MaxPeerAddresses, s.blocklist, port, &t.externalIP)
+	var blocklistForOutgoingConns *blocklist.Blocklist
+	if cfg.BlocklistEnabledForOutgoingConnections {
+		blocklistForOutgoingConns = s.blocklist
+	}
+	t.addrList = addrlist.New(cfg.MaxPeerAddresses, blocklistForOutgoingConns, port, &t.externalIP)
 	if t.info != nil {
 		t.piecePool = bufferpool.New(int(t.info.PieceLength))
 	}

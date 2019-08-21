@@ -140,12 +140,16 @@ func NewSession(cfg Config) (*Session, error) {
 		ports[int(p)] = struct{}{}
 	}
 	bl := blocklist.New()
+	var blTracker *blocklist.Blocklist
+	if cfg.BlocklistEnabledForTrackers {
+		blTracker = bl
+	}
 	c := &Session{
 		config:             cfg,
 		db:                 db,
 		resumer:            res,
 		blocklist:          bl,
-		trackerManager:     trackermanager.New(bl, cfg.DNSResolveTimeout, !cfg.TrackerHTTPVerifyTLS),
+		trackerManager:     trackermanager.New(blTracker, cfg.DNSResolveTimeout, !cfg.TrackerHTTPVerifyTLS),
 		log:                l,
 		torrents:           make(map[string]*Torrent),
 		torrentsByInfoHash: make(map[dht.InfoHash][]*Torrent),
