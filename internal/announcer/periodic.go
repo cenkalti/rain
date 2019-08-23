@@ -164,7 +164,7 @@ func (a *PeriodicalAnnouncer) Run() {
 			a.status = NotWorking
 			a.lastAnnounce = time.Now()
 			// Give more friendly error to the user
-			a.lastError = newAnnounceError(err)
+			a.lastError = a.newAnnounceError(err)
 			if a.lastError.Unknown {
 				a.log.Errorln("announce error:", a.lastError.ErrorWithType())
 			} else {
@@ -230,7 +230,7 @@ type AnnounceError struct {
 	Unknown bool
 }
 
-func newAnnounceError(err error) (e *AnnounceError) {
+func (a *PeriodicalAnnouncer) newAnnounceError(err error) (e *AnnounceError) {
 	e = &AnnounceError{Err: err}
 	switch err {
 	case resolver.ErrNotIPv4Address:
@@ -259,6 +259,11 @@ func newAnnounceError(err error) (e *AnnounceError) {
 		s := err.Error()
 		if strings.HasSuffix(s, "connection refused") {
 			e.Message = "tracker refused the connection"
+			return
+		}
+		if strings.HasSuffix(s, "no such host") {
+			parsed, _ := url.Parse(a.Tracker.URL())
+			e.Message = "host not found: " + parsed.Hostname()
 			return
 		}
 	case *httptracker.StatusError:
