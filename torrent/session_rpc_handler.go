@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
-	"reflect"
 	"strings"
 	"time"
 
@@ -221,11 +220,10 @@ func (h *rpcHandler) GetTorrentTrackers(args *rpctypes.GetTorrentTrackersRequest
 		}
 		if t.Error != nil {
 			errStr := t.Error.Error()
-			internalErr := t.Error.Unwrap()
-			internalErrStr := reflect.TypeOf(internalErr).String() + ": " + internalErr.Error()
+			internalErrStr := t.Error.err.ErrorWithType()
 			reply.Trackers[i].Error = &errStr
-			reply.Trackers[i].ErrorUnknown = t.Error.Unknown()
 			reply.Trackers[i].ErrorInternal = &internalErrStr
+			reply.Trackers[i].ErrorUnknown = t.Error.Unknown()
 		}
 	}
 	return nil

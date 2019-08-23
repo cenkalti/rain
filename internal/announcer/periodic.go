@@ -4,6 +4,7 @@ import (
 	"context"
 	"math"
 	"net"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -163,7 +164,7 @@ func (a *PeriodicalAnnouncer) Run() {
 			// Give more friendly error to the user
 			a.lastError = newAnnounceError(err)
 			if a.lastError.Unknown {
-				a.log.Errorln("announce error:", a.lastError.Err.Error())
+				a.log.Errorln("announce error:", a.lastError.ErrorWithType())
 			} else {
 				a.log.Debugln("announce error:", a.lastError.Err.Error())
 			}
@@ -229,9 +230,9 @@ type AnnounceError struct {
 
 func newAnnounceError(err error) (e *AnnounceError) {
 	e = &AnnounceError{Err: err}
-	s := err.Error()
 	switch err := err.(type) {
 	case *net.DNSError:
+		s := err.Error()
 		if strings.HasSuffix(s, "no such host") {
 			e.Message = "host not found: " + err.Name
 			return
@@ -253,4 +254,8 @@ func newAnnounceError(err error) (e *AnnounceError) {
 	e.Message = "unknown error in announce"
 	e.Unknown = true
 	return
+}
+
+func (e *AnnounceError) ErrorWithType() string {
+	return reflect.TypeOf(e.Err).String() + ": " + e.Err.Error()
 }
