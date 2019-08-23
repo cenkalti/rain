@@ -250,7 +250,7 @@ func newAnnounceError(err error) (e *AnnounceError) {
 			return
 		}
 	case *httptracker.StatusError:
-		if err.Code == 403 || err.Code == 404 {
+		if err.Code >= 400 {
 			e.Message = "tracker returned http status: " + strconv.Itoa(err.Code)
 			return
 		}
