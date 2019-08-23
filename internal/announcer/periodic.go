@@ -234,7 +234,8 @@ func (a *PeriodicalAnnouncer) newAnnounceError(err error) (e *AnnounceError) {
 	e = &AnnounceError{Err: err}
 	switch err {
 	case resolver.ErrNotIPv4Address:
-		e.Message = "tracker has no IPv4 address"
+		parsed, _ := url.Parse(a.Tracker.URL())
+		e.Message = "tracker has no IPv4 address: " + parsed.Hostname()
 		return
 	case resolver.ErrBlocked:
 		e.Message = "tracker IP is blocked"
@@ -255,6 +256,13 @@ func (a *PeriodicalAnnouncer) newAnnounceError(err error) (e *AnnounceError) {
 			e.Message = "host not found: " + err.Name
 			return
 		}
+	case *net.AddrError:
+		s := err.Error()
+		if strings.HasSuffix(s, "missing port in address") {
+			e.Message = "missing port in tracker address"
+			return
+		}
+
 	case *url.Error:
 		s := err.Error()
 		if strings.HasSuffix(s, "connection refused") {
@@ -273,6 +281,16 @@ func (a *PeriodicalAnnouncer) newAnnounceError(err error) (e *AnnounceError) {
 		}
 		if strings.HasSuffix(s, "tls: handshake failure") {
 			e.Message = "TLS handshake has failed"
+			return
+		}
+		if strings.HasSuffix(s, "no route to host") {
+			parsed, _ := url.Parse(a.Tracker.URL())
+			e.Message = "no route to host: " + parsed.Hostname()
+			return
+		}
+		if strings.HasSuffix(s, resolver.ErrNotIPv4Address.Error()) {
+			parsed, _ := url.Parse(a.Tracker.URL())
+			e.Message = "tracker has no IPv4 address: " + parsed.Hostname()
 			return
 		}
 	case *httptracker.StatusError:
