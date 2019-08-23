@@ -251,6 +251,10 @@ func newAnnounceError(err error) (e *AnnounceError) {
 			e.Message = "host not found: " + err.Name
 			return
 		}
+		if strings.HasSuffix(s, "server misbehaving") {
+			e.Message = "host not found: " + err.Name
+			return
+		}
 	case *url.Error:
 		s := err.Error()
 		if strings.HasSuffix(s, "connection refused") {
