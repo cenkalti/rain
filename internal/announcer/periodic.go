@@ -4,7 +4,6 @@ import (
 	"context"
 	"math"
 	"net"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -228,43 +227,30 @@ type AnnounceError struct {
 	Unknown bool
 }
 
-func newAnnounceError(err error) *AnnounceError {
-	e := &AnnounceError{Err: err}
+func newAnnounceError(err error) (e *AnnounceError) {
+	e = &AnnounceError{Err: err}
+	s := err.Error()
 	switch err := err.(type) {
-	case *net.OpError:
-		errStr := err.Error()
-		if err.Timeout() || errStr == "operation was canceled" {
-			e.Message = "timeout contacting tracker"
-			return e
+	case *net.DNSError:
+		if strings.HasSuffix(s, "no such host") {
+			e.Message = "host not found: " + err.Name
+			return
 		}
-		if strings.HasSuffix(errStr, "no such host") {
-			e.Message = "tracker host not found"
-			return e
-		}
-	case *url.Error:
+	case net.Error:
 		if err.Timeout() {
 			e.Message = "timeout contacting tracker"
-			return e
-		}
-		errStr := err.Error()
-		if strings.HasSuffix(errStr, "no such host") {
-			e.Message = "tracker host not found"
-			return e
-		}
-		if strings.HasSuffix(errStr, "connection refused") {
-			e.Message = "tracker refused the connection"
-			return e
+			return
 		}
 	case *httptracker.StatusError:
 		if err.Code == 403 || err.Code == 404 {
 			e.Message = "tracker returned http status: " + strconv.Itoa(err.Code)
-			return e
+			return
 		}
 	case *tracker.Error:
 		e.Message = "announce error: " + err.FailureReason
-		return e
+		return
 	}
 	e.Message = "unknown error in announce"
 	e.Unknown = true
-	return e
+	return
 }
