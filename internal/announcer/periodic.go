@@ -4,6 +4,7 @@ import (
 	"context"
 	"math"
 	"net"
+	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
@@ -235,6 +236,12 @@ func newAnnounceError(err error) (e *AnnounceError) {
 		s := err.Error()
 		if strings.HasSuffix(s, "no such host") {
 			e.Message = "host not found: " + err.Name
+			return
+		}
+	case *url.Error:
+		s := err.Error()
+		if strings.HasSuffix(s, "connection refused") {
+			e.Message = "tracker refused the connection"
 			return
 		}
 	case net.Error:
