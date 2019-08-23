@@ -220,7 +220,10 @@ func (h *rpcHandler) GetTorrentTrackers(args *rpctypes.GetTorrentTrackersRequest
 		}
 		if t.Error != nil {
 			errStr := t.Error.Error()
+			internalErrStr := t.Error.Unwrap().Error()
 			reply.Trackers[i].Error = &errStr
+			reply.Trackers[i].ErrorUnknown = t.Error.Unknown()
+			reply.Trackers[i].ErrorInternal = &internalErrStr
 		}
 	}
 	return nil

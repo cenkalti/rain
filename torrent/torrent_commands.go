@@ -4,6 +4,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/cenkalti/rain/internal/announcer"
 	"github.com/cenkalti/rain/internal/tracker"
 )
 
@@ -128,7 +129,23 @@ type Tracker struct {
 	Status   TrackerStatus
 	Leechers int
 	Seeders  int
-	Error    error
+	Error    *AnnounceError
+}
+
+type AnnounceError struct {
+	err *announcer.AnnounceError
+}
+
+func (e *AnnounceError) Error() string {
+	return e.err.Message
+}
+
+func (e *AnnounceError) Unwrap() error {
+	return e.err.Err
+}
+
+func (e *AnnounceError) Unknown() bool {
+	return e.err.Unknown
 }
 
 type trackersRequest struct {

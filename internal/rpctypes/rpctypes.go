@@ -34,11 +34,13 @@ type Webseed struct {
 }
 
 type Tracker struct {
-	URL      string
-	Status   string
-	Leechers int
-	Seeders  int
-	Error    *string
+	URL           string
+	Status        string
+	Leechers      int
+	Seeders       int
+	Error         *string
+	ErrorUnknown  bool
+	ErrorInternal *string
 }
 
 type SessionStats struct {

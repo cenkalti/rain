@@ -2,16 +2,18 @@ package announcer
 
 import (
 	"context"
-	"errors"
 	"math"
 	"net"
 	"net/url"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/tracker"
+	"github.com/cenkalti/rain/internal/tracker/httptracker"
 )
 
 type Status int
@@ -23,11 +25,6 @@ const (
 	NotWorking
 )
 
-var (
-	errTimeout = errors.New("timeout")
-	errUnknown = errors.New("unknown error")
-)
-
 type PeriodicalAnnouncer struct {
 	Tracker       tracker.Tracker
 	status        Status
@@ -37,7 +34,7 @@ type PeriodicalAnnouncer struct {
 	minInterval   time.Duration
 	seeders       int
 	leechers      int
-	lastError     error
+	lastError     *AnnounceError
 	log           logger.Logger
 	completedC    chan struct{}
 	newPeers      chan []*net.TCPAddr
@@ -161,21 +158,17 @@ func (a *PeriodicalAnnouncer) Run() {
 			} else {
 				timer.Reset(a.interval)
 			}
-		case a.lastError = <-a.errC:
+		case err := <-a.errC:
 			a.status = NotWorking
 			a.lastAnnounce = time.Now()
 			// Give more friendly error to the user
-			if oerr, ok := a.lastError.(*net.OpError); ok && oerr.Error() == "operation was canceled" {
-				a.log.Debugln("announce error:", a.lastError)
-				a.lastError = errTimeout
-			} else if uerr, ok := a.lastError.(*url.Error); ok && uerr.Timeout() {
-				a.log.Debugln("announce error:", a.lastError)
-				a.lastError = errTimeout
+			a.lastError = newAnnounceError(err)
+			if a.lastError.Unknown {
+				a.log.Errorln("announce error:", a.lastError.Err.Error())
 			} else {
-				a.log.Errorln("announce error:", a.lastError)
-				a.lastError = errUnknown
+				a.log.Debugln("announce error:", a.lastError.Err.Error())
 			}
-			if terr, ok := a.lastError.(*tracker.Error); ok && terr.RetryIn > 0 {
+			if terr, ok := a.lastError.Err.(*tracker.Error); ok && terr.RetryIn > 0 {
 				timer.Reset(terr.RetryIn)
 			} else {
 				timer.Reset(a.backoff.NextBackOff())
@@ -215,7 +208,7 @@ func (a *PeriodicalAnnouncer) announce(ctx context.Context, event tracker.Event,
 
 type Stats struct {
 	Status   Status
-	Error    error
+	Error    *AnnounceError
 	Seeders  int
 	Leechers int
 }
@@ -227,4 +220,41 @@ func (a *PeriodicalAnnouncer) stats() Stats {
 		Seeders:  a.seeders,
 		Leechers: a.leechers,
 	}
+}
+
+type AnnounceError struct {
+	Err     error
+	Message string
+	Unknown bool
+}
+
+func newAnnounceError(err error) *AnnounceError {
+	e := &AnnounceError{Err: err}
+	switch err := err.(type) {
+	case *net.OpError:
+		if err.Error() == "operation was canceled" {
+			e.Message = "timeout contacting tracker"
+			return e
+		}
+	case *url.Error:
+		if err.Timeout() {
+			e.Message = "timeout contacting tracker"
+			return e
+		}
+		if strings.HasSuffix(err.Error(), "no such host") {
+			e.Message = "tracker host not found"
+			return e
+		}
+	case *httptracker.StatusError:
+		if err.Code == 403 || err.Code == 404 {
+			e.Message = "tracker returned http status: " + strconv.Itoa(err.Code)
+			return e
+		}
+	case *tracker.Error:
+		e.Message = "announce error: " + err.FailureReason
+		return e
+	}
+	e.Message = "unknown error in announce"
+	e.Unknown = true
+	return e
 }

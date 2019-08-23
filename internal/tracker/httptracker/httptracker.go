@@ -111,7 +111,10 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 	err = bencode.DecodeBytes(body, &response)
 	if err != nil {
 		if code != 200 {
-			return nil, fmt.Errorf("status not 200 OK (status: %d body: %q)", code, string(body))
+			return nil, &StatusError{
+				Code: code,
+				Body: string(body),
+			}
 		}
 		return nil, err
 	}

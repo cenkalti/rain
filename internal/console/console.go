@@ -164,6 +164,9 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 				if t.Error != nil {
 					fmt.Fprintf(v, "    Error: %s\n", *t.Error)
 				}
+				if t.ErrorUnknown {
+					fmt.Fprintf(v, "    Internal Error: %s\n", *t.ErrorInternal)
+				}
 			}
 		case peers:
 			format := "%2s %21s %7s %8s %6s %s\n"
