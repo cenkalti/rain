@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	errBlocked        = errors.New("ip is blocked")
-	errNotIPv4Address = errors.New("not ipv4 address")
+	ErrBlocked        = errors.New("ip is blocked")
+	ErrNotIPv4Address = errors.New("not ipv4 address")
 )
 
 func Resolve(ctx context.Context, hostport string, timeout time.Duration, bl *blocklist.Blocklist) (net.IP, int, error) {
@@ -33,10 +33,10 @@ func Resolve(ctx context.Context, hostport string, timeout time.Duration, bl *bl
 	}
 	i4 := ip.To4()
 	if i4 == nil {
-		return nil, 0, errNotIPv4Address
+		return nil, 0, ErrNotIPv4Address
 	}
 	if bl != nil && bl.Blocked(ip) {
-		return nil, 0, errBlocked
+		return nil, 0, ErrBlocked
 	}
 	return i4, port, nil
 }
@@ -55,5 +55,5 @@ func ResolveIPv4(ctx context.Context, timeout time.Duration, host string) (net.I
 			return i4, nil
 		}
 	}
-	return nil, errNotIPv4Address
+	return nil, ErrNotIPv4Address
 }

@@ -13,6 +13,8 @@ import (
 	"github.com/cenkalti/rain/internal/blocklist/stree"
 )
 
+var errNotIPv4Address = errors.New("address is not ipv4")
+
 type Blocklist struct {
 	tree  stree.Stree
 	m     sync.RWMutex
@@ -89,11 +91,11 @@ func parseCIDR(b []byte) (r ipRange, err error) {
 		return
 	}
 	if len(ipnet.IP) != 4 {
-		err = errors.New("address is not ipv4")
+		err = errNotIPv4Address
 		return
 	}
 	if len(ipnet.Mask) != 4 {
-		err = errors.New("address is not ipv4")
+		err = errNotIPv4Address
 		return
 	}
 	r.first = binary.BigEndian.Uint32(ipnet.IP)

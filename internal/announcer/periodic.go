@@ -13,6 +13,7 @@ import (
 
 	"github.com/cenkalti/backoff"
 	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/internal/resolver"
 	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/internal/tracker/httptracker"
 )
@@ -231,6 +232,14 @@ type AnnounceError struct {
 
 func newAnnounceError(err error) (e *AnnounceError) {
 	e = &AnnounceError{Err: err}
+	switch err {
+	case resolver.ErrNotIPv4Address:
+		e.Message = "tracker has no IPv4 address"
+		return
+	case resolver.ErrBlocked:
+		e.Message = "tracker IP is blocked"
+		return
+	}
 	switch err := err.(type) {
 	case *net.DNSError:
 		s := err.Error()
@@ -251,7 +260,7 @@ func newAnnounceError(err error) (e *AnnounceError) {
 		}
 	case *httptracker.StatusError:
 		if err.Code >= 400 {
-			e.Message = "tracker returned http status: " + strconv.Itoa(err.Code)
+			e.Message = "tracker returned HTTP status: " + strconv.Itoa(err.Code)
 			return
 		}
 	case *tracker.Error:
