@@ -236,22 +236,12 @@ func newAnnounceError(err error) *AnnounceError {
 			e.Message = "timeout contacting tracker"
 			return e
 		}
-		// comes from UDP trackers
-		if strings.HasSuffix(err.Error(), "no such host") {
-			e.Message = "tracker host not found"
-			return e
-		}
 	case *url.Error:
 		if err.Timeout() {
 			e.Message = "timeout contacting tracker"
 			return e
 		}
-		// comes from HTTP trackers
-		errStr := err.Error()
-		if strings.HasSuffix(errStr, "no such host") {
-			e.Message = "tracker host not found"
-			return e
-		} else if strings.HasSuffix(errStr, "connection refused") {
+		if strings.HasSuffix(err.Error(), "connection refused") {
 			e.Message = "tracker refused the connection"
 			return e
 		}
@@ -262,6 +252,10 @@ func newAnnounceError(err error) *AnnounceError {
 		}
 	case *tracker.Error:
 		e.Message = "announce error: " + err.FailureReason
+		return e
+	}
+	if strings.HasSuffix(err.Error(), "no such host") {
+		e.Message = "tracker host not found"
 		return e
 	}
 	e.Message = "unknown error in announce"
