@@ -240,6 +240,10 @@ func newAnnounceError(err error) (e *AnnounceError) {
 		e.Message = "tracker IP is blocked"
 		return
 	}
+	if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
+		e.Message = "timeout contacting tracker"
+		return
+	}
 	switch err := err.(type) {
 	case *net.DNSError:
 		s := err.Error()
@@ -251,11 +255,6 @@ func newAnnounceError(err error) (e *AnnounceError) {
 		s := err.Error()
 		if strings.HasSuffix(s, "connection refused") {
 			e.Message = "tracker refused the connection"
-			return
-		}
-	case net.Error:
-		if err.Timeout() {
-			e.Message = "timeout contacting tracker"
 			return
 		}
 	case *httptracker.StatusError:
