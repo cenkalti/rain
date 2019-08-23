@@ -266,6 +266,15 @@ func (a *PeriodicalAnnouncer) newAnnounceError(err error) (e *AnnounceError) {
 			e.Message = "host not found: " + parsed.Hostname()
 			return
 		}
+		if strings.HasSuffix(s, "server misbehaving") {
+			parsed, _ := url.Parse(a.Tracker.URL())
+			e.Message = "host not found: " + parsed.Hostname()
+			return
+		}
+		if strings.HasSuffix(s, "tls: handshake failure") {
+			e.Message = "TLS handshake has failed"
+			return
+		}
 	case *httptracker.StatusError:
 		if err.Code >= 400 {
 			e.Message = "tracker returned HTTP status: " + strconv.Itoa(err.Code)
