@@ -161,11 +161,12 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 			for i, t := range c.trackers {
 				fmt.Fprintf(v, "#%d %s\n", i, t.URL)
 				fmt.Fprintf(v, "    Status: %s, Seeders: %d, Leechers: %d\n", t.Status, t.Seeders, t.Leechers)
-				if t.Error != nil {
-					fmt.Fprintf(v, "    Error: %s\n", *t.Error)
-				}
+				errStr := *t.Error
 				if t.ErrorUnknown {
-					fmt.Fprintf(v, "    Internal Error: %s\n", *t.ErrorInternal)
+					errStr = errStr + " (" + *t.ErrorInternal + ")"
+				}
+				if t.Error != nil {
+					fmt.Fprintf(v, "    Error: %s\n", errStr)
 				}
 			}
 		case peers:

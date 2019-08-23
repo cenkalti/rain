@@ -232,8 +232,13 @@ func newAnnounceError(err error) *AnnounceError {
 	e := &AnnounceError{Err: err}
 	switch err := err.(type) {
 	case *net.OpError:
-		if err.Timeout() || err.Error() == "operation was canceled" {
+		errStr := err.Error()
+		if err.Timeout() || errStr == "operation was canceled" {
 			e.Message = "timeout contacting tracker"
+			return e
+		}
+		if strings.HasSuffix(errStr, "no such host") {
+			e.Message = "tracker host not found"
 			return e
 		}
 	case *url.Error:
@@ -241,7 +246,12 @@ func newAnnounceError(err error) *AnnounceError {
 			e.Message = "timeout contacting tracker"
 			return e
 		}
-		if strings.HasSuffix(err.Error(), "connection refused") {
+		errStr := err.Error()
+		if strings.HasSuffix(errStr, "no such host") {
+			e.Message = "tracker host not found"
+			return e
+		}
+		if strings.HasSuffix(errStr, "connection refused") {
 			e.Message = "tracker refused the connection"
 			return e
 		}
@@ -252,10 +262,6 @@ func newAnnounceError(err error) *AnnounceError {
 		}
 	case *tracker.Error:
 		e.Message = "announce error: " + err.FailureReason
-		return e
-	}
-	if strings.HasSuffix(err.Error(), "no such host") {
-		e.Message = "tracker host not found"
 		return e
 	}
 	e.Message = "unknown error in announce"
