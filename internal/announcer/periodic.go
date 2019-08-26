@@ -293,6 +293,10 @@ func (a *PeriodicalAnnouncer) newAnnounceError(err error) (e *AnnounceError) {
 			e.Message = "tracker has no IPv4 address: " + parsed.Hostname()
 			return
 		}
+		if strings.HasSuffix(s, "connection reset by peer") {
+			e.Message = "tracker closed the connection"
+			return
+		}
 	case *httptracker.StatusError:
 		if err.Code >= 400 {
 			e.Message = "tracker returned HTTP status: " + strconv.Itoa(err.Code)
