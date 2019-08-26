@@ -111,6 +111,9 @@ func main() {
 						cli.BoolFlag{
 							Name: "stopped",
 						},
+						cli.StringFlag{
+							Name: "id",
+						},
 					},
 				},
 				{
@@ -341,6 +344,7 @@ func handleAdd(c *cli.Context) error {
 	arg := c.Args().Get(0)
 	addOpt := &rainrpc.AddTorrentOptions{
 		Stopped: c.Bool("stopped"),
+		ID:      c.String("id"),
 	}
 	if strings.HasPrefix(arg, "magnet:") || strings.HasPrefix(arg, "http://") || strings.HasPrefix(arg, "https://") {
 		resp, err := clt.AddURI(arg, addOpt)

@@ -34,6 +34,7 @@ func (h *rpcHandler) AddTorrent(args *rpctypes.AddTorrentRequest, reply *rpctype
 	r := base64.NewDecoder(base64.StdEncoding, strings.NewReader(args.Torrent))
 	opt := &AddTorrentOptions{
 		Stopped: args.AddTorrentOptions.Stopped,
+		ID:      args.AddTorrentOptions.ID,
 	}
 	t, err := h.session.AddTorrent(r, opt)
 	if err != nil {
@@ -46,6 +47,7 @@ func (h *rpcHandler) AddTorrent(args *rpctypes.AddTorrentRequest, reply *rpctype
 func (h *rpcHandler) AddURI(args *rpctypes.AddURIRequest, reply *rpctypes.AddURIResponse) error {
 	opt := &AddTorrentOptions{
 		Stopped: args.AddTorrentOptions.Stopped,
+		ID:      args.AddTorrentOptions.ID,
 	}
 	t, err := h.session.AddURI(args.URI, opt)
 	if err != nil {

@@ -34,6 +34,7 @@ func (c *Client) ListTorrents() ([]rpctypes.Torrent, error) {
 
 type AddTorrentOptions struct {
 	Stopped bool
+	ID      string
 }
 
 func (c *Client) AddTorrent(f io.Reader, options *AddTorrentOptions) (*rpctypes.Torrent, error) {
@@ -44,6 +45,7 @@ func (c *Client) AddTorrent(f io.Reader, options *AddTorrentOptions) (*rpctypes.
 	args := rpctypes.AddTorrentRequest{Torrent: base64.StdEncoding.EncodeToString(b)}
 	if options != nil {
 		args.AddTorrentOptions.Stopped = options.Stopped
+		args.AddTorrentOptions.ID = options.ID
 	}
 	var reply rpctypes.AddTorrentResponse
 	return &reply.Torrent, c.client.Call("Session.AddTorrent", args, &reply)

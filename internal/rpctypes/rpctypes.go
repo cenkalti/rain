@@ -127,6 +127,7 @@ type ListTorrentsResponse struct {
 
 type AddTorrentOptions struct {
 	Stopped bool
+	ID      string
 }
 
 type AddTorrentRequest struct {

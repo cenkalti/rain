@@ -23,10 +23,11 @@ import (
 
 type AddTorrentOptions struct {
 	Stopped bool
+	ID      string
 }
 
 func (s *Session) AddTorrent(r io.Reader, opt *AddTorrentOptions) (*Torrent, error) {
-	t, err := s.addTorrentStopped(r)
+	t, err := s.addTorrentStopped(r, opt)
 	if err != nil {
 		return nil, err
 	}
@@ -36,13 +37,13 @@ func (s *Session) AddTorrent(r io.Reader, opt *AddTorrentOptions) (*Torrent, err
 	return t, err
 }
 
-func (s *Session) addTorrentStopped(r io.Reader) (*Torrent, error) {
+func (s *Session) addTorrentStopped(r io.Reader, opt *AddTorrentOptions) (*Torrent, error) {
 	r = io.LimitReader(r, int64(s.config.MaxTorrentSize))
 	mi, err := metainfo.New(r)
 	if err != nil {
 		return nil, err
 	}
-	id, port, sto, err := s.add()
+	id, port, sto, err := s.add(opt)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +147,7 @@ func (s *Session) addMagnet(link string, opt *AddTorrentOptions) (*Torrent, erro
 	if err != nil {
 		return nil, err
 	}
-	id, port, sto, err := s.add()
+	id, port, sto, err := s.add(opt)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +199,7 @@ func (s *Session) addMagnet(link string, opt *AddTorrentOptions) (*Torrent, erro
 	return t2, err
 }
 
-func (s *Session) add() (id string, port int, sto *filestorage.FileStorage, err error) {
+func (s *Session) add(opt *AddTorrentOptions) (id string, port int, sto *filestorage.FileStorage, err error) {
 	port, err = s.getPort()
 	if err != nil {
 		return
@@ -208,11 +209,26 @@ func (s *Session) add() (id string, port int, sto *filestorage.FileStorage, err 
 			s.releasePort(port)
 		}
 	}()
-	u1, err := uuid.NewV1()
-	if err != nil {
-		return
+	var givenID string
+	if opt != nil {
+		givenID = opt.ID
 	}
-	id = base64.RawURLEncoding.EncodeToString(u1[:])
+	if givenID != "" {
+		s.mTorrents.RLock()
+		defer s.mTorrents.RUnlock()
+		if _, ok := s.torrents[givenID]; ok {
+			err = errors.New("duplicate torrent id")
+			return
+		}
+		id = givenID
+	} else {
+		u1, err2 := uuid.NewV1()
+		if err2 != nil {
+			err = err2
+			return
+		}
+		id = base64.RawURLEncoding.EncodeToString(u1[:])
+	}
 	dest := filepath.Join(s.config.DataDir, id)
 	sto, err = filestorage.New(dest)
 	if err != nil {
