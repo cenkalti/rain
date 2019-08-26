@@ -225,6 +225,7 @@ func (t *torrent) getTrackers() []Tracker {
 			Status:   TrackerStatus(st.Status),
 			Seeders:  st.Seeders,
 			Leechers: st.Leechers,
+			Warning:  st.Warning,
 		}
 		if st.Error != nil {
 			trackers[i].Error = &AnnounceError{st.Error}

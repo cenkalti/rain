@@ -36,6 +36,7 @@ type PeriodicalAnnouncer struct {
 	minInterval   time.Duration
 	seeders       int
 	leechers      int
+	warningMsg    string
 	lastError     *AnnounceError
 	log           logger.Logger
 	completedC    chan struct{}
@@ -145,6 +146,10 @@ func (a *PeriodicalAnnouncer) Run() {
 			a.lastAnnounce = time.Now()
 			a.seeders = int(resp.Seeders)
 			a.leechers = int(resp.Leechers)
+			a.warningMsg = resp.WarningMessage
+			if a.warningMsg != "" {
+				a.log.Debugln("announce warning:", a.warningMsg)
+			}
 			a.interval = resp.Interval
 			if resp.MinInterval > 0 {
 				a.minInterval = resp.MinInterval
@@ -211,6 +216,7 @@ func (a *PeriodicalAnnouncer) announce(ctx context.Context, event tracker.Event,
 type Stats struct {
 	Status   Status
 	Error    *AnnounceError
+	Warning  string
 	Seeders  int
 	Leechers int
 }
@@ -219,6 +225,7 @@ func (a *PeriodicalAnnouncer) stats() Stats {
 	return Stats{
 		Status:   a.status,
 		Error:    a.lastError,
+		Warning:  a.warningMsg,
 		Seeders:  a.seeders,
 		Leechers: a.leechers,
 	}

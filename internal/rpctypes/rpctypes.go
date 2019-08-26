@@ -38,6 +38,7 @@ type Tracker struct {
 	Status        string
 	Leechers      int
 	Seeders       int
+	Warning       *string
 	Error         *string
 	ErrorUnknown  bool
 	ErrorInternal *string

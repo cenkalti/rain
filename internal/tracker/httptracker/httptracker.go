@@ -119,9 +119,6 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 		return nil, err
 	}
 
-	if response.WarningMessage != "" {
-		t.log.Warning(response.WarningMessage)
-	}
 	if response.FailureReason != "" {
 		retryIn, _ := strconv.Atoi(response.RetryIn)
 		return nil, &tracker.Error{
@@ -163,11 +160,12 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 	}
 
 	return &tracker.AnnounceResponse{
-		Interval:    time.Duration(response.Interval) * time.Second,
-		MinInterval: time.Duration(response.MinInterval) * time.Second,
-		Leechers:    response.Incomplete,
-		Seeders:     response.Complete,
-		Peers:       peers,
+		Interval:       time.Duration(response.Interval) * time.Second,
+		MinInterval:    time.Duration(response.MinInterval) * time.Second,
+		Leechers:       response.Incomplete,
+		Seeders:        response.Complete,
+		Peers:          peers,
+		WarningMessage: response.WarningMessage,
 	}, nil
 }
 

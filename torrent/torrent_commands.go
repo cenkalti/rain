@@ -130,6 +130,7 @@ type Tracker struct {
 	Leechers int
 	Seeders  int
 	Error    *AnnounceError
+	Warning  string
 }
 
 type AnnounceError struct {

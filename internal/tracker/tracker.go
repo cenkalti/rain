@@ -24,11 +24,12 @@ type AnnounceRequest struct {
 }
 
 type AnnounceResponse struct {
-	Interval    time.Duration
-	MinInterval time.Duration
-	Leechers    int32
-	Seeders     int32
-	Peers       []*net.TCPAddr
+	Interval       time.Duration
+	MinInterval    time.Duration
+	Leechers       int32
+	Seeders        int32
+	WarningMessage string
+	Peers          []*net.TCPAddr
 }
 
 // Error is the string that is sent by the tracker from announce or scrape.

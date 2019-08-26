@@ -218,6 +218,10 @@ func (h *rpcHandler) GetTorrentTrackers(args *rpctypes.GetTorrentTrackersRequest
 			Leechers: t.Leechers,
 			Seeders:  t.Seeders,
 		}
+		if t.Warning != "" {
+			warnStr := t.Warning
+			reply.Trackers[i].Warning = &warnStr
+		}
 		if t.Error != nil {
 			errStr := t.Error.Error()
 			internalErrStr := t.Error.err.ErrorWithType()
