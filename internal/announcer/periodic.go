@@ -240,6 +240,10 @@ func (a *PeriodicalAnnouncer) newAnnounceError(err error) (e *AnnounceError) {
 	case resolver.ErrBlocked:
 		e.Message = "tracker IP is blocked"
 		return
+	case resolver.ErrInvalidPort:
+		parsed, _ := url.Parse(a.Tracker.URL())
+		e.Message = "invalid port number in tracker address: " + parsed.Host
+		return
 	}
 	if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
 		e.Message = "timeout contacting tracker"

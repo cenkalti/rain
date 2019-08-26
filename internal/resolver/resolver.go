@@ -13,6 +13,7 @@ import (
 var (
 	ErrBlocked        = errors.New("ip is blocked")
 	ErrNotIPv4Address = errors.New("not ipv4 address")
+	ErrInvalidPort    = errors.New("invalid port number")
 )
 
 func Resolve(ctx context.Context, hostport string, timeout time.Duration, bl *blocklist.Blocklist) (net.IP, int, error) {
@@ -23,6 +24,9 @@ func Resolve(ctx context.Context, hostport string, timeout time.Duration, bl *bl
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
 		return nil, 0, err
+	}
+	if port <= 0 || port > 65535 {
+		return nil, 0, ErrInvalidPort
 	}
 	ip := net.ParseIP(host)
 	if ip == nil {
