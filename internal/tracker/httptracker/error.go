@@ -1,8 +1,11 @@
 package httptracker
 
 import (
+	"errors"
 	"strconv"
 )
+
+var ErrDecode = errors.New("cannot decode response")
 
 type StatusError struct {
 	Code int
