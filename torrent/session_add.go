@@ -65,12 +65,11 @@ func (s *Session) addTorrentStopped(r io.Reader, opt *AddTorrentOptions) (*Torre
 		mi.Info,
 		nil, // bitfield
 		resumer.Stats{},
+		webseedsource.NewList(mi.URLList),
 	)
 	if err != nil {
 		return nil, err
 	}
-	t.webseedClient = &s.webseedClient
-	t.webseedSources = webseedsource.NewList(mi.URLList)
 	go s.checkTorrent(t)
 	defer func() {
 		if err != nil {
@@ -169,6 +168,7 @@ func (s *Session) addMagnet(link string, opt *AddTorrentOptions) (*Torrent, erro
 		nil, // info
 		nil, // bitfield
 		resumer.Stats{},
+		nil, // webseedSources
 	)
 	if err != nil {
 		return nil, err

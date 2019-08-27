@@ -66,13 +66,12 @@ func (s *Session) loadExistingTorrents(ids []string) {
 				BytesWasted:     spec.BytesWasted,
 				SeededFor:       int64(spec.SeededFor),
 			},
+			webseedsource.NewList(spec.URLList),
 		)
 		if err != nil {
 			s.log.Error(err)
 			continue
 		}
-		t.webseedClient = &s.webseedClient
-		t.webseedSources = webseedsource.NewList(spec.URLList)
 		go s.checkTorrent(t)
 		delete(s.availablePorts, spec.Port)
 

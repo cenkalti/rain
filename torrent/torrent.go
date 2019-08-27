@@ -249,6 +249,7 @@ func newTorrent2(
 	info *metainfo.Info,
 	bf *bitfield.Bitfield,
 	stats resumer.Stats, // initial stats from previous run
+	ws []*webseedsource.WebseedSource,
 ) (*torrent, error) {
 	if len(infoHash) != 20 {
 		return nil, errors.New("invalid infoHash (must be 20 bytes)")
@@ -316,6 +317,8 @@ func newTorrent2(
 		downloadSpeed:             metrics.NewEWMA1(),
 		uploadSpeed:               metrics.NewEWMA1(),
 		ramNotifyC:                make(chan interface{}),
+		webseedClient:             &s.webseedClient,
+		webseedSources:            ws,
 		webseedPieceResultC:       suspendchan.New(0),
 		webseedRetryC:             make(chan *webseedsource.WebseedSource),
 		doneC:                     make(chan struct{}),
