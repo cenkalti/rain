@@ -2,9 +2,11 @@ package torrent
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"time"
 
 	"github.com/boltdb/bolt"
+	"github.com/cenkalti/rain/internal/resumer/boltdbresumer"
 	"github.com/cenkalti/rain/internal/tracker"
 )
 
@@ -63,6 +65,24 @@ func (t *Torrent) AddPeer(addr string) error {
 
 func (t *Torrent) AddTracker(uri string) error {
 	tr, err := t.torrent.session.trackerManager.Get(uri, t.torrent.session.config.TrackerHTTPTimeout, t.torrent.session.getTrackerUserAgent(t.torrent.info.IsPrivate()), int64(t.torrent.session.config.TrackerHTTPMaxResponseSize))
+	if err != nil {
+		return err
+	}
+	err = t.torrent.session.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(torrentsBucket).Bucket([]byte(t.torrent.id))
+		value := b.Get(boltdbresumer.Keys.Trackers)
+		var trackers [][]string
+		err = json.Unmarshal(value, &trackers)
+		if err != nil {
+			return err
+		}
+		trackers = append(trackers, []string{uri})
+		value, err = json.Marshal(trackers)
+		if err != nil {
+			return err
+		}
+		return b.Put(boltdbresumer.Keys.Trackers, value)
+	})
 	if err != nil {
 		return err
 	}
