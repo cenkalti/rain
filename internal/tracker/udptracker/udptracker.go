@@ -68,7 +68,7 @@ func (t *UDPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest) 
 
 	response, peers, err := t.parseAnnounceResponse(reply)
 	if err != nil {
-		return nil, err
+		return nil, tracker.ErrDecode
 	}
 	t.log.Debugf("Announce response: %#v", response)
 

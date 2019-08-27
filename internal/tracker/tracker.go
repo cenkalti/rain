@@ -3,6 +3,7 @@ package tracker
 
 import (
 	"context"
+	"errors"
 	"net"
 	"time"
 )
@@ -31,6 +32,8 @@ type AnnounceResponse struct {
 	WarningMessage string
 	Peers          []*net.TCPAddr
 }
+
+var ErrDecode = errors.New("cannot decode response")
 
 // Error is the string that is sent by the tracker from announce or scrape.
 type Error struct {

@@ -251,7 +251,7 @@ func (a *PeriodicalAnnouncer) newAnnounceError(err error) (e *AnnounceError) {
 		parsed, _ := url.Parse(a.Tracker.URL())
 		e.Message = "invalid port number in tracker address: " + parsed.Host
 		return
-	case httptracker.ErrDecode:
+	case tracker.ErrDecode:
 		e.Message = "invalid response from tracker"
 		return
 	}

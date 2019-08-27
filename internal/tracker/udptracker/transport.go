@@ -173,7 +173,7 @@ func (t *Transport) readLoop() {
 			}
 			err = bencode.DecodeBytes(rest, &terr)
 			if err != nil {
-				trx.err = err
+				trx.err = tracker.ErrDecode
 			} else {
 				retryIn, _ := strconv.Atoi(terr.RetryIn)
 				trx.err = &tracker.Error{

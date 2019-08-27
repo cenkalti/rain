@@ -116,7 +116,7 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 				Body: string(body),
 			}
 		}
-		return nil, ErrDecode
+		return nil, tracker.ErrDecode
 	}
 
 	if response.FailureReason != "" {
@@ -140,7 +140,7 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 			var b []byte
 			err = bencode.DecodeBytes(response.Peers, &b)
 			if err != nil {
-				return nil, ErrDecode
+				return nil, tracker.ErrDecode
 			}
 			peers, err = tracker.DecodePeersCompact(b)
 		}
@@ -176,7 +176,7 @@ func parsePeersDictionary(b bencode.RawMessage) ([]*net.TCPAddr, error) {
 	}
 	err := bencode.DecodeBytes(b, &peers)
 	if err != nil {
-		return nil, ErrDecode
+		return nil, tracker.ErrDecode
 	}
 
 	addrs := make([]*net.TCPAddr, len(peers))
