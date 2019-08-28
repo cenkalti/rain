@@ -16,6 +16,7 @@ import (
 const (
 	// tabs
 	general int = iota
+	stats
 	trackers
 	peers
 	webseeds
@@ -67,6 +68,7 @@ func (c *Console) Run() error {
 	_ = g.SetKeybinding("torrents", 'g', gocui.ModNone, c.goTop)
 	_ = g.SetKeybinding("torrents", 'G', gocui.ModNone, c.goBottom)
 	_ = g.SetKeybinding("torrents", gocui.KeyCtrlG, gocui.ModNone, c.switchGeneral)
+	_ = g.SetKeybinding("torrents", gocui.KeyCtrlS, gocui.ModNone, c.switchStats)
 	_ = g.SetKeybinding("torrents", gocui.KeyCtrlT, gocui.ModNone, c.switchTrackers)
 	_ = g.SetKeybinding("torrents", gocui.KeyCtrlP, gocui.ModNone, c.switchPeers)
 	_ = g.SetKeybinding("torrents", gocui.KeyCtrlW, gocui.ModNone, c.switchWebseeds)
@@ -153,6 +155,33 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 		}
 		switch c.selectedTab {
 		case general:
+			fmt.Fprintf(v, "Name: %s\n", c.stats.Name)
+			fmt.Fprintf(v, "Private: %v\n", c.stats.Private)
+			fmt.Fprintf(v, "Status: %s\n", c.stats.Status)
+			if c.stats.Error != nil {
+				fmt.Fprintf(v, "Error: %s\n", *c.stats.Error)
+			}
+			if c.stats.Pieces.Total > 0 {
+				switch c.stats.Status {
+				case "Verifying":
+					fmt.Fprintf(v, "Progress: %d\n", c.stats.Pieces.Checked*100/c.stats.Pieces.Total)
+				case "Allocating":
+					fmt.Fprintf(v, "Progress: %d\n", c.stats.Bytes.Allocated*100/c.stats.Bytes.Total)
+				default:
+					fmt.Fprintf(v, "Progress: %d\n", c.stats.Pieces.Have*100/c.stats.Pieces.Total)
+				}
+			}
+			fmt.Fprintf(v, "Peers: %d in %d out\n", c.stats.Peers.Incoming, c.stats.Peers.Outgoing)
+			fmt.Fprintf(v, "Handshakes: %d in %d out\n", c.stats.Handshakes.Incoming, c.stats.Handshakes.Outgoing)
+			fmt.Fprintf(v, "Addresses: %d from trackers %d from DHT %d from PEX\n", c.stats.Addresses.Tracker, c.stats.Addresses.DHT, c.stats.Addresses.PEX)
+			fmt.Fprintf(v, "Download speed: %5d KiB/s\n", c.stats.Speed.Download/1024)
+			fmt.Fprintf(v, "Upload speed:   %5d KiB/s\n", c.stats.Speed.Upload/1024)
+			if c.stats.ETA != nil {
+				fmt.Fprintf(v, "ETA: %s\n", time.Duration(*c.stats.ETA)*time.Second)
+			} else {
+				fmt.Fprintf(v, "ETA: N/A\n")
+			}
+		case stats:
 			b, err := jsonutil.MarshalCompactPretty(c.stats)
 			if err != nil {
 				fmt.Fprintln(v, "error:", c.errDetails)
@@ -483,6 +512,14 @@ func (c *Console) verify(g *gocui.Gui, v *gocui.View) error {
 func (c *Console) switchGeneral(g *gocui.Gui, v *gocui.View) error {
 	c.m.Lock()
 	c.selectedTab = general
+	c.m.Unlock()
+	c.triggerUpdateDetails(true)
+	return nil
+}
+
+func (c *Console) switchStats(g *gocui.Gui, v *gocui.View) error {
+	c.m.Lock()
+	c.selectedTab = stats
 	c.m.Unlock()
 	c.triggerUpdateDetails(true)
 	return nil
