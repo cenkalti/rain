@@ -115,14 +115,22 @@ func (c *Console) drawTorrents(g *gocui.Gui) error {
 			fmt.Fprintln(v, "error:", c.errTorrents)
 			return nil
 		}
-		for _, t := range c.torrents {
+		selectedIDrow := -1
+		for i, t := range c.torrents {
 			fmt.Fprintf(v, "%s %s %5d %s\n", t.ID, t.InfoHash, t.Port, t.Name)
+			if t.ID == c.selectedID {
+				selectedIDrow = i
+			}
 		}
 		_, cy := v.Cursor()
 		_, oy := v.Origin()
 		selectedRow := cy + oy
 		if selectedRow < len(c.torrents) {
-			c.setSelectedID(c.torrents[selectedRow].ID)
+			if c.torrents[selectedRow].ID != c.selectedID && selectedIDrow != -1 {
+				_ = v.SetCursor(0, selectedIDrow)
+			} else {
+				c.setSelectedID(c.torrents[selectedRow].ID)
+			}
 		}
 	}
 	return nil
