@@ -231,6 +231,12 @@ func (h *rpcHandler) GetTorrentTrackers(args *rpctypes.GetTorrentTrackersRequest
 			reply.Trackers[i].ErrorInternal = &internalErrStr
 			reply.Trackers[i].ErrorUnknown = t.Error.Unknown()
 		}
+		if !t.LastAnnounce.IsZero() {
+			reply.Trackers[i].LastAnnounce = rpctypes.Time{Time: t.LastAnnounce}
+		}
+		if !t.NextAnnounce.IsZero() {
+			reply.Trackers[i].NextAnnounce = rpctypes.Time{Time: t.NextAnnounce}
+		}
 	}
 	return nil
 }

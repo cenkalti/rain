@@ -125,12 +125,14 @@ func trackerStatusToString(s TrackerStatus) string {
 }
 
 type Tracker struct {
-	URL      string
-	Status   TrackerStatus
-	Leechers int
-	Seeders  int
-	Error    *AnnounceError
-	Warning  string
+	URL          string
+	Status       TrackerStatus
+	Leechers     int
+	Seeders      int
+	Error        *AnnounceError
+	Warning      string
+	LastAnnounce time.Time
+	NextAnnounce time.Time
 }
 
 type AnnounceError struct {

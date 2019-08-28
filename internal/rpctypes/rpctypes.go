@@ -42,6 +42,8 @@ type Tracker struct {
 	Error         *string
 	ErrorUnknown  bool
 	ErrorInternal *string
+	LastAnnounce  Time
+	NextAnnounce  Time
 }
 
 type SessionStats struct {

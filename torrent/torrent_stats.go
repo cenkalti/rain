@@ -221,11 +221,13 @@ func (t *torrent) getTrackers() []Tracker {
 	for i, an := range t.announcers {
 		st := an.Stats()
 		trackers[i] = Tracker{
-			URL:      an.Tracker.URL(),
-			Status:   TrackerStatus(st.Status),
-			Seeders:  st.Seeders,
-			Leechers: st.Leechers,
-			Warning:  st.Warning,
+			URL:          an.Tracker.URL(),
+			Status:       TrackerStatus(st.Status),
+			Seeders:      st.Seeders,
+			Leechers:     st.Leechers,
+			Warning:      st.Warning,
+			LastAnnounce: st.LastAnnounce,
+			NextAnnounce: st.NextAnnounce,
 		}
 		if st.Error != nil {
 			trackers[i].Error = &AnnounceError{st.Error}
