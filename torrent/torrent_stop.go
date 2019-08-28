@@ -13,7 +13,12 @@ func (t *torrent) handleStopped() {
 	t.errC <- t.lastError
 	t.errC = nil
 	t.portC = nil
-	t.log.Info("torrent has stopped")
+	if t.doVerify {
+		t.bitfield = nil
+		t.start()
+	} else {
+		t.log.Info("torrent has stopped")
+	}
 }
 
 func (t *torrent) stop(err error) {

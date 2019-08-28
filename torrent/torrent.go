@@ -141,6 +141,7 @@ type torrent struct {
 	startCommandC        chan struct{}            // Start()
 	stopCommandC         chan struct{}            // Stop()
 	announceCommandC     chan struct{}            // Announce()
+	verifyCommandC       chan struct{}            // Verify()
 	notifyErrorCommandC  chan notifyErrorCommand  // NotifyError()
 	notifyListenCommandC chan notifyListenCommand // NotifyListen()
 	addPeersCommandC     chan []*net.TCPAddr      // AddPeers()
@@ -234,6 +235,9 @@ type torrent struct {
 	webseedPieceResultC *suspendchan.Chan
 	webseedRetryC       chan *webseedsource.WebseedSource
 
+	// Set to true when manual verification is requested
+	doVerify bool
+
 	log logger.Logger
 }
 
@@ -289,6 +293,7 @@ func newTorrent2(
 		startCommandC:             make(chan struct{}),
 		stopCommandC:              make(chan struct{}),
 		announceCommandC:          make(chan struct{}),
+		verifyCommandC:            make(chan struct{}),
 		statsCommandC:             make(chan statsRequest),
 		trackersCommandC:          make(chan trackersRequest),
 		peersCommandC:             make(chan peersRequest),

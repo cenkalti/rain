@@ -117,3 +117,15 @@ func (t *Torrent) Stop() error {
 func (t *Torrent) Announce() {
 	t.torrent.Announce()
 }
+
+func (t *Torrent) Verify() error {
+	err := t.torrent.session.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(torrentsBucket).Bucket([]byte(t.torrent.id))
+		return b.Delete([]byte("bitfield"))
+	})
+	if err != nil {
+		return err
+	}
+	t.torrent.Verify()
+	return nil
+}

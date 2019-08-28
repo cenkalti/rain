@@ -7,6 +7,17 @@ import (
 	"github.com/cenkalti/rain/internal/verifier"
 )
 
+func (t *torrent) handleVerifyCommand() {
+	t.log.Info("verifying")
+	t.doVerify = true
+	if t.status() == Stopped {
+		t.bitfield = nil
+		t.start()
+	} else {
+		t.stop(nil)
+	}
+}
+
 func (t *torrent) handleVerificationDone(ve *verifier.Verifier) {
 	if t.verifier != ve {
 		panic("invalid verifier")
@@ -38,6 +49,12 @@ func (t *torrent) handleVerificationDone(ve *verifier.Verifier) {
 			t.pieces[i].Done = true
 			haveMessages = append(haveMessages, peerprotocol.HaveMessage{Index: i})
 		}
+	}
+
+	if t.doVerify {
+		t.doVerify = false
+		t.stop(nil)
+		return
 	}
 
 	// Tell connected peers that pieces we have.

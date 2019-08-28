@@ -34,6 +34,14 @@ func (t *torrent) Announce() {
 	}
 }
 
+// Verify pieces by checking files.
+func (t *torrent) Verify() {
+	select {
+	case t.verifyCommandC <- struct{}{}:
+	case <-t.closeC:
+	}
+}
+
 // Close this torrent and release all resources.
 // Close must be called before discarding the torrent.
 func (t *torrent) Close() {

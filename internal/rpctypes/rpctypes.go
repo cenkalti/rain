@@ -217,6 +217,13 @@ type AnnounceTorrentRequest struct {
 type AnnounceTorrentResponse struct {
 }
 
+type VerifyTorrentRequest struct {
+	ID string
+}
+
+type VerifyTorrentResponse struct {
+}
+
 type AddPeerRequest struct {
 	ID   string
 	Addr string

@@ -331,6 +331,14 @@ func (h *rpcHandler) AnnounceTorrent(args *rpctypes.StopTorrentRequest, reply *r
 	return nil
 }
 
+func (h *rpcHandler) VerifyTorrent(args *rpctypes.StopTorrentRequest, reply *rpctypes.StopTorrentResponse) error {
+	t := h.session.GetTorrent(args.ID)
+	if t == nil {
+		return errTorrentNotFound
+	}
+	return t.Verify()
+}
+
 func (h *rpcHandler) StartAllTorrents(args *rpctypes.StartAllTorrentsRequest, reply *rpctypes.StartAllTorrentsResponse) error {
 	return h.session.StartAll()
 }
