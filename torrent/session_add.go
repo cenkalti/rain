@@ -238,6 +238,7 @@ func (s *Session) add(opt *AddTorrentOptions) (id string, port int, sto *filesto
 }
 
 func (s *Session) insertTorrent(t *torrent) *Torrent {
+	t.log.Info("added torrent")
 	t2 := &Torrent{
 		torrent: t,
 	}
