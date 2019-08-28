@@ -298,7 +298,7 @@ func (c *Console) updateDetails(g *gocui.Gui) {
 	}
 
 	switch c.selectedTab {
-	case general:
+	case general, stats:
 		stats, err := c.client.GetTorrentStats(selectedID)
 		c.m.Lock()
 		c.stats = *stats
