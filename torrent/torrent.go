@@ -140,6 +140,7 @@ type torrent struct {
 	webseedsCommandC     chan webseedsRequest     // Webseeds()
 	startCommandC        chan struct{}            // Start()
 	stopCommandC         chan struct{}            // Stop()
+	announceCommandC     chan struct{}            // Announce()
 	notifyErrorCommandC  chan notifyErrorCommand  // NotifyError()
 	notifyListenCommandC chan notifyListenCommand // NotifyListen()
 	addPeersCommandC     chan []*net.TCPAddr      // AddPeers()
@@ -287,6 +288,7 @@ func newTorrent2(
 		closeC:                    make(chan chan struct{}),
 		startCommandC:             make(chan struct{}),
 		stopCommandC:              make(chan struct{}),
+		announceCommandC:          make(chan struct{}),
 		statsCommandC:             make(chan statsRequest),
 		trackersCommandC:          make(chan trackersRequest),
 		peersCommandC:             make(chan peersRequest),

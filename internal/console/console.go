@@ -62,6 +62,7 @@ func (c *Console) Run() error {
 	_ = g.SetKeybinding("torrents", 'R', gocui.ModNone, c.removeTorrent)
 	_ = g.SetKeybinding("torrents", 's', gocui.ModNone, c.startTorrent)
 	_ = g.SetKeybinding("torrents", 'S', gocui.ModNone, c.stopTorrent)
+	_ = g.SetKeybinding("torrents", 'a', gocui.ModNone, c.announce)
 	_ = g.SetKeybinding("torrents", 'g', gocui.ModNone, c.goTop)
 	_ = g.SetKeybinding("torrents", 'G', gocui.ModNone, c.goBottom)
 	_ = g.SetKeybinding("torrents", gocui.KeyCtrlG, gocui.ModNone, c.switchGeneral)
@@ -445,6 +446,19 @@ func (c *Console) stopTorrent(g *gocui.Gui, v *gocui.View) error {
 	c.m.Unlock()
 
 	err := c.client.StopTorrent(id)
+	if err != nil {
+		return err
+	}
+	c.triggerUpdateDetails(true)
+	return nil
+}
+
+func (c *Console) announce(g *gocui.Gui, v *gocui.View) error {
+	c.m.Lock()
+	id := c.selectedID
+	c.m.Unlock()
+
+	err := c.client.AnnounceTorrent(id)
 	if err != nil {
 		return err
 	}

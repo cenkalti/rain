@@ -113,3 +113,7 @@ func (t *Torrent) Stop() error {
 	t.torrent.Stop()
 	return nil
 }
+
+func (t *Torrent) Announce() {
+	t.torrent.Announce()
+}

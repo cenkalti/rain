@@ -210,6 +210,13 @@ type StopTorrentRequest struct {
 type StopTorrentResponse struct {
 }
 
+type AnnounceTorrentRequest struct {
+	ID string
+}
+
+type AnnounceTorrentResponse struct {
+}
+
 type AddPeerRequest struct {
 	ID   string
 	Addr string

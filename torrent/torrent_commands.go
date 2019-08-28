@@ -26,6 +26,14 @@ func (t *torrent) Stop() {
 	}
 }
 
+// Announce torrent to trackers and DHT manually.
+func (t *torrent) Announce() {
+	select {
+	case t.announceCommandC <- struct{}{}:
+	case <-t.closeC:
+	}
+}
+
 // Close this torrent and release all resources.
 // Close must be called before discarding the torrent.
 func (t *torrent) Close() {

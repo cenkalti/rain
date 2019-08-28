@@ -108,6 +108,12 @@ func (c *Client) StopTorrent(id string) error {
 	return c.client.Call("Session.StopTorrent", args, &reply)
 }
 
+func (c *Client) AnnounceTorrent(id string) error {
+	args := rpctypes.AnnounceTorrentRequest{ID: id}
+	var reply rpctypes.AnnounceTorrentResponse
+	return c.client.Call("Session.AnnounceTorrent", args, &reply)
+}
+
 func (c *Client) StartAllTorrents() error {
 	args := rpctypes.StartAllTorrentsRequest{}
 	var reply rpctypes.StartAllTorrentsResponse
