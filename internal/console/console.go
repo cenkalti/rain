@@ -192,7 +192,13 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 			for i, t := range c.trackers {
 				fmt.Fprintf(v, "#%d %s\n", i, t.URL)
 				fmt.Fprintf(v, "    Status: %s, Seeders: %d, Leechers: %d\n", t.Status, t.Seeders, t.Leechers)
-				fmt.Fprintf(v, "    Last announce: %s, Next announce: %s\n", t.LastAnnounce.Time.Format(time.RFC3339), t.NextAnnounce.Time.Format(time.RFC3339))
+				var nextAnnounce string
+				if t.NextAnnounce.IsZero() {
+					nextAnnounce = "Unknown"
+				} else {
+					nextAnnounce = t.NextAnnounce.Time.Format(time.RFC3339)
+				}
+				fmt.Fprintf(v, "    Last announce: %s, Next announce: %s\n", t.LastAnnounce.Time.Format(time.RFC3339), nextAnnounce)
 				if t.Warning != nil {
 					fmt.Fprintf(v, "    Warning: %s\n", *t.Warning)
 				}
