@@ -28,6 +28,7 @@ type Console struct {
 	errTorrents     error
 	selectedID      string
 	selectedTab     int
+	tabAdjust       int
 	stats           rpctypes.Stats
 	trackers        []rpctypes.Tracker
 	peers           []rpctypes.Peer
@@ -67,6 +68,8 @@ func (c *Console) Run() error {
 	_ = g.SetKeybinding("torrents", 'v', gocui.ModNone, c.verify)
 	_ = g.SetKeybinding("torrents", 'g', gocui.ModNone, c.goTop)
 	_ = g.SetKeybinding("torrents", 'G', gocui.ModNone, c.goBottom)
+	_ = g.SetKeybinding("torrents", gocui.KeyCtrlJ, gocui.ModNone, c.tabAdjustDown)
+	_ = g.SetKeybinding("torrents", gocui.KeyCtrlK, gocui.ModNone, c.tabAdjustUp)
 	_ = g.SetKeybinding("torrents", gocui.KeyCtrlG, gocui.ModNone, c.switchGeneral)
 	_ = g.SetKeybinding("torrents", gocui.KeyCtrlS, gocui.ModNone, c.switchStats)
 	_ = g.SetKeybinding("torrents", gocui.KeyCtrlT, gocui.ModNone, c.switchTrackers)
@@ -101,7 +104,8 @@ func (c *Console) drawTorrents(g *gocui.Gui) error {
 
 	maxX, maxY := g.Size()
 	halfY := maxY / 2
-	if v, err := g.SetView("torrents", -1, -1, maxX, halfY); err != nil {
+	split := halfY + c.tabAdjust
+	if v, err := g.SetView("torrents", -1, -1, maxX, split); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
@@ -142,7 +146,8 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 
 	maxX, maxY := g.Size()
 	halfY := maxY / 2
-	if v, err := g.SetView("details", -1, halfY, maxX, maxY); err != nil {
+	split := halfY + c.tabAdjust
+	if v, err := g.SetView("details", -1, split, maxX, maxY); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
@@ -520,6 +525,24 @@ func (c *Console) verify(g *gocui.Gui, v *gocui.View) error {
 		return err
 	}
 	c.triggerUpdateDetails(true)
+	return nil
+}
+
+func (c *Console) tabAdjustDown(g *gocui.Gui, v *gocui.View) error {
+	_, maxY := g.Size()
+	halfY := maxY / 2
+	if c.tabAdjust < halfY-1 {
+		c.tabAdjust++
+	}
+	return nil
+}
+
+func (c *Console) tabAdjustUp(g *gocui.Gui, v *gocui.View) error {
+	_, maxY := g.Size()
+	halfY := maxY / 2
+	if c.tabAdjust > -halfY {
+		c.tabAdjust--
+	}
 	return nil
 }
 
