@@ -170,30 +170,33 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 		case general:
 			fmt.Fprintf(v, "Name: %s\n", c.stats.Name)
 			fmt.Fprintf(v, "Private: %v\n", c.stats.Private)
-			fmt.Fprintf(v, "Status: %s\n", c.stats.Status)
-			if c.stats.Error != nil {
-				fmt.Fprintf(v, "Error: %s\n", *c.stats.Error)
+			status := c.stats.Status
+			if status == "Stopped" && c.stats.Error != nil {
+				status = status + ": " + *c.stats.Error
 			}
+			fmt.Fprintf(v, "Status: %s\n", status)
+			var progress int
 			if c.stats.Pieces.Total > 0 {
 				switch c.stats.Status {
 				case "Verifying":
-					fmt.Fprintf(v, "Progress: %d\n", c.stats.Pieces.Checked*100/c.stats.Pieces.Total)
+					progress = int(c.stats.Pieces.Checked * 100 / c.stats.Pieces.Total)
 				case "Allocating":
-					fmt.Fprintf(v, "Progress: %d\n", c.stats.Bytes.Allocated*100/c.stats.Bytes.Total)
+					progress = int(c.stats.Bytes.Allocated * 100 / c.stats.Bytes.Total)
 				default:
-					fmt.Fprintf(v, "Progress: %d\n", c.stats.Pieces.Have*100/c.stats.Pieces.Total)
+					progress = int(c.stats.Pieces.Have * 100 / c.stats.Pieces.Total)
 				}
 			}
+			fmt.Fprintf(v, "Progress: %d\n", progress)
 			fmt.Fprintf(v, "Peers: %d in %d out\n", c.stats.Peers.Incoming, c.stats.Peers.Outgoing)
 			fmt.Fprintf(v, "Handshakes: %d in %d out\n", c.stats.Handshakes.Incoming, c.stats.Handshakes.Outgoing)
 			fmt.Fprintf(v, "Addresses: %d from trackers %d from DHT %d from PEX\n", c.stats.Addresses.Tracker, c.stats.Addresses.DHT, c.stats.Addresses.PEX)
 			fmt.Fprintf(v, "Download speed: %5d KiB/s\n", c.stats.Speed.Download/1024)
 			fmt.Fprintf(v, "Upload speed:   %5d KiB/s\n", c.stats.Speed.Upload/1024)
+			var eta string
 			if c.stats.ETA != nil {
-				fmt.Fprintf(v, "ETA: %s\n", time.Duration(*c.stats.ETA)*time.Second)
-			} else {
-				fmt.Fprintf(v, "ETA: N/A\n")
+				eta = (time.Duration(*c.stats.ETA) * time.Second).String()
 			}
+			fmt.Fprintf(v, "ETA: %s\n", eta)
 		case stats:
 			b, err := jsonutil.MarshalCompactPretty(c.stats)
 			if err != nil {
