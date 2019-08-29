@@ -187,6 +187,16 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 				}
 			}
 			fmt.Fprintf(v, "Progress: %d\n", progress)
+			var size string
+			switch {
+			case c.stats.Bytes.Total < 1<<10:
+				size = fmt.Sprintf("%d bytes", c.stats.Bytes.Total)
+			case c.stats.Bytes.Total < 1<<20:
+				size = fmt.Sprintf("%d KiB", c.stats.Bytes.Total/(1<<10))
+			default:
+				size = fmt.Sprintf("%d MiB", c.stats.Bytes.Total/(1<<20))
+			}
+			fmt.Fprintf(v, "Size: %s\n", size)
 			fmt.Fprintf(v, "Peers: %d in %d out\n", c.stats.Peers.Incoming, c.stats.Peers.Outgoing)
 			fmt.Fprintf(v, "Handshakes: %d in %d out\n", c.stats.Handshakes.Incoming, c.stats.Handshakes.Outgoing)
 			fmt.Fprintf(v, "Addresses: %d from trackers %d from DHT %d from PEX\n", c.stats.Addresses.Tracker, c.stats.Addresses.DHT, c.stats.Addresses.PEX)
