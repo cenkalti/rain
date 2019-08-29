@@ -14,6 +14,7 @@ import (
 	"github.com/cenkalti/rain/internal/peerprotocol"
 	"github.com/cenkalti/rain/internal/peersource"
 	"github.com/cenkalti/rain/internal/pieceset"
+	"github.com/cenkalti/rain/internal/stringutil"
 	"github.com/rcrowley/go-metrics"
 )
 
@@ -251,11 +252,8 @@ func (p *Peer) Client() string {
 	if p.ExtensionHandshake == nil {
 		return ""
 	}
-	var client string
 	if p.ExtensionHandshake.V != "" {
-		client = p.ExtensionHandshake.V
-	} else {
-		client = clientID(string(p.ID[:]))
+		return stringutil.Printable(p.ExtensionHandshake.V)
 	}
-	return asciify(client)
+	return stringutil.Asciify(clientID(string(p.ID[:])))
 }

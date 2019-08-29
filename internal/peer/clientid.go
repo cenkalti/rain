@@ -1,6 +1,8 @@
 package peer
 
-import "strings"
+import (
+	"strings"
+)
 
 func clientID(id string) string {
 	// ID follows BEP 20 convention
@@ -17,16 +19,4 @@ func clientID(id string) string {
 	}
 
 	return id
-}
-
-// asciify replaces non-ascii characters with '_'.
-func asciify(id string) string {
-	b := []byte(id)
-	for i, val := range b {
-		if val >= 32 && val < 127 {
-			continue
-		}
-		b[i] = '_'
-	}
-	return string(b)
 }
