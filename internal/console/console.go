@@ -217,7 +217,20 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 		case trackers:
 			for i, t := range c.trackers {
 				fmt.Fprintf(v, "#%d %s\n", i, t.URL)
-				fmt.Fprintf(v, "    Status: %s, Seeders: %d, Leechers: %d\n", t.Status, t.Seeders, t.Leechers)
+				switch t.Status {
+				case "Not working":
+					errStr := *t.Error
+					if t.ErrorUnknown {
+						errStr = errStr + " (" + *t.ErrorInternal + ")"
+					}
+					fmt.Fprintf(v, "    Status: %s, Error: %s\n", t.Status, errStr)
+				default:
+					if t.Warning != nil {
+						fmt.Fprintf(v, "    Status: %s, Seeders: %d, Leechers: %d Warning: %s\n", t.Status, t.Seeders, t.Leechers, *t.Warning)
+					} else {
+						fmt.Fprintf(v, "    Status: %s, Seeders: %d, Leechers: %d\n", t.Status, t.Seeders, t.Leechers)
+					}
+				}
 				var nextAnnounce string
 				if t.NextAnnounce.IsZero() {
 					nextAnnounce = "Unknown"
@@ -225,16 +238,6 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 					nextAnnounce = t.NextAnnounce.Time.Format(time.RFC3339)
 				}
 				fmt.Fprintf(v, "    Last announce: %s, Next announce: %s\n", t.LastAnnounce.Time.Format(time.RFC3339), nextAnnounce)
-				if t.Warning != nil {
-					fmt.Fprintf(v, "    Warning: %s\n", *t.Warning)
-				}
-				if t.Error != nil {
-					errStr := *t.Error
-					if t.ErrorUnknown {
-						errStr = errStr + " (" + *t.ErrorInternal + ")"
-					}
-					fmt.Fprintf(v, "    Error: %s\n", errStr)
-				}
 			}
 		case peers:
 			format := "%2s %21s %7s %8s %6s %s\n"
