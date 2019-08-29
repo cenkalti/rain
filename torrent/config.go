@@ -31,9 +31,12 @@ type Config struct {
 	// When to refresh blocklist
 	BlocklistUpdateInterval time.Duration
 	// HTTP timeout for downloading blocklist
-	BlocklistUpdateTimeout                 time.Duration
-	BlocklistEnabledForTrackers            bool
+	BlocklistUpdateTimeout time.Duration
+	// Do not contact tracker if it's IP is blocked
+	BlocklistEnabledForTrackers bool
+	// Do not connect to peer if it's IP is blocked
 	BlocklistEnabledForOutgoingConnections bool
+	// Do not accept connections from peer if it's IP is blocked
 	BlocklistEnabledForIncomingConnections bool
 	// Time to wait when adding torrent with AddURI().
 	TorrentAddHTTPTimeout time.Duration
@@ -135,12 +138,18 @@ type Config struct {
 	// Do not accept unencrypted connections.
 	ForceIncomingEncryption bool
 
-	WebseedDialTimeout             time.Duration
-	WebseedTLSHandshakeTimeout     time.Duration
-	WebseedResponseHeaderTimeout   time.Duration
+	// TCP connect timeout for WebSeed sources
+	WebseedDialTimeout time.Duration
+	// TLS handshake timeout for WebSeed sources
+	WebseedTLSHandshakeTimeout time.Duration
+	// HTTP header timeout for WebSeed sources
+	WebseedResponseHeaderTimeout time.Duration
+	// HTTP body read timeout for Webseed sources
 	WebseedResponseBodyReadTimeout time.Duration
-	WebseedRetryInterval           time.Duration
-	WebseedVerifyTLS               bool
+	// Retry interval for restarting failed downloads
+	WebseedRetryInterval time.Duration
+	// Verify TLS certificate for WebSeed URLs
+	WebseedVerifyTLS bool
 }
 
 var DefaultConfig = Config{
