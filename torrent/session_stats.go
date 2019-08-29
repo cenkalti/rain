@@ -24,6 +24,8 @@ type SessionStats struct {
 	ActivePieceBytes              int64
 	TorrentsPendingRAM            int
 	Uptime                        time.Duration
+	WritesPerSecond               int
+	WriteBytesPerSecond           int
 }
 
 func (s *Session) Stats() SessionStats {
@@ -56,6 +58,8 @@ func (s *Session) Stats() SessionStats {
 		ActivePieceBytes:              ramStats.Used,
 		TorrentsPendingRAM:            ramStats.Count,
 		Uptime:                        time.Since(s.createdAt),
+		WritesPerSecond:               int(s.writesPerSecond.Rate()),
+		WriteBytesPerSecond:           int(s.writeBytesPerSecond.Rate()),
 	}
 }
 
@@ -96,5 +100,19 @@ func (s *Session) updateStats() {
 	}
 	if err != nil {
 		s.log.Errorln("cannot update stats:", err.Error())
+	}
+}
+
+func (s *Session) updateSessionStatsLoop() {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			s.writesPerSecond.Tick()
+			s.writeBytesPerSecond.Tick()
+		case <-s.closeC:
+			return
+		}
 	}
 }

@@ -26,6 +26,7 @@ import (
 	"github.com/cenkalti/rain/internal/trackermanager"
 	"github.com/mitchellh/go-homedir"
 	"github.com/nictuku/dht"
+	"github.com/rcrowley/go-metrics"
 )
 
 var (
@@ -64,6 +65,9 @@ type Session struct {
 	mBlocklist         sync.RWMutex
 	blocklist          *blocklist.Blocklist
 	blocklistTimestamp time.Time
+
+	writesPerSecond     metrics.EWMA
+	writeBytesPerSecond metrics.EWMA
 }
 
 // NewSession creates a new Session for downloading and seeding torrents.
@@ -177,6 +181,8 @@ func NewSession(cfg Config) (*Session, error) {
 				ResponseHeaderTimeout: cfg.WebseedResponseHeaderTimeout,
 			},
 		},
+		writesPerSecond:     metrics.NewEWMA1(),
+		writeBytesPerSecond: metrics.NewEWMA1(),
 	}
 	ext, err := bitfield.NewBytes(c.extensions[:], 64)
 	if err != nil {
@@ -193,7 +199,6 @@ func NewSession(cfg Config) (*Session, error) {
 	}
 	if cfg.DHTEnabled {
 		c.dhtPeerRequests = make(map[*torrent]struct{})
-		go c.processDHTResults()
 	}
 	c.loadExistingTorrents(ids)
 	if c.config.RPCEnabled {
@@ -203,7 +208,11 @@ func NewSession(cfg Config) (*Session, error) {
 			return nil, err
 		}
 	}
+	if cfg.DHTEnabled {
+		go c.processDHTResults()
+	}
 	go c.updateStatsLoop()
+	go c.updateSessionStatsLoop()
 	return c, nil
 }
 

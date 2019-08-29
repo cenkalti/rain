@@ -107,7 +107,7 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 	t.webseedPieceResultC.Suspend()
 
 	pw := piecewriter.New(piece, pe, pd.Buffer)
-	go pw.Run(t.pieceWriterResultC, t.doneC)
+	go pw.Run(t.pieceWriterResultC, t.doneC, t.session.writesPerSecond, t.session.writeBytesPerSecond)
 }
 
 func (t *torrent) handlePeerMessage(pm peer.Message) {

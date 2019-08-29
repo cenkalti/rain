@@ -61,6 +61,8 @@ type SessionStats struct {
 	ActivePieceBytes              int64
 	TorrentsPendingRAM            int
 	Uptime                        int
+	WritesPerSecond               int
+	WriteBytesPerSecond           int
 }
 
 type Stats struct {
