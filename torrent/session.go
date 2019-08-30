@@ -21,6 +21,7 @@ import (
 	"github.com/cenkalti/rain/internal/resolver"
 	"github.com/cenkalti/rain/internal/resourcemanager"
 	"github.com/cenkalti/rain/internal/resumer/boltdbresumer"
+	"github.com/cenkalti/rain/internal/semaphore"
 	"github.com/cenkalti/rain/internal/storage/filestorage"
 	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/internal/trackermanager"
@@ -68,6 +69,7 @@ type Session struct {
 
 	writesPerSecond     metrics.EWMA
 	writeBytesPerSecond metrics.EWMA
+	semWrite            *semaphore.Semaphore
 }
 
 // NewSession creates a new Session for downloading and seeding torrents.
@@ -183,6 +185,7 @@ func NewSession(cfg Config) (*Session, error) {
 		},
 		writesPerSecond:     metrics.NewEWMA1(),
 		writeBytesPerSecond: metrics.NewEWMA1(),
+		semWrite:            semaphore.New(int(cfg.ParallelWrites)),
 	}
 	ext, err := bitfield.NewBytes(c.extensions[:], 64)
 	if err != nil {

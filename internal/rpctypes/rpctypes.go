@@ -63,6 +63,8 @@ type SessionStats struct {
 	Uptime                        int
 	WritesPerSecond               int
 	WriteBytesPerSecond           int
+	WritesActive                  int
+	WritesPending                 int
 }
 
 type Stats struct {

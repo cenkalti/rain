@@ -26,6 +26,8 @@ type SessionStats struct {
 	Uptime                        time.Duration
 	WritesPerSecond               int
 	WriteBytesPerSecond           int
+	WritesActive                  int
+	WritesPending                 int
 }
 
 func (s *Session) Stats() SessionStats {
@@ -60,6 +62,8 @@ func (s *Session) Stats() SessionStats {
 		Uptime:                        time.Since(s.createdAt),
 		WritesPerSecond:               int(s.writesPerSecond.Rate()),
 		WriteBytesPerSecond:           int(s.writeBytesPerSecond.Rate()),
+		WritesActive:                  s.semWrite.Len(),
+		WritesPending:                 s.semWrite.Waiting(),
 	}
 }
 

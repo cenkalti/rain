@@ -43,7 +43,7 @@ func (t *torrent) handleWebseedPieceResult(msg *urldownloader.PieceResult) {
 	t.webseedPieceResultC.Suspend()
 
 	pw := piecewriter.New(piece, msg.Downloader, msg.Buffer)
-	go pw.Run(t.pieceWriterResultC, t.doneC, t.session.writesPerSecond, t.session.writeBytesPerSecond)
+	go pw.Run(t.pieceWriterResultC, t.doneC, t.session.writesPerSecond, t.session.writeBytesPerSecond, t.session.semWrite)
 
 	if msg.Done {
 		for _, src := range t.webseedSources {

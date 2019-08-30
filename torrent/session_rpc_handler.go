@@ -94,6 +94,8 @@ func (h *rpcHandler) GetSessionStats(args *rpctypes.GetSessionStatsRequest, repl
 		Uptime:                        int(s.Uptime / time.Second),
 		WritesPerSecond:               s.WritesPerSecond,
 		WriteBytesPerSecond:           s.WriteBytesPerSecond,
+		WritesActive:                  s.WritesActive,
+		WritesPending:                 s.WritesPending,
 	}
 	return nil
 }

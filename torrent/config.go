@@ -128,6 +128,8 @@ type Config struct {
 	PieceCacheTTL time.Duration
 	// Number of read operations to do in parallel.
 	ParallelReads uint
+	// Number of write operations to do in parallel.
+	ParallelWrites uint
 
 	// When the client want to connect a peer, first it tries to do encrypted handshake.
 	// If it does not work, it connects to same peer again and does unencrypted handshake.
@@ -223,6 +225,7 @@ var DefaultConfig = Config{
 	PieceCacheSize: 256 * 1024 * 1024,
 	PieceCacheTTL:  5 * time.Minute,
 	ParallelReads:  1,
+	ParallelWrites: 1,
 
 	// Webseed settings
 	WebseedDialTimeout:             10 * time.Second,

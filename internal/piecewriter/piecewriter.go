@@ -5,6 +5,7 @@ import (
 
 	"github.com/cenkalti/rain/internal/bufferpool"
 	"github.com/cenkalti/rain/internal/piece"
+	"github.com/cenkalti/rain/internal/semaphore"
 	"github.com/rcrowley/go-metrics"
 )
 
@@ -25,12 +26,14 @@ func New(p *piece.Piece, source interface{}, buf bufferpool.Buffer) *PieceWriter
 	}
 }
 
-func (w *PieceWriter) Run(resultC chan *PieceWriter, closeC chan struct{}, writesPerSecond, writeBytesPerSecond metrics.EWMA) {
+func (w *PieceWriter) Run(resultC chan *PieceWriter, closeC chan struct{}, writesPerSecond, writeBytesPerSecond metrics.EWMA, sem *semaphore.Semaphore) {
 	w.HashOK = w.Piece.VerifyHash(w.Buffer.Data, sha1.New()) // nolint: gosec
 	if w.HashOK {
 		writesPerSecond.Update(1)
 		writeBytesPerSecond.Update(int64(len(w.Buffer.Data)))
+		sem.Wait()
 		_, w.Error = w.Piece.Data.Write(w.Buffer.Data)
+		sem.Signal()
 	}
 	select {
 	case resultC <- w:
