@@ -54,9 +54,12 @@ func (s *FileStorage) Open(name string, size int64) (f storage.File, exists bool
 
 	// Open OS file.
 	const mode = 0640
-	of, err = os.OpenFile(name, os.O_RDWR, mode) // nolint: gosec
+	openFlags := os.O_RDWR
+	openFlags = applyNoAtimeFlag(openFlags)
+	of, err = os.OpenFile(name, openFlags, mode) // nolint: gosec
 	if os.IsNotExist(err) {
-		of, err = os.OpenFile(name, os.O_RDWR|os.O_CREATE, mode) // nolint: gosec
+		openFlags |= os.O_CREATE
+		of, err = os.OpenFile(name, openFlags, mode) // nolint: gosec
 		if err != nil {
 			return
 		}
