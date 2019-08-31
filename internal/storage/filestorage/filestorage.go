@@ -42,8 +42,13 @@ func (s *FileStorage) Open(name string, size int64) (f storage.File, exists bool
 	// Make sure OS file is closed in case of any error.
 	var of *os.File
 	defer func() {
+		if err == nil && of != nil {
+			err = disableReadAhead(of)
+		}
 		if err != nil && of != nil {
 			_ = of.Close()
+		} else {
+			f = File{of}
 		}
 	}()
 
@@ -55,14 +60,12 @@ func (s *FileStorage) Open(name string, size int64) (f storage.File, exists bool
 		if err != nil {
 			return
 		}
-		f = File{of}
 		err = of.Truncate(size)
 		return
 	}
 	if err != nil {
 		return
 	}
-	f = File{of}
 	exists = true
 	fi, err := of.Stat()
 	if err != nil {
