@@ -20,6 +20,7 @@ type SessionStats struct {
 	ReadsActive                   int
 	ReadsPending                  int
 	ReadBytesPerSecond            int
+	ActivePieceCount              int
 	ActivePieceBytes              int64
 	TorrentsPendingRAM            int
 	Uptime                        time.Duration
@@ -59,8 +60,9 @@ func (s *Session) Stats() SessionStats {
 		ReadsActive:                   s.pieceCache.LoadsActive(),
 		ReadsPending:                  s.pieceCache.LoadsWaiting(),
 		ReadBytesPerSecond:            s.pieceCache.LoadedBytesPerSecond(),
-		ActivePieceBytes:              ramStats.Used,
-		TorrentsPendingRAM:            ramStats.Count,
+		ActivePieceCount:              ramStats.AllocatedObjects,
+		ActivePieceBytes:              ramStats.AllocatedSize,
+		TorrentsPendingRAM:            ramStats.PendingKeys,
 		Uptime:                        time.Since(s.createdAt),
 		WritesPerSecond:               int(s.writesPerSecond.Rate()),
 		WriteBytesPerSecond:           int(s.writeBytesPerSecond.Rate()),

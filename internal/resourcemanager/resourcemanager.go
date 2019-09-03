@@ -5,6 +5,7 @@ import "math/rand"
 type ResourceManager struct {
 	limit     int64
 	available int64
+	objects   int
 	requests  map[string][]request
 	requestC  chan request
 	releaseC  chan int64
@@ -23,8 +24,9 @@ type request struct {
 }
 
 type Stats struct {
-	Used  int64
-	Count int
+	AllocatedSize    int64
+	AllocatedObjects int
+	PendingKeys      int
 }
 
 func New(limit int64) *ResourceManager {
@@ -99,6 +101,7 @@ func (m *ResourceManager) run() {
 			m.handleRequest(r)
 		case n := <-m.releaseC:
 			m.available += n
+			m.objects--
 			if m.available > m.limit {
 				panic("invalid release call")
 			}
@@ -112,8 +115,9 @@ func (m *ResourceManager) run() {
 			m.deleteRequest(req.key, i)
 		case ch := <-m.statsC:
 			stats := Stats{
-				Used:  m.limit - m.available,
-				Count: len(m.requests),
+				AllocatedObjects: m.objects,
+				AllocatedSize:    m.limit - m.available,
+				PendingKeys:      len(m.requests),
 			}
 			select {
 			case ch <- stats:
@@ -155,6 +159,7 @@ func (m *ResourceManager) handleRequest(r request) {
 	case r.doneC <- acquired:
 		if acquired {
 			m.available -= r.n
+			m.objects++
 			if m.available < 0 {
 				panic("invalid request call 2")
 			}

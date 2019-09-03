@@ -58,6 +58,7 @@ type SessionStats struct {
 	ReadsActive                   int
 	ReadsPending                  int
 	ReadBytesPerSecond            int
+	ActivePieceCount              int
 	ActivePieceBytes              int64
 	TorrentsPendingRAM            int
 	Uptime                        int
