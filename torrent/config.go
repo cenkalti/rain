@@ -221,9 +221,9 @@ var DefaultConfig = Config{
 	MaxPeerAddresses:             2000,
 
 	// Piece cache
-	PieceReadSize:  256 * 1 << 10,
-	PieceCacheSize: 256 * 1 << 20,
-	PieceCacheTTL:  5 * time.Minute,
+	PieceReadSize:  128 * 1 << 10,
+	PieceCacheSize: 128 * 1 << 20,
+	PieceCacheTTL:  1 * time.Minute,
 	ParallelReads:  1,
 	ParallelWrites: 1,
 
