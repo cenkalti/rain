@@ -242,7 +242,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			}
 		} else {
 			if t.session.pieceCache != nil {
-				pe.SendPiece(msg, cachedpiece.New(pi, t.session.pieceCache, t.session.config.PieceReadSize, t.peerID))
+				pe.SendPiece(msg, cachedpiece.New(pi, t.session.pieceCache, t.session.config.ReadCacheBlockSize, t.peerID))
 			} else {
 				pe.SendPiece(msg, pi.Data)
 			}

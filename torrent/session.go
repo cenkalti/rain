@@ -166,8 +166,8 @@ func NewSession(cfg Config) (*Session, error) {
 		torrentsByInfoHash: make(map[dht.InfoHash][]*Torrent),
 		availablePorts:     ports,
 		dht:                dhtNode,
-		pieceCache:         piececache.New(cfg.PieceCacheSize, cfg.PieceCacheTTL, cfg.ParallelReads),
-		ram:                resourcemanager.New(cfg.MaxActivePieceBytes),
+		pieceCache:         piececache.New(cfg.ReadCacheSize, cfg.ReadCacheTTL, cfg.ParallelReads),
+		ram:                resourcemanager.New(cfg.WriteCacheSize),
 		createdAt:          time.Now(),
 		closeC:             make(chan struct{}),
 		webseedClient: http.Client{

@@ -107,8 +107,6 @@ type Config struct {
 	MaxPeerDial int
 	// Max number of incoming connections to accept
 	MaxPeerAccept int
-	// Number of bytes allocated in memory for downloading piece data.
-	MaxActivePieceBytes int64
 	// Running metadata downloads, snubbed peers don't count
 	ParallelMetadataDownloads int
 	// Time to wait for TCP connection to open.
@@ -121,15 +119,17 @@ type Config struct {
 	MaxPeerAddresses int
 
 	// Number of bytes to read when a piece is requested by a peer.
-	PieceReadSize int64
+	ReadCacheBlockSize int64
 	// Number of cached bytes for piece read requests.
-	PieceCacheSize int64
+	ReadCacheSize int64
 	// Read bytes for a piece part expires after duration.
-	PieceCacheTTL time.Duration
+	ReadCacheTTL time.Duration
 	// Number of read operations to do in parallel.
 	ParallelReads uint
 	// Number of write operations to do in parallel.
 	ParallelWrites uint
+	// Number of bytes allocated in memory for downloading piece data.
+	WriteCacheSize int64
 
 	// When the client want to connect a peer, first it tries to do encrypted handshake.
 	// If it does not work, it connects to same peer again and does unencrypted handshake.
@@ -213,19 +213,19 @@ var DefaultConfig = Config{
 	EndgameMaxDuplicateDownloads: 20,
 	MaxPeerDial:                  80,
 	MaxPeerAccept:                20,
-	MaxActivePieceBytes:          1 << 30,
 	ParallelMetadataDownloads:    2,
 	PeerConnectTimeout:           5 * time.Second,
 	PeerHandshakeTimeout:         10 * time.Second,
 	PieceReadTimeout:             30 * time.Second,
 	MaxPeerAddresses:             2000,
 
-	// Piece cache
-	PieceReadSize:  128 * 1 << 10,
-	PieceCacheSize: 128 * 1 << 20,
-	PieceCacheTTL:  1 * time.Minute,
-	ParallelReads:  1,
-	ParallelWrites: 1,
+	// IO
+	ReadCacheBlockSize: 128 * 1 << 10,
+	ReadCacheSize:      256 * 1 << 20,
+	ReadCacheTTL:       1 * time.Minute,
+	ParallelReads:      1,
+	ParallelWrites:     1,
+	WriteCacheSize:     1 << 30,
 
 	// Webseed settings
 	WebseedDialTimeout:             10 * time.Second,
