@@ -10,27 +10,27 @@ import (
 
 type SessionStats struct {
 	Torrents                      int
-	AvailablePorts                int
+	Peers                         int
+	PortsAvailable                int
 	BlockListRules                int
 	BlockListLastSuccessfulUpdate time.Time
-	PieceCacheItems               int
-	PieceCacheSize                int64
-	PieceCacheUtilization         int
+	ReadCacheObjects              int
+	ReadCacheSize                 int64
+	ReadCacheUtilization          int
 	ReadsPerSecond                int
 	ReadsActive                   int
 	ReadsPending                  int
-	ReadBytesPerSecond            int
-	ActivePieceCount              int
-	ActivePieceBytes              int64
-	TorrentsPendingRAM            int
+	WriteCacheObjects             int
+	WriteCacheSize                int64
+	WriteCachePendingKeys         int
 	Uptime                        time.Duration
 	WritesPerSecond               int
-	WriteBytesPerSecond           int
 	WritesActive                  int
 	WritesPending                 int
-	Peers                         int
 	SpeedDownload                 int
 	SpeedUpload                   int
+	SpeedRead                     int
+	SpeedWrite                    int
 }
 
 func (s *Session) Stats() SessionStats {
@@ -50,27 +50,27 @@ func (s *Session) Stats() SessionStats {
 
 	return SessionStats{
 		Torrents:                      torrents,
-		AvailablePorts:                ports,
+		PortsAvailable:                ports,
 		BlockListRules:                s.blocklist.Len(),
 		BlockListLastSuccessfulUpdate: blocklistTime,
-		PieceCacheItems:               s.pieceCache.Len(),
-		PieceCacheSize:                s.pieceCache.Size(),
-		PieceCacheUtilization:         s.pieceCache.Utilization(),
+		ReadCacheObjects:              s.pieceCache.Len(),
+		ReadCacheSize:                 s.pieceCache.Size(),
+		ReadCacheUtilization:          s.pieceCache.Utilization(),
 		ReadsPerSecond:                s.pieceCache.LoadsPerSecond(),
 		ReadsActive:                   s.pieceCache.LoadsActive(),
 		ReadsPending:                  s.pieceCache.LoadsWaiting(),
-		ReadBytesPerSecond:            s.pieceCache.LoadedBytesPerSecond(),
-		ActivePieceCount:              ramStats.AllocatedObjects,
-		ActivePieceBytes:              ramStats.AllocatedSize,
-		TorrentsPendingRAM:            ramStats.PendingKeys,
+		WriteCacheObjects:             ramStats.AllocatedObjects,
+		WriteCacheSize:                ramStats.AllocatedSize,
+		WriteCachePendingKeys:         ramStats.PendingKeys,
 		Uptime:                        time.Since(s.createdAt),
 		WritesPerSecond:               int(s.writesPerSecond.Rate()),
-		WriteBytesPerSecond:           int(s.writeBytesPerSecond.Rate()),
 		WritesActive:                  s.semWrite.Len(),
 		WritesPending:                 s.semWrite.Waiting(),
 		Peers:                         int(s.numPeers.Read()),
-		SpeedDownload:                 int(s.speedDownload.Rate()),
-		SpeedUpload:                   int(s.speedUpload.Rate()),
+		SpeedRead:                     s.pieceCache.LoadedBytesPerSecond() / 1024,
+		SpeedWrite:                    int(s.writeBytesPerSecond.Rate()) / 1024,
+		SpeedDownload:                 int(s.speedDownload.Rate()) / 1024,
+		SpeedUpload:                   int(s.speedUpload.Rate()) / 1024,
 	}
 }
 

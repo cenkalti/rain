@@ -48,27 +48,27 @@ type Tracker struct {
 
 type SessionStats struct {
 	Torrents                      int
-	AvailablePorts                int
+	Peers                         int
+	PortsAvailable                int
 	BlockListRules                int
 	BlockListLastSuccessfulUpdate *Time
-	PieceCacheItems               int
-	PieceCacheSize                int64
-	PieceCacheUtilization         int
+	ReadCacheObjects              int
+	ReadCacheSize                 int64
+	ReadCacheUtilization          int
 	ReadsPerSecond                int
 	ReadsActive                   int
 	ReadsPending                  int
-	ReadBytesPerSecond            int
-	ActivePieceCount              int
-	ActivePieceBytes              int64
-	TorrentsPendingRAM            int
+	WriteCacheObjects             int
+	WriteCacheSize                int64
+	WriteCachePendingKeys         int
 	Uptime                        int
 	WritesPerSecond               int
-	WriteBytesPerSecond           int
 	WritesActive                  int
 	WritesPending                 int
-	Peers                         int
 	SpeedDownload                 int
 	SpeedUpload                   int
+	SpeedRead                     int
+	SpeedWrite                    int
 }
 
 type Stats struct {
