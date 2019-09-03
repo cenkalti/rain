@@ -190,7 +190,7 @@ func (t *torrent) startPieceDownloaderFor(pe *peer.Peer) {
 		t.startSinglePieceDownloader(pe)
 		return
 	}
-	ok := t.session.ram.Request(string(t.peerID[:]), pe, int64(t.info.PieceLength), t.ramNotifyC, pe.Done())
+	ok := t.session.ram.Request(t.id, pe, int64(t.info.PieceLength), t.ramNotifyC, pe.Done())
 	if ok {
 		t.startSinglePieceDownloader(pe)
 	}
