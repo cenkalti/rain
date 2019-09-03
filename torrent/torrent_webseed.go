@@ -3,7 +3,6 @@ package torrent
 import (
 	"time"
 
-	"github.com/cenkalti/rain/internal/counters"
 	"github.com/cenkalti/rain/internal/piecewriter"
 	"github.com/cenkalti/rain/internal/urldownloader"
 	"github.com/cenkalti/rain/internal/webseedsource"
@@ -23,7 +22,7 @@ func (t *torrent) handleWebseedPieceResult(msg *urldownloader.PieceResult) {
 	piece := &t.pieces[msg.Index]
 	t.log.Debugf("piece #%d downloaded from %s", msg.Index, msg.Downloader.URL)
 
-	t.counters.Incr(counters.BytesDownloaded, int64(len(msg.Buffer.Data)))
+	t.bytesDownloaded.Add(int64(len(msg.Buffer.Data)))
 	t.downloadSpeed.Update(int64(len(msg.Buffer.Data)))
 	for _, src := range t.webseedSources {
 		if src.URL != msg.Downloader.URL {

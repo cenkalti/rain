@@ -3,7 +3,6 @@ package torrent
 import (
 	"math"
 
-	"github.com/cenkalti/rain/internal/counters"
 	"github.com/cenkalti/rain/internal/tracker"
 )
 
@@ -22,8 +21,8 @@ func (t *torrent) announcerFields() tracker.Torrent {
 		InfoHash:        t.infoHash,
 		PeerID:          t.peerID,
 		Port:            t.port,
-		BytesDownloaded: t.counters.Read(counters.BytesDownloaded),
-		BytesUploaded:   t.counters.Read(counters.BytesUploaded),
+		BytesDownloaded: t.bytesDownloaded.Read(),
+		BytesUploaded:   t.bytesUploaded.Read(),
 	}
 	t.mBitfield.RLock()
 	if t.bitfield == nil {

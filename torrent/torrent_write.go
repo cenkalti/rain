@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/cenkalti/rain/internal/counters"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peerprotocol"
 	"github.com/cenkalti/rain/internal/piecewriter"
@@ -20,7 +19,7 @@ func (t *torrent) handlePieceWriteDone(pw *piecewriter.PieceWriter) {
 	pw.Buffer.Release()
 
 	if !pw.HashOK {
-		t.counters.Incr(counters.BytesWasted, int64(len(pw.Buffer.Data)))
+		t.bytesWasted.Add(int64(len(pw.Buffer.Data)))
 		switch src := pw.Source.(type) {
 		case *peer.Peer:
 			t.log.Errorln("received corrupt piece from peer", src.String())
