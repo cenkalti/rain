@@ -28,6 +28,8 @@ type SessionStats struct {
 	WritesActive                  int
 	WritesPending                 int
 	Peers                         int
+	SpeedDownload                 int
+	SpeedUpload                   int
 }
 
 func (s *Session) Stats() SessionStats {
@@ -65,6 +67,8 @@ func (s *Session) Stats() SessionStats {
 		WritesActive:                  s.semWrite.Len(),
 		WritesPending:                 s.semWrite.Waiting(),
 		Peers:                         int(s.numPeers.Read()),
+		SpeedDownload:                 int(s.speedDownload.Rate()),
+		SpeedUpload:                   int(s.speedUpload.Rate()),
 	}
 }
 
@@ -116,6 +120,8 @@ func (s *Session) updateSessionStatsLoop() {
 		case <-ticker.C:
 			s.writesPerSecond.Tick()
 			s.writeBytesPerSecond.Tick()
+			s.speedDownload.Tick()
+			s.speedUpload.Tick()
 		case <-s.closeC:
 			return
 		}

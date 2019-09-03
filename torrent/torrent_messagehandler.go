@@ -18,30 +18,32 @@ import (
 func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 	msg := pm.Piece
 	pe := pm.Peer
+	l := int64(len(msg.Buffer.Data))
 	if t.pieces == nil || t.bitfield == nil {
 		pe.Logger().Error("piece received but we don't have info")
-		t.bytesWasted.Add(int64(len(msg.Buffer.Data)))
+		t.bytesWasted.Add(l)
 		t.closePeer(pe)
 		msg.Buffer.Release()
 		return
 	}
 	if msg.Index >= uint32(len(t.pieces)) {
 		pe.Logger().Errorln("invalid piece index:", msg.Index)
-		t.bytesWasted.Add(int64(len(msg.Buffer.Data)))
+		t.bytesWasted.Add(l)
 		t.closePeer(pe)
 		msg.Buffer.Release()
 		return
 	}
-	t.downloadSpeed.Update(int64(len(msg.Buffer.Data)))
-	t.bytesDownloaded.Add(int64(len(msg.Buffer.Data)))
+	t.downloadSpeed.Update(l)
+	t.bytesDownloaded.Add(l)
+	t.session.speedDownload.Update(l)
 	pd, ok := t.pieceDownloaders[pe]
 	if !ok {
-		t.bytesWasted.Add(int64(len(msg.Buffer.Data)))
+		t.bytesWasted.Add(l)
 		msg.Buffer.Release()
 		return
 	}
 	if pd.Piece.Index != msg.Index {
-		t.bytesWasted.Add(int64(len(msg.Buffer.Data)))
+		t.bytesWasted.Add(l)
 		msg.Buffer.Release()
 		return
 	}
@@ -49,7 +51,7 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 	block, ok := piece.FindBlock(msg.Begin, uint32(len(msg.Buffer.Data)))
 	if !ok {
 		pe.Logger().Errorln("invalid piece index:", msg.Index, "begin:", msg.Begin, "length:", len(msg.Buffer.Data))
-		t.bytesWasted.Add(int64(len(msg.Buffer.Data)))
+		t.bytesWasted.Add(l)
 		t.closePeer(pe)
 		msg.Buffer.Release()
 		return
@@ -295,8 +297,10 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			t.session.dht.AddNode(fmt.Sprintf("%s:%d", pe.IP(), msg.Port))
 		}
 	case peerwriter.BlockUploaded:
-		t.uploadSpeed.Update(int64(msg.Length))
-		t.bytesUploaded.Add(int64(msg.Length))
+		l := int64(msg.Length)
+		t.uploadSpeed.Update(l)
+		t.bytesUploaded.Add(l)
+		t.session.speedUpload.Update(l)
 	case peerprotocol.ExtensionHandshakeMessage:
 		pe.Logger().Debugln("extension handshake received:", msg)
 		if pe.ExtensionHandshake != nil {

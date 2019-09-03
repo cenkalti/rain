@@ -72,7 +72,9 @@ type Session struct {
 	writeBytesPerSecond metrics.EWMA
 	semWrite            *semaphore.Semaphore
 
-	numPeers counter.Counter
+	numPeers      counter.Counter
+	speedDownload metrics.EWMA
+	speedUpload   metrics.EWMA
 }
 
 // NewSession creates a new Session for downloading and seeding torrents.
@@ -189,6 +191,8 @@ func NewSession(cfg Config) (*Session, error) {
 		writesPerSecond:     metrics.NewEWMA1(),
 		writeBytesPerSecond: metrics.NewEWMA1(),
 		semWrite:            semaphore.New(int(cfg.ParallelWrites)),
+		speedDownload:       metrics.NewEWMA1(),
+		speedUpload:         metrics.NewEWMA1(),
 	}
 	ext, err := bitfield.NewBytes(c.extensions[:], 64)
 	if err != nil {
