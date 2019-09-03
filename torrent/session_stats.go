@@ -27,6 +27,7 @@ type SessionStats struct {
 	WriteBytesPerSecond           int
 	WritesActive                  int
 	WritesPending                 int
+	Peers                         int
 }
 
 func (s *Session) Stats() SessionStats {
@@ -63,6 +64,7 @@ func (s *Session) Stats() SessionStats {
 		WriteBytesPerSecond:           int(s.writeBytesPerSecond.Rate()),
 		WritesActive:                  s.semWrite.Len(),
 		WritesPending:                 s.semWrite.Waiting(),
+		Peers:                         int(s.numPeers.Read()),
 	}
 }
 

@@ -65,6 +65,7 @@ type SessionStats struct {
 	WriteBytesPerSecond           int
 	WritesActive                  int
 	WritesPending                 int
+	Peers                         int
 }
 
 type Stats struct {

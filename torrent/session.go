@@ -16,6 +16,7 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/blocklist"
+	"github.com/cenkalti/rain/internal/counter"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/piececache"
 	"github.com/cenkalti/rain/internal/resolver"
@@ -70,6 +71,8 @@ type Session struct {
 	writesPerSecond     metrics.EWMA
 	writeBytesPerSecond metrics.EWMA
 	semWrite            *semaphore.Semaphore
+
+	numPeers counter.Counter
 }
 
 // NewSession creates a new Session for downloading and seeding torrents.
