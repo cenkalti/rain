@@ -34,7 +34,7 @@ func crash(torrentID string, msg string) {
 	f, err := ioutil.TempFile("", "rain-crash-dump-"+torrentID+"-*")
 	if err == nil {
 		msg += " Saving goroutine stacks to: " + f.Name()
-		b := make([]byte, 100*1024*1024)
+		b := make([]byte, 100*1<<20)
 		n := runtime.Stack(b, true)
 		b = b[:n]
 		_, _ = f.Write(b)

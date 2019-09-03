@@ -170,8 +170,8 @@ var DefaultConfig = Config{
 	BlocklistEnabledForOutgoingConnections: true,
 	BlocklistEnabledForIncomingConnections: true,
 	TorrentAddHTTPTimeout:                  30 * time.Second,
-	MaxMetadataSize:                        10 * 1024 * 1024,
-	MaxTorrentSize:                         10 * 1024 * 1024,
+	MaxMetadataSize:                        10 * 1 << 20,
+	MaxTorrentSize:                         10 * 1 << 20,
 	DNSResolveTimeout:                      5 * time.Second,
 
 	// RPC Server
@@ -186,7 +186,7 @@ var DefaultConfig = Config{
 	TrackerMinAnnounceInterval:  time.Minute,
 	TrackerHTTPTimeout:          10 * time.Second,
 	TrackerHTTPPrivateUserAgent: "Rain/" + Version,
-	TrackerHTTPMaxResponseSize:  2 * 1024 * 1024,
+	TrackerHTTPMaxResponseSize:  2 * 1 << 20,
 	TrackerHTTPVerifyTLS:        true,
 
 	// DHT node
@@ -213,7 +213,7 @@ var DefaultConfig = Config{
 	EndgameMaxDuplicateDownloads: 20,
 	MaxPeerDial:                  80,
 	MaxPeerAccept:                20,
-	MaxActivePieceBytes:          1024 * 1024 * 1024,
+	MaxActivePieceBytes:          1 << 30,
 	ParallelMetadataDownloads:    2,
 	PeerConnectTimeout:           5 * time.Second,
 	PeerHandshakeTimeout:         10 * time.Second,
@@ -221,8 +221,8 @@ var DefaultConfig = Config{
 	MaxPeerAddresses:             2000,
 
 	// Piece cache
-	PieceReadSize:  256 * 1024,
-	PieceCacheSize: 256 * 1024 * 1024,
+	PieceReadSize:  256 * 1 << 10,
+	PieceCacheSize: 256 * 1 << 20,
 	PieceCacheTTL:  5 * time.Minute,
 	ParallelReads:  1,
 	ParallelWrites: 1,
