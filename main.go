@@ -41,6 +41,10 @@ func main() {
 			Name:  "config, c",
 			Usage: "read config from `FILE`",
 		},
+		cli.BoolFlag{
+			Name:  "debug, d",
+			Usage: "enable debug log",
+		},
 		cli.StringFlag{
 			Name:   "cpuprofile",
 			Hidden: true,
@@ -60,10 +64,6 @@ func main() {
 			Name:   "pprof",
 			Hidden: true,
 			Usage:  "run pprof server on `ADDR`",
-		},
-		cli.BoolFlag{
-			Name:  "debug, d",
-			Usage: "enable debug log",
 		},
 	}
 	app.Before = handleBeforeCommand
