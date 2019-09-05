@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/boltdb/bolt"
-	"github.com/cenkalti/backoff"
+	"github.com/cenkalti/backoff/v3"
 )
 
 func (s *Session) startBlocklistReloader() error {

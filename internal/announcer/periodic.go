@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cenkalti/backoff"
+	"github.com/cenkalti/backoff/v3"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/resolver"
 	"github.com/cenkalti/rain/internal/tracker"

@@ -5,8 +5,8 @@ github.com/boltdb/bolt v1.3.1/go.mod h1:clJnj/oiGkjum5o1McbSZDSLxVThjynRyGBgiAx2
 github.com/br0xen/termbox-util v0.0.0-20170904143325-de1d4c83380e/go.mod h1:x9wJlgOj74OFTOBwXOuO8pBguW37EgYNx51Dbjkfzo4=
 github.com/br0xen/termbox-util v0.0.0-20190325151025-c168c0df31ca h1:UMJCb+zIdrTX68nP5byq1xjW72UIqMBNxcYPlPFhnOs=
 github.com/br0xen/termbox-util v0.0.0-20190325151025-c168c0df31ca/go.mod h1:x9wJlgOj74OFTOBwXOuO8pBguW37EgYNx51Dbjkfzo4=
-github.com/cenkalti/backoff v0.0.0-20180801153208-b7325b0f3f10 h1:ei5pfh5WYO0Lp+VLnexHjNsZObXre+j0uv9H0mLkSxo=
-github.com/cenkalti/backoff v0.0.0-20180801153208-b7325b0f3f10/go.mod h1:90ReRw6GdpyfrHakVjL/QHaoyV4aDUVVkXQJJJ3NXXM=
+github.com/cenkalti/backoff/v3 v3.0.0 h1:ske+9nBpD9qZsTBoF41nW5L+AIuFBKMeze18XQ3eG1c=
+github.com/cenkalti/backoff/v3 v3.0.0/go.mod h1:cIeZDE3IrqwwJl6VUwCN6trj1oXrTS4rc0ij+ULvLYs=
 github.com/cenkalti/boltbrowser v0.0.0-20190327195521-ebed13c76690 h1:cUjJIucCXCb0CWVYLvuYbUn4TID1NL+cqNboGRMekKk=
 github.com/cenkalti/boltbrowser v0.0.0-20190327195521-ebed13c76690/go.mod h1:TRC4W+aL8EZntkBiCvi7AGR0MH3JdBZUEx29Xm8cVoU=
 github.com/cenkalti/log v0.0.0-20180808170110-e1cf6d40cbc3 h1:nv2JM6LWP694ueOJwZ5OcSzKYK7JZ4v7sXrbTLW4+7A=

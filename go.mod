@@ -6,7 +6,7 @@ require (
 	github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973 // indirect
 	github.com/boltdb/bolt v1.3.1
 	github.com/br0xen/termbox-util v0.0.0-20190325151025-c168c0df31ca // indirect
-	github.com/cenkalti/backoff v0.0.0-20180801153208-b7325b0f3f10
+	github.com/cenkalti/backoff/v3 v3.0.0
 	github.com/cenkalti/boltbrowser v0.0.0-20190327195521-ebed13c76690
 	github.com/cenkalti/log v0.0.0-20180808170110-e1cf6d40cbc3
 	github.com/chihaya/chihaya v0.0.0-20190113170711-5f99a7e77885
