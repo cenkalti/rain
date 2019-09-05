@@ -37,10 +37,6 @@ func main() {
 	app.Version = torrent.Version
 	app.Usage = "BitTorrent client"
 	app.Flags = []cli.Flag{
-		cli.StringFlag{
-			Name:  "config, c",
-			Usage: "read config from `FILE`",
-		},
 		cli.BoolFlag{
 			Name:  "debug, d",
 			Usage: "enable debug log",
@@ -74,8 +70,8 @@ func main() {
 			Usage: "run rpc server and torrent client",
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:  "config",
-					Usage: "path to the config file",
+					Name:  "config, c",
+					Usage: "read config from `FILE`",
 					Value: "~/rain/config.yaml",
 				},
 			},
