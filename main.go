@@ -42,20 +42,24 @@ func main() {
 			Usage: "read config from `FILE`",
 		},
 		cli.StringFlag{
-			Name:  "cpuprofile",
-			Usage: "write cpu profile to `FILE`",
+			Name:   "cpuprofile",
+			Hidden: true,
+			Usage:  "write cpu profile to `FILE`",
 		},
 		cli.StringFlag{
-			Name:  "memprofile",
-			Usage: "write memory profile to `FILE`",
+			Name:   "memprofile",
+			Hidden: true,
+			Usage:  "write memory profile to `FILE`",
 		},
 		cli.IntFlag{
-			Name:  "blockprofile",
-			Usage: "enable blocking profiler",
+			Name:   "blockprofile",
+			Hidden: true,
+			Usage:  "enable blocking profiler",
 		},
 		cli.StringFlag{
-			Name:  "pprof",
-			Usage: "run pprof server on `ADDR`",
+			Name:   "pprof",
+			Hidden: true,
+			Usage:  "run pprof server on `ADDR`",
 		},
 		cli.BoolFlag{
 			Name:  "debug, d",
