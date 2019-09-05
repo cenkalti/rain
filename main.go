@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/boltdb/bolt"
 	"github.com/cenkalti/boltbrowser/boltbrowser"
@@ -126,6 +127,11 @@ func main() {
 					Name:   "session-stats",
 					Usage:  "get stats of session",
 					Action: handleSessionStats,
+					Flags: []cli.Flag{
+						cli.BoolFlag{
+							Name: "json",
+						},
+					},
 				},
 				{
 					Name:   "trackers",
@@ -381,16 +387,26 @@ func handleStats(c *cli.Context) error {
 }
 
 func handleSessionStats(c *cli.Context) error {
-	resp, err := clt.GetSessionStats()
+	s, err := clt.GetSessionStats()
 	if err != nil {
 		return err
 	}
-	b, err := prettyjson.Marshal(resp)
-	if err != nil {
-		return err
+	if c.Bool("json") {
+		b, err := prettyjson.Marshal(s)
+		if err != nil {
+			return err
+		}
+		_, _ = os.Stdout.Write(b)
+		_, _ = os.Stdout.WriteString("\n")
+		return nil
 	}
-	_, _ = os.Stdout.Write(b)
-	_, _ = os.Stdout.WriteString("\n")
+	fmt.Printf("Torrents: %d, Peers: %d, Uptime: %s\n", s.Torrents, s.Peers, time.Duration(s.Uptime)*time.Second)
+	fmt.Printf("BlocklistRules: %d, UpdatedAt: %s\n", s.BlockListRules, s.BlockListLastSuccessfulUpdate)
+	fmt.Printf("Reads: %d/s, %dKB/s, Active: %d, Pending: %d\n", s.ReadsPerSecond, s.SpeedRead, s.ReadsActive, s.ReadsPending)
+	fmt.Printf("Writes: %d/s, %dKB/s, Active: %d, Pending: %d\n", s.WritesPerSecond, s.SpeedWrite, s.WritesActive, s.WritesPending)
+	fmt.Printf("ReadCache Objects: %d, Size: %dMB, Utilization: %d%%\n", s.ReadCacheObjects, s.ReadCacheSize/(1<<20), s.ReadCacheUtilization)
+	fmt.Printf("WriteCache Objects: %d, Size: %dMB, PendingKeys: %d\n", s.WriteCacheObjects, s.WriteCacheSize/(1<<20), s.WriteCachePendingKeys)
+	fmt.Printf("DownloadSpeed: %dKB/s, UploadSpeed: %dKB/s\n", s.SpeedDownload, s.SpeedUpload)
 	return nil
 }
 
