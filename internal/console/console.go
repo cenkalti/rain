@@ -621,12 +621,7 @@ func (c *Console) triggerUpdateTorrents() {
 
 func flags(p rpctypes.Peer) string {
 	var sb strings.Builder
-	sb.Grow(7)
-	if p.Downloading {
-		sb.WriteString("A")
-	} else {
-		sb.WriteString(" ")
-	}
+	sb.Grow(6)
 	if p.ClientInterested {
 		if p.PeerChoking {
 			sb.WriteString("d")
