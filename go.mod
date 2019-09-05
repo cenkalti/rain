@@ -45,6 +45,5 @@ require (
 	github.com/zeebo/bencode v0.0.0-20180308174530-d522839ac797
 	golang.org/x/sync v0.0.0-20190227155943-e225da77a7e6 // indirect
 	golang.org/x/sys v0.0.0-20190830142957-1e83adbbebd0
-	golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7
 	gopkg.in/yaml.v2 v2.2.1
 )
