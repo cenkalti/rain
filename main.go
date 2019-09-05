@@ -65,10 +65,6 @@ func main() {
 			Name:  "debug, d",
 			Usage: "enable debug log",
 		},
-		cli.StringFlag{
-			Name:  "logfile",
-			Usage: "write log to `FILE`",
-		},
 	}
 	app.Before = handleBeforeCommand
 	app.After = handleAfterCommand
@@ -230,14 +226,6 @@ func handleBeforeCommand(c *cli.Context) error {
 		go func() {
 			log.Notice(http.ListenAndServe(pprofFlag, nil))
 		}()
-	}
-	logFile := c.GlobalString("logfile")
-	if logFile != "" {
-		f, err := os.Create(logFile)
-		if err != nil {
-			log.Fatal("could not create log file: ", err)
-		}
-		logger.SetHandler(clog.NewFileHandler(f))
 	}
 	blockProfile := c.GlobalInt("blockprofile")
 	if blockProfile != 0 {
