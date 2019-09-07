@@ -139,6 +139,11 @@ func main() {
 					Action: handleTrackers,
 				},
 				{
+					Name:   "webseeds",
+					Usage:  "get webseed sources of torrent",
+					Action: handleWebseeds,
+				},
+				{
 					Name:   "peers",
 					Usage:  "get peers of torrent",
 					Action: handlePeers,
@@ -413,6 +418,21 @@ func handleSessionStats(c *cli.Context) error {
 func handleTrackers(c *cli.Context) error {
 	id := c.Args().Get(0)
 	resp, err := clt.GetTorrentTrackers(id)
+	if err != nil {
+		return err
+	}
+	b, err := prettyjson.Marshal(resp)
+	if err != nil {
+		return err
+	}
+	_, _ = os.Stdout.Write(b)
+	_, _ = os.Stdout.WriteString("\n")
+	return nil
+}
+
+func handleWebseeds(c *cli.Context) error {
+	id := c.Args().Get(0)
+	resp, err := clt.GetTorrentWebseeds(id)
 	if err != nil {
 		return err
 	}
