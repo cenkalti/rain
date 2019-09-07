@@ -128,6 +128,7 @@ func (d *URLDownloader) Run(client *http.Client, pieces []piece.Piece, multifile
 	for _, job := range jobs {
 		ok := processJob(job)
 		if !ok {
+			buf.Release()
 			break
 		}
 	}
