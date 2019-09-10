@@ -8,6 +8,7 @@ import (
 	"github.com/cenkalti/rain/internal/peerset"
 	"github.com/cenkalti/rain/internal/piece"
 	"github.com/cenkalti/rain/internal/webseedsource"
+	"github.com/rcrowley/go-metrics"
 )
 
 /*
@@ -89,6 +90,7 @@ func New(pieces []piece.Piece, maxDuplicateDownload int, webseedSources []*webse
 
 func (p *PiecePicker) CloseWebseedDownloader(src *webseedsource.WebseedSource) {
 	src.DownloadSpeed.Stop()
+	src.DownloadSpeed = metrics.NilMeter{}
 	if src.Downloader == nil {
 		return
 	}

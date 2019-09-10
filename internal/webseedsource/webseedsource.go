@@ -21,7 +21,7 @@ func NewList(sources []string) []*WebseedSource {
 	for i := range sources {
 		l[i] = &WebseedSource{
 			URL:           sources[i],
-			DownloadSpeed: metrics.NewMeter(),
+			DownloadSpeed: metrics.NilMeter{},
 		}
 	}
 	return l

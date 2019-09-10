@@ -13,6 +13,7 @@ import (
 	"github.com/cenkalti/rain/internal/urldownloader"
 	"github.com/cenkalti/rain/internal/verifier"
 	"github.com/cenkalti/rain/internal/webseedsource"
+	"github.com/rcrowley/go-metrics"
 )
 
 func (t *torrent) start() {
@@ -31,6 +32,8 @@ func (t *torrent) start() {
 	t.errC = make(chan error, 1)
 	t.portC = make(chan int, 1)
 	t.lastError = nil
+	t.downloadSpeed = metrics.NewMeter()
+	t.uploadSpeed = metrics.NewMeter()
 
 	if t.info != nil {
 		if t.pieces != nil {
@@ -177,6 +180,7 @@ func (t *torrent) startWebseedDownloader(sp *piecepicker.WebseedDownloadSpec) {
 		src.Downloader = ud
 		src.Disabled = false
 		src.LastError = nil
+		src.DownloadSpeed = metrics.NewMeter()
 		break
 	}
 	go ud.Run(t.webseedClient, t.pieces, t.info.MultiFile(), t.webseedPieceResultC.SendC(), t.piecePool, t.session.config.WebseedResponseBodyReadTimeout)
