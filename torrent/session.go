@@ -16,7 +16,6 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/blocklist"
-	"github.com/cenkalti/rain/internal/counter"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/piececache"
 	"github.com/cenkalti/rain/internal/resolver"
@@ -28,7 +27,6 @@ import (
 	"github.com/cenkalti/rain/internal/trackermanager"
 	"github.com/mitchellh/go-homedir"
 	"github.com/nictuku/dht"
-	"github.com/rcrowley/go-metrics"
 )
 
 var (
@@ -52,6 +50,8 @@ type Session struct {
 	pieceCache     *piececache.Cache
 	webseedClient  http.Client
 	createdAt      time.Time
+	semWrite       *semaphore.Semaphore
+	metrics        *sessionMetrics
 	closeC         chan struct{}
 
 	mPeerRequests   sync.Mutex
@@ -67,14 +67,6 @@ type Session struct {
 	mBlocklist         sync.RWMutex
 	blocklist          *blocklist.Blocklist
 	blocklistTimestamp time.Time
-
-	writesPerSecond     metrics.EWMA
-	writeBytesPerSecond metrics.EWMA
-	semWrite            *semaphore.Semaphore
-
-	numPeers      counter.Counter
-	speedDownload metrics.EWMA
-	speedUpload   metrics.EWMA
 }
 
 // NewSession creates a new Session for downloading and seeding torrents.
@@ -169,6 +161,7 @@ func NewSession(cfg Config) (*Session, error) {
 		pieceCache:         piececache.New(cfg.ReadCacheSize, cfg.ReadCacheTTL, cfg.ParallelReads),
 		ram:                resourcemanager.New(cfg.WriteCacheSize),
 		createdAt:          time.Now(),
+		semWrite:           semaphore.New(int(cfg.ParallelWrites)),
 		closeC:             make(chan struct{}),
 		webseedClient: http.Client{
 			Transport: &http.Transport{
@@ -188,11 +181,10 @@ func NewSession(cfg Config) (*Session, error) {
 				ResponseHeaderTimeout: cfg.WebseedResponseHeaderTimeout,
 			},
 		},
-		writesPerSecond:     metrics.NewEWMA1(),
-		writeBytesPerSecond: metrics.NewEWMA1(),
-		semWrite:            semaphore.New(int(cfg.ParallelWrites)),
-		speedDownload:       metrics.NewEWMA1(),
-		speedUpload:         metrics.NewEWMA1(),
+	}
+	err = c.startBlocklistReloader()
+	if err != nil {
+		return nil, err
 	}
 	ext, err := bitfield.NewBytes(c.extensions[:], 64)
 	if err != nil {
@@ -202,12 +194,6 @@ func NewSession(cfg Config) (*Session, error) {
 	ext.Set(43) // Extension Protocol (BEP 10)
 	if cfg.DHTEnabled {
 		ext.Set(63) // DHT Protocol (BEP 5)
-	}
-	err = c.startBlocklistReloader()
-	if err != nil {
-		return nil, err
-	}
-	if cfg.DHTEnabled {
 		c.dhtPeerRequests = make(map[*torrent]struct{})
 	}
 	c.loadExistingTorrents(ids)
@@ -222,7 +208,7 @@ func NewSession(cfg Config) (*Session, error) {
 		go c.processDHTResults()
 	}
 	go c.updateStatsLoop()
-	go c.updateSessionStatsLoop()
+	c.initMetrics()
 	return c, nil
 }
 
@@ -283,6 +269,7 @@ func (s *Session) Close() error {
 
 	s.ram.Close()
 	s.pieceCache.Close()
+	s.metrics.Close()
 	return s.db.Close()
 }
 

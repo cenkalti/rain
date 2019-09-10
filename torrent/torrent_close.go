@@ -19,6 +19,9 @@ func (t *torrent) close() {
 	if t.stoppedEventAnnouncer != nil {
 		t.stoppedEventAnnouncer.Close()
 	}
+
+	t.downloadSpeed.Stop()
+	t.uploadSpeed.Stop()
 }
 
 func (t *torrent) closePeer(pe *peer.Peer) {
@@ -40,7 +43,7 @@ func (t *torrent) closePeer(pe *peer.Peer) {
 	t.unchoker.HandleDisconnect(pe)
 	t.pexDropPeer(pe.Addr())
 	t.dialAddresses()
-	t.session.numPeers.Add(-1)
+	t.session.metrics.Peers.Dec(1)
 }
 
 func (t *torrent) closeWebseedDownloader(src *webseedsource.WebseedSource) {

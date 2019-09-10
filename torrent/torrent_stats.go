@@ -132,14 +132,14 @@ func (t *torrent) stats() Stats {
 	s.Downloads.Choked = len(t.pieceDownloadersChoked)
 	s.Downloads.Running = len(t.pieceDownloaders) - len(t.pieceDownloadersChoked) - len(t.pieceDownloadersSnubbed)
 	s.Pieces.Available = t.avaliablePieceCount()
-	s.Bytes.Downloaded = t.bytesDownloaded.Read()
-	s.Bytes.Uploaded = t.bytesUploaded.Read()
-	s.Bytes.Wasted = t.bytesWasted.Read()
-	s.SeededFor = time.Duration(t.seededFor.Read())
+	s.Bytes.Downloaded = t.bytesDownloaded.Count()
+	s.Bytes.Uploaded = t.bytesUploaded.Count()
+	s.Bytes.Wasted = t.bytesWasted.Count()
+	s.SeededFor = time.Duration(t.seededFor.Count())
 	s.Bytes.Allocated = t.bytesAllocated
 	s.Pieces.Checked = t.checkedPieces
-	s.Speed.Download = uint(t.downloadSpeed.Rate())
-	s.Speed.Upload = uint(t.uploadSpeed.Rate())
+	s.Speed.Download = uint(t.downloadSpeed.Rate1())
+	s.Speed.Upload = uint(t.uploadSpeed.Rate1())
 
 	if t.info != nil {
 		s.Bytes.Total = t.info.TotalLength
@@ -270,7 +270,7 @@ func (t *torrent) getWebseeds() []Webseed {
 		ws := Webseed{
 			URL:           src.URL,
 			Error:         src.LastError,
-			DownloadSpeed: src.DownloadSpeed(),
+			DownloadSpeed: uint(src.DownloadSpeed.Rate1()),
 		}
 		webseeds = append(webseeds, ws)
 	}
@@ -286,6 +286,6 @@ func (t *torrent) updateSeedDuration(now time.Time) {
 		t.seedDurationUpdatedAt = now
 		return
 	}
-	t.seededFor.Add(int64(now.Sub(t.seedDurationUpdatedAt)))
+	t.seededFor.Inc(int64(now.Sub(t.seedDurationUpdatedAt)))
 	t.seedDurationUpdatedAt = now
 }

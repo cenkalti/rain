@@ -152,6 +152,13 @@ type Config struct {
 	WebseedRetryInterval time.Duration
 	// Verify TLS certificate for WebSeed URLs
 	WebseedVerifyTLS bool
+
+	// Send metrics to graphite server
+	GraphiteAddr string
+	// Graphite flush interval
+	GraphiteFlushInterval time.Duration
+	// Prefix metric names
+	GraphitePrefix string
 }
 
 var DefaultConfig = Config{
@@ -234,4 +241,8 @@ var DefaultConfig = Config{
 	WebseedResponseBodyReadTimeout: 10 * time.Second,
 	WebseedRetryInterval:           time.Minute,
 	WebseedVerifyTLS:               true,
+
+	// Metrics
+	GraphiteFlushInterval: time.Minute,
+	GraphitePrefix:        "metrics",
 }

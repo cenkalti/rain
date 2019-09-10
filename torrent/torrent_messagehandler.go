@@ -21,29 +21,29 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 	l := int64(len(msg.Buffer.Data))
 	if t.pieces == nil || t.bitfield == nil {
 		pe.Logger().Error("piece received but we don't have info")
-		t.bytesWasted.Add(l)
+		t.bytesWasted.Inc(l)
 		t.closePeer(pe)
 		msg.Buffer.Release()
 		return
 	}
 	if msg.Index >= uint32(len(t.pieces)) {
 		pe.Logger().Errorln("invalid piece index:", msg.Index)
-		t.bytesWasted.Add(l)
+		t.bytesWasted.Inc(l)
 		t.closePeer(pe)
 		msg.Buffer.Release()
 		return
 	}
-	t.downloadSpeed.Update(l)
-	t.bytesDownloaded.Add(l)
-	t.session.speedDownload.Update(l)
+	t.downloadSpeed.Mark(l)
+	t.bytesDownloaded.Inc(l)
+	t.session.metrics.SpeedDownload.Mark(l)
 	pd, ok := t.pieceDownloaders[pe]
 	if !ok {
-		t.bytesWasted.Add(l)
+		t.bytesWasted.Inc(l)
 		msg.Buffer.Release()
 		return
 	}
 	if pd.Piece.Index != msg.Index {
-		t.bytesWasted.Add(l)
+		t.bytesWasted.Inc(l)
 		msg.Buffer.Release()
 		return
 	}
@@ -51,7 +51,7 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 	block, ok := piece.FindBlock(msg.Begin, uint32(len(msg.Buffer.Data)))
 	if !ok {
 		pe.Logger().Errorln("invalid piece index:", msg.Index, "begin:", msg.Begin, "length:", len(msg.Buffer.Data))
-		t.bytesWasted.Add(l)
+		t.bytesWasted.Inc(l)
 		t.closePeer(pe)
 		msg.Buffer.Release()
 		return
@@ -108,7 +108,7 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 	t.webseedPieceResultC.Suspend()
 
 	pw := piecewriter.New(piece, pe, pd.Buffer)
-	go pw.Run(t.pieceWriterResultC, t.doneC, t.session.writesPerSecond, t.session.writeBytesPerSecond, t.session.semWrite)
+	go pw.Run(t.pieceWriterResultC, t.doneC, t.session.metrics.WritesPerSecond, t.session.metrics.SpeedWrite, t.session.semWrite)
 }
 
 func (t *torrent) handlePeerMessage(pm peer.Message) {
@@ -241,11 +241,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 				pe.SendMessage(m)
 			}
 		} else {
-			if t.session.pieceCache != nil {
-				pe.SendPiece(msg, cachedpiece.New(pi, t.session.pieceCache, t.session.config.ReadCacheBlockSize, t.peerID))
-			} else {
-				pe.SendPiece(msg, pi.Data)
-			}
+			pe.SendPiece(msg, cachedpiece.New(pi, t.session.pieceCache, t.session.config.ReadCacheBlockSize, t.peerID))
 		}
 	case peerprotocol.RejectMessage:
 		if t.pieces == nil || t.bitfield == nil {
@@ -298,9 +294,9 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 		}
 	case peerwriter.BlockUploaded:
 		l := int64(msg.Length)
-		t.uploadSpeed.Update(l)
-		t.bytesUploaded.Add(l)
-		t.session.speedUpload.Update(l)
+		t.uploadSpeed.Mark(l)
+		t.bytesUploaded.Inc(l)
+		t.session.metrics.SpeedUpload.Mark(l)
 	case peerprotocol.ExtensionHandshakeMessage:
 		pe.Logger().Debugln("extension handshake received:", msg)
 		if pe.ExtensionHandshake != nil {

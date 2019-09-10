@@ -26,11 +26,11 @@ func New(p *piece.Piece, source interface{}, buf bufferpool.Buffer) *PieceWriter
 	}
 }
 
-func (w *PieceWriter) Run(resultC chan *PieceWriter, closeC chan struct{}, writesPerSecond, writeBytesPerSecond metrics.EWMA, sem *semaphore.Semaphore) {
+func (w *PieceWriter) Run(resultC chan *PieceWriter, closeC chan struct{}, writesPerSecond, writeBytesPerSecond metrics.Meter, sem *semaphore.Semaphore) {
 	w.HashOK = w.Piece.VerifyHash(w.Buffer.Data, sha1.New()) // nolint: gosec
 	if w.HashOK {
-		writesPerSecond.Update(1)
-		writeBytesPerSecond.Update(int64(len(w.Buffer.Data)))
+		writesPerSecond.Mark(1)
+		writeBytesPerSecond.Mark(int64(len(w.Buffer.Data)))
 		sem.Wait()
 		_, w.Error = w.Piece.Data.Write(w.Buffer.Data)
 		sem.Signal()

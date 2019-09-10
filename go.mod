@@ -10,6 +10,7 @@ require (
 	github.com/cenkalti/boltbrowser v0.0.0-20190327195521-ebed13c76690
 	github.com/cenkalti/log v0.0.0-20180808170110-e1cf6d40cbc3
 	github.com/chihaya/chihaya v0.0.0-20190113170711-5f99a7e77885
+	github.com/cyberdelia/go-metrics-graphite v0.0.0-20161219230853-39f87cc3b432
 	github.com/fatih/color v1.7.0 // indirect
 	github.com/fatih/structs v1.1.0
 	github.com/fortytw2/leaktest v1.3.0
@@ -47,3 +48,5 @@ require (
 	golang.org/x/sys v0.0.0-20190830142957-1e83adbbebd0
 	gopkg.in/yaml.v2 v2.2.1
 )
+
+replace github.com/rcrowley/go-metrics => github.com/cenkalti/go-metrics v0.0.0-20190910102919-35c391953d1c

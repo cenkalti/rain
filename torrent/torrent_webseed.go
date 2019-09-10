@@ -22,13 +22,13 @@ func (t *torrent) handleWebseedPieceResult(msg *urldownloader.PieceResult) {
 	piece := &t.pieces[msg.Index]
 	t.log.Debugf("piece #%d downloaded from %s", msg.Index, msg.Downloader.URL)
 
-	t.bytesDownloaded.Add(int64(len(msg.Buffer.Data)))
-	t.downloadSpeed.Update(int64(len(msg.Buffer.Data)))
+	t.bytesDownloaded.Inc(int64(len(msg.Buffer.Data)))
+	t.downloadSpeed.Mark(int64(len(msg.Buffer.Data)))
 	for _, src := range t.webseedSources {
 		if src.URL != msg.Downloader.URL {
 			continue
 		}
-		src.UpdateSpeed(len(msg.Buffer.Data))
+		src.DownloadSpeed.Mark(int64(len(msg.Buffer.Data)))
 		break
 	}
 
@@ -42,7 +42,7 @@ func (t *torrent) handleWebseedPieceResult(msg *urldownloader.PieceResult) {
 	t.webseedPieceResultC.Suspend()
 
 	pw := piecewriter.New(piece, msg.Downloader, msg.Buffer)
-	go pw.Run(t.pieceWriterResultC, t.doneC, t.session.writesPerSecond, t.session.writeBytesPerSecond, t.session.semWrite)
+	go pw.Run(t.pieceWriterResultC, t.doneC, t.session.metrics.WritesPerSecond, t.session.metrics.SpeedWrite, t.session.semWrite)
 
 	if msg.Done {
 		for _, src := range t.webseedSources {

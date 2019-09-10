@@ -73,33 +73,35 @@ func (h *rpcHandler) RemoveTorrent(args *rpctypes.RemoveTorrentRequest, reply *r
 
 func (h *rpcHandler) GetSessionStats(args *rpctypes.GetSessionStatsRequest, reply *rpctypes.GetSessionStatsResponse) error {
 	s := h.session.Stats()
-	var blocklistUpdatedAt *rpctypes.Time
-	if !s.BlockListLastSuccessfulUpdate.IsZero() {
-		blocklistUpdatedAt = &rpctypes.Time{Time: s.BlockListLastSuccessfulUpdate}
-	}
 	reply.Stats = rpctypes.SessionStats{
-		Torrents:                      s.Torrents,
-		PortsAvailable:                s.PortsAvailable,
-		BlockListRules:                s.BlockListRules,
-		BlockListLastSuccessfulUpdate: blocklistUpdatedAt,
-		ReadCacheObjects:              s.ReadCacheObjects,
-		ReadCacheSize:                 s.ReadCacheSize,
-		ReadCacheUtilization:          s.ReadCacheUtilization,
-		ReadsPerSecond:                s.ReadsPerSecond,
-		ReadsActive:                   s.ReadsActive,
-		ReadsPending:                  s.ReadsPending,
-		SpeedRead:                     s.SpeedRead,
-		WriteCacheObjects:             s.WriteCacheObjects,
-		WriteCacheSize:                s.WriteCacheSize,
-		WriteCachePendingKeys:         s.WriteCachePendingKeys,
-		Uptime:                        int(s.Uptime / time.Second),
-		WritesPerSecond:               s.WritesPerSecond,
-		SpeedWrite:                    s.SpeedWrite,
-		WritesActive:                  s.WritesActive,
-		WritesPending:                 s.WritesPending,
-		Peers:                         s.Peers,
-		SpeedDownload:                 s.SpeedDownload,
-		SpeedUpload:                   s.SpeedUpload,
+		Uptime:         int(s.Uptime / time.Second),
+		Torrents:       s.Torrents,
+		Peers:          s.Peers,
+		PortsAvailable: s.PortsAvailable,
+
+		BlockListRules:   s.BlockListRules,
+		BlockListRecency: int(s.BlockListRecency / time.Second),
+
+		ReadCacheObjects:     s.ReadCacheObjects,
+		ReadCacheSize:        s.ReadCacheSize,
+		ReadCacheUtilization: s.ReadCacheUtilization,
+
+		ReadsPerSecond: s.ReadsPerSecond,
+		ReadsActive:    s.ReadsActive,
+		ReadsPending:   s.ReadsPending,
+
+		WriteCacheObjects:     s.WriteCacheObjects,
+		WriteCacheSize:        s.WriteCacheSize,
+		WriteCachePendingKeys: s.WriteCachePendingKeys,
+
+		WritesPerSecond: s.WritesPerSecond,
+		WritesActive:    s.WritesActive,
+		WritesPending:   s.WritesPending,
+
+		SpeedDownload: s.SpeedDownload,
+		SpeedUpload:   s.SpeedUpload,
+		SpeedRead:     s.SpeedRead,
+		SpeedWrite:    s.SpeedWrite,
 	}
 	return nil
 }

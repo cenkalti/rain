@@ -17,10 +17,10 @@ type Cache struct {
 	m             sync.RWMutex
 	sem           *semaphore.Semaphore
 
-	numCached   metrics.EWMA
-	numTotal    metrics.EWMA
-	numLoad     metrics.EWMA
-	loadedBytes metrics.EWMA
+	NumCached      metrics.Meter
+	NumTotal       metrics.Meter
+	NumLoad        metrics.Meter
+	NumLoadedBytes metrics.Meter
 
 	closeC chan struct{}
 }
@@ -28,39 +28,25 @@ type Cache struct {
 type Loader func() ([]byte, error)
 
 func New(maxSize int64, ttl time.Duration, parallelReads uint) *Cache {
-	c := &Cache{
-		maxSize:     maxSize,
-		ttl:         ttl,
-		items:       make(map[string]*item),
-		sem:         semaphore.New(int(parallelReads)),
-		numCached:   metrics.NewEWMA1(),
-		numTotal:    metrics.NewEWMA1(),
-		numLoad:     metrics.NewEWMA1(),
-		loadedBytes: metrics.NewEWMA1(),
-		closeC:      make(chan struct{}),
-	}
-	go c.tick()
-	return c
-}
-
-func (c *Cache) tick() {
-	t := time.NewTicker(5 * time.Second)
-	defer t.Stop()
-	for {
-		select {
-		case <-t.C:
-			c.numCached.Tick()
-			c.numTotal.Tick()
-			c.numLoad.Tick()
-			c.loadedBytes.Tick()
-		case <-c.closeC:
-			return
-		}
+	return &Cache{
+		maxSize:        maxSize,
+		ttl:            ttl,
+		items:          make(map[string]*item),
+		sem:            semaphore.New(int(parallelReads)),
+		NumCached:      metrics.NewMeter(),
+		NumTotal:       metrics.NewMeter(),
+		NumLoad:        metrics.NewMeter(),
+		NumLoadedBytes: metrics.NewMeter(),
+		closeC:         make(chan struct{}),
 	}
 }
 
 func (c *Cache) Close() {
 	close(c.closeC)
+	c.NumCached.Stop()
+	c.NumTotal.Stop()
+	c.NumLoad.Stop()
+	c.NumLoadedBytes.Stop()
 }
 
 func (c *Cache) Clear() {
@@ -80,14 +66,6 @@ func (c *Cache) Len() int {
 	return len(c.items)
 }
 
-func (c *Cache) LoadsPerSecond() int {
-	return int(c.numLoad.Rate())
-}
-
-func (c *Cache) LoadedBytesPerSecond() int {
-	return int(c.loadedBytes.Rate())
-}
-
 func (c *Cache) LoadsActive() int {
 	return (c.sem.Len())
 }
@@ -103,11 +81,11 @@ func (c *Cache) Size() int64 {
 }
 
 func (c *Cache) Utilization() int {
-	total := c.numTotal.Rate()
+	total := c.NumTotal.Rate1()
 	if total == 0 {
 		return 0
 	}
-	return int((100 * c.numCached.Rate()) / total)
+	return int((100 * c.NumCached.Rate1()) / total)
 }
 
 func (c *Cache) Get(key string, loader Loader) ([]byte, error) {
@@ -119,11 +97,11 @@ func (c *Cache) getItem(key string) *item {
 	c.m.Lock()
 	defer c.m.Unlock()
 
-	c.numTotal.Update(1)
+	c.NumTotal.Mark(1)
 
 	i, ok := c.items[key]
 	if ok {
-		c.numCached.Update(1)
+		c.NumCached.Mark(1)
 	} else {
 		i = &item{key: key}
 		c.items[key] = i
@@ -147,8 +125,8 @@ func (c *Cache) getValue(i *item, loader Loader) ([]byte, error) {
 	i.value, i.err = loader()
 	c.sem.Signal()
 	i.loaded = true
-	c.numLoad.Update(1)
-	c.loadedBytes.Update(int64(len(i.value)))
+	c.NumLoad.Mark(1)
+	c.NumLoadedBytes.Mark(int64(len(i.value)))
 
 	return c.handleNewItem(i)
 }

@@ -21,8 +21,8 @@ func (t *torrent) announcerFields() tracker.Torrent {
 		InfoHash:        t.infoHash,
 		PeerID:          t.peerID,
 		Port:            t.port,
-		BytesDownloaded: t.bytesDownloaded.Read(),
-		BytesUploaded:   t.bytesUploaded.Read(),
+		BytesDownloaded: t.bytesDownloaded.Count(),
+		BytesUploaded:   t.bytesUploaded.Count(),
 	}
 	t.mBitfield.RLock()
 	if t.bitfield == nil {

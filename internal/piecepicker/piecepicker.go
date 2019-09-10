@@ -88,6 +88,7 @@ func New(pieces []piece.Piece, maxDuplicateDownload int, webseedSources []*webse
 }
 
 func (p *PiecePicker) CloseWebseedDownloader(src *webseedsource.WebseedSource) {
+	src.DownloadSpeed.Stop()
 	if src.Downloader == nil {
 		return
 	}
@@ -99,7 +100,6 @@ func (p *PiecePicker) CloseWebseedDownloader(src *webseedsource.WebseedSource) {
 	}
 	src.Downloader.Close()
 	src.Downloader = nil
-	src.ResetSpeed()
 }
 
 func (p *PiecePicker) WebseedStopAt(src *webseedsource.WebseedSource, i uint32) (closed bool) {

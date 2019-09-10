@@ -15,7 +15,6 @@ import (
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/blocklist"
 	"github.com/cenkalti/rain/internal/bufferpool"
-	"github.com/cenkalti/rain/internal/counter"
 	"github.com/cenkalti/rain/internal/externalip"
 	"github.com/cenkalti/rain/internal/handshaker/incominghandshaker"
 	"github.com/cenkalti/rain/internal/handshaker/outgoinghandshaker"
@@ -202,10 +201,13 @@ type torrent struct {
 	verifierResultC   chan *verifier.Verifier
 	checkedPieces     uint32
 
-	bytesDownloaded counter.Counter
-	bytesUploaded   counter.Counter
-	bytesWasted     counter.Counter
-	seededFor       counter.Counter
+	// Metrics
+	downloadSpeed   metrics.Meter
+	uploadSpeed     metrics.Meter
+	bytesDownloaded metrics.Counter
+	bytesUploaded   metrics.Counter
+	bytesWasted     metrics.Counter
+	seededFor       metrics.Counter
 
 	seedDurationUpdatedAt time.Time
 	seedDurationTicker    *time.Ticker
@@ -226,11 +228,6 @@ type torrent struct {
 	// Initialized with value found in network interfaces.
 	// Then, updated from "yourip" field in BEP 10 extension handshake message.
 	externalIP net.IP
-
-	// Rate counters for download and upload speeds.
-	downloadSpeed      metrics.EWMA
-	uploadSpeed        metrics.EWMA
-	speedCounterTicker *time.Ticker
 
 	ramNotifyC chan interface{}
 
@@ -323,13 +320,13 @@ func newTorrent2(
 		bannedPeerIPs:             make(map[string]struct{}),
 		announcersStoppedC:        make(chan struct{}),
 		dhtPeersC:                 make(chan []*net.TCPAddr, 1),
-		bytesDownloaded:           counter.Counter(stats.BytesDownloaded),
-		bytesUploaded:             counter.Counter(stats.BytesUploaded),
-		bytesWasted:               counter.Counter(stats.BytesWasted),
-		seededFor:                 counter.Counter(stats.SeededFor),
 		externalIP:                externalip.FirstExternalIP(),
-		downloadSpeed:             metrics.NewEWMA1(),
-		uploadSpeed:               metrics.NewEWMA1(),
+		downloadSpeed:             metrics.NewMeter(),
+		uploadSpeed:               metrics.NewMeter(),
+		bytesDownloaded:           metrics.NewCounter(),
+		bytesUploaded:             metrics.NewCounter(),
+		bytesWasted:               metrics.NewCounter(),
+		seededFor:                 metrics.NewCounter(),
 		ramNotifyC:                make(chan interface{}),
 		webseedClient:             &s.webseedClient,
 		webseedSources:            ws,
@@ -337,6 +334,10 @@ func newTorrent2(
 		webseedRetryC:             make(chan *webseedsource.WebseedSource),
 		doneC:                     make(chan struct{}),
 	}
+	t.bytesDownloaded.Inc(stats.BytesDownloaded)
+	t.bytesUploaded.Inc(stats.BytesUploaded)
+	t.bytesWasted.Inc(stats.BytesWasted)
+	t.seededFor.Inc(stats.SeededFor)
 	var blocklistForOutgoingConns *blocklist.Blocklist
 	if cfg.BlocklistEnabledForOutgoingConnections {
 		blocklistForOutgoingConns = s.blocklist

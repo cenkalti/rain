@@ -13,7 +13,7 @@ type WebseedSource struct {
 	Downloader    *urldownloader.URLDownloader
 	LastError     error
 	DisabledAt    time.Time
-	downloadSpeed metrics.EWMA
+	DownloadSpeed metrics.Meter
 }
 
 func NewList(sources []string) []*WebseedSource {
@@ -21,7 +21,7 @@ func NewList(sources []string) []*WebseedSource {
 	for i := range sources {
 		l[i] = &WebseedSource{
 			URL:           sources[i],
-			downloadSpeed: metrics.NewEWMA1(),
+			DownloadSpeed: metrics.NewMeter(),
 		}
 	}
 	return l
@@ -38,20 +38,4 @@ func (s *WebseedSource) Remaining() uint32 {
 		return 0
 	}
 	return s.Downloader.End - s.Downloader.ReadCurrent() - 1
-}
-
-func (s *WebseedSource) DownloadSpeed() uint {
-	return uint(s.downloadSpeed.Rate())
-}
-
-func (s *WebseedSource) TickSpeed() {
-	s.downloadSpeed.Tick()
-}
-
-func (s *WebseedSource) UpdateSpeed(length int) {
-	s.downloadSpeed.Update(int64(length))
-}
-
-func (s *WebseedSource) ResetSpeed() {
-	s.downloadSpeed = metrics.NewEWMA1()
 }

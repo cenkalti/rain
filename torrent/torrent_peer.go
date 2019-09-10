@@ -147,7 +147,7 @@ func (t *torrent) startPeer(
 		pe.Bitfield = bitfield.New(t.info.NumPieces)
 	}
 	go pe.Run(t.messages, t.pieceMessagesC.SendC(), t.peerSnubbedC, t.peerDisconnectedC)
-	t.session.numPeers.Add(1)
+	t.session.metrics.Peers.Inc(1)
 	t.sendFirstMessage(pe)
 }
 

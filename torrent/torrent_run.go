@@ -13,9 +13,6 @@ func (t *torrent) run() {
 	t.seedDurationTicker = time.NewTicker(time.Second)
 	defer t.seedDurationTicker.Stop()
 
-	t.speedCounterTicker = time.NewTicker(5 * time.Second)
-	defer t.speedCounterTicker.Stop()
-
 	t.unchokeTicker = time.NewTicker(10 * time.Second)
 	defer t.unchokeTicker.Stop()
 
@@ -75,8 +72,6 @@ func (t *torrent) run() {
 			t.handlePieceWriteDone(pw)
 		case now := <-t.seedDurationTicker.C:
 			t.updateSeedDuration(now)
-		case <-t.speedCounterTicker.C:
-			t.handleSpeedTicker()
 		case pe := <-t.peerSnubbedC:
 			t.handlePeerSnubbed(pe)
 		case <-t.unchokeTicker.C:

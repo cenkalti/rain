@@ -101,8 +101,10 @@ func (t *torrent) stopWebseedDownloads() {
 }
 
 func (t *torrent) resetSpeeds() {
-	t.downloadSpeed = metrics.NewEWMA1()
-	t.uploadSpeed = metrics.NewEWMA1()
+	t.downloadSpeed.Stop()
+	t.downloadSpeed = metrics.NewMeter()
+	t.uploadSpeed.Stop()
+	t.uploadSpeed = metrics.NewMeter()
 }
 
 func (t *torrent) stopOutgoingHandshakers() {
