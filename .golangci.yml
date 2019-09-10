@@ -8,6 +8,7 @@ linters:
     - gocyclo
     - nakedret
     - dupl
+    - funlen
 issues:
   exclude-rules:
     - path: _test\.go
