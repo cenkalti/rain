@@ -98,10 +98,10 @@ func (h *rpcHandler) GetSessionStats(args *rpctypes.GetSessionStatsRequest, repl
 		WritesActive:    s.WritesActive,
 		WritesPending:   s.WritesPending,
 
-		SpeedDownload: s.SpeedDownload,
-		SpeedUpload:   s.SpeedUpload,
-		SpeedRead:     s.SpeedRead,
-		SpeedWrite:    s.SpeedWrite,
+		SpeedDownload: int(s.SpeedDownload),
+		SpeedUpload:   int(s.SpeedUpload),
+		SpeedRead:     int(s.SpeedRead),
+		SpeedWrite:    int(s.SpeedWrite),
 	}
 	return nil
 }
@@ -198,8 +198,8 @@ func (h *rpcHandler) GetTorrentStats(args *rpctypes.GetTorrentStatsRequest, repl
 		PieceLength: s.PieceLength,
 		SeededFor:   uint(s.SeededFor / time.Second),
 		Speed: struct {
-			Download uint
-			Upload   uint
+			Download int
+			Upload   int
 		}{
 			Download: s.Speed.Download,
 			Upload:   s.Speed.Upload,

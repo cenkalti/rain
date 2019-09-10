@@ -65,10 +65,10 @@ func (s *Session) Stats() SessionStats {
 		WritesActive:    int(s.metrics.WritesActive.Value()),
 		WritesPending:   int(s.metrics.WritesPending.Value()),
 
-		SpeedDownload: int(s.metrics.SpeedDownload.Rate1()) / 1024,
-		SpeedUpload:   int(s.metrics.SpeedUpload.Rate1()) / 1024,
-		SpeedRead:     int(s.metrics.SpeedRead.Rate1()) / 1024,
-		SpeedWrite:    int(s.metrics.SpeedWrite.Rate1()) / 1024,
+		SpeedDownload: int(s.metrics.SpeedDownload.Rate1()),
+		SpeedUpload:   int(s.metrics.SpeedUpload.Rate1()),
+		SpeedRead:     int(s.metrics.SpeedRead.Rate1()),
+		SpeedWrite:    int(s.metrics.SpeedWrite.Rate1()),
 	}
 }
 

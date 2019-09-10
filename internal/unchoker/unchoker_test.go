@@ -147,8 +147,8 @@ type TestPeer struct {
 	interested    bool
 	choking       bool
 	optimistic    bool
-	downloadSpeed uint
-	uploadSpeed   uint
+	downloadSpeed int
+	uploadSpeed   int
 }
 
 func (p *TestPeer) Choke()                   { p.choking = true }
@@ -157,5 +157,5 @@ func (p *TestPeer) Choking() bool            { return p.choking }
 func (p *TestPeer) Interested() bool         { return p.interested }
 func (p *TestPeer) Optimistic() bool         { return p.optimistic }
 func (p *TestPeer) SetOptimistic(value bool) { p.optimistic = value }
-func (p *TestPeer) DownloadSpeed() uint      { return p.downloadSpeed }
-func (p *TestPeer) UploadSpeed() uint        { return p.uploadSpeed }
+func (p *TestPeer) DownloadSpeed() int       { return p.downloadSpeed }
+func (p *TestPeer) UploadSpeed() int         { return p.uploadSpeed }

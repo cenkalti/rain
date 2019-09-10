@@ -200,8 +200,8 @@ type Peer struct {
 	Snubbed            bool
 	EncryptedHandshake bool
 	EncryptedStream    bool
-	DownloadSpeed      uint
-	UploadSpeed        uint
+	DownloadSpeed      int
+	UploadSpeed        int
 }
 
 type PeerSource int
@@ -235,7 +235,7 @@ func (t *torrent) Peers() []Peer {
 type Webseed struct {
 	URL           string
 	Error         error
-	DownloadSpeed uint
+	DownloadSpeed int
 }
 
 type webseedsRequest struct {

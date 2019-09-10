@@ -23,14 +23,14 @@ type Peer struct {
 	Snubbed            bool
 	EncryptedHandshake bool
 	EncryptedStream    bool
-	DownloadSpeed      uint
-	UploadSpeed        uint
+	DownloadSpeed      int
+	UploadSpeed        int
 }
 
 type Webseed struct {
 	URL           string
 	Error         *string
-	DownloadSpeed uint
+	DownloadSpeed int
 }
 
 type Tracker struct {
@@ -128,8 +128,8 @@ type Stats struct {
 	PieceLength uint32
 	SeededFor   uint
 	Speed       struct {
-		Download uint
-		Upload   uint
+		Download int
+		Upload   int
 	}
 	ETA *uint
 }

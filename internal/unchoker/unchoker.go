@@ -32,8 +32,8 @@ type Peer interface {
 	// OptimisticUnchoked returns the value previously set by SetOptimistic
 	Optimistic() bool
 
-	DownloadSpeed() uint
-	UploadSpeed() uint
+	DownloadSpeed() int
+	UploadSpeed() int
 }
 
 func New(numUnchoked, numOptimisticUnchoked int) *Unchoker {

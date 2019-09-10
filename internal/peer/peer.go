@@ -182,12 +182,12 @@ func (p *Peer) StopSnubTimer() {
 	p.snubTimer.Stop()
 }
 
-func (p *Peer) DownloadSpeed() uint {
-	return uint(p.downloadSpeed.Rate1())
+func (p *Peer) DownloadSpeed() int {
+	return int(p.downloadSpeed.Rate1())
 }
 
-func (p *Peer) UploadSpeed() uint {
-	return uint(p.uploadSpeed.Rate1())
+func (p *Peer) UploadSpeed() int {
+	return int(p.uploadSpeed.Rate1())
 }
 
 func (p *Peer) Choke() {
