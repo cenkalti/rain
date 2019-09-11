@@ -123,7 +123,7 @@ func (m *sessionMetrics) flush() error {
 		Registry:      m.registry,
 		FlushInterval: m.session.config.GraphiteFlushInterval,
 		DurationUnit:  time.Nanosecond,
-		Prefix:        strings.Replace(m.session.config.GraphitePrefix, "{hostname}", m.hostname, 1),
+		Prefix:        strings.Replace(m.session.config.GraphitePrefix, "{hostname}", strings.Replace(m.hostname, ".", "_", -1), 1),
 		Percentiles:   []float64{0.5, 0.75, 0.95, 0.99, 0.999},
 	}
 	return graphite.Once(cfg)
