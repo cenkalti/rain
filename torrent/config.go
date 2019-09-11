@@ -244,5 +244,5 @@ var DefaultConfig = Config{
 
 	// Metrics
 	GraphiteFlushInterval: time.Minute,
-	GraphitePrefix:        "rain",
+	GraphitePrefix:        "rain.{hostname}",
 }

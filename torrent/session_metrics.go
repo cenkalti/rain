@@ -2,6 +2,8 @@ package torrent
 
 import (
 	"net"
+	"os"
+	"strings"
 	"time"
 
 	graphite "github.com/cyberdelia/go-metrics-graphite"
@@ -12,6 +14,7 @@ type sessionMetrics struct {
 	session  *Session
 	registry metrics.Registry
 	ticker   *time.Ticker
+	hostname string
 
 	Torrents              metrics.Gauge
 	Peers                 metrics.Counter
@@ -37,7 +40,7 @@ type sessionMetrics struct {
 	SpeedWrite            metrics.Meter
 }
 
-func (s *Session) initMetrics() {
+func (s *Session) initMetrics() error {
 	r := metrics.NewRegistry()
 	s.metrics = &sessionMetrics{
 		session:  s,
@@ -90,9 +93,15 @@ func (s *Session) initMetrics() {
 	_ = r.Register("speed_read", s.metrics.SpeedRead)
 	_ = r.Register("reads_per_seconds", s.metrics.ReadsPerSecond)
 	if s.config.GraphiteAddr != "" {
+		var err error
+		s.metrics.hostname, err = os.Hostname()
+		if err != nil {
+			return err
+		}
 		s.metrics.ticker = time.NewTicker(s.config.GraphiteFlushInterval)
 		go s.metrics.run()
 	}
+	return nil
 }
 
 func (m *sessionMetrics) run() {
@@ -114,7 +123,7 @@ func (m *sessionMetrics) flush() error {
 		Registry:      m.registry,
 		FlushInterval: m.session.config.GraphiteFlushInterval,
 		DurationUnit:  time.Nanosecond,
-		Prefix:        m.session.config.GraphitePrefix,
+		Prefix:        strings.Replace(m.session.config.GraphitePrefix, "{hostname}", m.hostname, 1),
 		Percentiles:   []float64{0.5, 0.75, 0.95, 0.99, 0.999},
 	}
 	return graphite.Once(cfg)

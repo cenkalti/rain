@@ -208,7 +208,10 @@ func NewSession(cfg Config) (*Session, error) {
 		go c.processDHTResults()
 	}
 	go c.updateStatsLoop()
-	c.initMetrics()
+	err = c.initMetrics()
+	if err != nil {
+		return nil, err
+	}
 	return c, nil
 }
 
