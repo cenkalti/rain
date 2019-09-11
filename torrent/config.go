@@ -243,6 +243,6 @@ var DefaultConfig = Config{
 	WebseedVerifyTLS:               true,
 
 	// Metrics
-	GraphiteFlushInterval: time.Minute,
+	GraphiteFlushInterval: 10 * time.Second,
 	GraphitePrefix:        "rain.{hostname}",
 }
