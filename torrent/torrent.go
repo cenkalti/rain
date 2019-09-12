@@ -231,10 +231,11 @@ type torrent struct {
 
 	ramNotifyC chan interface{}
 
-	webseedClient       *http.Client
-	webseedSources      []*webseedsource.WebseedSource
-	webseedPieceResultC *suspendchan.Chan
-	webseedRetryC       chan *webseedsource.WebseedSource
+	webseedClient          *http.Client
+	webseedSources         []*webseedsource.WebseedSource
+	webseedPieceResultC    *suspendchan.Chan
+	webseedRetryC          chan *webseedsource.WebseedSource
+	webseedActiveDownloads int
 
 	// Set to true when manual verification is requested
 	doVerify bool
@@ -333,6 +334,9 @@ func newTorrent2(
 		webseedPieceResultC:       suspendchan.New(0),
 		webseedRetryC:             make(chan *webseedsource.WebseedSource),
 		doneC:                     make(chan struct{}),
+	}
+	if len(t.webseedSources) > s.config.WebseedMaxSources {
+		t.webseedSources = t.webseedSources[:10]
 	}
 	t.bytesDownloaded.Inc(stats.BytesDownloaded)
 	t.bytesUploaded.Inc(stats.BytesUploaded)

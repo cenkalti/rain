@@ -16,6 +16,8 @@ func (t *torrent) handleWebseedPieceResult(msg *urldownloader.PieceResult) {
 		// * Unexpected status code
 		// * Response.Body.Read error
 		t.disableSource(msg.Downloader.URL, msg.Error, true)
+		t.webseedActiveDownloads--
+		t.startPieceDownloaders()
 		return
 	}
 
@@ -50,6 +52,7 @@ func (t *torrent) handleWebseedPieceResult(msg *urldownloader.PieceResult) {
 				continue
 			}
 			t.closeWebseedDownloader(src)
+			t.webseedActiveDownloads--
 			t.startPieceDownloaderForWebseed(src)
 			break
 		}

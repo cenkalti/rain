@@ -156,6 +156,9 @@ func (t *torrent) startPieceDownloaders() {
 }
 
 func (t *torrent) startPieceDownloaderForWebseed(src *webseedsource.WebseedSource) (started bool) {
+	if t.webseedActiveDownloads >= t.session.config.WebseedMaxDownloads {
+		return false
+	}
 	if t.status() != Downloading {
 		return false
 	}
@@ -164,6 +167,7 @@ func (t *torrent) startPieceDownloaderForWebseed(src *webseedsource.WebseedSourc
 		return false
 	}
 	t.startWebseedDownloader(sp)
+	t.webseedActiveDownloads++
 	return true
 }
 

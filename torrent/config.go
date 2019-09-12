@@ -152,6 +152,10 @@ type Config struct {
 	WebseedRetryInterval time.Duration
 	// Verify TLS certificate for WebSeed URLs
 	WebseedVerifyTLS bool
+	// Limit the number of WebSeed sources in torrent.
+	WebseedMaxSources int
+	// Number of maximum simulateous downloads from WebSeed sources.
+	WebseedMaxDownloads int
 
 	// Send metrics to graphite server
 	GraphiteAddr string
@@ -241,6 +245,8 @@ var DefaultConfig = Config{
 	WebseedResponseBodyReadTimeout: 10 * time.Second,
 	WebseedRetryInterval:           time.Minute,
 	WebseedVerifyTLS:               true,
+	WebseedMaxSources:              10,
+	WebseedMaxDownloads:            4,
 
 	// Metrics
 	GraphiteFlushInterval: 10 * time.Second,
