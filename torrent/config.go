@@ -46,6 +46,10 @@ type Config struct {
 	MaxTorrentSize uint
 	// Time to wait when resolving host names for trackers and peers.
 	DNSResolveTimeout time.Duration
+	// Global download speed limit in KB/s.
+	SpeedLimitDownload int64
+	// Global upload speed limit in KB/s.
+	SpeedLimitUpload int64
 
 	// Enable RPC server
 	RPCEnabled bool

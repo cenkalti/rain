@@ -14,6 +14,7 @@ import (
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/peerprotocol"
 	"github.com/cenkalti/rain/internal/piece"
+	"github.com/juju/ratelimit"
 )
 
 const (
@@ -31,17 +32,19 @@ type PeerReader struct {
 	r            io.Reader
 	log          logger.Logger
 	pieceTimeout time.Duration
+	bucket       *ratelimit.Bucket
 	messages     chan interface{}
 	stopC        chan struct{}
 	doneC        chan struct{}
 }
 
-func New(conn net.Conn, l logger.Logger, pieceTimeout time.Duration) *PeerReader {
+func New(conn net.Conn, l logger.Logger, pieceTimeout time.Duration, b *ratelimit.Bucket) *PeerReader {
 	return &PeerReader{
 		conn:         conn,
 		r:            bufio.NewReaderSize(conn, readBufferSize),
 		log:          l,
 		pieceTimeout: pieceTimeout,
+		bucket:       b,
 		messages:     make(chan interface{}),
 		stopC:        make(chan struct{}),
 		doneC:        make(chan struct{}),
@@ -259,13 +262,18 @@ func (p *PeerReader) readPiece(length uint32) (buf bufferpool.Buffer, err error)
 		}
 	}()
 
+	r := p.r
+	if p.bucket != nil {
+		r = ratelimit.Reader(r, p.bucket)
+	}
+
 	var n, m int
 	for {
 		err = p.conn.SetReadDeadline(time.Now().Add(p.pieceTimeout))
 		if err != nil {
 			return
 		}
-		n, err = io.ReadFull(p.r, buf.Data[m:])
+		n, err = io.ReadFull(r, buf.Data[m:])
 		if err != nil {
 			if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
 				// Peer didn't send the full block in allowed time.

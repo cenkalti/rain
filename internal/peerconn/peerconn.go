@@ -9,6 +9,7 @@ import (
 	"github.com/cenkalti/rain/internal/peerconn/peerreader"
 	"github.com/cenkalti/rain/internal/peerconn/peerwriter"
 	"github.com/cenkalti/rain/internal/peerprotocol"
+	"github.com/juju/ratelimit"
 )
 
 // Conn is a peer connection that provides a channel for receiving messages and methods for sending messages.
@@ -22,11 +23,11 @@ type Conn struct {
 	doneC    chan struct{}
 }
 
-func New(conn net.Conn, l logger.Logger, pieceTimeout time.Duration, maxRequestsIn int, fastEnabled bool) *Conn {
+func New(conn net.Conn, l logger.Logger, pieceTimeout time.Duration, maxRequestsIn int, fastEnabled bool, br, bw *ratelimit.Bucket) *Conn {
 	return &Conn{
 		conn:     conn,
-		reader:   peerreader.New(conn, l, pieceTimeout),
-		writer:   peerwriter.New(conn, l, maxRequestsIn, fastEnabled),
+		reader:   peerreader.New(conn, l, pieceTimeout, br),
+		writer:   peerwriter.New(conn, l, maxRequestsIn, fastEnabled, bw),
 		messages: make(chan interface{}),
 		log:      l,
 		closeC:   make(chan struct{}),

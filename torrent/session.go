@@ -25,6 +25,7 @@ import (
 	"github.com/cenkalti/rain/internal/storage/filestorage"
 	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/internal/trackermanager"
+	"github.com/juju/ratelimit"
 	"github.com/mitchellh/go-homedir"
 	"github.com/nictuku/dht"
 )
@@ -52,6 +53,8 @@ type Session struct {
 	createdAt      time.Time
 	semWrite       *semaphore.Semaphore
 	metrics        *sessionMetrics
+	bucketDownload *ratelimit.Bucket
+	bucketUpload   *ratelimit.Bucket
 	closeC         chan struct{}
 
 	mPeerRequests   sync.Mutex
@@ -181,6 +184,12 @@ func NewSession(cfg Config) (*Session, error) {
 				ResponseHeaderTimeout: cfg.WebseedResponseHeaderTimeout,
 			},
 		},
+	}
+	if cfg.SpeedLimitDownload > 0 {
+		c.bucketDownload = ratelimit.NewBucketWithRate(float64(cfg.SpeedLimitDownload), cfg.SpeedLimitDownload)
+	}
+	if cfg.SpeedLimitUpload > 0 {
+		c.bucketUpload = ratelimit.NewBucketWithRate(float64(cfg.SpeedLimitUpload), cfg.SpeedLimitUpload)
 	}
 	err = c.startBlocklistReloader()
 	if err != nil {

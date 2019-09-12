@@ -140,7 +140,7 @@ func (t *torrent) startPeer(
 	}
 	t.peerIDs[peerID] = struct{}{}
 
-	pe := peer.New(conn, source, peerID, extensions, cipher, t.session.config.PieceReadTimeout, t.session.config.RequestTimeout, t.session.config.MaxRequestsIn)
+	pe := peer.New(conn, source, peerID, extensions, cipher, t.session.config.PieceReadTimeout, t.session.config.RequestTimeout, t.session.config.MaxRequestsIn, t.session.bucketDownload, t.session.bucketUpload)
 	t.peers[pe] = struct{}{}
 	peers[pe] = struct{}{}
 	if t.info != nil {

@@ -23,6 +23,7 @@ require (
 	github.com/hokaccha/go-prettyjson v0.0.0-20180920040306-f579f869bbfe
 	github.com/jackpal/bencode-go v0.0.0-20180813173944-227668e840fa // indirect
 	github.com/jroimartin/gocui v0.4.0
+	github.com/juju/ratelimit v1.0.1
 	github.com/julienschmidt/httprouter v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.0.9 // indirect
 	github.com/mattn/go-isatty v0.0.3 // indirect

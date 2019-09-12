@@ -11,6 +11,7 @@ import (
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/peerconn/peerreader"
 	"github.com/cenkalti/rain/internal/peerprotocol"
+	"github.com/juju/ratelimit"
 )
 
 const keepAlivePeriod = 2 * time.Minute
@@ -26,12 +27,13 @@ type PeerWriter struct {
 	writeC                chan peerprotocol.Message
 	messages              chan interface{}
 	servedRequests        map[peerprotocol.RequestMessage]struct{}
+	bucket                *ratelimit.Bucket
 	log                   logger.Logger
 	stopC                 chan struct{}
 	doneC                 chan struct{}
 }
 
-func New(conn net.Conn, l logger.Logger, maxQueuedRequests int, fastEnabled bool) *PeerWriter {
+func New(conn net.Conn, l logger.Logger, maxQueuedRequests int, fastEnabled bool, b *ratelimit.Bucket) *PeerWriter {
 	return &PeerWriter{
 		conn:              conn,
 		queueC:            make(chan peerprotocol.Message),
@@ -42,6 +44,7 @@ func New(conn net.Conn, l logger.Logger, maxQueuedRequests int, fastEnabled bool
 		writeC:            make(chan peerprotocol.Message),
 		messages:          make(chan interface{}),
 		servedRequests:    make(map[peerprotocol.RequestMessage]struct{}),
+		bucket:            b,
 		log:               l,
 		stopC:             make(chan struct{}),
 		doneC:             make(chan struct{}),
@@ -219,7 +222,13 @@ func (p *PeerWriter) messageWriter() {
 			// Put message ID
 			buf.Bytes()[4] = uint8(msg.ID())
 
-			n, err := p.conn.Write(buf.Bytes())
+			var w io.Writer = p.conn
+			if _, ok := msg.(Piece); ok && p.bucket != nil {
+				w = ratelimit.Writer(w, p.bucket)
+			}
+
+			var n int
+			n, err = w.Write(buf.Bytes())
 			if _, ok := msg.(Piece); ok {
 				p.countUploadBytes(n)
 			}
