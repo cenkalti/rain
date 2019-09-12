@@ -74,6 +74,8 @@ func (p *PeerReader) Run() {
 			return
 		} else if err == io.ErrUnexpectedEOF {
 			return
+		} else if err == errStoppedWhileWaitingBucket {
+			return
 		} else if _, ok := err.(*net.OpError); ok {
 			return
 		}
@@ -262,18 +264,23 @@ func (p *PeerReader) readPiece(length uint32) (buf bufferpool.Buffer, err error)
 		}
 	}()
 
-	r := p.r
-	if p.bucket != nil {
-		r = ratelimit.Reader(r, p.bucket)
-	}
-
 	var n, m int
 	for {
+		if p.bucket != nil {
+			d := p.bucket.Take(int64(length))
+			select {
+			case <-time.After(d):
+			case <-p.stopC:
+				err = errStoppedWhileWaitingBucket
+				return
+			}
+		}
+
 		err = p.conn.SetReadDeadline(time.Now().Add(p.pieceTimeout))
 		if err != nil {
 			return
 		}
-		n, err = io.ReadFull(r, buf.Data[m:])
+		n, err = io.ReadFull(p.r, buf.Data[m:])
 		if err != nil {
 			if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
 				// Peer didn't send the full block in allowed time.
@@ -292,3 +299,5 @@ func (p *PeerReader) readPiece(length uint32) (buf bufferpool.Buffer, err error)
 		return
 	}
 }
+
+var errStoppedWhileWaitingBucket = errors.New("peer reader stopped while waiting for bucket")

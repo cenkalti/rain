@@ -222,13 +222,16 @@ func (p *PeerWriter) messageWriter() {
 			// Put message ID
 			buf.Bytes()[4] = uint8(msg.ID())
 
-			var w io.Writer = p.conn
 			if _, ok := msg.(Piece); ok && p.bucket != nil {
-				w = ratelimit.Writer(w, p.bucket)
+				d := p.bucket.Take(int64(buf.Len()))
+				select {
+				case <-time.After(d):
+				case <-p.stopC:
+					return
+				}
 			}
 
-			var n int
-			n, err = w.Write(buf.Bytes())
+			n, err := p.conn.Write(buf.Bytes())
 			if _, ok := msg.(Piece); ok {
 				p.countUploadBytes(n)
 			}
