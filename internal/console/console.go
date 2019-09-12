@@ -121,7 +121,7 @@ func (c *Console) drawTorrents(g *gocui.Gui) error {
 		}
 		selectedIDrow := -1
 		for i, t := range c.torrents {
-			fmt.Fprintf(v, "%3d %s %s %5d %s\n", i, t.ID, t.InfoHash, t.Port, t.Name)
+			fmt.Fprintf(v, "%3d %s %s %5d %s\n", i+1, t.ID, t.InfoHash, t.Port, t.Name)
 			if t.ID == c.selectedID {
 				selectedIDrow = i
 			}
@@ -216,7 +216,7 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 			}
 		case trackers:
 			for i, t := range c.trackers {
-				fmt.Fprintf(v, "#%d %s\n", i, t.URL)
+				fmt.Fprintf(v, "#%d %s\n", i+1, t.URL)
 				switch t.Status {
 				case "Not working":
 					errStr := *t.Error
@@ -243,7 +243,7 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 			format := "%2s %21s %7s %8s %6s %s\n"
 			fmt.Fprintf(v, format, "#", "Addr", "Flags", "Download", "Upload", "Client")
 			for i, p := range c.peers {
-				num := fmt.Sprintf("%d", i)
+				num := fmt.Sprintf("%d", i+1)
 				var dl string
 				if p.DownloadSpeed > 0 {
 					dl = fmt.Sprintf("%d", p.DownloadSpeed/1024)
@@ -258,7 +258,7 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 			format := "%2s %40s %8s %s\n"
 			fmt.Fprintf(v, format, "#", "URL", "Speed", "Error")
 			for i, p := range c.webseeds {
-				num := fmt.Sprintf("%d", i)
+				num := fmt.Sprintf("%d", i+1)
 				var dl string
 				if p.DownloadSpeed > 0 {
 					dl = fmt.Sprintf("%d", p.DownloadSpeed/1024)
