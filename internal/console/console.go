@@ -198,8 +198,6 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 			}
 			fmt.Fprintf(v, "Size: %s\n", size)
 			fmt.Fprintf(v, "Peers: %d in %d out\n", c.stats.Peers.Incoming, c.stats.Peers.Outgoing)
-			fmt.Fprintf(v, "Handshakes: %d in %d out\n", c.stats.Handshakes.Incoming, c.stats.Handshakes.Outgoing)
-			fmt.Fprintf(v, "Addresses: %d from trackers %d from DHT %d from PEX\n", c.stats.Addresses.Tracker, c.stats.Addresses.DHT, c.stats.Addresses.PEX)
 			fmt.Fprintf(v, "Download speed: %5d KiB/s\n", c.stats.Speed.Download/1024)
 			fmt.Fprintf(v, "Upload speed:   %5d KiB/s\n", c.stats.Speed.Upload/1024)
 			var eta string
