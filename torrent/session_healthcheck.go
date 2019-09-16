@@ -15,11 +15,14 @@ func (s *Session) checkTorrent(t *torrent) {
 	for {
 		select {
 		case <-time.After(interval):
+			timeout := time.NewTimer(timeout)
+			defer timeout.Stop()
 			select {
 			case t.notifyErrorCommandC <- notifyErrorCommand{errCC: make(chan chan error, 1)}:
+				timeout.Stop()
 			case <-t.closeC:
 				return
-			case <-time.After(timeout):
+			case <-timeout.C:
 				crash(t.id, "Torrent does not respond.")
 			}
 		case <-t.closeC:
