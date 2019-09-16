@@ -1,8 +1,8 @@
 package torrent
 
 import (
+	"crypto/rand"
 	"errors"
-	"math/rand"
 	"net"
 	"net/http"
 	"sync"
