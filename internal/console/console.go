@@ -187,6 +187,11 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 				}
 			}
 			fmt.Fprintf(v, "Progress: %d\n", progress)
+			var ratio float64
+			if c.stats.Bytes.Downloaded > 0 {
+				ratio = float64(c.stats.Bytes.Uploaded) / float64(c.stats.Bytes.Downloaded)
+			}
+			fmt.Fprintf(v, "Ratio: %.2f\n", ratio)
 			var size string
 			switch {
 			case c.stats.Bytes.Total < 1<<10:
