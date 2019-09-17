@@ -205,6 +205,10 @@ func NewSession(cfg Config) (*Session, error) {
 		ext.Set(63) // DHT Protocol (BEP 5)
 		c.dhtPeerRequests = make(map[*torrent]struct{})
 	}
+	err = c.initMetrics()
+	if err != nil {
+		return nil, err
+	}
 	c.loadExistingTorrents(ids)
 	if c.config.RPCEnabled {
 		c.rpc = newRPCServer(c)
@@ -217,10 +221,6 @@ func NewSession(cfg Config) (*Session, error) {
 		go c.processDHTResults()
 	}
 	go c.updateStatsLoop()
-	err = c.initMetrics()
-	if err != nil {
-		return nil, err
-	}
 	return c, nil
 }
 
