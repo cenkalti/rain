@@ -60,6 +60,9 @@ func (t *torrent) startVerifier() {
 	if t.verifier != nil {
 		panic("verifier exists")
 	}
+	if len(t.pieces) == 0 {
+		panic("zero length pieces")
+	}
 	t.verifier = verifier.New()
 	go t.verifier.Run(t.pieces, t.verifierProgressC, t.verifierResultC)
 }
