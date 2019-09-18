@@ -332,7 +332,7 @@ func (h *rpcHandler) StopTorrent(args *rpctypes.StopTorrentRequest, reply *rpcty
 	return t.Stop()
 }
 
-func (h *rpcHandler) AnnounceTorrent(args *rpctypes.StopTorrentRequest, reply *rpctypes.StopTorrentResponse) error {
+func (h *rpcHandler) AnnounceTorrent(args *rpctypes.AnnounceTorrentRequest, reply *rpctypes.AnnounceTorrentResponse) error {
 	t := h.session.GetTorrent(args.ID)
 	if t == nil {
 		return errTorrentNotFound
@@ -341,7 +341,7 @@ func (h *rpcHandler) AnnounceTorrent(args *rpctypes.StopTorrentRequest, reply *r
 	return nil
 }
 
-func (h *rpcHandler) VerifyTorrent(args *rpctypes.StopTorrentRequest, reply *rpctypes.StopTorrentResponse) error {
+func (h *rpcHandler) VerifyTorrent(args *rpctypes.VerifyTorrentRequest, reply *rpctypes.VerifyTorrentResponse) error {
 	t := h.session.GetTorrent(args.ID)
 	if t == nil {
 		return errTorrentNotFound
