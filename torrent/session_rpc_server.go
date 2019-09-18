@@ -26,6 +26,7 @@ func newRPCServer(ses *Session) *rpcServer {
 
 	mux := http.NewServeMux()
 	mux.Handle("/debug/vars", expvar.Handler())
+	mux.HandleFunc("/move-torrent", h.handleMoveTorrent)
 	mux.Handle("/", jsonrpc2.HTTPHandler(srv))
 
 	return &rpcServer{

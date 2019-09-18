@@ -1,8 +1,15 @@
 package torrent
 
 import (
+	"archive/tar"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"io"
+	"mime/multipart"
+	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/boltdb/bolt"
@@ -106,10 +113,7 @@ func (t *Torrent) AddTracker(uri string) error {
 
 // Start downloading the torrent. If all pieces are completed, starts seeding them.
 func (t *Torrent) Start() error {
-	err := t.torrent.session.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(torrentsBucket).Bucket([]byte(t.torrent.id))
-		return b.Put([]byte("started"), []byte("1"))
-	})
+	err := t.torrent.session.resumer.WriteStarted(t.torrent.id, true)
 	if err != nil {
 		return err
 	}
@@ -121,10 +125,7 @@ func (t *Torrent) Start() error {
 // During Stopping state, a stop event sent to trackers with a timeout.
 // At most 5 seconds later, the torrent switches into Stopped state.
 func (t *Torrent) Stop() error {
-	err := t.torrent.session.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(torrentsBucket).Bucket([]byte(t.torrent.id))
-		return b.Put([]byte("started"), []byte("0"))
-	})
+	err := t.torrent.session.resumer.WriteStarted(t.torrent.id, false)
 	if err != nil {
 		return err
 	}
@@ -150,4 +151,126 @@ func (t *Torrent) Verify() error {
 	}
 	t.torrent.Verify()
 	return nil
+}
+
+func (t *Torrent) Move(target string) error {
+	t.torrent.Stop()
+	spec, err := t.torrent.session.resumer.Read(t.torrent.id)
+	if err != nil {
+		return err
+	}
+
+	pr, pw := io.Pipe()
+	mw := multipart.NewWriter(pw)
+	go t.prepareBody(pw, mw, spec)
+
+	req, err := http.NewRequest(http.MethodPost, target+"/move-torrent?id="+t.torrent.id, pr)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("http error: %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	return t.torrent.session.RemoveTorrent(t.torrent.id)
+}
+
+func (t *Torrent) prepareBody(pw *io.PipeWriter, mw *multipart.Writer, spec *boltdbresumer.Spec) {
+	var err error
+	defer func() { _ = pw.CloseWithError(err) }()
+
+	iw, err := mw.CreateFormField("id")
+	if err != nil {
+		t.torrent.log.Errorln("cannot create id form filed:", err)
+		return
+	}
+	_, err = iw.Write([]byte(t.torrent.id))
+	if err != nil {
+		t.torrent.log.Errorln("cannot write id:", err)
+		return
+	}
+	fw, err := mw.CreateFormField("metadata")
+	if err != nil {
+		t.torrent.log.Errorln("cannot create metadata form filed:", err)
+		return
+	}
+	err = json.NewEncoder(fw).Encode(spec)
+	if err != nil {
+		t.torrent.log.Errorln("cannot encode resumer spec:", err)
+		return
+	}
+	dw, err := mw.CreateFormField("data")
+	if err != nil {
+		t.torrent.log.Errorln("cannot create data form filed:", err)
+		return
+	}
+	tpr, tpw := io.Pipe()
+	go t.generateTar(tpw)
+	_, err = io.Copy(dw, tpr)
+	if err != nil {
+		t.torrent.log.Errorln("error copying pipe:", err)
+		return
+	}
+	err = mw.Close()
+	if err != nil {
+		t.torrent.log.Errorln("cannot close multipart writer:", err)
+		return
+	}
+}
+
+func (t *Torrent) generateTar(pw *io.PipeWriter) {
+	var err error
+	defer func() { _ = pw.CloseWithError(err) }()
+
+	tw := tar.NewWriter(pw)
+	root := filepath.Join(t.torrent.session.config.DataDir, t.torrent.id)
+	walkFunc := func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		hdr := &tar.Header{
+			Name: path[len(root)+1:],
+			Mode: 0600,
+			Size: info.Size(),
+		}
+		err = tw.WriteHeader(hdr)
+		if err != nil {
+			t.torrent.log.Errorln("cannot write tar header:", err)
+			return err
+		}
+		f, err := os.Open(path)
+		if err != nil {
+			t.torrent.log.Errorln("cannot open file:", err)
+			return err
+		}
+		_, err = io.Copy(tw, f)
+		f.Close()
+		if err != nil {
+			t.torrent.log.Errorln("cannot copy storage file to tar writer:", err)
+			return err
+		}
+		return nil
+	}
+	err = filepath.Walk(root, walkFunc)
+	if os.IsNotExist(err) {
+		err = nil
+		return
+	}
+	if err != nil {
+		t.torrent.log.Errorln("error walking files:", err)
+		return
+	}
+	err = tw.Close()
+	if err != nil {
+		t.torrent.log.Errorln("cannot close tar writer:", err)
+		return
+	}
 }

@@ -120,6 +120,12 @@ func (c *Client) VerifyTorrent(id string) error {
 	return c.client.Call("Session.VerifyTorrent", args, &reply)
 }
 
+func (c *Client) MoveTorrent(id, target string) error {
+	args := rpctypes.MoveTorrentRequest{ID: id, Target: target}
+	var reply rpctypes.MoveTorrentResponse
+	return c.client.Call("Session.MoveTorrent", args, &reply)
+}
+
 func (c *Client) StartAllTorrents() error {
 	args := rpctypes.StartAllTorrentsRequest{}
 	var reply rpctypes.StartAllTorrentsResponse

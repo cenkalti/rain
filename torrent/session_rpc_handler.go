@@ -1,12 +1,20 @@
 package torrent
 
 import (
+	"archive/tar"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/cenkalti/rain/internal/resumer/boltdbresumer"
 	"github.com/cenkalti/rain/internal/rpctypes"
 )
 
@@ -371,4 +379,163 @@ func (h *rpcHandler) AddTracker(args *rpctypes.AddTrackerRequest, reply *rpctype
 		return errTorrentNotFound
 	}
 	return t.AddTracker(args.URL)
+}
+
+func (h *rpcHandler) MoveTorrent(args *rpctypes.MoveTorrentRequest, reply *rpctypes.MoveTorrentResponse) error {
+	t := h.session.GetTorrent(args.ID)
+	if t == nil {
+		return errTorrentNotFound
+	}
+	return t.Move(args.Target)
+}
+
+func (h *rpcHandler) handleMoveTorrent(w http.ResponseWriter, r *http.Request) {
+	port, err := h.session.getPort()
+	if err != nil {
+		h.session.log.Error(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var success bool
+	defer func() {
+		if !success {
+			h.session.releasePort(port)
+		}
+	}()
+
+	mr, err := r.MultipartReader()
+	if err != nil {
+		h.session.log.Error(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	// case "id":
+	p, err := mr.NextPart()
+	if err != nil {
+		h.session.log.Error(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if p.FormName() != "id" {
+		http.Error(w, "id expected in multipart form", http.StatusBadRequest)
+		return
+	}
+	b, err := ioutil.ReadAll(p)
+	if err != nil {
+		h.session.log.Error(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	id := string(b)
+	if id == "" {
+		http.Error(w, "id required", http.StatusBadRequest)
+		return
+	}
+	if _, ok := h.session.torrents[id]; ok {
+		h.session.log.Warningln("duplicate torrent id, removing existing one:", id)
+		t, err := h.session.removeTorrentFromClient(id)
+		if err != nil {
+			h.session.log.Error(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		err = h.session.stopAndRemoveData(t)
+		if err != nil {
+			h.session.log.Error(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	// case "metadata":
+	p, err = mr.NextPart()
+	if err != nil {
+		h.session.log.Error(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if p.FormName() != "metadata" {
+		http.Error(w, "metadata expected in multipart form", http.StatusBadRequest)
+		return
+	}
+	var s boltdbresumer.Spec
+	err = json.NewDecoder(p).Decode(&s)
+	if err != nil {
+		h.session.log.Error(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	s.Dest = filepath.Join(h.session.config.DataDir, id)
+	s.Port = port
+	spec := &s
+	// case "data":
+	p, err = mr.NextPart()
+	if err != nil {
+		h.session.log.Error(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if p.FormName() != "data" {
+		http.Error(w, "data expected in multipart form", http.StatusBadRequest)
+		return
+	}
+	err = readData(p, filepath.Join(h.session.config.DataDir, id))
+	if err != nil {
+		h.session.log.Error(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	err = h.session.resumer.Write(id, spec)
+	if err != nil {
+		h.session.log.Error(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	t, started, err := h.session.loadExistingTorrent(id)
+	if err != nil {
+		h.session.log.Error(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if started {
+		err = t.Start()
+		if err != nil {
+			h.session.log.Error(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	success = true
+}
+
+func readData(r io.Reader, dir string) error {
+	tr := tar.NewReader(r)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		name := filepath.Join(dir, hdr.Name)
+		err = os.MkdirAll(filepath.Dir(name), os.ModeDir|0750)
+		if err != nil {
+			return err
+		}
+		f, err := os.Create(name)
+		if err != nil {
+			return err
+		}
+		_, err = io.Copy(f, tr)
+		if err != nil {
+			return err
+		}
+		err = f.Sync()
+		if err != nil {
+			return err
+		}
+		_ = f.Close()
+	}
+	return nil
 }

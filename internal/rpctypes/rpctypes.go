@@ -238,6 +238,14 @@ type VerifyTorrentRequest struct {
 type VerifyTorrentResponse struct {
 }
 
+type MoveTorrentRequest struct {
+	ID     string
+	Target string
+}
+
+type MoveTorrentResponse struct {
+}
+
 type AddPeerRequest struct {
 	ID   string
 	Addr string

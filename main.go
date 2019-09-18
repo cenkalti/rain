@@ -179,6 +179,11 @@ func main() {
 					Action: handleStopAll,
 				},
 				{
+					Name:   "move",
+					Usage:  "move torrent to another server",
+					Action: handleMove,
+				},
+				{
 					Name:   "console",
 					Usage:  "show client console",
 					Action: handleConsole,
@@ -488,6 +493,12 @@ func handleStartAll(c *cli.Context) error {
 
 func handleStopAll(c *cli.Context) error {
 	return clt.StopAllTorrents()
+}
+
+func handleMove(c *cli.Context) error {
+	id := c.Args().Get(0)
+	target := c.Args().Get(1)
+	return clt.MoveTorrent(id, target)
 }
 
 func handleConsole(c *cli.Context) error {

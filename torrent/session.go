@@ -320,7 +320,7 @@ func (s *Session) GetTorrent(id string) *Torrent {
 func (s *Session) RemoveTorrent(id string) error {
 	t, err := s.removeTorrentFromClient(id)
 	if t != nil {
-		go s.stopAndRemoveData(t)
+		go func() { _ = s.stopAndRemoveData(t) }()
 	}
 	return err
 }
@@ -340,7 +340,7 @@ func (s *Session) removeTorrentFromClient(id string) (*Torrent, error) {
 	})
 }
 
-func (s *Session) stopAndRemoveData(t *Torrent) {
+func (s *Session) stopAndRemoveData(t *Torrent) error {
 	t.torrent.Close()
 	s.releasePort(t.torrent.port)
 	dest := t.torrent.storage.(*filestorage.FileStorage).Dest()
@@ -348,6 +348,7 @@ func (s *Session) stopAndRemoveData(t *Torrent) {
 	if err != nil {
 		s.log.Errorf("cannot remove torrent data. err: %s dest: %s", err, dest)
 	}
+	return err
 }
 
 func (s *Session) StartAll() error {
@@ -356,7 +357,7 @@ func (s *Session) StartAll() error {
 		s.mTorrents.RLock()
 		for _, t := range s.torrents {
 			b := tb.Bucket([]byte(t.torrent.id))
-			_ = b.Put([]byte("started"), []byte("1"))
+			_ = b.Put([]byte("started"), []byte("true"))
 		}
 		defer s.mTorrents.RUnlock()
 		return nil
@@ -376,7 +377,7 @@ func (s *Session) StopAll() error {
 		s.mTorrents.RLock()
 		for _, t := range s.torrents {
 			b := tb.Bucket([]byte(t.torrent.id))
-			_ = b.Put([]byte("started"), []byte("0"))
+			_ = b.Put([]byte("started"), []byte("false"))
 		}
 		defer s.mTorrents.RUnlock()
 		return nil

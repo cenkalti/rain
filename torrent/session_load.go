@@ -1,9 +1,6 @@
 package torrent
 
 import (
-	"bytes"
-
-	"github.com/boltdb/bolt"
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/resumer"
@@ -33,26 +30,23 @@ func (s *Session) loadExistingTorrents(ids []string) {
 }
 
 func (s *Session) loadExistingTorrent(id string) (tt *Torrent, hasStarted bool, err error) {
-	hasStarted, err = s.hasStarted(id)
-	if err != nil {
-		return
-	}
 	spec, err := s.resumer.Read(id)
 	if err != nil {
 		return
 	}
+	hasStarted = spec.Started
 	var info *metainfo.Info
 	var bf *bitfield.Bitfield
 	if len(spec.Info) > 0 {
 		info2, err2 := metainfo.NewInfo(spec.Info)
 		if err2 != nil {
-			return nil, hasStarted, err2
+			return nil, spec.Started, err2
 		}
 		info = info2
 		if len(spec.Bitfield) > 0 {
 			bf3, err3 := bitfield.NewBytes(spec.Bitfield, info.NumPieces)
 			if err3 != nil {
-				return nil, hasStarted, err3
+				return nil, spec.Started, err3
 			}
 			bf = bf3
 		}
@@ -89,17 +83,4 @@ func (s *Session) loadExistingTorrent(id string) (tt *Torrent, hasStarted bool, 
 
 	tt = s.insertTorrent(t)
 	return
-}
-
-func (s *Session) hasStarted(id string) (bool, error) {
-	started := false
-	err := s.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(torrentsBucket).Bucket([]byte(id))
-		val := b.Get([]byte("started"))
-		if bytes.Equal(val, []byte("1")) {
-			started = true
-		}
-		return nil
-	})
-	return started, err
 }

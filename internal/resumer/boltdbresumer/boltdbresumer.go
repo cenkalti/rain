@@ -25,6 +25,7 @@ var Keys = struct {
 	BytesUploaded   []byte
 	BytesWasted     []byte
 	SeededFor       []byte
+	Started         []byte
 }{
 	InfoHash:        []byte("info_hash"),
 	Port:            []byte("port"),
@@ -40,6 +41,7 @@ var Keys = struct {
 	BytesUploaded:   []byte("bytes_uploaded"),
 	BytesWasted:     []byte("bytes_wasted"),
 	SeededFor:       []byte("seeded_for"),
+	Started:         []byte("started"),
 }
 
 type Resumer struct {
@@ -93,6 +95,7 @@ func (r *Resumer) Write(torrentID string, spec *Spec) error {
 		_ = b.Put(Keys.BytesDownloaded, []byte(strconv.FormatInt(spec.BytesDownloaded, 10)))
 		_ = b.Put(Keys.BytesUploaded, []byte(strconv.FormatInt(spec.BytesUploaded, 10)))
 		_ = b.Put(Keys.SeededFor, []byte(strconv.FormatInt(spec.BytesWasted, 10)))
+		_ = b.Put(Keys.Started, []byte(strconv.FormatBool(spec.Started)))
 		return nil
 	})
 }
@@ -114,6 +117,16 @@ func (r *Resumer) WriteBitfield(torrentID string, value []byte) error {
 			return nil
 		}
 		return b.Put(Keys.Bitfield, value)
+	})
+}
+
+func (r *Resumer) WriteStarted(torrentID string, value bool) error {
+	return r.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(r.bucket).Bucket([]byte(torrentID))
+		if b == nil {
+			return nil
+		}
+		return b.Put(Keys.Started, []byte(strconv.FormatBool(value)))
 	})
 }
 
@@ -239,6 +252,14 @@ func (r *Resumer) Read(torrentID string) (*Spec, error) {
 		value = b.Get(Keys.SeededFor)
 		if value != nil {
 			spec.SeededFor, err = time.ParseDuration(string(value))
+			if err != nil {
+				return err
+			}
+		}
+
+		value = b.Get(Keys.Started)
+		if value != nil {
+			spec.Started, err = strconv.ParseBool(string(value))
 			if err != nil {
 				return err
 			}

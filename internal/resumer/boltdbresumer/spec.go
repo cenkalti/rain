@@ -21,6 +21,7 @@ type Spec struct {
 	BytesUploaded   int64
 	BytesWasted     int64
 	SeededFor       time.Duration
+	Started         bool
 }
 
 type jsonSpec struct {
@@ -34,6 +35,7 @@ type jsonSpec struct {
 	BytesDownloaded int64
 	BytesUploaded   int64
 	BytesWasted     int64
+	Started         bool
 
 	// JSON safe types
 	InfoHash  string
@@ -54,6 +56,7 @@ func (s Spec) MarshalJSON() ([]byte, error) {
 		BytesDownloaded: s.BytesDownloaded,
 		BytesUploaded:   s.BytesUploaded,
 		BytesWasted:     s.BytesWasted,
+		Started:         s.Started,
 
 		InfoHash:  base64.StdEncoding.EncodeToString(s.InfoHash),
 		Info:      base64.StdEncoding.EncodeToString(s.Info),
@@ -92,5 +95,6 @@ func (s *Spec) UnmarshalJSON(b []byte) error {
 	s.BytesDownloaded = j.BytesDownloaded
 	s.BytesUploaded = j.BytesUploaded
 	s.BytesWasted = j.BytesWasted
+	s.Started = j.Started
 	return nil
 }
