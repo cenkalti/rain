@@ -94,7 +94,8 @@ func (r *Resumer) Write(torrentID string, spec *Spec) error {
 		_ = b.Put(Keys.AddedAt, []byte(spec.AddedAt.Format(time.RFC3339)))
 		_ = b.Put(Keys.BytesDownloaded, []byte(strconv.FormatInt(spec.BytesDownloaded, 10)))
 		_ = b.Put(Keys.BytesUploaded, []byte(strconv.FormatInt(spec.BytesUploaded, 10)))
-		_ = b.Put(Keys.SeededFor, []byte(strconv.FormatInt(spec.BytesWasted, 10)))
+		_ = b.Put(Keys.BytesWasted, []byte(strconv.FormatInt(spec.BytesWasted, 10)))
+		_ = b.Put(Keys.SeededFor, []byte(spec.SeededFor.String()))
 		_ = b.Put(Keys.Started, []byte(strconv.FormatBool(spec.Started)))
 		return nil
 	})
