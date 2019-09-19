@@ -62,7 +62,7 @@ func (s *Session) addTorrentStopped(r io.Reader, opt *AddTorrentOptions) (*Torre
 		port,
 		s.parseTrackers(mi.AnnounceList, mi.Info.IsPrivate()),
 		nil, // fixedPeers
-		mi.Info,
+		&mi.Info,
 		nil, // bitfield
 		resumer.Stats{},
 		webseedsource.NewList(mi.URLList),

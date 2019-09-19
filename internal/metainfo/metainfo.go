@@ -11,7 +11,7 @@ import (
 
 // MetaInfo file dictionary
 type MetaInfo struct {
-	Info         *Info
+	Info         Info
 	AnnounceList [][]string
 	URLList      []string
 }
@@ -38,7 +38,7 @@ func New(r io.Reader) (*MetaInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	ret.Info = info
+	ret.Info = *info
 	if len(t.AnnounceList) > 0 {
 		var ll [][]string
 		err = bencode.DecodeBytes(t.AnnounceList, &ll)
