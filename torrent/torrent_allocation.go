@@ -41,7 +41,7 @@ func (t *torrent) handleAllocationDone(al *allocator.Allocator) {
 	t.piecePicker = piecepicker.New(t.pieces, t.session.config.EndgameMaxDuplicateDownloads, t.webseedSources)
 
 	for pe := range t.peers {
-		pe.Bitfield = bitfield.New(t.info.NumPieces)
+		pe.Bitfield = bitfield.New(t.info.NumPieces())
 	}
 
 	// If we already have bitfield from resume db, skip verification and start downloading.
@@ -61,7 +61,7 @@ func (t *torrent) handleAllocationDone(al *allocator.Allocator) {
 	// No need to verify files if they didn't exist when we create them.
 	if !al.NeedHashCheck {
 		t.mBitfield.Lock()
-		t.bitfield = bitfield.New(t.info.NumPieces)
+		t.bitfield = bitfield.New(t.info.NumPieces())
 		t.mBitfield.Unlock()
 		t.processQueuedMessages()
 		t.addFixedPeers()

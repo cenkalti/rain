@@ -142,14 +142,14 @@ func (t *torrent) stats() Stats {
 	s.Speed.Upload = int(t.uploadSpeed.Rate1())
 
 	if t.info != nil {
-		s.Bytes.Total = t.info.TotalLength
+		s.Bytes.Total = t.info.TotalLength()
 		s.Bytes.Completed = t.bytesComplete()
 		s.Bytes.Incomplete = s.Bytes.Total - s.Bytes.Completed
 
 		s.Name = t.info.Name
 		s.Private = t.info.IsPrivate()
 		s.PieceLength = t.info.PieceLength
-		s.Pieces.Total = t.info.NumPieces
+		s.Pieces.Total = t.info.NumPieces()
 	} else {
 		s.Name = t.name
 	}

@@ -29,7 +29,7 @@ func (t *torrent) handleMetadataMessage(pe *peer.Peer, msg peerprotocol.Extensio
 		}
 		start := 16 * 1024 * msg.Piece
 		end := start + 16*1024
-		totalSize := uint32(len(t.info.Bytes))
+		totalSize := uint32(len(t.info.Bytes()))
 		if end > totalSize {
 			end = totalSize
 		}
@@ -41,7 +41,7 @@ func (t *torrent) handleMetadataMessage(pe *peer.Peer, msg peerprotocol.Extensio
 			t.sendMetadataReject(pe, msg.Piece, extMsgID)
 			break
 		}
-		data := t.info.Bytes[start:end]
+		data := t.info.Bytes()[start:end]
 		dataMsg := peerprotocol.ExtensionMetadataMessage{
 			Type:      peerprotocol.ExtensionMetadataMessageTypeData,
 			Piece:     msg.Piece,
@@ -93,7 +93,7 @@ func (t *torrent) handleMetadataMessage(pe *peer.Peer, msg peerprotocol.Extensio
 		}
 		t.info = info
 		t.piecePool = bufferpool.New(int(info.PieceLength))
-		err = t.session.resumer.WriteInfo(t.id, t.info.Bytes)
+		err = t.session.resumer.WriteInfo(t.id, t.info.Bytes())
 		if err != nil {
 			t.stop(fmt.Errorf("cannot write resume info: %s", err))
 			break

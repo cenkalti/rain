@@ -21,11 +21,10 @@ type Info struct {
 	Length      int64              `bencode:"length" json:"length"` // Single File Mode
 	Files       []File             `bencode:"files" json:"files"`   // Multiple File mode
 
-	// Calculated fileds
-	Hash        [20]byte `bencode:"-" json:"-"`
-	TotalLength int64    `bencode:"-" json:"-"`
-	NumPieces   uint32   `bencode:"-" json:"-"`
-	Bytes       []byte   `bencode:"-" json:"-"`
+	hash        [20]byte
+	totalLength int64
+	numPieces   uint32
+	bytes       []byte
 	private     bool
 }
 
@@ -64,23 +63,23 @@ func NewInfo(b []byte) (*Info, error) {
 			}
 		}
 	}
-	i.NumPieces = uint32(len(i.Pieces)) / sha1.Size
+	i.numPieces = uint32(len(i.Pieces)) / sha1.Size
 	if !i.MultiFile() {
-		i.TotalLength = i.Length
+		i.totalLength = i.Length
 	} else {
 		for _, f := range i.Files {
-			i.TotalLength += f.Length
+			i.totalLength += f.Length
 		}
 	}
-	totalPieceDataLength := int64(i.PieceLength) * int64(i.NumPieces)
-	delta := totalPieceDataLength - i.TotalLength
+	totalPieceDataLength := int64(i.PieceLength) * int64(i.numPieces)
+	delta := totalPieceDataLength - i.totalLength
 	if delta >= int64(i.PieceLength) || delta < 0 {
 		return nil, errInvalidPieceData
 	}
-	i.Bytes = b
+	i.bytes = b
 	hash := sha1.New()   // nolint: gosec
 	_, _ = hash.Write(b) // nolint: gosec
-	copy(i.Hash[:], hash.Sum(nil))
+	copy(i.hash[:], hash.Sum(nil))
 	return &i, nil
 }
 
@@ -88,7 +87,7 @@ func (i *Info) MultiFile() bool {
 	return len(i.Files) != 0
 }
 
-func (i *Info) HashOf(index uint32) []byte {
+func (i *Info) PieceHash(index uint32) []byte {
 	begin := index * sha1.Size
 	end := begin + sha1.Size
 	return i.Pieces[begin:end]
@@ -100,6 +99,22 @@ func (i *Info) GetFiles() []File {
 		return i.Files
 	}
 	return []File{{i.Length, []string{i.Name}}}
+}
+
+func (i *Info) Hash() []byte {
+	return i.hash[:]
+}
+
+func (i *Info) TotalLength() int64 {
+	return i.totalLength
+}
+
+func (i *Info) NumPieces() uint32 {
+	return i.numPieces
+}
+
+func (i *Info) Bytes() []byte {
+	return i.bytes
 }
 
 func (i *Info) IsPrivate() bool {

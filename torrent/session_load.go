@@ -44,7 +44,7 @@ func (s *Session) loadExistingTorrent(id string) (tt *Torrent, hasStarted bool, 
 		}
 		info = info2
 		if len(spec.Bitfield) > 0 {
-			bf3, err3 := bitfield.NewBytes(spec.Bitfield, info.NumPieces)
+			bf3, err3 := bitfield.NewBytes(spec.Bitfield, info.NumPieces())
 			if err3 != nil {
 				return nil, spec.Started, err3
 			}
