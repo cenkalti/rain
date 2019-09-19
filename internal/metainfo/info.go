@@ -14,12 +14,12 @@ var errInvalidPieceData = errors.New("invalid piece data")
 
 // Info contains information about torrent.
 type Info struct {
-	PieceLength uint32             `bencode:"piece length" json:"piece_length"`
-	Pieces      []byte             `bencode:"pieces" json:"pieces"`
-	Private     bencode.RawMessage `bencode:"private" json:"private"`
-	Name        string             `bencode:"name" json:"name"`
-	Length      int64              `bencode:"length" json:"length"` // Single File Mode
-	Files       []File             `bencode:"files" json:"files"`   // Multiple File mode
+	PieceLength uint32             `bencode:"piece length"`
+	Pieces      []byte             `bencode:"pieces"`
+	Private     bencode.RawMessage `bencode:"private"`
+	Name        string             `bencode:"name"`
+	Length      int64              `bencode:"length"` // Single File Mode
+	Files       []File             `bencode:"files"`  // Multiple File mode
 
 	hash        [20]byte
 	totalLength int64
@@ -29,8 +29,8 @@ type Info struct {
 }
 
 type File struct {
-	Length int64    `bencode:"length" json:"length"`
-	Path   []string `bencode:"path" json:"path"`
+	Length int64    `bencode:"length"`
+	Path   []string `bencode:"path"`
 }
 
 // NewInfo returns info from bencoded bytes in b.
