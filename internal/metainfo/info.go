@@ -19,7 +19,7 @@ type Info struct {
 	Private     bencode.RawMessage `bencode:"private" json:"private"`
 	Name        string             `bencode:"name" json:"name"`
 	Length      int64              `bencode:"length" json:"length"` // Single File Mode
-	Files       []FileDict         `bencode:"files" json:"files"`   // Multiple File mode
+	Files       []File             `bencode:"files" json:"files"`   // Multiple File mode
 
 	// Calculated fileds
 	Hash        [20]byte `bencode:"-" json:"-"`
@@ -29,7 +29,7 @@ type Info struct {
 	private     bool
 }
 
-type FileDict struct {
+type File struct {
 	Length int64    `bencode:"length" json:"length"`
 	Path   []string `bencode:"path" json:"path"`
 }
@@ -95,11 +95,11 @@ func (i *Info) HashOf(index uint32) []byte {
 }
 
 // GetFiles returns the files in torrent as a slice, even if there is a single file.
-func (i *Info) GetFiles() []FileDict {
+func (i *Info) GetFiles() []File {
 	if i.MultiFile() {
 		return i.Files
 	}
-	return []FileDict{{i.Length, []string{i.Name}}}
+	return []File{{i.Length, []string{i.Name}}}
 }
 
 func (i *Info) IsPrivate() bool {
