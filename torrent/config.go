@@ -1,12 +1,20 @@
 package torrent
 
-import "time"
+import (
+	"time"
+
+	"github.com/cenkalti/rain/internal/metainfo"
+)
 
 var (
 	publicPeerIDPrefix                    = "-RN" + Version + "-"
 	publicExtensionHandshakeClientVersion = "Rain " + Version
 	trackerHTTPPublicUserAgent            = "Rain/" + Version
 )
+
+func init() {
+	metainfo.Creator = publicExtensionHandshakeClientVersion
+}
 
 // Config for Session.
 type Config struct {

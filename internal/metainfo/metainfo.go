@@ -10,6 +10,8 @@ import (
 	"github.com/zeebo/bencode"
 )
 
+var Creator string
+
 // MetaInfo file dictionary
 type MetaInfo struct {
 	Info         Info
@@ -99,10 +101,12 @@ func NewBytes(info []byte, trackers, webseeds []string, comment string) ([]byte,
 		URLList      bencode.RawMessage `bencode:"url-list,omitempty"`
 		Comment      string             `bencode:"comment,omitempty"`
 		CreationDate int64              `bencode:"creation date"`
+		CreatedBy    string             `bencode:"created by,omitempty"`
 	}{
 		Info:         info,
 		Comment:      comment,
 		CreationDate: time.Now().UTC().Unix(),
+		CreatedBy:    Creator,
 	}
 	if len(trackers) == 1 {
 		mi.Announce = trackers[0]
