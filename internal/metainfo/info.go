@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -15,6 +17,7 @@ var (
 	errInvalidPieceData = errors.New("invalid piece data")
 	errZeroPieceLength  = errors.New("torrent has zero piece length")
 	errZeroPieces       = errors.New("torrent has zero pieces")
+	errPieceLength      = errors.New("piece length must be multiple of 16K")
 )
 
 // Info contains information about torrent.
@@ -35,17 +38,18 @@ type File struct {
 	Path   string
 }
 
+type file struct {
+	Length int64    `bencode:"length"`
+	Path   []string `bencode:"path"`
+}
+
 // NewInfo returns info from bencoded bytes in b.
 func NewInfo(b []byte) (*Info, error) {
-	type file struct {
-		Length int64    `bencode:"length"`
-		Path   []string `bencode:"path"`
-	}
 	var ib struct {
 		PieceLength uint32             `bencode:"piece length"`
 		Pieces      []byte             `bencode:"pieces"`
-		Private     bencode.RawMessage `bencode:"private"`
 		Name        string             `bencode:"name"`
+		Private     bencode.RawMessage `bencode:"private"`
 		Length      int64              `bencode:"length"` // Single File Mode
 		Files       []file             `bencode:"files"`  // Multiple File mode
 	}
@@ -136,8 +140,141 @@ func parsePrivateField(s bencode.RawMessage) bool {
 	return false
 }
 
+func NewInfoBytes(path string, private bool, pieceLength uint32) ([]byte, error) {
+	fi, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+	rootIsDir := fi.IsDir()
+	var totalLength int64
+	if rootIsDir {
+		totalLength, err = findTotalLength(path)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		totalLength = fi.Size()
+	}
+	if totalLength == 0 {
+		return nil, errors.New("no files")
+	}
+	if pieceLength == 0 {
+		pieceLength = calculatePieceLength(totalLength)
+	} else if pieceLength%(16<<10) != 0 {
+		return nil, errPieceLength
+	}
+	buf := make([]byte, pieceLength)
+	offset := 0
+	remaining := func() []byte { return buf[offset:] }
+	hash := sha1.New() // nolint: gosec
+	root := path
+	var files []file
+	var pieces []byte
+	visit := func(path string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if fi.IsDir() {
+			return nil
+		}
+		f, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		files = append(files, file{Path: filepath.SplitList(rel), Length: fi.Size()})
+		for {
+			n, err := io.ReadFull(f, remaining())
+			offset += n
+			if err == io.ErrUnexpectedEOF || err == io.EOF {
+				return nil // file finished, continue with next file
+			}
+			if err != nil {
+				return err
+			}
+			// buffer finished, calculate piece hash and append to pieces
+			_, _ = hash.Write(buf)
+			pieces = hash.Sum(pieces)
+			hash.Reset()
+			offset = 0
+		}
+	}
+	if fi.IsDir() {
+		err = filepath.Walk(path, visit)
+	} else {
+		err = visit(path, fi, nil)
+	}
+	if err != nil {
+		return nil, err
+	}
+	// hash remaining buffer
+	if offset > 0 {
+		_, _ = hash.Write(buf[:offset])
+		pieces = hash.Sum(pieces)
+	}
+	b := struct {
+		Name        string `bencode:"name"`
+		Private     bool   `bencode:"private"`
+		PieceLength uint32 `bencode:"piece length"`
+		Pieces      []byte `bencode:"pieces"`
+		Length      int64  `bencode:"length,omitempty"` // Single File Mode
+		Files       []file `bencode:"files,omitempty"`  // Multiple File mode
+	}{
+		Name:        filepath.Base(path),
+		Private:     private,
+		PieceLength: pieceLength,
+		Pieces:      pieces,
+	}
+	if rootIsDir {
+		b.Files = files
+	} else {
+		b.Length = fi.Size()
+	}
+	return bencode.EncodeBytes(b)
+}
+
 func (i *Info) PieceHash(index uint32) []byte {
 	begin := index * sha1.Size
 	end := begin + sha1.Size
 	return i.pieces[begin:end]
+}
+
+func findTotalLength(path string) (n int64, err error) {
+	err = filepath.Walk(path, func(path string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if fi.IsDir() {
+			return nil
+		}
+		n += fi.Size()
+		return nil
+	})
+	return
+}
+
+func calculatePieceLength(totalLength int64) uint32 {
+	const maxPieces = 2000
+	pieceLength := totalLength / maxPieces
+	switch {
+	case pieceLength < 32<<10:
+		return 32 << 10
+	case pieceLength > 16<<20:
+		return 16 << 20
+	default:
+		// round to next power of 2
+		v := uint32(pieceLength)
+		v--
+		v |= v >> 1
+		v |= v >> 2
+		v |= v >> 4
+		v |= v >> 8
+		v |= v >> 16
+		v++
+		return v
+	}
 }

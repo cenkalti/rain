@@ -19,6 +19,7 @@ import (
 	clog "github.com/cenkalti/log"
 	"github.com/cenkalti/rain/internal/console"
 	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/rainrpc"
 	"github.com/cenkalti/rain/torrent"
 	"github.com/hokaccha/go-prettyjson"
@@ -203,6 +204,37 @@ func main() {
 					Name:   "show",
 					Usage:  "show contents of the torrent file",
 					Action: handleTorrentShow,
+				},
+				{
+					Name:   "create",
+					Usage:  "create new torrent file",
+					Action: handleTorrentCreate,
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:  "outfile, o",
+							Usage: "save generated torrent to this `FILE`",
+						},
+						cli.BoolFlag{
+							Name:  "private, p",
+							Usage: "create torrent for private trackers",
+						},
+						cli.IntFlag{
+							Name:  "piece-length, l",
+							Usage: "override default piece length. by default, piece length calculated automatically based on the total size of files. given in KB. must be multiple of 16.",
+						},
+						cli.StringFlag{
+							Name:  "comment, c",
+							Usage: "add `COMMENT` to torrent",
+						},
+						cli.StringSliceFlag{
+							Name:  "tracker, t",
+							Usage: "add tracker `URL`",
+						},
+						cli.StringSliceFlag{
+							Name:  "webseed, w",
+							Usage: "add webseed `URL`",
+						},
+					},
 				},
 			},
 		},
@@ -531,4 +563,42 @@ func handleTorrentShow(c *cli.Context) error {
 	_, _ = os.Stdout.Write(b)
 	_, _ = os.Stdout.WriteString("\n")
 	return nil
+}
+
+func handleTorrentCreate(c *cli.Context) error {
+	path := c.Args().Get(0)
+	out := c.String("outfile")
+	private := c.Bool("private")
+	pieceLength := c.Uint("piece-length")
+	comment := c.String("comment")
+	trackers := c.StringSlice("tracker")
+	webseeds := c.StringSlice("webseed")
+
+	var err error
+	out, err = homedir.Expand(out)
+	if err != nil {
+		return err
+	}
+	path, err = homedir.Expand(path)
+	if err != nil {
+		return err
+	}
+
+	info, err := metainfo.NewInfoBytes(path, private, uint32(pieceLength<<10))
+	if err != nil {
+		return err
+	}
+	mi, err := metainfo.NewBytes(info, trackers, webseeds, comment)
+	if err != nil {
+		return err
+	}
+	f, err := os.Create(out)
+	if err != nil {
+		return err
+	}
+	_, err = f.Write(mi)
+	if err != nil {
+		return err
+	}
+	return f.Close()
 }

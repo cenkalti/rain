@@ -16,17 +16,15 @@ type MetaInfo struct {
 	URLList      []string
 }
 
-type metaInfo struct {
-	Info         bencode.RawMessage `bencode:"info"`
-	Announce     bencode.RawMessage `bencode:"announce"`
-	AnnounceList bencode.RawMessage `bencode:"announce-list"`
-	URLList      bencode.RawMessage `bencode:"url-list"`
-}
-
 // New returns a torrent from bencoded stream.
 func New(r io.Reader) (*MetaInfo, error) {
 	var ret MetaInfo
-	var t metaInfo
+	var t struct {
+		Info         bencode.RawMessage `bencode:"info"`
+		Announce     bencode.RawMessage `bencode:"announce"`
+		AnnounceList bencode.RawMessage `bencode:"announce-list"`
+		URLList      bencode.RawMessage `bencode:"url-list"`
+	}
 	err := bencode.NewDecoder(r).Decode(&t)
 	if err != nil {
 		return nil, err
@@ -90,4 +88,28 @@ func isTrackerSupported(s string) bool {
 
 func isWebseedSupported(s string) bool {
 	return strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://")
+}
+
+func NewBytes(info []byte, trackers, webseeds []string, comment string) ([]byte, error) {
+	mi := struct {
+		Info         bencode.RawMessage `bencode:"info"`
+		Announce     string             `bencode:"announce,omitempty"`
+		AnnounceList []string           `bencode:"announce-list,omitempty"`
+		URLList      bencode.RawMessage `bencode:"url-list,omitempty"`
+		Comment      string             `bencode:"comment,omitempty"`
+	}{
+		Info:    info,
+		Comment: comment,
+	}
+	if len(trackers) == 1 {
+		mi.Announce = trackers[0]
+	} else if len(trackers) > 1 {
+		mi.AnnounceList = trackers
+	}
+	if len(webseeds) == 1 {
+		mi.URLList, _ = bencode.EncodeBytes(webseeds[0])
+	} else if len(webseeds) > 1 {
+		mi.URLList, _ = bencode.EncodeBytes(webseeds)
+	}
+	return bencode.EncodeBytes(mi)
 }
