@@ -1,8 +1,6 @@
 package allocator
 
 import (
-	"path/filepath"
-
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/storage"
 )
@@ -55,33 +53,15 @@ func (a *Allocator) Run(info *metainfo.Info, sto storage.Storage, progressC chan
 	}()
 
 	var allocatedSize int64
-
-	// Single file in torrent
-	if !info.MultiFile() {
-		var f storage.File
-		f, a.NeedHashCheck, a.Error = sto.Open(info.Name, info.Length)
-		if a.Error != nil {
-			return
-		}
-		a.Files = []File{{Storage: f, Name: info.Name}}
-		allocatedSize += info.Length
-		a.sendProgress(progressC, allocatedSize)
-		return
-	}
-
-	// Multiple files in torrent grouped in a folder
-	files := info.GetFiles()
-	a.Files = make([]File, len(files))
-	for i, f := range files {
-		parts := append([]string{info.Name}, f.Path...)
-		path := filepath.Join(parts...)
+	a.Files = make([]File, len(info.Files))
+	for i, f := range info.Files {
 		var sf storage.File
 		var exists bool
-		sf, exists, a.Error = sto.Open(path, f.Length)
+		sf, exists, a.Error = sto.Open(f.Path, f.Length)
 		if a.Error != nil {
 			return
 		}
-		a.Files[i] = File{Storage: sf, Name: path}
+		a.Files[i] = File{Storage: sf, Name: f.Path}
 		if exists {
 			a.NeedHashCheck = true
 		}

@@ -38,7 +38,7 @@ func NewPieces(info *metainfo.Info, files []allocator.File) []Piece {
 
 	nextFile := func() {
 		fileIndex++
-		fileLength = info.GetFiles()[fileIndex].Length
+		fileLength = info.Files[fileIndex].Length
 		fileEnd += fileLength
 		fileOffset = 0
 	}
@@ -80,7 +80,7 @@ func NewPieces(info *metainfo.Info, files []allocator.File) []Piece {
 			fileOffset += int64(n)
 			total += int64(n)
 
-			if total == info.TotalLength {
+			if total == info.Length {
 				break
 			}
 			if fileLeft() == 0 {
