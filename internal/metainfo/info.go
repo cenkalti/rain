@@ -16,13 +16,13 @@ var errInvalidPieceData = errors.New("invalid piece data")
 type Info struct {
 	PieceLength uint32
 	Name        string
-	Length      int64
 	Hash        [20]byte
-	TotalLength int64
+	Length      int64
 	NumPieces   uint32
 	Bytes       []byte
 	Private     bool
 
+	length int64
 	pieces []byte
 	files  []File
 }
@@ -50,7 +50,7 @@ func NewInfo(b []byte) (*Info, error) {
 		PieceLength: ib.PieceLength,
 		pieces:      ib.Pieces,
 		Name:        ib.Name,
-		Length:      ib.Length,
+		length:      ib.Length,
 		files:       ib.Files,
 	}
 	if uint32(len(i.pieces))%sha1.Size != 0 {
@@ -79,14 +79,14 @@ func NewInfo(b []byte) (*Info, error) {
 	}
 	i.NumPieces = uint32(len(i.pieces)) / sha1.Size
 	if !i.MultiFile() {
-		i.TotalLength = i.Length
+		i.Length = i.length
 	} else {
 		for _, f := range i.files {
-			i.TotalLength += f.Length
+			i.Length += f.Length
 		}
 	}
 	totalPieceDataLength := int64(i.PieceLength) * int64(i.NumPieces)
-	delta := totalPieceDataLength - i.TotalLength
+	delta := totalPieceDataLength - i.Length
 	if delta >= int64(i.PieceLength) || delta < 0 {
 		return nil, errInvalidPieceData
 	}
@@ -112,5 +112,5 @@ func (i *Info) GetFiles() []File {
 	if i.MultiFile() {
 		return i.files
 	}
-	return []File{{i.Length, []string{i.Name}}}
+	return []File{{i.length, []string{i.Name}}}
 }
