@@ -37,12 +37,14 @@ func (s *Session) loadExistingTorrent(id string) (tt *Torrent, hasStarted bool, 
 	hasStarted = spec.Started
 	var info *metainfo.Info
 	var bf *bitfield.Bitfield
+	var private bool
 	if len(spec.Info) > 0 {
 		info2, err2 := metainfo.NewInfo(spec.Info)
 		if err2 != nil {
 			return nil, spec.Started, err2
 		}
 		info = info2
+		private = info.Private
 		if len(spec.Bitfield) > 0 {
 			bf3, err3 := bitfield.NewBytes(spec.Bitfield, info.NumPieces)
 			if err3 != nil {
@@ -63,7 +65,7 @@ func (s *Session) loadExistingTorrent(id string) (tt *Torrent, hasStarted bool, 
 		sto,
 		spec.Name,
 		spec.Port,
-		s.parseTrackers(spec.Trackers, info.IsPrivate()),
+		s.parseTrackers(spec.Trackers, private),
 		spec.FixedPeers,
 		info,
 		bf,

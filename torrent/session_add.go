@@ -60,7 +60,7 @@ func (s *Session) addTorrentStopped(r io.Reader, opt *AddTorrentOptions) (*Torre
 		sto,
 		mi.Info.Name,
 		port,
-		s.parseTrackers(mi.AnnounceList, mi.Info.IsPrivate()),
+		s.parseTrackers(mi.AnnounceList, mi.Info.Private),
 		nil, // fixedPeers
 		&mi.Info,
 		nil, // bitfield

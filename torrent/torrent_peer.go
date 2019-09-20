@@ -185,7 +185,7 @@ func (t *torrent) sendFirstMessage(p *peer.Peer) {
 }
 
 func (t *torrent) getClientVersion() string {
-	if t.info.IsPrivate() {
+	if t.info != nil && t.info.Private {
 		return t.session.config.PrivateExtensionHandshakeClientVersion
 	}
 	return publicExtensionHandshakeClientVersion

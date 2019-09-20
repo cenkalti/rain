@@ -361,7 +361,7 @@ func newTorrent2(
 }
 
 func (t *torrent) copyPeerIDPrefix() int {
-	if t.info.IsPrivate() {
+	if t.info != nil && t.info.Private {
 		return copy(t.peerID[:], []byte(t.session.config.PrivatePeerIDPrefix))
 	}
 	return copy(t.peerID[:], []byte(publicPeerIDPrefix))

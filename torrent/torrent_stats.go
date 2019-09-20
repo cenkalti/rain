@@ -147,7 +147,7 @@ func (t *torrent) stats() Stats {
 		s.Bytes.Incomplete = s.Bytes.Total - s.Bytes.Completed
 
 		s.Name = t.info.Name
-		s.Private = t.info.IsPrivate()
+		s.Private = t.info.Private
 		s.PieceLength = t.info.PieceLength
 		s.Pieces.Total = t.info.NumPieces
 	} else {

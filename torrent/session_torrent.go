@@ -85,7 +85,11 @@ func (t *Torrent) AddPeer(addr string) error {
 
 // AddTracker adds a new tracker to the torrent.
 func (t *Torrent) AddTracker(uri string) error {
-	tr, err := t.torrent.session.trackerManager.Get(uri, t.torrent.session.config.TrackerHTTPTimeout, t.torrent.session.getTrackerUserAgent(t.torrent.info.IsPrivate()), int64(t.torrent.session.config.TrackerHTTPMaxResponseSize))
+	var private bool
+	if t.torrent.info != nil {
+		private = t.torrent.info.Private
+	}
+	tr, err := t.torrent.session.trackerManager.Get(uri, t.torrent.session.config.TrackerHTTPTimeout, t.torrent.session.getTrackerUserAgent(private), int64(t.torrent.session.config.TrackerHTTPMaxResponseSize))
 	if err != nil {
 		return err
 	}

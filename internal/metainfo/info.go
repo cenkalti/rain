@@ -21,10 +21,10 @@ type Info struct {
 	TotalLength int64
 	NumPieces   uint32
 	Bytes       []byte
+	Private     bool
 
-	private bool
-	pieces  []byte
-	files   []File
+	pieces []byte
+	files  []File
 }
 
 type File struct {
@@ -63,10 +63,10 @@ func NewInfo(b []byte) (*Info, error) {
 		if err != nil {
 			err = bencode.DecodeBytes(ib.Private, &stringVal)
 			if err == nil {
-				i.private = stringVal == "1"
+				i.Private = stringVal == "1"
 			}
 		} else {
-			i.private = intVal == 1
+			i.Private = intVal == 1
 		}
 	}
 	// ".." is not allowed in file names
@@ -113,11 +113,4 @@ func (i *Info) GetFiles() []File {
 		return i.files
 	}
 	return []File{{i.Length, []string{i.Name}}}
-}
-
-func (i *Info) IsPrivate() bool {
-	if i == nil {
-		return false
-	}
-	return i.private
 }

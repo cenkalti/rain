@@ -87,7 +87,7 @@ func (t *torrent) startAnnouncers() {
 			t.startNewAnnouncer(tr)
 		}
 	}
-	if t.dhtAnnouncer == nil && t.session.config.DHTEnabled && (t.info == nil || !t.info.IsPrivate()) {
+	if t.dhtAnnouncer == nil && t.session.config.DHTEnabled && (t.info == nil || !t.info.Private) {
 		t.dhtAnnouncer = announcer.NewDHTAnnouncer()
 		go t.dhtAnnouncer.Run(t.announceDHT, t.session.config.DHTAnnounceInterval, t.session.config.DHTMinAnnounceInterval, t.log)
 	}

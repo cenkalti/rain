@@ -313,7 +313,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 		}
 		if t.session.config.PEXEnabled {
 			if _, ok := msg.M[peerprotocol.ExtensionKeyPEX]; ok {
-				if t.info != nil && !t.info.IsPrivate() {
+				if t.info != nil && !t.info.Private {
 					pe.StartPEX(t.peers)
 				}
 			}
