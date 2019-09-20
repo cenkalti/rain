@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/zeebo/bencode"
 )
@@ -97,9 +98,11 @@ func NewBytes(info []byte, trackers, webseeds []string, comment string) ([]byte,
 		AnnounceList []string           `bencode:"announce-list,omitempty"`
 		URLList      bencode.RawMessage `bencode:"url-list,omitempty"`
 		Comment      string             `bencode:"comment,omitempty"`
+		CreationDate int64              `bencode:"creation date"`
 	}{
-		Info:    info,
-		Comment: comment,
+		Info:         info,
+		Comment:      comment,
+		CreationDate: time.Now().UTC().Unix(),
 	}
 	if len(trackers) == 1 {
 		mi.Announce = trackers[0]
