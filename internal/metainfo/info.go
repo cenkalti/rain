@@ -22,7 +22,6 @@ type Info struct {
 	Bytes       []byte
 	Private     bool
 
-	length int64
 	pieces []byte
 	files  []File
 }
@@ -50,7 +49,7 @@ func NewInfo(b []byte) (*Info, error) {
 		PieceLength: ib.PieceLength,
 		pieces:      ib.Pieces,
 		Name:        ib.Name,
-		length:      ib.Length,
+		Length:      ib.Length,
 		files:       ib.Files,
 	}
 	if uint32(len(i.pieces))%sha1.Size != 0 {
@@ -79,8 +78,6 @@ func NewInfo(b []byte) (*Info, error) {
 	}
 	i.NumPieces = uint32(len(i.pieces)) / sha1.Size
 	if !i.MultiFile() {
-		i.Length = i.length
-	} else {
 		for _, f := range i.files {
 			i.Length += f.Length
 		}
@@ -112,5 +109,5 @@ func (i *Info) GetFiles() []File {
 	if i.MultiFile() {
 		return i.files
 	}
-	return []File{{i.length, []string{i.Name}}}
+	return []File{{i.Length, []string{i.Name}}}
 }
