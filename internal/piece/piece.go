@@ -51,8 +51,8 @@ func NewPieces(info *metainfo.Info, files []allocator.File) []Piece {
 
 	// Construct pieces
 	var total int64
-	pieces := make([]Piece, info.NumPieces())
-	for i := uint32(0); i < info.NumPieces(); i++ {
+	pieces := make([]Piece, info.NumPieces)
+	for i := uint32(0); i < info.NumPieces; i++ {
 		p := Piece{
 			Index: i,
 			Hash:  info.PieceHash(i),
@@ -80,7 +80,7 @@ func NewPieces(info *metainfo.Info, files []allocator.File) []Piece {
 			fileOffset += int64(n)
 			total += int64(n)
 
-			if total == info.TotalLength() {
+			if total == info.TotalLength {
 				break
 			}
 			if fileLeft() == 0 {

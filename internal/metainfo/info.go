@@ -14,18 +14,17 @@ var errInvalidPieceData = errors.New("invalid piece data")
 
 // Info contains information about torrent.
 type Info struct {
-	PieceLength uint32             `bencode:"piece length"`
-	Pieces      []byte             `bencode:"pieces"`
-	Private     bencode.RawMessage `bencode:"private"`
-	Name        string             `bencode:"name"`
-	Length      int64              `bencode:"length"` // Single File Mode
-	Files       []File             `bencode:"files"`  // Multiple File mode
+	PieceLength uint32
+	Name        string
+	Length      int64
+	Hash        [20]byte
+	TotalLength int64
+	NumPieces   uint32
+	Bytes       []byte
 
-	hash        [20]byte
-	totalLength int64
-	numPieces   uint32
-	bytes       []byte
-	private     bool
+	private bool
+	pieces  []byte
+	files   []File
 }
 
 type File struct {
@@ -35,19 +34,34 @@ type File struct {
 
 // NewInfo returns info from bencoded bytes in b.
 func NewInfo(b []byte) (*Info, error) {
-	var i Info
-	if err := bencode.DecodeBytes(b, &i); err != nil {
+	var ib struct {
+		PieceLength uint32             `bencode:"piece length"`
+		Pieces      []byte             `bencode:"pieces"`
+		Private     bencode.RawMessage `bencode:"private"`
+		Name        string             `bencode:"name"`
+		Length      int64              `bencode:"length"` // Single File Mode
+		Files       []File             `bencode:"files"`  // Multiple File mode
+	}
+
+	if err := bencode.DecodeBytes(b, &ib); err != nil {
 		return nil, err
 	}
-	if uint32(len(i.Pieces))%sha1.Size != 0 {
+	i := Info{
+		PieceLength: ib.PieceLength,
+		pieces:      ib.Pieces,
+		Name:        ib.Name,
+		Length:      ib.Length,
+		files:       ib.Files,
+	}
+	if uint32(len(i.pieces))%sha1.Size != 0 {
 		return nil, errInvalidPieceData
 	}
-	if len(i.Private) > 0 {
+	if len(ib.Private) > 0 {
 		var intVal int64
 		var stringVal string
-		err := bencode.DecodeBytes(i.Private, &intVal)
+		err := bencode.DecodeBytes(ib.Private, &intVal)
 		if err != nil {
-			err = bencode.DecodeBytes(i.Private, &stringVal)
+			err = bencode.DecodeBytes(ib.Private, &stringVal)
 			if err == nil {
 				i.private = stringVal == "1"
 			}
@@ -56,65 +70,49 @@ func NewInfo(b []byte) (*Info, error) {
 		}
 	}
 	// ".." is not allowed in file names
-	for _, file := range i.Files {
+	for _, file := range i.files {
 		for _, path := range file.Path {
 			if strings.TrimSpace(path) == ".." {
 				return nil, fmt.Errorf("invalid file name: %q", filepath.Join(file.Path...))
 			}
 		}
 	}
-	i.numPieces = uint32(len(i.Pieces)) / sha1.Size
+	i.NumPieces = uint32(len(i.pieces)) / sha1.Size
 	if !i.MultiFile() {
-		i.totalLength = i.Length
+		i.TotalLength = i.Length
 	} else {
-		for _, f := range i.Files {
-			i.totalLength += f.Length
+		for _, f := range i.files {
+			i.TotalLength += f.Length
 		}
 	}
-	totalPieceDataLength := int64(i.PieceLength) * int64(i.numPieces)
-	delta := totalPieceDataLength - i.totalLength
+	totalPieceDataLength := int64(i.PieceLength) * int64(i.NumPieces)
+	delta := totalPieceDataLength - i.TotalLength
 	if delta >= int64(i.PieceLength) || delta < 0 {
 		return nil, errInvalidPieceData
 	}
-	i.bytes = b
+	i.Bytes = b
 	hash := sha1.New()   // nolint: gosec
 	_, _ = hash.Write(b) // nolint: gosec
-	copy(i.hash[:], hash.Sum(nil))
+	copy(i.Hash[:], hash.Sum(nil))
 	return &i, nil
 }
 
 func (i *Info) MultiFile() bool {
-	return len(i.Files) != 0
+	return len(i.files) != 0
 }
 
 func (i *Info) PieceHash(index uint32) []byte {
 	begin := index * sha1.Size
 	end := begin + sha1.Size
-	return i.Pieces[begin:end]
+	return i.pieces[begin:end]
 }
 
 // GetFiles returns the files in torrent as a slice, even if there is a single file.
 func (i *Info) GetFiles() []File {
 	if i.MultiFile() {
-		return i.Files
+		return i.files
 	}
 	return []File{{i.Length, []string{i.Name}}}
-}
-
-func (i *Info) Hash() []byte {
-	return i.hash[:]
-}
-
-func (i *Info) TotalLength() int64 {
-	return i.totalLength
-}
-
-func (i *Info) NumPieces() uint32 {
-	return i.numPieces
-}
-
-func (i *Info) Bytes() []byte {
-	return i.bytes
 }
 
 func (i *Info) IsPrivate() bool {

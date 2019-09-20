@@ -56,7 +56,7 @@ func (s *Session) addTorrentStopped(r io.Reader, opt *AddTorrentOptions) (*Torre
 		s,
 		id,
 		time.Now(),
-		mi.Info.Hash(),
+		mi.Info.Hash[:],
 		sto,
 		mi.Info.Name,
 		port,
@@ -77,13 +77,13 @@ func (s *Session) addTorrentStopped(r io.Reader, opt *AddTorrentOptions) (*Torre
 		}
 	}()
 	rspec := &boltdbresumer.Spec{
-		InfoHash: mi.Info.Hash(),
+		InfoHash: mi.Info.Hash[:],
 		Dest:     sto.Dest(),
 		Port:     port,
 		Name:     mi.Info.Name,
 		Trackers: mi.AnnounceList,
 		URLList:  mi.URLList,
-		Info:     mi.Info.Bytes(),
+		Info:     mi.Info.Bytes,
 		AddedAt:  t.addedAt,
 	}
 	err = s.resumer.Write(id, rspec)

@@ -70,8 +70,9 @@ func (a *Allocator) Run(info *metainfo.Info, sto storage.Storage, progressC chan
 	}
 
 	// Multiple files in torrent grouped in a folder
-	a.Files = make([]File, len(info.Files))
-	for i, f := range info.Files {
+	files := info.GetFiles()
+	a.Files = make([]File, len(files))
+	for i, f := range files {
 		parts := append([]string{info.Name}, f.Path...)
 		path := filepath.Join(parts...)
 		var sf storage.File

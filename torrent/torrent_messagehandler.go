@@ -120,7 +120,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			pe.Messages = append(pe.Messages, msg)
 			break
 		}
-		if msg.Index >= t.info.NumPieces() {
+		if msg.Index >= t.info.NumPieces {
 			pe.Logger().Errorln("unexpected piece index:", msg.Index)
 			t.closePeer(pe)
 			break
@@ -137,9 +137,9 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			pe.Messages = append(pe.Messages, msg)
 			break
 		}
-		bf, err := bitfield.NewBytes(msg.Data, t.info.NumPieces())
+		bf, err := bitfield.NewBytes(msg.Data, t.info.NumPieces)
 		if err != nil {
-			pe.Logger().Errorf("%s [len(bitfield)=%d] [numPieces=%d]", err, len(msg.Data), t.info.NumPieces())
+			pe.Logger().Errorf("%s [len(bitfield)=%d] [numPieces=%d]", err, len(msg.Data), t.info.NumPieces)
 			t.closePeer(pe)
 			break
 		}
@@ -171,7 +171,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			pe.Messages = append(pe.Messages, msg)
 			break
 		}
-		if msg.Index >= t.info.NumPieces() {
+		if msg.Index >= t.info.NumPieces {
 			pe.Logger().Errorln("invalid allowed fast piece index:", msg.Index)
 			t.closePeer(pe)
 			break
@@ -224,7 +224,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			t.closePeer(pe)
 			break
 		}
-		if msg.Index >= t.info.NumPieces() {
+		if msg.Index >= t.info.NumPieces {
 			pe.Logger().Errorln("invalid request index:", msg.Index)
 			t.closePeer(pe)
 			break
@@ -250,7 +250,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			break
 		}
 
-		if msg.Index >= t.info.NumPieces() {
+		if msg.Index >= t.info.NumPieces {
 			pe.Logger().Errorln("invalid reject index:", msg.Index)
 			t.closePeer(pe)
 			break
@@ -276,7 +276,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			break
 		}
 
-		if msg.Index >= t.info.NumPieces() {
+		if msg.Index >= t.info.NumPieces {
 			pe.Logger().Debugln("invalid cancel index:", msg.Index)
 			break
 		}

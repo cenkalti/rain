@@ -144,7 +144,7 @@ func (t *torrent) startPeer(
 	t.peers[pe] = struct{}{}
 	peers[pe] = struct{}{}
 	if t.info != nil {
-		pe.Bitfield = bitfield.New(t.info.NumPieces())
+		pe.Bitfield = bitfield.New(t.info.NumPieces)
 	}
 	go pe.Run(t.messages, t.pieceMessagesC.SendC(), t.peerSnubbedC, t.peerDisconnectedC)
 	t.session.metrics.Peers.Inc(1)
@@ -168,7 +168,7 @@ func (t *torrent) sendFirstMessage(p *peer.Peer) {
 	}
 	var metadataSize uint32
 	if t.info != nil {
-		metadataSize = uint32(len(t.info.Bytes()))
+		metadataSize = uint32(len(t.info.Bytes))
 	}
 	if p.ExtensionsEnabled {
 		extHandshakeMsg := peerprotocol.NewExtensionHandshake(metadataSize, t.getClientVersion(), p.Addr().IP, t.session.config.MaxRequestsIn)
