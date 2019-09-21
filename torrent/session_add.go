@@ -78,7 +78,6 @@ func (s *Session) addTorrentStopped(r io.Reader, opt *AddTorrentOptions) (*Torre
 	}()
 	rspec := &boltdbresumer.Spec{
 		InfoHash: mi.Info.Hash[:],
-		Dest:     sto.Dest(),
 		Port:     port,
 		Name:     mi.Info.Name,
 		Trackers: mi.AnnounceList,
@@ -181,7 +180,6 @@ func (s *Session) addMagnet(link string, opt *AddTorrentOptions) (*Torrent, erro
 	}()
 	rspec := &boltdbresumer.Spec{
 		InfoHash:   ma.InfoHash[:],
-		Dest:       sto.Dest(),
 		Port:       port,
 		Name:       ma.Name,
 		Trackers:   ma.Trackers,

@@ -22,7 +22,6 @@ import (
 	"github.com/cenkalti/rain/internal/resourcemanager"
 	"github.com/cenkalti/rain/internal/resumer/boltdbresumer"
 	"github.com/cenkalti/rain/internal/semaphore"
-	"github.com/cenkalti/rain/internal/storage/filestorage"
 	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/internal/trackermanager"
 	"github.com/juju/ratelimit"
@@ -343,7 +342,7 @@ func (s *Session) removeTorrentFromClient(id string) (*Torrent, error) {
 func (s *Session) stopAndRemoveData(t *Torrent) error {
 	t.torrent.Close()
 	s.releasePort(t.torrent.port)
-	dest := t.torrent.storage.(*filestorage.FileStorage).Dest()
+	dest := filepath.Join(s.config.DataDir, t.torrent.id)
 	err := os.RemoveAll(dest)
 	if err != nil {
 		s.log.Errorf("cannot remove torrent data. err: %s dest: %s", err, dest)

@@ -8,7 +8,6 @@ import (
 
 type Spec struct {
 	InfoHash        []byte
-	Dest            string
 	Port            int
 	Name            string
 	Trackers        [][]string
@@ -25,7 +24,6 @@ type Spec struct {
 }
 
 type jsonSpec struct {
-	Dest            string
 	Port            int
 	Name            string
 	Trackers        [][]string
@@ -46,7 +44,6 @@ type jsonSpec struct {
 
 func (s Spec) MarshalJSON() ([]byte, error) {
 	j := jsonSpec{
-		Dest:            s.Dest,
 		Port:            s.Port,
 		Name:            s.Name,
 		Trackers:        s.Trackers,
@@ -85,7 +82,6 @@ func (s *Spec) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	s.SeededFor = time.Duration(j.SeededFor)
-	s.Dest = j.Dest
 	s.Port = j.Port
 	s.Name = j.Name
 	s.Trackers = j.Trackers

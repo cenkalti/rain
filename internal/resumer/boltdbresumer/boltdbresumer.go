@@ -85,7 +85,6 @@ func (r *Resumer) Write(torrentID string, spec *Spec) error {
 		_ = b.Put(Keys.InfoHash, spec.InfoHash)
 		_ = b.Put(Keys.Port, []byte(port))
 		_ = b.Put(Keys.Name, []byte(spec.Name))
-		_ = b.Put(Keys.Dest, []byte(spec.Dest))
 		_ = b.Put(Keys.Trackers, trackers)
 		_ = b.Put(Keys.URLList, urlList)
 		_ = b.Put(Keys.FixedPeers, fixedPeers)
@@ -202,9 +201,6 @@ func (r *Resumer) Read(torrentID string) (*Spec, error) {
 				return err
 			}
 		}
-
-		value = b.Get(Keys.Dest)
-		spec.Dest = string(value)
 
 		value = b.Get(Keys.Info)
 		if value != nil {

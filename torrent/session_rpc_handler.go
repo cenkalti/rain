@@ -465,7 +465,6 @@ func (h *rpcHandler) handleMoveTorrent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	s.Dest = filepath.Join(h.session.config.DataDir, id)
 	s.Port = port
 	spec := &s
 	// case "data":

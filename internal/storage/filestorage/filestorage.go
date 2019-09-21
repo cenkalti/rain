@@ -23,10 +23,6 @@ func New(dest string) (*FileStorage, error) {
 
 var _ storage.Storage = (*FileStorage)(nil)
 
-func (s *FileStorage) Dest() string {
-	return s.dest
-}
-
 func (s *FileStorage) Open(name string, size int64) (f storage.File, exists bool, err error) {
 	name = filepath.Clean(name)
 
