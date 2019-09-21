@@ -40,7 +40,7 @@ func main() {
 	app.Usage = "BitTorrent client"
 	app.Flags = []cli.Flag{
 		cli.BoolFlag{
-			Name:  "debug, d",
+			Name:  "debug,d",
 			Usage: "enable debug log",
 		},
 		cli.StringFlag{
@@ -72,7 +72,7 @@ func main() {
 			Usage: "run rpc server and torrent client",
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:  "config, c",
+					Name:  "config,c",
 					Usage: "read config from `FILE`",
 					Value: "~/rain/config.yaml",
 				},
@@ -211,27 +211,33 @@ func main() {
 					Action: handleTorrentCreate,
 					Flags: []cli.Flag{
 						cli.StringFlag{
-							Name:  "outfile, o",
-							Usage: "save generated torrent to this `FILE`",
+							Name:     "file,f",
+							Usage:    "include this file or directory in torrent",
+							Required: true,
+						},
+						cli.StringFlag{
+							Name:     "out,o",
+							Usage:    "save generated torrent to this `FILE`",
+							Required: true,
 						},
 						cli.BoolFlag{
-							Name:  "private, p",
+							Name:  "private,p",
 							Usage: "create torrent for private trackers",
 						},
 						cli.IntFlag{
-							Name:  "piece-length, l",
+							Name:  "piece-length,l",
 							Usage: "override default piece length. by default, piece length calculated automatically based on the total size of files. given in KB. must be multiple of 16.",
 						},
 						cli.StringFlag{
-							Name:  "comment, c",
+							Name:  "comment,c",
 							Usage: "add `COMMENT` to torrent",
 						},
 						cli.StringSliceFlag{
-							Name:  "tracker, t",
+							Name:  "tracker,t",
 							Usage: "add tracker `URL`",
 						},
 						cli.StringSliceFlag{
-							Name:  "webseed, w",
+							Name:  "webseed,w",
 							Usage: "add webseed `URL`",
 						},
 					},
@@ -566,8 +572,8 @@ func handleTorrentShow(c *cli.Context) error {
 }
 
 func handleTorrentCreate(c *cli.Context) error {
-	path := c.Args().Get(0)
-	out := c.String("outfile")
+	path := c.String("file")
+	out := c.String("out")
 	private := c.Bool("private")
 	pieceLength := c.Uint("piece-length")
 	comment := c.String("comment")

@@ -10,6 +10,7 @@ require (
 	github.com/cenkalti/boltbrowser v0.0.0-20190327195521-ebed13c76690
 	github.com/cenkalti/log v0.0.0-20180808170110-e1cf6d40cbc3
 	github.com/chihaya/chihaya v0.0.0-20190113170711-5f99a7e77885
+	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
 	github.com/cyberdelia/go-metrics-graphite v0.0.0-20161219230853-39f87cc3b432
 	github.com/fatih/color v1.7.0 // indirect
 	github.com/fatih/structs v1.1.0
@@ -42,12 +43,12 @@ require (
 	github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a
 	github.com/sirupsen/logrus v1.2.0 // indirect
 	github.com/stretchr/testify v1.2.2
-	github.com/urfave/cli v1.20.0
+	github.com/urfave/cli v1.22.1
 	github.com/youtube/vitess v2.2.0-rc.1+incompatible // indirect
 	github.com/zeebo/bencode v0.0.0-20180308174530-d522839ac797
 	golang.org/x/sync v0.0.0-20190227155943-e225da77a7e6 // indirect
 	golang.org/x/sys v0.0.0-20190830142957-1e83adbbebd0
-	gopkg.in/yaml.v2 v2.2.1
+	gopkg.in/yaml.v2 v2.2.2
 )
 
 replace github.com/rcrowley/go-metrics => github.com/cenkalti/go-metrics v0.0.0-20190910102919-35c391953d1c
