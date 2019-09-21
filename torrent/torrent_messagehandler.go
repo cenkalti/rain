@@ -235,6 +235,11 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			break
 		}
 		pi := &t.pieces[msg.Index]
+		if !pi.Done {
+			m := peerprotocol.RejectMessage{RequestMessage: msg}
+			pe.SendMessage(m)
+			break
+		}
 		if pe.ClientChoking {
 			if pe.FastEnabled {
 				if pe.SentAllowedFast.Has(pi) {
