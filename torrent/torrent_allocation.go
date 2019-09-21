@@ -35,6 +35,10 @@ func (t *torrent) handleAllocationDone(al *allocator.Allocator) {
 	}
 	t.pieces = pieces
 
+	for pe := range t.peers {
+		pe.GenerateAndSendAllowedFastMessages(t.session.config.AllowedFastSet, t.info.NumPieces, t.infoHash, t.pieces)
+	}
+
 	if t.piecePicker != nil {
 		panic("piece picker exists")
 	}

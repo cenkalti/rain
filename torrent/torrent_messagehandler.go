@@ -237,8 +237,12 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 		pi := &t.pieces[msg.Index]
 		if pe.ClientChoking {
 			if pe.FastEnabled {
-				m := peerprotocol.RejectMessage{RequestMessage: msg}
-				pe.SendMessage(m)
+				if pe.SentAllowedFast.Has(pi) {
+					pe.SendPiece(msg, cachedpiece.New(pi, t.session.pieceCache, t.session.config.ReadCacheBlockSize, t.peerID))
+				} else {
+					m := peerprotocol.RejectMessage{RequestMessage: msg}
+					pe.SendMessage(m)
+				}
 			}
 		} else {
 			pe.SendPiece(msg, cachedpiece.New(pi, t.session.pieceCache, t.session.config.ReadCacheBlockSize, t.peerID))

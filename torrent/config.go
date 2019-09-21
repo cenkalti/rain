@@ -129,6 +129,8 @@ type Config struct {
 	PieceReadTimeout time.Duration
 	// Max number of peer addresses to keep in connect queue.
 	MaxPeerAddresses int
+	// Number of allowed-fast messages to send after handshake.
+	AllowedFastSet int
 
 	// Number of bytes to read when a piece is requested by a peer.
 	ReadCacheBlockSize int64
@@ -241,6 +243,7 @@ var DefaultConfig = Config{
 	PeerHandshakeTimeout:         10 * time.Second,
 	PieceReadTimeout:             30 * time.Second,
 	MaxPeerAddresses:             2000,
+	AllowedFastSet:               10,
 
 	// IO
 	ReadCacheBlockSize: 128 << 10,

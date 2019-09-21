@@ -145,7 +145,7 @@ func (p *PiecePicker) pickLastPieceOfSmallestGap(pe *peer.Peer) *myPiece {
 			if !mp.Having.Has(pe) {
 				continue
 			}
-			if pe.PeerChoking && !pe.AllowedFast.Has(mp.Piece) {
+			if pe.PeerChoking && !pe.ReceivedAllowedFast.Has(mp.Piece) {
 				continue
 			}
 			return mp

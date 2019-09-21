@@ -182,6 +182,9 @@ func (t *torrent) sendFirstMessage(p *peer.Peer) {
 		msg := peerprotocol.PortMessage{Port: t.session.config.DHTPort}
 		p.SendMessage(msg)
 	}
+	if p.FastEnabled && t.pieces != nil {
+		p.GenerateAndSendAllowedFastMessages(t.session.config.AllowedFastSet, t.info.NumPieces, t.infoHash, t.pieces)
+	}
 }
 
 func (t *torrent) getClientVersion() string {

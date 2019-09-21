@@ -139,7 +139,7 @@ func (p *PiecePicker) HandleHave(pe *peer.Peer, i uint32) {
 }
 
 func (p *PiecePicker) HandleAllowedFast(pe *peer.Peer, i uint32) {
-	pe.AllowedFast.Add(p.pieces[i].Piece)
+	pe.ReceivedAllowedFast.Add(p.pieces[i].Piece)
 }
 
 func (p *PiecePicker) HandleSnubbed(pe *peer.Peer, i uint32) {
@@ -210,11 +210,11 @@ func (p *PiecePicker) findPiece(pe *peer.Peer) (mp *myPiece, allowedFast bool) {
 		}
 		mp = p.pickLastPieceOfSmallestGap(pe)
 		if mp != nil {
-			return mp, pe.AllowedFast.Has(mp.Piece)
+			return mp, pe.ReceivedAllowedFast.Has(mp.Piece)
 		}
 		mp = p.peerStealsFromWebseed(pe)
 		if mp != nil {
-			return mp, pe.AllowedFast.Has(mp.Piece)
+			return mp, pe.ReceivedAllowedFast.Has(mp.Piece)
 		}
 		return nil, false
 	}
@@ -245,7 +245,7 @@ func (p *PiecePicker) findPiece(pe *peer.Peer) (mp *myPiece, allowedFast bool) {
 }
 
 func (p *PiecePicker) pickAllowedFast(pe *peer.Peer) *myPiece {
-	for _, pi := range pe.AllowedFast.Pieces {
+	for _, pi := range pe.ReceivedAllowedFast.Pieces {
 		mp := &p.pieces[pi.Index]
 		if mp.Done || mp.Writing {
 			continue

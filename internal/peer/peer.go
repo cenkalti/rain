@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/rain/internal/bitfield"
+	"github.com/cenkalti/rain/internal/fast"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/mse"
 	"github.com/cenkalti/rain/internal/peerconn"
@@ -13,6 +14,7 @@ import (
 	"github.com/cenkalti/rain/internal/peerconn/peerwriter"
 	"github.com/cenkalti/rain/internal/peerprotocol"
 	"github.com/cenkalti/rain/internal/peersource"
+	"github.com/cenkalti/rain/internal/piece"
 	"github.com/cenkalti/rain/internal/pieceset"
 	"github.com/cenkalti/rain/internal/stringutil"
 	"github.com/juju/ratelimit"
@@ -26,8 +28,9 @@ type Peer struct {
 
 	Source peersource.Source
 
-	Bitfield    *bitfield.Bitfield
-	AllowedFast pieceset.PieceSet
+	Bitfield            *bitfield.Bitfield
+	ReceivedAllowedFast pieceset.PieceSet
+	SentAllowedFast     pieceset.PieceSet
 
 	ID                [20]byte
 	ExtensionsEnabled bool
@@ -253,4 +256,18 @@ func (p *Peer) Client() string {
 		return stringutil.Printable(p.ExtensionHandshake.V)
 	}
 	return stringutil.Asciify(clientID(string(p.ID[:])))
+}
+
+func (p *Peer) GenerateAndSendAllowedFastMessages(k int, numPieces uint32, infoHash [20]byte, pieces []piece.Piece) {
+	if k == 0 {
+		return
+	}
+	if p.SentAllowedFast.Len() > 0 {
+		return
+	}
+	a := fast.GenerateFastSet(k, numPieces, infoHash, p.Conn.Addr().IP)
+	for _, index := range a {
+		p.SentAllowedFast.Add(&pieces[index])
+		p.SendMessage(peerprotocol.AllowedFastMessage{HaveMessage: peerprotocol.HaveMessage{Index: index}})
+	}
 }
