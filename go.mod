@@ -27,15 +27,16 @@ require (
 	github.com/juju/ratelimit v1.0.1
 	github.com/julienschmidt/httprouter v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.0.9 // indirect
-	github.com/mattn/go-isatty v0.0.3 // indirect
+	github.com/mattn/go-isatty v0.0.9 // indirect
 	github.com/mattn/go-runewidth v0.0.4 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
+	github.com/minio/sha256-simd v0.1.1 // indirect
 	github.com/mitchellh/go-homedir v1.0.0
-	github.com/multiformats/go-multihash v0.0.1
+	github.com/multiformats/go-multihash v0.0.8
 	github.com/nictuku/dht v0.0.0-20190124164602-cd9a716ed885
 	github.com/nictuku/nettools v0.0.0-20150117095333-8867a2107ad3 // indirect
 	github.com/nsf/termbox-go v0.0.0-20190325093121-288510b9734e // indirect
-	github.com/powerman/rpc-codec v1.0.0
+	github.com/powerman/rpc-codec v1.0.1
 	github.com/prometheus/client_golang v0.8.0 // indirect
 	github.com/prometheus/client_model v0.0.0-20180712105110-5c3871d89910 // indirect
 	github.com/prometheus/common v0.0.0-20180801064454-c7de2306084e // indirect
