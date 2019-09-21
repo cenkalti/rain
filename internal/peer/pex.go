@@ -16,9 +16,6 @@ type pex struct {
 	// Contains added and dropped peers.
 	pexList *pexlist.PEXList
 
-	// To send connected peers at interval
-	pexTicker *time.Ticker
-
 	pexAddPeerC  chan *net.TCPAddr
 	pexDropPeerC chan *net.TCPAddr
 
@@ -54,8 +51,8 @@ func (p *pex) run() {
 
 	p.pexFlushPeers()
 
-	p.pexTicker = time.NewTicker(time.Minute)
-	defer p.pexTicker.Stop()
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
 
 	for {
 		select {
@@ -63,7 +60,7 @@ func (p *pex) run() {
 			p.pexList.Add(addr)
 		case addr := <-p.pexDropPeerC:
 			p.pexList.Drop(addr)
-		case <-p.pexTicker.C:
+		case <-ticker.C:
 			p.pexFlushPeers()
 		case <-p.closeC:
 			return
