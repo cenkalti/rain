@@ -26,6 +26,14 @@ func New() *PEXList {
 	}
 }
 
+func NewWithRecentlySeen(rs []tracker.CompactPeer) *PEXList {
+	l := New()
+	for _, cp := range rs {
+		l.dropped[cp] = struct{}{}
+	}
+	return l
+}
+
 func (l *PEXList) Add(addr *net.TCPAddr) {
 	p := tracker.NewCompactPeer(addr)
 	l.added[p] = struct{}{}

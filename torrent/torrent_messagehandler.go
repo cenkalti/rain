@@ -323,7 +323,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 		if t.session.config.PEXEnabled {
 			if _, ok := msg.M[peerprotocol.ExtensionKeyPEX]; ok {
 				if t.info != nil && !t.info.Private {
-					pe.StartPEX(t.peers)
+					pe.StartPEX(t.peers, &t.recentlySeen)
 				}
 			}
 		}
@@ -334,6 +334,12 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			break
 		}
 		addrs, err := tracker.DecodePeersCompact([]byte(msg.Added))
+		if err != nil {
+			t.log.Error(err)
+			break
+		}
+		t.handleNewPeers(addrs, peersource.PEX)
+		addrs, err = tracker.DecodePeersCompact([]byte(msg.Dropped))
 		if err != nil {
 			t.log.Error(err)
 			break

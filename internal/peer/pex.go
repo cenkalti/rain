@@ -23,8 +23,8 @@ type pex struct {
 	doneC  chan struct{}
 }
 
-func newPEX(conn *peerconn.Conn, extID uint8, initialPeers map[*Peer]struct{}) *pex {
-	pl := pexlist.New()
+func newPEX(conn *peerconn.Conn, extID uint8, initialPeers map[*Peer]struct{}, recentlySeen *pexlist.RecentlySeen) *pex {
+	pl := pexlist.NewWithRecentlySeen(recentlySeen.Peers())
 	for pe := range initialPeers {
 		if pe.Addr().String() != conn.Addr().String() {
 			pl.Add(pe.Addr())

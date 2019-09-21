@@ -14,6 +14,7 @@ import (
 	"github.com/cenkalti/rain/internal/peerconn/peerwriter"
 	"github.com/cenkalti/rain/internal/peerprotocol"
 	"github.com/cenkalti/rain/internal/peersource"
+	"github.com/cenkalti/rain/internal/pexlist"
 	"github.com/cenkalti/rain/internal/piece"
 	"github.com/cenkalti/rain/internal/pieceset"
 	"github.com/cenkalti/rain/internal/stringutil"
@@ -171,9 +172,9 @@ func (p *Peer) Run(messages chan Message, pieces chan interface{}, snubbed, disc
 	}
 }
 
-func (p *Peer) StartPEX(initialPeers map[*Peer]struct{}) {
+func (p *Peer) StartPEX(initialPeers map[*Peer]struct{}, recentlySeen *pexlist.RecentlySeen) {
 	if p.PEX == nil {
-		p.PEX = newPEX(p.Conn, p.ExtensionHandshake.M[peerprotocol.ExtensionKeyPEX], initialPeers)
+		p.PEX = newPEX(p.Conn, p.ExtensionHandshake.M[peerprotocol.ExtensionKeyPEX], initialPeers, recentlySeen)
 		go p.PEX.run()
 	}
 }

@@ -149,6 +149,7 @@ func (t *torrent) startPeer(
 	go pe.Run(t.messages, t.pieceMessagesC.SendC(), t.peerSnubbedC, t.peerDisconnectedC)
 	t.session.metrics.Peers.Inc(1)
 	t.sendFirstMessage(pe)
+	t.recentlySeen.Add(pe.Addr())
 }
 
 func (t *torrent) sendFirstMessage(p *peer.Peer) {

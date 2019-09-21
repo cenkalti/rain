@@ -23,6 +23,7 @@ import (
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/mse"
 	"github.com/cenkalti/rain/internal/peer"
+	"github.com/cenkalti/rain/internal/pexlist"
 	"github.com/cenkalti/rain/internal/piece"
 	"github.com/cenkalti/rain/internal/piecedownloader"
 	"github.com/cenkalti/rain/internal/piecepicker"
@@ -93,6 +94,9 @@ type torrent struct {
 	// Also keep a reference to incoming and outgoing peers separately to count them quickly.
 	incomingPeers map[*peer.Peer]struct{}
 	outgoingPeers map[*peer.Peer]struct{}
+
+	// Keep recently seen peers to fill underpopulated PEX lists.
+	recentlySeen pexlist.RecentlySeen
 
 	// Unchoker implements an algorithm to select peers to unchoke based on their download speed.
 	unchoker *unchoker.Unchoker
