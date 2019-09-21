@@ -93,11 +93,11 @@ func isWebseedSupported(s string) bool {
 	return strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://")
 }
 
-func NewBytes(info []byte, trackers, webseeds []string, comment string) ([]byte, error) {
+func NewBytes(info []byte, trackers [][]string, webseeds []string, comment string) ([]byte, error) {
 	mi := struct {
 		Info         bencode.RawMessage `bencode:"info"`
 		Announce     string             `bencode:"announce,omitempty"`
-		AnnounceList []string           `bencode:"announce-list,omitempty"`
+		AnnounceList [][]string         `bencode:"announce-list,omitempty"`
 		URLList      bencode.RawMessage `bencode:"url-list,omitempty"`
 		Comment      string             `bencode:"comment,omitempty"`
 		CreationDate int64              `bencode:"creation date"`
@@ -108,8 +108,8 @@ func NewBytes(info []byte, trackers, webseeds []string, comment string) ([]byte,
 		CreationDate: time.Now().UTC().Unix(),
 		CreatedBy:    Creator,
 	}
-	if len(trackers) == 1 {
-		mi.Announce = trackers[0]
+	if len(trackers) == 1 && len(trackers[0]) == 1 {
+		mi.Announce = trackers[0][0]
 	} else if len(trackers) > 1 {
 		mi.AnnounceList = trackers
 	}

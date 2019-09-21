@@ -78,6 +78,35 @@ func New(s string) (*Magnet, error) {
 	return &magnet, nil
 }
 
+func (m *Magnet) String() string {
+	var b strings.Builder
+	b.Grow(2048)
+	b.WriteString("magnet:?xt=urn:btih:")
+	b.WriteString(hex.EncodeToString(m.InfoHash[:]))
+	if m.Name != "" {
+		b.WriteString("&dn=")
+		b.WriteString(url.QueryEscape(m.Name))
+	}
+	for i, ti := range m.Trackers {
+		if len(ti) == 1 {
+			b.WriteString("&tr=")
+			b.WriteString(url.QueryEscape(ti[0]))
+		} else {
+			for _, t := range ti {
+				b.WriteString("&tr.")
+				b.WriteString(strconv.Itoa(i))
+				b.WriteString("=")
+				b.WriteString(url.QueryEscape(t))
+			}
+		}
+	}
+	for _, p := range m.Peers {
+		b.WriteString("&x.pe=")
+		b.WriteString(p)
+	}
+	return b.String()
+}
+
 type trackerTier struct {
 	trackers []string
 	index    int

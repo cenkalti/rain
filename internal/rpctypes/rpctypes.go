@@ -134,6 +134,22 @@ type Stats struct {
 	ETA *uint
 }
 
+type GetMagnetRequest struct {
+	ID string
+}
+
+type GetMagnetResponse struct {
+	Magnet string
+}
+
+type GetTorrentRequest struct {
+	ID string
+}
+
+type GetTorrentResponse struct {
+	Torrent string
+}
+
 type ListTorrentsRequest struct {
 }
 

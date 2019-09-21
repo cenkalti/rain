@@ -79,6 +79,29 @@ func (h *rpcHandler) RemoveTorrent(args *rpctypes.RemoveTorrentRequest, reply *r
 	return h.session.RemoveTorrent(args.ID)
 }
 
+func (h *rpcHandler) GetMagnet(args *rpctypes.GetMagnetRequest, reply *rpctypes.GetMagnetResponse) error {
+	t := h.session.GetTorrent(args.ID)
+	if t == nil {
+		return errTorrentNotFound
+	}
+	var err error
+	reply.Magnet, err = t.Magnet()
+	return err
+}
+
+func (h *rpcHandler) GetTorrent(args *rpctypes.GetTorrentRequest, reply *rpctypes.GetTorrentResponse) error {
+	t := h.session.GetTorrent(args.ID)
+	if t == nil {
+		return errTorrentNotFound
+	}
+	b, err := t.Torrent()
+	if err != nil {
+		return err
+	}
+	reply.Torrent = base64.StdEncoding.EncodeToString(b)
+	return nil
+}
+
 func (h *rpcHandler) GetSessionStats(args *rpctypes.GetSessionStatsRequest, reply *rpctypes.GetSessionStatsResponse) error {
 	s := h.session.Stats()
 	reply.Stats = rpctypes.SessionStats{

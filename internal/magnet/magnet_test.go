@@ -24,4 +24,10 @@ func TestParse(t *testing.T) {
 	if m.Trackers[0][0] != "udp://tracker.rain:2710" {
 		t.Fatal("invalid tracker")
 	}
+	s := m.String()
+	if strings.ToLower(u) != strings.ToLower(s) {
+		t.Log(u)
+		t.Log(s)
+		t.FailNow()
+	}
 }

@@ -272,6 +272,32 @@ func main() {
 					},
 				},
 				{
+					Name:   "torrent",
+					Usage:  "save torrent file",
+					Action: handleSaveTorrent,
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:     "id",
+							Required: true,
+						},
+						cli.StringFlag{
+							Name:     "out,o",
+							Required: true,
+						},
+					},
+				},
+				{
+					Name:   "magnet",
+					Usage:  "get magnet link",
+					Action: handleGetMagnet,
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:     "id",
+							Required: true,
+						},
+					},
+				},
+				{
 					Name:   "console",
 					Usage:  "show client console",
 					Action: handleConsole,
@@ -675,11 +701,16 @@ func handleTorrentCreate(c *cli.Context) error {
 		return err
 	}
 
+	tiers := make([][]string, len(trackers))
+	for i, tr := range trackers {
+		tiers[i] = []string{tr}
+	}
+
 	info, err := metainfo.NewInfoBytes(path, private, uint32(pieceLength<<10))
 	if err != nil {
 		return err
 	}
-	mi, err := metainfo.NewBytes(info, trackers, webseeds, comment)
+	mi, err := metainfo.NewBytes(info, tiers, webseeds, comment)
 	if err != nil {
 		return err
 	}
@@ -692,4 +723,29 @@ func handleTorrentCreate(c *cli.Context) error {
 		return err
 	}
 	return f.Close()
+}
+
+func handleSaveTorrent(c *cli.Context) error {
+	torrent, err := clt.GetTorrent(c.String("id"))
+	if err != nil {
+		return err
+	}
+	f, err := os.Create(c.String("out"))
+	if err != nil {
+		return err
+	}
+	_, err = f.Write(torrent)
+	if err != nil {
+		return err
+	}
+	return f.Close()
+}
+
+func handleGetMagnet(c *cli.Context) error {
+	magnet, err := clt.GetMagnet(c.String("id"))
+	if err != nil {
+		return err
+	}
+	fmt.Println(magnet)
+	return nil
 }

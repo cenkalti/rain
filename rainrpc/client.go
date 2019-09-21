@@ -78,6 +78,23 @@ func (c *Client) GetSessionStats() (*rpctypes.SessionStats, error) {
 	return &reply.Stats, c.client.Call("Session.GetSessionStats", args, &reply)
 }
 
+func (c *Client) GetMagnet(id string) (string, error) {
+	args := rpctypes.GetMagnetRequest{ID: id}
+	var reply rpctypes.GetMagnetResponse
+	err := c.client.Call("Session.GetMagnet", args, &reply)
+	return reply.Magnet, err
+}
+
+func (c *Client) GetTorrent(id string) ([]byte, error) {
+	args := rpctypes.GetTorrentRequest{ID: id}
+	var reply rpctypes.GetTorrentResponse
+	err := c.client.Call("Session.GetTorrent", args, &reply)
+	if err != nil {
+		return nil, err
+	}
+	return base64.StdEncoding.DecodeString(reply.Torrent)
+}
+
 func (c *Client) GetTorrentTrackers(id string) ([]rpctypes.Tracker, error) {
 	args := rpctypes.GetTorrentTrackersRequest{ID: id}
 	var reply rpctypes.GetTorrentTrackersResponse

@@ -58,6 +58,14 @@ func (t *Torrent) Stats() Stats {
 	return t.torrent.Stats()
 }
 
+func (t *Torrent) Magnet() (string, error) {
+	return t.torrent.Magnet()
+}
+
+func (t *Torrent) Torrent() ([]byte, error) {
+	return t.torrent.Torrent()
+}
+
 // Trackers returns the list of trackers of this torrent.
 func (t *Torrent) Trackers() []Tracker {
 	return t.torrent.Trackers()

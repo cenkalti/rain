@@ -1,10 +1,13 @@
 package torrent
 
 import (
+	"errors"
 	"net"
 	"time"
 
 	"github.com/cenkalti/rain/internal/announcer"
+	"github.com/cenkalti/rain/internal/magnet"
+	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/tracker"
 )
 
@@ -86,6 +89,46 @@ func (t *torrent) NotifyListen() <-chan int {
 	case <-t.closeC:
 		return nil
 	}
+}
+
+func (t *torrent) Magnet() (string, error) {
+	if t.info != nil && t.info.Private {
+		return "", errors.New("torrent is private")
+	}
+	m := magnet.Magnet{
+		InfoHash: t.infoHash,
+		Name:     t.Name(),
+		Trackers: t.getTieredTrackers(),
+		Peers:    t.fixedPeers,
+	}
+	return m.String(), nil
+}
+
+func (t *torrent) Torrent() ([]byte, error) {
+	if t.info == nil {
+		return nil, errors.New("torrent metadata not ready")
+	}
+	webseeds := make([]string, len(t.webseedSources))
+	for i, ws := range t.webseedSources {
+		webseeds[i] = ws.URL
+	}
+	return metainfo.NewBytes(t.info.Bytes, t.getTieredTrackers(), webseeds, "")
+}
+
+func (t *torrent) getTieredTrackers() [][]string {
+	var trackers [][]string
+	for _, tr := range t.trackers {
+		if tier, ok := tr.(*tracker.Tier); ok {
+			urls := make([]string, len(tier.Trackers))
+			for i, tt := range tier.Trackers {
+				urls[i] = tt.URL()
+			}
+			trackers = append(trackers, urls)
+		} else {
+			trackers = append(trackers, []string{tr.URL()})
+		}
+	}
+	return trackers
 }
 
 type statsRequest struct {
