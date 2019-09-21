@@ -193,8 +193,8 @@ var DefaultConfig = Config{
 	BlocklistEnabledForOutgoingConnections: true,
 	BlocklistEnabledForIncomingConnections: true,
 	TorrentAddHTTPTimeout:                  30 * time.Second,
-	MaxMetadataSize:                        10 * 1 << 20,
-	MaxTorrentSize:                         10 * 1 << 20,
+	MaxMetadataSize:                        10 << 20,
+	MaxTorrentSize:                         10 << 20,
 	DNSResolveTimeout:                      5 * time.Second,
 
 	// RPC Server
@@ -209,7 +209,7 @@ var DefaultConfig = Config{
 	TrackerMinAnnounceInterval:  time.Minute,
 	TrackerHTTPTimeout:          10 * time.Second,
 	TrackerHTTPPrivateUserAgent: "Rain/" + Version,
-	TrackerHTTPMaxResponseSize:  2 * 1 << 20,
+	TrackerHTTPMaxResponseSize:  2 << 20,
 	TrackerHTTPVerifyTLS:        true,
 
 	// DHT node
@@ -243,8 +243,8 @@ var DefaultConfig = Config{
 	MaxPeerAddresses:             2000,
 
 	// IO
-	ReadCacheBlockSize: 128 * 1 << 10,
-	ReadCacheSize:      256 * 1 << 20,
+	ReadCacheBlockSize: 128 << 10,
+	ReadCacheSize:      256 << 20,
 	ReadCacheTTL:       1 * time.Minute,
 	ParallelReads:      1,
 	ParallelWrites:     1,
