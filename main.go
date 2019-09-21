@@ -106,11 +106,18 @@ func main() {
 					Usage:  "add torrent or magnet",
 					Action: handleAdd,
 					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:     "torrent,t",
+							Usage:    "file or URI",
+							Required: true,
+						},
 						cli.BoolFlag{
-							Name: "stopped",
+							Name:  "stopped",
+							Usage: "do not start torrent automatically",
 						},
 						cli.StringFlag{
-							Name: "id",
+							Name:  "id",
+							Usage: "if id is not given, a unique id is automatically generated",
 						},
 					},
 				},
@@ -118,19 +125,36 @@ func main() {
 					Name:   "remove",
 					Usage:  "remove torrent",
 					Action: handleRemove,
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:     "id",
+							Required: true,
+						},
+					},
 				},
 				{
 					Name:   "stats",
 					Usage:  "get stats of torrent",
 					Action: handleStats,
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:     "id",
+							Required: true,
+						},
+					},
 				},
 				{
 					Name:   "session-stats",
 					Usage:  "get stats of session",
 					Action: handleSessionStats,
 					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:     "id",
+							Required: true,
+						},
 						cli.BoolFlag{
-							Name: "json",
+							Name:  "json",
+							Usage: "print raw stats as JSON",
 						},
 					},
 				},
@@ -138,36 +162,88 @@ func main() {
 					Name:   "trackers",
 					Usage:  "get trackers of torrent",
 					Action: handleTrackers,
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:     "id",
+							Required: true,
+						},
+					},
 				},
 				{
 					Name:   "webseeds",
 					Usage:  "get webseed sources of torrent",
 					Action: handleWebseeds,
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:     "id",
+							Required: true,
+						},
+					},
 				},
 				{
 					Name:   "peers",
 					Usage:  "get peers of torrent",
 					Action: handlePeers,
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:     "id",
+							Required: true,
+						},
+					},
 				},
 				{
 					Name:   "add-peer",
 					Usage:  "add peer to torrent",
 					Action: handleAddPeer,
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:     "id",
+							Required: true,
+						},
+						cli.StringFlag{
+							Name:     "addr",
+							Usage:    "peer address in host:port format",
+							Required: true,
+						},
+					},
 				},
 				{
 					Name:   "add-tracker",
 					Usage:  "add tracker to torrent",
 					Action: handleAddTracker,
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:     "id",
+							Required: true,
+						},
+						cli.StringFlag{
+							Name:     "tracker,t",
+							Required: true,
+							Usage:    "tracker URL",
+						},
+					},
 				},
 				{
 					Name:   "start",
 					Usage:  "start torrent",
 					Action: handleStart,
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:     "id",
+							Required: true,
+						},
+					},
 				},
 				{
 					Name:   "stop",
 					Usage:  "stop torrent",
 					Action: handleStop,
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:     "id",
+							Required: true,
+						},
+					},
 				},
 				{
 					Name:   "start-all",
@@ -183,6 +259,17 @@ func main() {
 					Name:   "move",
 					Usage:  "move torrent to another server",
 					Action: handleMove,
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:     "id",
+							Required: true,
+						},
+						cli.StringFlag{
+							Name:     "target",
+							Required: true,
+							Usage:    "target server in host:port format",
+						},
+					},
 				},
 				{
 					Name:   "console",
@@ -195,6 +282,12 @@ func main() {
 			Name:   "boltbrowser",
 			Hidden: true,
 			Action: handleBoltBrowser,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:     "file,f",
+					Required: true,
+				},
+			},
 		},
 		{
 			Name:  "torrent",
@@ -204,6 +297,12 @@ func main() {
 					Name:   "show",
 					Usage:  "show contents of the torrent file",
 					Action: handleTorrentShow,
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:     "file,f",
+							Required: true,
+						},
+					},
 				},
 				{
 					Name:   "create",
@@ -252,7 +351,7 @@ func main() {
 }
 
 func handleBoltBrowser(c *cli.Context) error {
-	db, err := bolt.Open(c.Args().Get(0), 0600, nil)
+	db, err := bolt.Open(c.String("file"), 0600, nil)
 	if err != nil {
 		return err
 	}
@@ -383,7 +482,7 @@ func handleList(c *cli.Context) error {
 func handleAdd(c *cli.Context) error {
 	var b []byte
 	var marshalErr error
-	arg := c.Args().Get(0)
+	arg := c.String("torrent")
 	addOpt := &rainrpc.AddTorrentOptions{
 		Stopped: c.Bool("stopped"),
 		ID:      c.String("id"),
@@ -415,13 +514,11 @@ func handleAdd(c *cli.Context) error {
 }
 
 func handleRemove(c *cli.Context) error {
-	id := c.Args().Get(0)
-	return clt.RemoveTorrent(id)
+	return clt.RemoveTorrent(c.String("id"))
 }
 
 func handleStats(c *cli.Context) error {
-	id := c.Args().Get(0)
-	resp, err := clt.GetTorrentStats(id)
+	resp, err := clt.GetTorrentStats(c.String("id"))
 	if err != nil {
 		return err
 	}
@@ -459,8 +556,7 @@ func handleSessionStats(c *cli.Context) error {
 }
 
 func handleTrackers(c *cli.Context) error {
-	id := c.Args().Get(0)
-	resp, err := clt.GetTorrentTrackers(id)
+	resp, err := clt.GetTorrentTrackers(c.String("id"))
 	if err != nil {
 		return err
 	}
@@ -474,8 +570,7 @@ func handleTrackers(c *cli.Context) error {
 }
 
 func handleWebseeds(c *cli.Context) error {
-	id := c.Args().Get(0)
-	resp, err := clt.GetTorrentWebseeds(id)
+	resp, err := clt.GetTorrentWebseeds(c.String("id"))
 	if err != nil {
 		return err
 	}
@@ -489,8 +584,7 @@ func handleWebseeds(c *cli.Context) error {
 }
 
 func handlePeers(c *cli.Context) error {
-	id := c.Args().Get(0)
-	resp, err := clt.GetTorrentPeers(id)
+	resp, err := clt.GetTorrentPeers(c.String("id"))
 	if err != nil {
 		return err
 	}
@@ -504,25 +598,19 @@ func handlePeers(c *cli.Context) error {
 }
 
 func handleAddPeer(c *cli.Context) error {
-	id := c.Args().Get(0)
-	addr := c.Args().Get(1)
-	return clt.AddPeer(id, addr)
+	return clt.AddPeer(c.String("id"), c.String("addr"))
 }
 
 func handleAddTracker(c *cli.Context) error {
-	id := c.Args().Get(0)
-	uri := c.Args().Get(1)
-	return clt.AddTracker(id, uri)
+	return clt.AddTracker(c.String("id"), c.String("tracker"))
 }
 
 func handleStart(c *cli.Context) error {
-	id := c.Args().Get(0)
-	return clt.StartTorrent(id)
+	return clt.StartTorrent(c.String("id"))
 }
 
 func handleStop(c *cli.Context) error {
-	id := c.Args().Get(0)
-	return clt.StopTorrent(id)
+	return clt.StopTorrent(c.String("id"))
 }
 
 func handleStartAll(c *cli.Context) error {
@@ -534,9 +622,7 @@ func handleStopAll(c *cli.Context) error {
 }
 
 func handleMove(c *cli.Context) error {
-	id := c.Args().Get(0)
-	target := c.Args().Get(1)
-	return clt.MoveTorrent(id, target)
+	return clt.MoveTorrent(c.String("id"), c.String("target"))
 }
 
 func handleConsole(c *cli.Context) error {
@@ -545,8 +631,7 @@ func handleConsole(c *cli.Context) error {
 }
 
 func handleTorrentShow(c *cli.Context) error {
-	arg := c.Args().Get(0)
-	f, err := os.Open(arg) // nolint: gosec
+	f, err := os.Open(c.String("file")) // nolint: gosec
 	if err != nil {
 		return err
 	}
