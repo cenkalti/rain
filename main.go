@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha1" // nolint: gosec
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -323,6 +325,17 @@ func main() {
 					Name:   "show",
 					Usage:  "show contents of the torrent file",
 					Action: handleTorrentShow,
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:     "file,f",
+							Required: true,
+						},
+					},
+				},
+				{
+					Name:   "infohash",
+					Usage:  "calculate and print info-hash in torrent file",
+					Action: handleInfoHash,
 					Flags: []cli.Flag{
 						cli.StringFlag{
 							Name:     "file,f",
@@ -679,6 +692,25 @@ func handleTorrentShow(c *cli.Context) error {
 	}
 	_, _ = os.Stdout.Write(b)
 	_, _ = os.Stdout.WriteString("\n")
+	return nil
+}
+
+func handleInfoHash(c *cli.Context) error {
+	f, err := os.Open(c.String("file")) // nolint: gosec
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	var metainfo struct {
+		Info bencode.RawMessage `bencode:"info"`
+	}
+	err = bencode.NewDecoder(f).Decode(&metainfo)
+	if err != nil {
+		return err
+	}
+	sum := sha1.Sum(metainfo.Info) // nolint: gosec
+	fmt.Println(hex.EncodeToString(sum[:]))
 	return nil
 }
 
