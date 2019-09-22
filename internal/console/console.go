@@ -105,13 +105,14 @@ func (c *Console) drawTorrents(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
 	halfY := maxY / 2
 	split := halfY + c.tabAdjust
-	if v, err := g.SetView("torrents", -1, -1, maxX, split); err != nil {
+	if v, err := g.SetView("torrents", -1, 0, maxX, split); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
 		v.Highlight = true
 		v.SelBgColor = gocui.ColorGreen
 		v.SelFgColor = gocui.ColorBlack
+		v.Title = "Rain"
 		fmt.Fprintln(v, "loading torrents...")
 	} else {
 		v.Clear()
@@ -155,6 +156,18 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 		fmt.Fprintln(v, "loading details...")
 	} else {
 		v.Clear()
+		switch c.selectedTab {
+		case general:
+			v.Title = "General Info"
+		case stats:
+			v.Title = "Stats"
+		case trackers:
+			v.Title = "Trackers"
+		case peers:
+			v.Title = "Peers"
+		case webseeds:
+			v.Title = "WebSeeds"
+		}
 		if c.selectedID == "" {
 			return nil
 		}
