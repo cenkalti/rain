@@ -14,6 +14,12 @@ import (
 )
 
 const (
+	// pages
+	torrents int = iota
+	help
+)
+
+const (
 	// tabs
 	general int = iota
 	stats
@@ -28,6 +34,7 @@ type Console struct {
 	errTorrents     error
 	selectedID      string
 	selectedTab     int
+	selectedPage    int
 	tabAdjust       int
 	stats           rpctypes.Stats
 	trackers        []rpctypes.Tracker
@@ -38,6 +45,8 @@ type Console struct {
 	m               sync.Mutex
 	updateTorrentsC chan struct{}
 	updateDetailsC  chan struct{}
+	stopUpdatingC   chan struct{}
+	updating        bool
 }
 
 func New(clt *rainrpc.Client) *Console {
@@ -57,8 +66,9 @@ func (c *Console) Run() error {
 
 	g.SetManagerFunc(c.layout)
 
-	_ = g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit)
-	_ = g.SetKeybinding("", 'q', gocui.ModNone, quit)
+	_ = g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, c.quit)
+	_ = g.SetKeybinding("", 'q', gocui.ModNone, c.quit)
+	_ = g.SetKeybinding("", '?', gocui.ModNone, c.switchHelp)
 	_ = g.SetKeybinding("torrents", 'j', gocui.ModNone, c.cursorDown)
 	_ = g.SetKeybinding("torrents", 'k', gocui.ModNone, c.cursorUp)
 	_ = g.SetKeybinding("torrents", 'R', gocui.ModNone, c.removeTorrent)
@@ -76,8 +86,6 @@ func (c *Console) Run() error {
 	_ = g.SetKeybinding("torrents", gocui.KeyCtrlP, gocui.ModNone, c.switchPeers)
 	_ = g.SetKeybinding("torrents", gocui.KeyCtrlW, gocui.ModNone, c.switchWebseeds)
 
-	go c.updateLoop(g)
-
 	err = g.MainLoop()
 	if err == gocui.ErrQuit {
 		err = nil
@@ -85,17 +93,102 @@ func (c *Console) Run() error {
 	return err
 }
 
+func (c *Console) startUpdating(g *gocui.Gui) {
+	if c.updating {
+		return
+	}
+	c.updating = true
+	c.stopUpdatingC = make(chan struct{})
+	go c.updateLoop(g, c.stopUpdatingC)
+}
+
+func (c *Console) stopUpdating() {
+	if !c.updating {
+		return
+	}
+	c.updating = false
+	close(c.stopUpdatingC)
+}
+
 func (c *Console) layout(g *gocui.Gui) error {
-	err := c.drawTorrents(g)
+	err := c.drawTitle(g)
 	if err != nil {
 		return err
 	}
-	err = c.drawDetails(g)
-	if err != nil {
-		return err
+	if c.selectedPage == torrents {
+		c.startUpdating(g)
+	} else {
+		c.stopUpdating()
 	}
-	_, err = g.SetCurrentView("torrents")
+	switch c.selectedPage {
+	case torrents:
+		err = c.drawTorrents(g)
+		if err != nil {
+			return err
+		}
+		err = c.drawDetails(g)
+		if err != nil {
+			return err
+		}
+		_, err = g.SetCurrentView("torrents")
+	case help:
+		err = c.drawHelp(g)
+		if err != nil {
+			return err
+		}
+		_, err = g.SetCurrentView("help")
+	}
 	return err
+}
+
+func (c *Console) drawTitle(g *gocui.Gui) error {
+	maxX, maxY := g.Size()
+	v, err := g.SetView("title", -1, 0, maxX, maxY)
+	if err != nil {
+		if err != gocui.ErrUnknownView {
+			return err
+		}
+		v.Title = "Rain [" + c.client.Addr() + "] (Press '?' for help)"
+	}
+	return nil
+}
+
+func (c *Console) drawHelp(g *gocui.Gui) error {
+	maxX, maxY := g.Size()
+	v, err := g.SetView("help", 5, 2, maxX-6, maxY-3)
+	if err != nil {
+		if err != gocui.ErrUnknownView {
+			return err
+		}
+		v.Frame = true
+	} else {
+		v.Clear()
+	}
+	fmt.Fprintln(v, "     q  Quit")
+	fmt.Fprintln(v, "     j  move down")
+	fmt.Fprintln(v, "     k  move up")
+	fmt.Fprintln(v, "ctrl+j  move tab separator down")
+	fmt.Fprintln(v, "ctrl+k  move tab separator up")
+	fmt.Fprintln(v, "     g  go to top")
+	fmt.Fprintln(v, "     G  go to bottom")
+
+	fmt.Fprintln(v, "")
+
+	fmt.Fprintln(v, "ctrl+G  switch to General info page")
+	fmt.Fprintln(v, "ctrl+S  switch to Stats page")
+	fmt.Fprintln(v, "ctrl+T  switch to Trackers page")
+	fmt.Fprintln(v, "ctrl+P  switch to Peers page")
+	fmt.Fprintln(v, "ctrl+W  switch to Webseeds page")
+
+	fmt.Fprintln(v, "")
+
+	fmt.Fprintln(v, "     s Start torrent")
+	fmt.Fprintln(v, "     S Stop torrent")
+	fmt.Fprintln(v, "     R Remove torrent")
+	fmt.Fprintln(v, "     a Announce torrent")
+	fmt.Fprintln(v, "     v Verify torrent")
+
+	return nil
 }
 
 func (c *Console) drawTorrents(g *gocui.Gui) error {
@@ -109,6 +202,7 @@ func (c *Console) drawTorrents(g *gocui.Gui) error {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
+		v.Frame = false
 		v.Highlight = true
 		v.SelBgColor = gocui.ColorGreen
 		v.SelFgColor = gocui.ColorBlack
@@ -290,7 +384,7 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 	return nil
 }
 
-func (c *Console) updateLoop(g *gocui.Gui) {
+func (c *Console) updateLoop(g *gocui.Gui, stop chan struct{}) {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
@@ -305,6 +399,8 @@ func (c *Console) updateLoop(g *gocui.Gui) {
 			c.updateTorrents(g)
 		case <-c.updateDetailsC:
 			go c.updateDetails(g)
+		case <-stop:
+			return
 		}
 	}
 }
@@ -390,7 +486,11 @@ func (c *Console) updateDetails(g *gocui.Gui) {
 	g.Update(c.drawDetails)
 }
 
-func quit(g *gocui.Gui, v *gocui.View) error {
+func (c *Console) quit(g *gocui.Gui, v *gocui.View) error {
+	if c.selectedPage == help {
+		c.selectedPage = torrents
+		return g.DeleteView("help")
+	}
 	return gocui.ErrQuit
 }
 
@@ -615,6 +715,13 @@ func (c *Console) switchWebseeds(g *gocui.Gui, v *gocui.View) error {
 	c.selectedTab = webseeds
 	c.m.Unlock()
 	c.triggerUpdateDetails(true)
+	return nil
+}
+
+func (c *Console) switchHelp(g *gocui.Gui, v *gocui.View) error {
+	c.m.Lock()
+	c.selectedPage = help
+	c.m.Unlock()
 	return nil
 }
 

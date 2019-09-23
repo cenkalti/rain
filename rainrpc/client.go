@@ -12,10 +12,18 @@ import (
 
 type Client struct {
 	client *jsonrpc2.Client
+	addr   string
 }
 
 func NewClient(addr string) *Client {
-	return &Client{client: jsonrpc2.NewHTTPClient(addr)}
+	return &Client{
+		client: jsonrpc2.NewHTTPClient(addr),
+		addr:   addr,
+	}
+}
+
+func (c *Client) Addr() string {
+	return c.addr
 }
 
 func (c *Client) Close() error {
