@@ -12,7 +12,7 @@ const (
 	Stopping
 )
 
-func torrentStatusToString(s Status) string {
+func (s Status) String() string {
 	m := map[Status]string{
 		Stopped:             "Stopped",
 		DownloadingMetadata: "Downloading Metadata",

@@ -14,12 +14,14 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/boltdb/bolt"
 	"github.com/cenkalti/boltbrowser/boltbrowser"
 	clog "github.com/cenkalti/log"
 	"github.com/cenkalti/rain/internal/console"
 	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/internal/magnet"
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/rainrpc"
 	"github.com/cenkalti/rain/torrent"
@@ -68,6 +70,31 @@ func main() {
 	app.Before = handleBeforeCommand
 	app.After = handleAfterCommand
 	app.Commands = []cli.Command{
+		{
+			Name:  "download",
+			Usage: "download single torrent",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "config,c",
+					Usage: "read config from `FILE`",
+					Value: "~/rain/config.yaml",
+				},
+				cli.StringFlag{
+					Name:     "torrent,t",
+					Usage:    "torrent file or URI",
+					Required: true,
+				},
+				cli.BoolFlag{
+					Name:  "seed,d",
+					Usage: "continue seeding after download is finished",
+				},
+				cli.StringFlag{
+					Name:  "resume,r",
+					Usage: "path to .resume file",
+				},
+			},
+			Action: handleDownload,
+		},
 		{
 			Name:  "server",
 			Usage: "run rpc server and torrent client",
@@ -428,47 +455,6 @@ func handleAfterCommand(c *cli.Context) error {
 	if c.GlobalString("cpuprofile") != "" {
 		pprof.StopCPUProfile()
 	}
-	return nil
-}
-
-func handleServer(c *cli.Context) error {
-	cfg := torrent.DefaultConfig
-
-	configPath := c.String("config")
-	if configPath != "" {
-		cp, err := homedir.Expand(configPath)
-		if err != nil {
-			return err
-		}
-		b, err := ioutil.ReadFile(cp) // nolint: gosec
-		switch {
-		case os.IsNotExist(err):
-			log.Noticef("config file not found at %q, using default config", cp)
-		case err != nil:
-			return err
-		default:
-			err = yaml.Unmarshal(b, &cfg)
-			if err != nil {
-				return err
-			}
-			log.Infoln("config loaded from:", cp)
-			b, err = yaml.Marshal(&cfg)
-			if err != nil {
-				return err
-			}
-			log.Debug("\n" + string(b))
-		}
-	}
-
-	ses, err := torrent.NewSession(cfg)
-	if err != nil {
-		return err
-	}
-	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-	s := <-ch
-	log.Noticef("received %s, stopping server", s)
-
 	memprofile := c.GlobalString("memprofile")
 	if memprofile != "" {
 		f, err := os.Create(memprofile)
@@ -484,8 +470,166 @@ func handleServer(c *cli.Context) error {
 			log.Fatal(err)
 		}
 	}
+	return nil
+}
+
+func prepareConfig(c *cli.Context) (torrent.Config, error) {
+	cfg := torrent.DefaultConfig
+
+	configPath := c.String("config")
+	if configPath != "" {
+		cp, err := homedir.Expand(configPath)
+		if err != nil {
+			return cfg, err
+		}
+		b, err := ioutil.ReadFile(cp) // nolint: gosec
+		switch {
+		case os.IsNotExist(err):
+			log.Noticef("config file not found at %q, using default config", cp)
+		case err != nil:
+			return cfg, err
+		default:
+			err = yaml.Unmarshal(b, &cfg)
+			if err != nil {
+				return cfg, err
+			}
+			log.Infoln("config loaded from:", cp)
+			b, err = yaml.Marshal(&cfg)
+			if err != nil {
+				return cfg, err
+			}
+			log.Debug("\n" + string(b))
+		}
+	}
+	return cfg, nil
+}
+
+func handleServer(c *cli.Context) error {
+	cfg, err := prepareConfig(c)
+	if err != nil {
+		return err
+	}
+	ses, err := torrent.NewSession(cfg)
+	if err != nil {
+		return err
+	}
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
+	s := <-ch
+	log.Noticef("received %s, stopping server", s)
 
 	return ses.Close()
+}
+
+func handleDownload(c *cli.Context) error {
+	arg := c.String("torrent")
+	seed := c.Bool("seed")
+	resume := c.String("resume")
+	cfg, err := prepareConfig(c)
+	if err != nil {
+		return err
+	}
+	cfg.DataDir = "."
+	cfg.DataDirIncludesTorrentID = false
+	var ih torrent.InfoHash
+	if isURI(arg) {
+		magnet, err := magnet.New(arg)
+		if err != nil {
+			return err
+		}
+		ih = torrent.InfoHash(magnet.InfoHash)
+		cfg.Database = magnet.Name + ".resume"
+	} else {
+		f, err := os.Open(arg)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		mi, err := metainfo.New(f)
+		if err != nil {
+			return err
+		}
+		_ = f.Close()
+		ih = mi.Info.Hash
+		cfg.Database = mi.Info.Name + ".resume"
+	}
+	if resume != "" {
+		cfg.Database = resume
+	}
+	ses, err := torrent.NewSession(cfg)
+	if err != nil {
+		return err
+	}
+	defer ses.Close()
+	var t *torrent.Torrent
+	torrents := ses.ListTorrents()
+	if len(torrents) > 0 && torrents[0].InfoHash() == ih {
+		// Resume data exists
+		t = torrents[0]
+		err = t.Start()
+	} else {
+		// Add as new torrent
+		if isURI(arg) {
+			t, err = ses.AddURI(arg, nil)
+		} else {
+			var f *os.File
+			f, err = os.Open(arg)
+			if err != nil {
+				return err
+			}
+			t, err = ses.AddTorrent(f, nil)
+			f.Close()
+		}
+	}
+	if err != nil {
+		return err
+	}
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
+	stopAndWait := func() error {
+		err = t.Stop()
+		if err != nil {
+			return err
+		}
+		for {
+			select {
+			case <-ch:
+				return nil
+			case <-time.After(time.Second):
+				stats := t.Stats()
+				if stats.Error != nil {
+					return stats.Error
+				}
+				if stats.Status == torrent.Stopped {
+					return nil
+				}
+			}
+		}
+	}
+	for {
+		select {
+		case s := <-ch:
+			log.Noticef("received %s, stopping server", s)
+			return stopAndWait()
+		case <-time.After(time.Second):
+			stats := t.Stats()
+			progress := 0
+			if stats.Bytes.Total > 0 {
+				progress = int((stats.Bytes.Completed * 100) / stats.Bytes.Total)
+			}
+			eta := "?"
+			if stats.ETA != nil {
+				eta = stats.ETA.String()
+			}
+			log.Infof("Status: %s, Progress: %d%%, Peers: %d ETA: %s\n", stats.Status.String(), progress, stats.Peers.Total, eta)
+			if stats.Error != nil {
+				return stats.Error
+			}
+			if !seed && stats.Status == torrent.Seeding {
+				return stopAndWait()
+			}
+		}
+	}
 }
 
 func handleBeforeClient(c *cli.Context) error {
@@ -517,6 +661,10 @@ func handleList(c *cli.Context) error {
 	return nil
 }
 
+func isURI(arg string) bool {
+	return strings.HasPrefix(arg, "magnet:") || strings.HasPrefix(arg, "http://") || strings.HasPrefix(arg, "https://")
+}
+
 func handleAdd(c *cli.Context) error {
 	var b []byte
 	var marshalErr error
@@ -525,7 +673,7 @@ func handleAdd(c *cli.Context) error {
 		Stopped: c.Bool("stopped"),
 		ID:      c.String("id"),
 	}
-	if strings.HasPrefix(arg, "magnet:") || strings.HasPrefix(arg, "http://") || strings.HasPrefix(arg, "https://") {
+	if isURI(arg) {
 		resp, err := clt.AddURI(arg, addOpt)
 		if err != nil {
 			return err
