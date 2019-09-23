@@ -10,6 +10,10 @@ import (
 
 // Stats contains statistics about Torrent.
 type Stats struct {
+	// Info hash of torrent.
+	InfoHash InfoHash
+	// Listening port number.
+	Port int
 	// Status of the torrent.
 	Status Status
 	// Contains the error message if torrent is stopped unexpectedly.
@@ -112,6 +116,8 @@ func (t *torrent) stats() Stats {
 	t.updateSeedDuration(time.Now())
 
 	var s Stats
+	s.InfoHash = t.infoHash
+	s.Port = t.port
 	s.Status = t.status()
 	s.Error = t.lastError
 	s.Addresses.Total = t.addrList.Len()

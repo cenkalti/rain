@@ -144,7 +144,9 @@ func (h *rpcHandler) GetTorrentStats(args *rpctypes.GetTorrentStatsRequest, repl
 	}
 	s := t.Stats()
 	reply.Stats = rpctypes.Stats{
-		Status: torrentStatusToString(s.Status),
+		InfoHash: s.InfoHash.String(),
+		Port:     s.Port,
+		Status:   torrentStatusToString(s.Status),
 		Pieces: struct {
 			Checked   uint32
 			Have      uint32
