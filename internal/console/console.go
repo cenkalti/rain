@@ -66,25 +66,32 @@ func (c *Console) Run() error {
 
 	g.SetManagerFunc(c.layout)
 
+	// Global keys
 	_ = g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, c.quit)
 	_ = g.SetKeybinding("", 'q', gocui.ModNone, c.quit)
 	_ = g.SetKeybinding("", '?', gocui.ModNone, c.switchHelp)
+
+	// Navigation
 	_ = g.SetKeybinding("torrents", 'j', gocui.ModNone, c.cursorDown)
 	_ = g.SetKeybinding("torrents", 'k', gocui.ModNone, c.cursorUp)
-	_ = g.SetKeybinding("torrents", 'R', gocui.ModNone, c.removeTorrent)
-	_ = g.SetKeybinding("torrents", 's', gocui.ModNone, c.startTorrent)
-	_ = g.SetKeybinding("torrents", 'S', gocui.ModNone, c.stopTorrent)
-	_ = g.SetKeybinding("torrents", 'a', gocui.ModNone, c.announce)
-	_ = g.SetKeybinding("torrents", 'v', gocui.ModNone, c.verify)
+	_ = g.SetKeybinding("torrents", 'j', gocui.ModAlt, c.tabAdjustDown)
+	_ = g.SetKeybinding("torrents", 'k', gocui.ModAlt, c.tabAdjustUp)
 	_ = g.SetKeybinding("torrents", 'g', gocui.ModNone, c.goTop)
 	_ = g.SetKeybinding("torrents", 'G', gocui.ModNone, c.goBottom)
-	_ = g.SetKeybinding("torrents", gocui.KeyCtrlJ, gocui.ModNone, c.tabAdjustDown)
-	_ = g.SetKeybinding("torrents", gocui.KeyCtrlK, gocui.ModNone, c.tabAdjustUp)
-	_ = g.SetKeybinding("torrents", gocui.KeyCtrlG, gocui.ModNone, c.switchGeneral)
-	_ = g.SetKeybinding("torrents", gocui.KeyCtrlS, gocui.ModNone, c.switchStats)
-	_ = g.SetKeybinding("torrents", gocui.KeyCtrlT, gocui.ModNone, c.switchTrackers)
-	_ = g.SetKeybinding("torrents", gocui.KeyCtrlP, gocui.ModNone, c.switchPeers)
-	_ = g.SetKeybinding("torrents", gocui.KeyCtrlW, gocui.ModNone, c.switchWebseeds)
+
+	// Tabs
+	_ = g.SetKeybinding("torrents", 'g', gocui.ModAlt, c.switchGeneral)
+	_ = g.SetKeybinding("torrents", 's', gocui.ModAlt, c.switchStats)
+	_ = g.SetKeybinding("torrents", 't', gocui.ModAlt, c.switchTrackers)
+	_ = g.SetKeybinding("torrents", 'p', gocui.ModAlt, c.switchPeers)
+	_ = g.SetKeybinding("torrents", 'w', gocui.ModAlt, c.switchWebseeds)
+
+	// Torrent control
+	_ = g.SetKeybinding("torrents", gocui.KeyCtrlS, gocui.ModNone, c.startTorrent)
+	_ = g.SetKeybinding("torrents", gocui.KeyCtrlS, gocui.ModAlt, c.stopTorrent)
+	_ = g.SetKeybinding("torrents", gocui.KeyCtrlR, gocui.ModNone, c.removeTorrent)
+	_ = g.SetKeybinding("torrents", gocui.KeyCtrlA, gocui.ModNone, c.announce)
+	_ = g.SetKeybinding("torrents", gocui.KeyCtrlV, gocui.ModNone, c.verify)
 
 	err = g.MainLoop()
 	if err == gocui.ErrQuit {
@@ -165,29 +172,29 @@ func (c *Console) drawHelp(g *gocui.Gui) error {
 	} else {
 		v.Clear()
 	}
-	fmt.Fprintln(v, "     q  Quit")
-	fmt.Fprintln(v, "     j  move down")
-	fmt.Fprintln(v, "     k  move up")
-	fmt.Fprintln(v, "ctrl+j  move tab separator down")
-	fmt.Fprintln(v, "ctrl+k  move tab separator up")
-	fmt.Fprintln(v, "     g  go to top")
-	fmt.Fprintln(v, "     G  go to bottom")
+	fmt.Fprintln(v, "         q  Quit")
+	fmt.Fprintln(v, "         j  move down")
+	fmt.Fprintln(v, "         k  move up")
+	fmt.Fprintln(v, "     alt+j  move tab separator down")
+	fmt.Fprintln(v, "     alt+k  move tab separator up")
+	fmt.Fprintln(v, "         g  go to top")
+	fmt.Fprintln(v, "         G  go to bottom")
 
 	fmt.Fprintln(v, "")
 
-	fmt.Fprintln(v, "ctrl+G  switch to General info page")
-	fmt.Fprintln(v, "ctrl+S  switch to Stats page")
-	fmt.Fprintln(v, "ctrl+T  switch to Trackers page")
-	fmt.Fprintln(v, "ctrl+P  switch to Peers page")
-	fmt.Fprintln(v, "ctrl+W  switch to Webseeds page")
+	fmt.Fprintln(v, "     alt+G  switch to General info page")
+	fmt.Fprintln(v, "     alt+S  switch to Stats page")
+	fmt.Fprintln(v, "     alt+T  switch to Trackers page")
+	fmt.Fprintln(v, "     alt+P  switch to Peers page")
+	fmt.Fprintln(v, "     alt+W  switch to Webseeds page")
 
 	fmt.Fprintln(v, "")
 
-	fmt.Fprintln(v, "     s Start torrent")
-	fmt.Fprintln(v, "     S Stop torrent")
-	fmt.Fprintln(v, "     R Remove torrent")
-	fmt.Fprintln(v, "     a Announce torrent")
-	fmt.Fprintln(v, "     v Verify torrent")
+	fmt.Fprintln(v, "    ctrl+s  Start torrent")
+	fmt.Fprintln(v, "ctrl+alt+s  Stop torrent")
+	fmt.Fprintln(v, "    ctrl+R  Remove torrent")
+	fmt.Fprintln(v, "    ctrl+a  Announce torrent")
+	fmt.Fprintln(v, "    ctrl+v  Verify torrent")
 
 	return nil
 }
