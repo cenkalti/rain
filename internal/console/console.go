@@ -161,6 +161,7 @@ func (c *Console) drawHelp(g *gocui.Gui) error {
 			return err
 		}
 		v.Frame = true
+		v.Title = "Help"
 	} else {
 		v.Clear()
 	}
