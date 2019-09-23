@@ -328,7 +328,7 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 		case stats:
 			b, err := jsonutil.MarshalCompactPretty(c.stats)
 			if err != nil {
-				fmt.Fprintln(v, "error:", c.errDetails)
+				fmt.Fprintln(v, "error:", err)
 			} else {
 				fmt.Fprintln(v, string(b))
 			}
