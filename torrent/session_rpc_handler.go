@@ -503,7 +503,13 @@ func (h *rpcHandler) handleMoveTorrent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "data expected in multipart form", http.StatusBadRequest)
 		return
 	}
-	err = readData(p, filepath.Join(h.session.config.DataDir, id))
+	var dest string
+	if h.session.config.DataDirIncludesTorrentID {
+		dest = filepath.Join(h.session.config.DataDir, id)
+	} else {
+		dest = h.session.config.DataDir
+	}
+	err = readData(p, dest)
 	if err != nil {
 		h.session.log.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

@@ -342,10 +342,18 @@ func (s *Session) removeTorrentFromClient(id string) (*Torrent, error) {
 func (s *Session) stopAndRemoveData(t *Torrent) error {
 	t.torrent.Close()
 	s.releasePort(t.torrent.port)
-	dest := filepath.Join(s.config.DataDir, t.torrent.id)
-	err := os.RemoveAll(dest)
-	if err != nil {
-		s.log.Errorf("cannot remove torrent data. err: %s dest: %s", err, dest)
+	var err error
+	var dest string
+	if s.config.DataDirIncludesTorrentID {
+		dest = filepath.Join(s.config.DataDir, t.torrent.id)
+	} else if t.torrent.info != nil {
+		dest = t.torrent.info.Name
+	}
+	if dest != "" {
+		err = os.RemoveAll(dest)
+		if err != nil {
+			s.log.Errorf("cannot remove torrent data. err: %s dest: %s", err, dest)
+		}
 	}
 	return err
 }

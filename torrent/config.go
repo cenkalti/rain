@@ -22,6 +22,9 @@ type Config struct {
 	Database string
 	// DataDir is where files are downloaded.
 	DataDir string
+	// If true, torrent files are saved into <data_dir>/<torrent_id>/<torrent_name>.
+	// Useful if downloading the same torrent from multiple sources.
+	DataDirIncludesTorrentID bool
 	// New torrents will be listened at selected port in this range.
 	PortBegin, PortEnd uint16
 	// Enable peer exchange protocol.
@@ -183,6 +186,7 @@ var DefaultConfig = Config{
 	// Session
 	Database:                               "~/rain/session.db",
 	DataDir:                                "~/rain/data",
+	DataDirIncludesTorrentID:               true,
 	PortBegin:                              50000,
 	PortEnd:                                60000,
 	PEXEnabled:                             true,

@@ -55,7 +55,13 @@ func (s *Session) loadExistingTorrent(id string) (tt *Torrent, hasStarted bool, 
 			bf = bf3
 		}
 	}
-	sto, err := filestorage.New(filepath.Join(s.config.DataDir, id))
+	var dest string
+	if s.config.DataDirIncludesTorrentID {
+		dest = filepath.Join(s.config.DataDir, id)
+	} else {
+		dest = s.config.DataDir
+	}
+	sto, err := filestorage.New(dest)
 	if err != nil {
 		return
 	}

@@ -227,7 +227,12 @@ func (s *Session) add(opt *AddTorrentOptions) (id string, port int, sto *filesto
 		}
 		id = base64.RawURLEncoding.EncodeToString(u1[:])
 	}
-	dest := filepath.Join(s.config.DataDir, id)
+	var dest string
+	if s.config.DataDirIncludesTorrentID {
+		dest = filepath.Join(s.config.DataDir, id)
+	} else {
+		dest = s.config.DataDir
+	}
 	sto, err = filestorage.New(dest)
 	if err != nil {
 		return
