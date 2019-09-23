@@ -14,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/boltdb/bolt"
 	"github.com/cenkalti/boltbrowser/boltbrowser"
@@ -142,6 +141,10 @@ func main() {
 						cli.StringFlag{
 							Name:     "id",
 							Required: true,
+						},
+						cli.BoolFlag{
+							Name:  "json",
+							Usage: "print raw stats as JSON",
 						},
 					},
 				},
@@ -553,16 +556,20 @@ func handleRemove(c *cli.Context) error {
 }
 
 func handleStats(c *cli.Context) error {
-	resp, err := clt.GetTorrentStats(c.String("id"))
+	s, err := clt.GetTorrentStats(c.String("id"))
 	if err != nil {
 		return err
 	}
-	b, err := prettyjson.Marshal(resp)
-	if err != nil {
-		return err
+	if c.Bool("json") {
+		b, err := prettyjson.Marshal(s)
+		if err != nil {
+			return err
+		}
+		_, _ = os.Stdout.Write(b)
+		_, _ = os.Stdout.WriteString("\n")
+		return nil
 	}
-	_, _ = os.Stdout.Write(b)
-	_, _ = os.Stdout.WriteString("\n")
+	console.FormatStats(s, os.Stdout)
 	return nil
 }
 
@@ -580,13 +587,7 @@ func handleSessionStats(c *cli.Context) error {
 		_, _ = os.Stdout.WriteString("\n")
 		return nil
 	}
-	fmt.Printf("Torrents: %d, Peers: %d, Uptime: %s\n", s.Torrents, s.Peers, time.Duration(s.Uptime)*time.Second)
-	fmt.Printf("BlocklistRules: %d, Updated: %s ago\n", s.BlockListRules, time.Duration(s.BlockListRecency)*time.Second)
-	fmt.Printf("Reads: %d/s, %dKB/s, Active: %d, Pending: %d\n", s.ReadsPerSecond, s.SpeedRead/1024, s.ReadsActive, s.ReadsPending)
-	fmt.Printf("Writes: %d/s, %dKB/s, Active: %d, Pending: %d\n", s.WritesPerSecond, s.SpeedWrite/1024, s.WritesActive, s.WritesPending)
-	fmt.Printf("ReadCache Objects: %d, Size: %dMB, Utilization: %d%%\n", s.ReadCacheObjects, s.ReadCacheSize/(1<<20), s.ReadCacheUtilization)
-	fmt.Printf("WriteCache Objects: %d, Size: %dMB, PendingKeys: %d\n", s.WriteCacheObjects, s.WriteCacheSize/(1<<20), s.WriteCachePendingKeys)
-	fmt.Printf("DownloadSpeed: %dKB/s, UploadSpeed: %dKB/s\n", s.SpeedDownload/1024, s.SpeedUpload/1024)
+	console.FormatSessionStats(s, os.Stdout)
 	return nil
 }
 

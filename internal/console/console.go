@@ -2,6 +2,7 @@ package console
 
 import (
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 	"sync"
@@ -275,12 +276,7 @@ func (c *Console) drawSessionStats(g *gocui.Gui) error {
 			fmt.Fprintln(v, "error:", c.errSessionStats)
 			return nil
 		}
-		b, err := jsonutil.MarshalCompactPretty(c.sessionStats)
-		if err != nil {
-			fmt.Fprintln(v, "error:", err)
-		} else {
-			fmt.Fprintln(v, string(b))
-		}
+		FormatSessionStats(&c.sessionStats, v)
 	}
 	return nil
 }
@@ -369,48 +365,7 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 		}
 		switch c.selectedTab {
 		case general:
-			fmt.Fprintf(v, "Name: %s\n", c.stats.Name)
-			fmt.Fprintf(v, "Private: %v\n", c.stats.Private)
-			status := c.stats.Status
-			if status == "Stopped" && c.stats.Error != nil {
-				status = status + ": " + *c.stats.Error
-			}
-			fmt.Fprintf(v, "Status: %s\n", status)
-			var progress int
-			if c.stats.Pieces.Total > 0 {
-				switch c.stats.Status {
-				case "Verifying":
-					progress = int(c.stats.Pieces.Checked * 100 / c.stats.Pieces.Total)
-				case "Allocating":
-					progress = int(c.stats.Bytes.Allocated * 100 / c.stats.Bytes.Total)
-				default:
-					progress = int(c.stats.Pieces.Have * 100 / c.stats.Pieces.Total)
-				}
-			}
-			fmt.Fprintf(v, "Progress: %d\n", progress)
-			var ratio float64
-			if c.stats.Bytes.Downloaded > 0 {
-				ratio = float64(c.stats.Bytes.Uploaded) / float64(c.stats.Bytes.Downloaded)
-			}
-			fmt.Fprintf(v, "Ratio: %.2f\n", ratio)
-			var size string
-			switch {
-			case c.stats.Bytes.Total < 1<<10:
-				size = fmt.Sprintf("%d bytes", c.stats.Bytes.Total)
-			case c.stats.Bytes.Total < 1<<20:
-				size = fmt.Sprintf("%d KiB", c.stats.Bytes.Total/(1<<10))
-			default:
-				size = fmt.Sprintf("%d MiB", c.stats.Bytes.Total/(1<<20))
-			}
-			fmt.Fprintf(v, "Size: %s\n", size)
-			fmt.Fprintf(v, "Peers: %d in %d out\n", c.stats.Peers.Incoming, c.stats.Peers.Outgoing)
-			fmt.Fprintf(v, "Download speed: %5d KiB/s\n", c.stats.Speed.Download/1024)
-			fmt.Fprintf(v, "Upload speed:   %5d KiB/s\n", c.stats.Speed.Upload/1024)
-			var eta string
-			if c.stats.ETA != nil {
-				eta = (time.Duration(*c.stats.ETA) * time.Second).String()
-			}
-			fmt.Fprintf(v, "ETA: %s\n", eta)
+			FormatStats(&c.stats, v)
 		case stats:
 			b, err := jsonutil.MarshalCompactPretty(c.stats)
 			if err != nil {
@@ -933,4 +888,59 @@ func flags(p rpctypes.Peer) string {
 		sb.WriteString(" ")
 	}
 	return sb.String()
+}
+
+func FormatStats(stats *rpctypes.Stats, v io.Writer) {
+	fmt.Fprintf(v, "Name: %s\n", stats.Name)
+	fmt.Fprintf(v, "Private: %v\n", stats.Private)
+	status := stats.Status
+	if status == "Stopped" && stats.Error != nil {
+		status = status + ": " + *stats.Error
+	}
+	fmt.Fprintf(v, "Status: %s\n", status)
+	var progress int
+	if stats.Pieces.Total > 0 {
+		switch stats.Status {
+		case "Verifying":
+			progress = int(stats.Pieces.Checked * 100 / stats.Pieces.Total)
+		case "Allocating":
+			progress = int(stats.Bytes.Allocated * 100 / stats.Bytes.Total)
+		default:
+			progress = int(stats.Pieces.Have * 100 / stats.Pieces.Total)
+		}
+	}
+	fmt.Fprintf(v, "Progress: %d\n", progress)
+	var ratio float64
+	if stats.Bytes.Downloaded > 0 {
+		ratio = float64(stats.Bytes.Uploaded) / float64(stats.Bytes.Downloaded)
+	}
+	fmt.Fprintf(v, "Ratio: %.2f\n", ratio)
+	var size string
+	switch {
+	case stats.Bytes.Total < 1<<10:
+		size = fmt.Sprintf("%d bytes", stats.Bytes.Total)
+	case stats.Bytes.Total < 1<<20:
+		size = fmt.Sprintf("%d KiB", stats.Bytes.Total/(1<<10))
+	default:
+		size = fmt.Sprintf("%d MiB", stats.Bytes.Total/(1<<20))
+	}
+	fmt.Fprintf(v, "Size: %s\n", size)
+	fmt.Fprintf(v, "Peers: %d in %d out\n", stats.Peers.Incoming, stats.Peers.Outgoing)
+	fmt.Fprintf(v, "Download speed: %5d KiB/s\n", stats.Speed.Download/1024)
+	fmt.Fprintf(v, "Upload speed:   %5d KiB/s\n", stats.Speed.Upload/1024)
+	var eta string
+	if stats.ETA != nil {
+		eta = (time.Duration(*stats.ETA) * time.Second).String()
+	}
+	fmt.Fprintf(v, "ETA: %s\n", eta)
+}
+
+func FormatSessionStats(s *rpctypes.SessionStats, v io.Writer) {
+	fmt.Fprintf(v, "Torrents: %d, Peers: %d, Uptime: %s\n", s.Torrents, s.Peers, time.Duration(s.Uptime)*time.Second)
+	fmt.Fprintf(v, "BlocklistRules: %d, Updated: %s ago\n", s.BlockListRules, time.Duration(s.BlockListRecency)*time.Second)
+	fmt.Fprintf(v, "Reads: %d/s, %dKB/s, Active: %d, Pending: %d\n", s.ReadsPerSecond, s.SpeedRead/1024, s.ReadsActive, s.ReadsPending)
+	fmt.Fprintf(v, "Writes: %d/s, %dKB/s, Active: %d, Pending: %d\n", s.WritesPerSecond, s.SpeedWrite/1024, s.WritesActive, s.WritesPending)
+	fmt.Fprintf(v, "ReadCache Objects: %d, Size: %dMB, Utilization: %d%%\n", s.ReadCacheObjects, s.ReadCacheSize/(1<<20), s.ReadCacheUtilization)
+	fmt.Fprintf(v, "WriteCache Objects: %d, Size: %dMB, PendingKeys: %d\n", s.WriteCacheObjects, s.WriteCacheSize/(1<<20), s.WriteCachePendingKeys)
+	fmt.Fprintf(v, "DownloadSpeed: %dKB/s, UploadSpeed: %dKB/s\n", s.SpeedDownload/1024, s.SpeedUpload/1024)
 }
