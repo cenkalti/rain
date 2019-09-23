@@ -16,6 +16,7 @@ import (
 const (
 	// pages
 	torrents int = iota
+	sessionStats
 	help
 )
 
@@ -29,24 +30,49 @@ const (
 )
 
 type Console struct {
-	client          *rainrpc.Client
-	torrents        []rpctypes.Torrent
-	errTorrents     error
-	selectedID      string
-	selectedTab     int
-	selectedPage    int
-	tabAdjust       int
-	stats           rpctypes.Stats
-	trackers        []rpctypes.Tracker
-	peers           []rpctypes.Peer
-	webseeds        []rpctypes.Webseed
-	errDetails      error
+	client *rainrpc.Client
+
+	// protects global state in client
+	m sync.Mutex
+
+	// error from listing torrents rpc call
+	errTorrents error
+	// error from getting stats/trackers/peers/etc...
+	errDetails error
+	// error from getting session stats
+	errSessionStats error
+
+	// id of currently selected torrent
+	selectedID string
+	// selected detail tab
+	selectedTab int
+	// selected global page
+	selectedPage int
+	// distance Y from 0,0
+	tabAdjust int
+
+	// fields to hold responsed from rpc requests
+	torrents     []rpctypes.Torrent
+	stats        rpctypes.Stats
+	sessionStats rpctypes.SessionStats
+	trackers     []rpctypes.Tracker
+	peers        []rpctypes.Peer
+	webseeds     []rpctypes.Webseed
+
+	// whether details tab is currently updating state
 	updatingDetails bool
-	m               sync.Mutex
+
+	// channels for triggering refresh after view update / key events
 	updateTorrentsC chan struct{}
 	updateDetailsC  chan struct{}
-	stopUpdatingC   chan struct{}
-	updating        bool
+
+	// state for updater goroutine for updating torrents list and details tab
+	stopUpdatingTorrentsC chan struct{}
+	updatingTorrents      bool
+
+	// state for updater goroutine for updating session-stats page
+	stopUpdatingSessionStatsC chan struct{}
+	updatingSessionStats      bool
 }
 
 func New(clt *rainrpc.Client) *Console {
@@ -70,6 +96,7 @@ func (c *Console) Run() error {
 	_ = g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, c.quit)
 	_ = g.SetKeybinding("", 'q', gocui.ModNone, c.quit)
 	_ = g.SetKeybinding("", '?', gocui.ModNone, c.switchHelp)
+	_ = g.SetKeybinding("", 'A', gocui.ModNone, c.switchSessionStats)
 
 	// Navigation
 	_ = g.SetKeybinding("torrents", 'j', gocui.ModNone, c.cursorDown)
@@ -100,21 +127,38 @@ func (c *Console) Run() error {
 	return err
 }
 
-func (c *Console) startUpdating(g *gocui.Gui) {
-	if c.updating {
+func (c *Console) startUpdatingTorrents(g *gocui.Gui) {
+	if c.updatingTorrents {
 		return
 	}
-	c.updating = true
-	c.stopUpdatingC = make(chan struct{})
-	go c.updateLoop(g, c.stopUpdatingC)
+	c.updatingTorrents = true
+	c.stopUpdatingTorrentsC = make(chan struct{})
+	go c.updateTorrentsAndDetailsLoop(g, c.stopUpdatingTorrentsC)
 }
 
-func (c *Console) stopUpdating() {
-	if !c.updating {
+func (c *Console) stopUpdatingTorrents() {
+	if !c.updatingTorrents {
 		return
 	}
-	c.updating = false
-	close(c.stopUpdatingC)
+	c.updatingTorrents = false
+	close(c.stopUpdatingTorrentsC)
+}
+
+func (c *Console) startUpdatingSessionStats(g *gocui.Gui) {
+	if c.updatingSessionStats {
+		return
+	}
+	c.updatingSessionStats = true
+	c.stopUpdatingSessionStatsC = make(chan struct{})
+	go c.updateSessionStatsLoop(g, c.stopUpdatingSessionStatsC)
+}
+
+func (c *Console) stopUpdatingSessionStats() {
+	if !c.updatingSessionStats {
+		return
+	}
+	c.updatingSessionStats = false
+	close(c.stopUpdatingSessionStatsC)
 }
 
 func (c *Console) layout(g *gocui.Gui) error {
@@ -123,9 +167,18 @@ func (c *Console) layout(g *gocui.Gui) error {
 		return err
 	}
 	if c.selectedPage == torrents {
-		c.startUpdating(g)
+		c.startUpdatingTorrents(g)
 	} else {
-		c.stopUpdating()
+		c.stopUpdatingTorrents()
+	}
+	if c.selectedPage == sessionStats {
+		c.startUpdatingSessionStats(g)
+	} else {
+		c.stopUpdatingSessionStats()
+		_ = g.DeleteView("session-stats")
+	}
+	if c.selectedPage != help {
+		_ = g.DeleteView("help")
 	}
 	switch c.selectedPage {
 	case torrents:
@@ -138,6 +191,12 @@ func (c *Console) layout(g *gocui.Gui) error {
 			return err
 		}
 		_, err = g.SetCurrentView("torrents")
+	case sessionStats:
+		err = c.drawSessionStats(g)
+		if err != nil {
+			return err
+		}
+		_, err = g.SetCurrentView("session-stats")
 	case help:
 		err = c.drawHelp(g)
 		if err != nil {
@@ -179,14 +238,15 @@ func (c *Console) drawHelp(g *gocui.Gui) error {
 	fmt.Fprintln(v, "     alt+k  move tab separator up")
 	fmt.Fprintln(v, "         g  go to top")
 	fmt.Fprintln(v, "         G  go to bottom")
+	fmt.Fprintln(v, "         A  show session stats page")
 
 	fmt.Fprintln(v, "")
 
-	fmt.Fprintln(v, "     alt+G  switch to General info page")
-	fmt.Fprintln(v, "     alt+S  switch to Stats page")
-	fmt.Fprintln(v, "     alt+T  switch to Trackers page")
-	fmt.Fprintln(v, "     alt+P  switch to Peers page")
-	fmt.Fprintln(v, "     alt+W  switch to Webseeds page")
+	fmt.Fprintln(v, "     alt+g  switch to General info tab")
+	fmt.Fprintln(v, "     alt+s  switch to Stats tab")
+	fmt.Fprintln(v, "     alt+t  switch to Trackers tab")
+	fmt.Fprintln(v, "     alt+p  switch to Peers tab")
+	fmt.Fprintln(v, "     alt+w  switch to Webseeds tab")
 
 	fmt.Fprintln(v, "")
 
@@ -196,6 +256,32 @@ func (c *Console) drawHelp(g *gocui.Gui) error {
 	fmt.Fprintln(v, "    ctrl+a  Announce torrent")
 	fmt.Fprintln(v, "    ctrl+v  Verify torrent")
 
+	return nil
+}
+
+func (c *Console) drawSessionStats(g *gocui.Gui) error {
+	maxX, maxY := g.Size()
+	v, err := g.SetView("session-stats", 5, 2, maxX-6, maxY-3)
+	if err != nil {
+		if err != gocui.ErrUnknownView {
+			return err
+		}
+		v.Frame = true
+		v.Title = "Session Stats"
+		fmt.Fprintln(v, "loading...")
+	} else {
+		v.Clear()
+		if c.errSessionStats != nil {
+			fmt.Fprintln(v, "error:", c.errSessionStats)
+			return nil
+		}
+		b, err := jsonutil.MarshalCompactPretty(c.sessionStats)
+		if err != nil {
+			fmt.Fprintln(v, "error:", err)
+		} else {
+			fmt.Fprintln(v, string(b))
+		}
+	}
 	return nil
 }
 
@@ -392,7 +478,7 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 	return nil
 }
 
-func (c *Console) updateLoop(g *gocui.Gui, stop chan struct{}) {
+func (c *Console) updateTorrentsAndDetailsLoop(g *gocui.Gui, stop chan struct{}) {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
@@ -407,6 +493,22 @@ func (c *Console) updateLoop(g *gocui.Gui, stop chan struct{}) {
 			c.updateTorrents(g)
 		case <-c.updateDetailsC:
 			go c.updateDetails(g)
+		case <-stop:
+			return
+		}
+	}
+}
+
+func (c *Console) updateSessionStatsLoop(g *gocui.Gui, stop chan struct{}) {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	c.updateSessionStats(g)
+	for {
+
+		select {
+		case <-ticker.C:
+			c.updateSessionStats(g)
 		case <-stop:
 			return
 		}
@@ -494,10 +596,24 @@ func (c *Console) updateDetails(g *gocui.Gui) {
 	g.Update(c.drawDetails)
 }
 
+func (c *Console) updateSessionStats(g *gocui.Gui) {
+	stats, err := c.client.GetSessionStats()
+	c.m.Lock()
+	defer c.m.Unlock()
+	c.sessionStats = *stats
+	c.errSessionStats = err
+
+	g.Update(c.drawSessionStats)
+}
+
 func (c *Console) quit(g *gocui.Gui, v *gocui.View) error {
 	if c.selectedPage == help {
 		c.selectedPage = torrents
-		return g.DeleteView("help")
+		return nil
+	}
+	if c.selectedPage == sessionStats {
+		c.selectedPage = torrents
+		return nil
 	}
 	return gocui.ErrQuit
 }
@@ -729,6 +845,13 @@ func (c *Console) switchWebseeds(g *gocui.Gui, v *gocui.View) error {
 func (c *Console) switchHelp(g *gocui.Gui, v *gocui.View) error {
 	c.m.Lock()
 	c.selectedPage = help
+	c.m.Unlock()
+	return nil
+}
+
+func (c *Console) switchSessionStats(g *gocui.Gui, v *gocui.View) error {
+	c.m.Lock()
+	c.selectedPage = sessionStats
 	c.m.Unlock()
 	return nil
 }
