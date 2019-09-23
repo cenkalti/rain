@@ -217,7 +217,7 @@ func (c *Console) drawTorrents(g *gocui.Gui) error {
 		}
 		selectedIDrow := -1
 		for i, t := range c.torrents {
-			fmt.Fprintf(v, "%3d %s %s %5d %s\n", i+1, t.ID, t.InfoHash, t.Port, t.Name)
+			fmt.Fprintf(v, "%3d %s %s\n", i+1, t.ID, t.Name)
 			if t.ID == c.selectedID {
 				selectedIDrow = i
 			}
