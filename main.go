@@ -150,10 +150,6 @@ func main() {
 					Usage:  "get stats of session",
 					Action: handleSessionStats,
 					Flags: []cli.Flag{
-						cli.StringFlag{
-							Name:     "id",
-							Required: true,
-						},
 						cli.BoolFlag{
 							Name:  "json",
 							Usage: "print raw stats as JSON",
