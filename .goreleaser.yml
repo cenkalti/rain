@@ -43,6 +43,8 @@ brews:
       bin.install "rain"
       output = Utils.popen_read("#{bin}/rain bash-autocomplete")
       (bash_completion/"rain").write output
+      output = Utils.popen_read("#{bin}/rain zsh-autocomplete")
+      (zsh_completion/"rain").write output
       prefix.install_metafiles
     test: |
       system "#{bin}/rain --version"

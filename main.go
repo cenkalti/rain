@@ -78,6 +78,12 @@ func main() {
 			Action: printBashAutoComplete,
 		},
 		{
+			Name:   "zsh-autocomplete",
+			Hidden: true,
+			Usage:  "print zsh autocompletion script",
+			Action: printZshAutoComplete,
+		},
+		{
 			Name:  "download",
 			Usage: "download single torrent",
 			Flags: []cli.Flag{
@@ -954,5 +960,23 @@ _cli_bash_autocomplete() {
 
 complete -o bashdefault -o default -o nospace -F _cli_bash_autocomplete $PROG
 unset PROG`)
+	return nil
+}
+
+func printZshAutoComplete(c *cli.Context) error {
+	fmt.Println(`PROG=rain
+#compdef $PROG
+
+_cli_zsh_autocomplete() {
+
+  local -a opts
+  opts=("${(@f)$(_CLI_ZSH_AUTOCOMPLETE_HACK=1 ${words[@]:0:#words[@]-1} --generate-bash-completion)}")
+
+  _describe 'values' opts
+
+  return
+}
+
+compdef _cli_zsh_autocomplete $PROG`)
 	return nil
 }
