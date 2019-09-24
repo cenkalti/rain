@@ -191,7 +191,7 @@ var DefaultConfig = Config{
 	DataDirIncludesTorrentID:               true,
 	PortBegin:                              50000,
 	PortEnd:                                60000,
-	MaxOpenFiles:                           1000000,
+	MaxOpenFiles:                           10240,
 	PEXEnabled:                             true,
 	ResumeWriteInterval:                    30 * time.Second,
 	PrivatePeerIDPrefix:                    "-RN" + Version + "-",
