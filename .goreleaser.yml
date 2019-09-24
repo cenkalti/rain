@@ -31,3 +31,17 @@ changelog:
     exclude:
     - '^docs:'
     - '^test:'
+brews:
+  - github:
+      owner: cenkalti
+      name: homebrew-rain
+    folder: Formula
+    homepage:  https://github.com/cenkalti/rain
+    description: BitTorrent client
+    install: |
+      bin.install "rain"
+      output = Utils.popen_read("#{bin}/rain bash-autocomplete")
+      (bash_completion/"rain").write output
+      prefix.install_metafiles
+    test: |
+      system "#{bin}/rain --version"
