@@ -41,6 +41,7 @@ var (
 func main() {
 	app.Version = torrent.Version
 	app.Usage = "BitTorrent client"
+	app.EnableBashCompletion = true
 	app.Flags = []cli.Flag{
 		cli.BoolFlag{
 			Name:  "debug,d",
@@ -70,6 +71,12 @@ func main() {
 	app.Before = handleBeforeCommand
 	app.After = handleAfterCommand
 	app.Commands = []cli.Command{
+		{
+			Name:   "bash-autocomplete",
+			Hidden: true,
+			Usage:  "print bash autocompletion script",
+			Action: printBashAutoComplete,
+		},
 		{
 			Name:  "download",
 			Usage: "download single torrent",
@@ -924,5 +931,28 @@ func handleGetMagnet(c *cli.Context) error {
 		return err
 	}
 	fmt.Println(magnet)
+	return nil
+}
+
+func printBashAutoComplete(c *cli.Context) error {
+	fmt.Println(`#! /bin/bash
+PROG=rain
+_cli_bash_autocomplete() {
+  if [[ "${COMP_WORDS[0]}" != "source" ]]; then
+    local cur opts base
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    if [[ "$cur" == "-"* ]]; then
+      opts=$( ${COMP_WORDS[@]:0:$COMP_CWORD} ${cur} --generate-bash-completion )
+    else
+      opts=$( ${COMP_WORDS[@]:0:$COMP_CWORD} --generate-bash-completion )
+    fi
+    COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+    return 0
+  fi
+}
+
+complete -o bashdefault -o default -o nospace -F _cli_bash_autocomplete $PROG
+unset PROG`)
 	return nil
 }
