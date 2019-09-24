@@ -3,6 +3,7 @@ package console
 import (
 	"fmt"
 	"io"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -18,6 +19,7 @@ const (
 	// pages
 	torrents int = iota
 	sessionStats
+	addTorrent
 	help
 )
 
@@ -90,14 +92,24 @@ func (c *Console) Run() error {
 		return err
 	}
 	defer g.Close()
-
 	g.SetManagerFunc(c.layout)
+	c.keybindings(g)
+	err = g.MainLoop()
+	if err == gocui.ErrQuit {
+		err = nil
+	}
+	return err
+}
 
+func (c *Console) keybindings(g *gocui.Gui) {
 	// Global keys
-	_ = g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, c.quit)
-	_ = g.SetKeybinding("", 'q', gocui.ModNone, c.quit)
-	_ = g.SetKeybinding("", '?', gocui.ModNone, c.switchHelp)
-	_ = g.SetKeybinding("", 'A', gocui.ModNone, c.switchSessionStats)
+	_ = g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, c.forceQuit)
+
+	// Quit keys
+	_ = g.SetKeybinding("torrents", 'q', gocui.ModNone, c.forceQuit)
+	_ = g.SetKeybinding("help", 'q', gocui.ModNone, c.quit)
+	_ = g.SetKeybinding("session-stats", 'q', gocui.ModNone, c.quit)
+	_ = g.SetKeybinding("add-torrent", gocui.KeyCtrlQ, gocui.ModNone, c.quit)
 
 	// Navigation
 	_ = g.SetKeybinding("torrents", 'j', gocui.ModNone, c.cursorDown)
@@ -106,6 +118,8 @@ func (c *Console) Run() error {
 	_ = g.SetKeybinding("torrents", 'k', gocui.ModAlt, c.tabAdjustUp)
 	_ = g.SetKeybinding("torrents", 'g', gocui.ModNone, c.goTop)
 	_ = g.SetKeybinding("torrents", 'G', gocui.ModNone, c.goBottom)
+	_ = g.SetKeybinding("torrents", 'a', gocui.ModAlt, c.switchSessionStats)
+	_ = g.SetKeybinding("torrents", '?', gocui.ModNone, c.switchHelp)
 
 	// Tabs
 	_ = g.SetKeybinding("torrents", 'g', gocui.ModAlt, c.switchGeneral)
@@ -120,12 +134,8 @@ func (c *Console) Run() error {
 	_ = g.SetKeybinding("torrents", gocui.KeyCtrlR, gocui.ModNone, c.removeTorrent)
 	_ = g.SetKeybinding("torrents", gocui.KeyCtrlA, gocui.ModNone, c.announce)
 	_ = g.SetKeybinding("torrents", gocui.KeyCtrlV, gocui.ModNone, c.verify)
-
-	err = g.MainLoop()
-	if err == gocui.ErrQuit {
-		err = nil
-	}
-	return err
+	_ = g.SetKeybinding("torrents", gocui.KeyCtrlA, gocui.ModNone, c.switchAddTorrent)
+	_ = g.SetKeybinding("add-torrent", gocui.KeyEnter, gocui.ModNone, c.addTorrentHandleEnter)
 }
 
 func (c *Console) startUpdatingTorrents(g *gocui.Gui) {
@@ -181,6 +191,10 @@ func (c *Console) layout(g *gocui.Gui) error {
 	if c.selectedPage != help {
 		_ = g.DeleteView("help")
 	}
+	if c.selectedPage != addTorrent {
+		_ = g.DeleteView("add-torrent")
+		g.Cursor = false
+	}
 	switch c.selectedPage {
 	case torrents:
 		err = c.drawTorrents(g)
@@ -204,6 +218,13 @@ func (c *Console) layout(g *gocui.Gui) error {
 			return err
 		}
 		_, err = g.SetCurrentView("help")
+	case addTorrent:
+		err = c.drawAddTorrent(g)
+		if err != nil {
+			return err
+		}
+		g.Cursor = true
+		_, err = g.SetCurrentView("add-torrent")
 	}
 	return err
 }
@@ -257,6 +278,21 @@ func (c *Console) drawHelp(g *gocui.Gui) error {
 	fmt.Fprintln(v, "    ctrl+a  Announce torrent")
 	fmt.Fprintln(v, "    ctrl+v  Verify torrent")
 
+	return nil
+}
+
+func (c *Console) drawAddTorrent(g *gocui.Gui) error {
+	maxX, maxY := g.Size()
+	v, err := g.SetView("add-torrent", 5, 2, maxX-6, maxY-3)
+	if err != nil {
+		if err != gocui.ErrUnknownView {
+			return err
+		}
+		v.Frame = true
+		v.Title = "Add Torrent (Press ctrl-q to close window)"
+		v.Editable = true
+		v.Wrap = true
+	}
 	return nil
 }
 
@@ -562,15 +598,49 @@ func (c *Console) updateSessionStats(g *gocui.Gui) {
 }
 
 func (c *Console) quit(g *gocui.Gui, v *gocui.View) error {
-	if c.selectedPage == help {
-		c.selectedPage = torrents
-		return nil
-	}
-	if c.selectedPage == sessionStats {
-		c.selectedPage = torrents
-		return nil
-	}
+	c.selectedPage = torrents
+	return nil
+}
+
+func (c *Console) forceQuit(g *gocui.Gui, v *gocui.View) error {
 	return gocui.ErrQuit
+}
+
+func isURI(arg string) bool {
+	return strings.HasPrefix(arg, "magnet:") || strings.HasPrefix(arg, "http://") || strings.HasPrefix(arg, "https://")
+}
+
+func (c *Console) addTorrentHandleEnter(g *gocui.Gui, v *gocui.View) error {
+	handleError := func(err error) error {
+		v.Clear()
+		_ = v.SetCursor(0, 0)
+		fmt.Fprintln(v, "error:", err)
+		return nil
+	}
+	for _, line := range v.BufferLines() {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		var err error
+		if isURI(line) {
+			_, err = c.client.AddURI(line, nil)
+		} else {
+			var f *os.File
+			f, err = os.Open(line)
+			if err != nil {
+				return handleError(err)
+			}
+			_, err = c.client.AddTorrent(f, nil)
+			_ = f.Close()
+		}
+		if err != nil {
+			return handleError(err)
+		}
+	}
+	v.Clear()
+	c.selectedPage = torrents
+	return nil
 }
 
 func (c *Console) switchRow(v *gocui.View, row int) error {
@@ -798,16 +868,17 @@ func (c *Console) switchWebseeds(g *gocui.Gui, v *gocui.View) error {
 }
 
 func (c *Console) switchHelp(g *gocui.Gui, v *gocui.View) error {
-	c.m.Lock()
 	c.selectedPage = help
-	c.m.Unlock()
 	return nil
 }
 
 func (c *Console) switchSessionStats(g *gocui.Gui, v *gocui.View) error {
-	c.m.Lock()
 	c.selectedPage = sessionStats
-	c.m.Unlock()
+	return nil
+}
+
+func (c *Console) switchAddTorrent(g *gocui.Gui, v *gocui.View) error {
+	c.selectedPage = addTorrent
 	return nil
 }
 
