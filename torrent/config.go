@@ -27,6 +27,8 @@ type Config struct {
 	DataDirIncludesTorrentID bool
 	// New torrents will be listened at selected port in this range.
 	PortBegin, PortEnd uint16
+	// At start, client will set max open files limit to this number. (like "ulimit -n" command)
+	MaxOpenFiles uint64
 	// Enable peer exchange protocol.
 	PEXEnabled bool
 	// Resume data (bitfield & stats) are saved to disk at interval to keep IO lower.
@@ -189,6 +191,7 @@ var DefaultConfig = Config{
 	DataDirIncludesTorrentID:               true,
 	PortBegin:                              50000,
 	PortEnd:                                60000,
+	MaxOpenFiles:                           1000000,
 	PEXEnabled:                             true,
 	ResumeWriteInterval:                    30 * time.Second,
 	PrivatePeerIDPrefix:                    "-RN" + Version + "-",
