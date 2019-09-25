@@ -23,20 +23,22 @@ Features
 - [x] RPC server & client
 - [x] Console UI
 
+Screenshot
+----------
+![Rain Screenshot](https://cl.ly/462cefdf6c4a/rain.png)
+
 Installing
 ----------
 
-Get the latest binary from [releases page](https://github.com/cenkalti/rain/releases) or install development version:
-
+If you are on MacOS you can install from [brew](https://brew.sh/):
 ```sh
-go get -u github.com/cenkalti/rain
+brew tap cenkalti/rain
+brew install rain
 ```
+
+Otherwise, get the latest binary from [releases page](https://github.com/cenkalti/rain/releases).
 
 Usage
 -----
 
-- `rain server` command runs a RPC server.
-- `rain client add <magnet_or_torrent>` adds a torrent and print it's ID.
-- `rain client stats <ID>` prints the stats of the torrent.
-
-Run `rain help` to see other commands.
+Rain is distributed as single binary file. The main use case is running `rain server` command and operating the server with `rain client <subcommand>` commands. Server consists of a BitTorrent client and a RPC server. `rain client` is used to give commands to the server. There is also `rain client console` command which opens up a text based UI that you can manage the torrents on the server. Run `rain help` to see other commands.
