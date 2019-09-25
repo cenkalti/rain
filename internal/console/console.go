@@ -258,9 +258,9 @@ func (c *Console) drawHelp(g *gocui.Gui) error {
 	fmt.Fprintln(v, "         k  move up")
 	fmt.Fprintln(v, "     alt+j  move tab separator down")
 	fmt.Fprintln(v, "     alt+k  move tab separator up")
-	fmt.Fprintln(v, "         g  go to top")
-	fmt.Fprintln(v, "         G  go to bottom")
-	fmt.Fprintln(v, "         A  show session stats page")
+	fmt.Fprintln(v, "         g  Go to top")
+	fmt.Fprintln(v, "         G  Go to bottom")
+	fmt.Fprintln(v, "     alt+a  show session stats page")
 
 	fmt.Fprintln(v, "")
 
@@ -277,6 +277,7 @@ func (c *Console) drawHelp(g *gocui.Gui) error {
 	fmt.Fprintln(v, "    ctrl+R  Remove torrent")
 	fmt.Fprintln(v, "    ctrl+a  Announce torrent")
 	fmt.Fprintln(v, "    ctrl+v  Verify torrent")
+	fmt.Fprintln(v, "    ctrl+a  Add new torrent")
 
 	return nil
 }
