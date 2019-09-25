@@ -325,7 +325,20 @@ func (c *Console) drawTorrents(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
 	halfY := maxY / 2
 	split := halfY + c.tabAdjust
-	if v, err := g.SetView("torrents", -1, 0, maxX, split); err != nil {
+	if split <= 0 {
+		return nil
+	}
+	if v, err := g.SetView("torrents-header", -1, 0, maxX, split); err != nil {
+		if err != gocui.ErrUnknownView {
+			return err
+		}
+		v.Frame = false
+		fmt.Fprintf(v, "%3s %-22s %s", "#", "ID", "Name")
+	}
+	if split <= 1 {
+		return nil
+	}
+	if v, err := g.SetView("torrents", -1, 1, maxX, split); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
