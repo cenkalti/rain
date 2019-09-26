@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -16,9 +15,10 @@ import (
 
 	"github.com/cenkalti/rain/internal/resumer/boltdbresumer"
 	"github.com/cenkalti/rain/internal/rpctypes"
+	"github.com/powerman/rpc-codec/jsonrpc2"
 )
 
-var errTorrentNotFound = errors.New("torrent not found")
+var errTorrentNotFound = jsonrpc2.NewError(1, "torrent not found")
 
 type rpcHandler struct {
 	session *Session
