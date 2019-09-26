@@ -34,6 +34,17 @@ func (s *Session) loadExistingTorrents(ids []string) {
 	}
 }
 
+func (s *Session) parseInfo(b []byte) (*metainfo.Info, error) {
+	i, err := metainfo.NewInfo(b)
+	if err != nil {
+		return nil, err
+	}
+	if i.NumPieces > s.config.MaxPieces {
+		return nil, errTooManyPieces
+	}
+	return i, nil
+}
+
 func (s *Session) loadExistingTorrent(id string) (tt *Torrent, hasStarted bool, err error) {
 	spec, err := s.resumer.Read(id)
 	if err != nil {
@@ -44,12 +55,9 @@ func (s *Session) loadExistingTorrent(id string) (tt *Torrent, hasStarted bool, 
 	var bf *bitfield.Bitfield
 	var private bool
 	if len(spec.Info) > 0 {
-		info2, err2 := metainfo.NewInfo(spec.Info)
+		info2, err2 := s.parseInfo(spec.Info)
 		if err2 != nil {
 			return nil, spec.Started, err2
-		}
-		if info2.NumPieces > s.config.MaxPieces {
-			return nil, spec.Started, errTooManyPieces
 		}
 		info = info2
 		private = info.Private

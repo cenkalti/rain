@@ -37,9 +37,20 @@ func (s *Session) AddTorrent(r io.Reader, opt *AddTorrentOptions) (*Torrent, err
 	return t, err
 }
 
+func (s *Session) parseMetaInfo(r io.Reader) (*metainfo.MetaInfo, error) {
+	mi, err := metainfo.New(r)
+	if err != nil {
+		return nil, err
+	}
+	if mi.Info.NumPieces > s.config.MaxPieces {
+		return nil, errTooManyPieces
+	}
+	return mi, nil
+}
+
 func (s *Session) addTorrentStopped(r io.Reader, opt *AddTorrentOptions) (*Torrent, error) {
 	r = io.LimitReader(r, int64(s.config.MaxTorrentSize))
-	mi, err := metainfo.New(r)
+	mi, err := s.parseMetaInfo(r)
 	if err != nil {
 		return nil, err
 	}

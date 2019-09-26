@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"github.com/cenkalti/rain/internal/bufferpool"
-	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peerprotocol"
 )
@@ -82,13 +81,9 @@ func (t *torrent) handleMetadataMessage(pe *peer.Peer, msg peerprotocol.Extensio
 		}
 		t.stopInfoDownloaders()
 
-		info, err := metainfo.NewInfo(id.Bytes)
+		info, err := t.session.parseInfo(id.Bytes)
 		if err != nil {
 			t.stop(fmt.Errorf("cannot parse info bytes: %s", err))
-			break
-		}
-		if info.NumPieces > t.session.config.MaxPieces {
-			t.stop(errTooManyPieces)
 			break
 		}
 		if info.Private {
