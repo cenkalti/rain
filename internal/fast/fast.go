@@ -28,7 +28,7 @@ func GenerateFastSet(k int, numPieces uint32, infoHash [20]byte, ip net.IP) []ui
 		return false
 	}
 	h := sha1.New() // nolint: gosec
-	for len(a) < k {
+	for j := 0; j < k && len(a) < k; j++ {
 		_, _ = h.Write(x)
 		x = h.Sum(x[:0])
 		h.Reset()
