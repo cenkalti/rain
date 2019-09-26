@@ -1,6 +1,7 @@
 package torrent
 
 import (
+	"errors"
 	"path/filepath"
 
 	"github.com/cenkalti/rain/internal/bitfield"
@@ -9,6 +10,8 @@ import (
 	"github.com/cenkalti/rain/internal/storage/filestorage"
 	"github.com/cenkalti/rain/internal/webseedsource"
 )
+
+var errTooManyPieces = errors.New("too many pieces")
 
 func (s *Session) loadExistingTorrents(ids []string) {
 	var loaded int
@@ -44,6 +47,9 @@ func (s *Session) loadExistingTorrent(id string) (tt *Torrent, hasStarted bool, 
 		info2, err2 := metainfo.NewInfo(spec.Info)
 		if err2 != nil {
 			return nil, spec.Started, err2
+		}
+		if info2.NumPieces > s.config.MaxPieces {
+			return nil, spec.Started, errTooManyPieces
 		}
 		info = info2
 		private = info.Private

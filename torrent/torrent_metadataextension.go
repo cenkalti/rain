@@ -87,6 +87,10 @@ func (t *torrent) handleMetadataMessage(pe *peer.Peer, msg peerprotocol.Extensio
 			t.stop(fmt.Errorf("cannot parse info bytes: %s", err))
 			break
 		}
+		if info.NumPieces > t.session.config.MaxPieces {
+			t.stop(errTooManyPieces)
+			break
+		}
 		if info.Private {
 			t.stop(errors.New("private torrent from magnet"))
 			break
