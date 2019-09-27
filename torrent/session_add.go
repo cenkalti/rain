@@ -52,7 +52,7 @@ func (s *Session) addTorrentStopped(r io.Reader, opt *AddTorrentOptions) (*Torre
 	r = io.LimitReader(r, int64(s.config.MaxTorrentSize))
 	mi, err := s.parseMetaInfo(r)
 	if err != nil {
-		return nil, err
+		return nil, newInputError(err)
 	}
 	id, port, sto, err := s.add(opt)
 	if err != nil {
@@ -109,7 +109,7 @@ func (s *Session) AddURI(uri string, opt *AddTorrentOptions) (*Torrent, error) {
 
 	u, err := url.Parse(uri)
 	if err != nil {
-		return nil, err
+		return nil, newInputError(err)
 	}
 	switch u.Scheme {
 	case "http", "https":
@@ -140,12 +140,12 @@ func (s *Session) addURL(u string, opt *AddTorrentOptions) (*Torrent, error) {
 	}
 	resp, err := client.Get(u)
 	if err != nil {
-		return nil, err
+		return nil, newInputError(err)
 	}
 	defer resp.Body.Close()
 
 	if resp.ContentLength > int64(s.config.MaxTorrentSize) {
-		return nil, fmt.Errorf("torrent too large: %d", resp.ContentLength)
+		return nil, newInputError(fmt.Errorf("torrent too large: %d", resp.ContentLength))
 	}
 	r := io.LimitReader(resp.Body, int64(s.config.MaxTorrentSize))
 	return s.AddTorrent(r, opt)
@@ -154,7 +154,7 @@ func (s *Session) addURL(u string, opt *AddTorrentOptions) (*Torrent, error) {
 func (s *Session) addMagnet(link string, opt *AddTorrentOptions) (*Torrent, error) {
 	ma, err := magnet.New(link)
 	if err != nil {
-		return nil, err
+		return nil, newInputError(err)
 	}
 	id, port, sto, err := s.add(opt)
 	if err != nil {

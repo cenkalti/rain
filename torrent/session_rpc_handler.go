@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -45,6 +46,10 @@ func (h *rpcHandler) AddTorrent(args *rpctypes.AddTorrentRequest, reply *rpctype
 		ID:      args.AddTorrentOptions.ID,
 	}
 	t, err := h.session.AddTorrent(r, opt)
+	var e *InputError
+	if errors.As(err, &e) {
+		return jsonrpc2.NewError(2, e.Error())
+	}
 	if err != nil {
 		return err
 	}
@@ -58,6 +63,10 @@ func (h *rpcHandler) AddURI(args *rpctypes.AddURIRequest, reply *rpctypes.AddURI
 		ID:      args.AddTorrentOptions.ID,
 	}
 	t, err := h.session.AddURI(args.URI, opt)
+	var e *InputError
+	if errors.As(err, &e) {
+		return jsonrpc2.NewError(2, e.Error())
+	}
 	if err != nil {
 		return err
 	}
