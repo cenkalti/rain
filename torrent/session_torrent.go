@@ -86,15 +86,16 @@ func (t *Torrent) Port() int {
 	return t.torrent.port
 }
 
-// NotifyError returns a new channel for notifying fatal errors.
-// When an error is sent to the channel, torrent is stopped automatically.
-// NotifyError must be called after calling Start().
-func (t *Torrent) NotifyError() <-chan error {
+// NotifyStop returns a new channel for notifying stop event.
+// Value from the channel contains the error if there is any, otherwise the value is nil.
+// NotifyStop must be called after calling Start().
+func (t *Torrent) NotifyStop() <-chan error {
 	return t.torrent.NotifyError()
 }
 
 // NotifyComplete returns a channel for notifying completion.
 // The channel is closed once all pieces are downloaded successfully.
+// NotifyComplete must be called after calling Start().
 func (t *Torrent) NotifyComplete() <-chan struct{} {
 	return t.torrent.NotifyComplete()
 }

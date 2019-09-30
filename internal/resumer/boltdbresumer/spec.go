@@ -7,33 +7,35 @@ import (
 )
 
 type Spec struct {
-	InfoHash        []byte
-	Port            int
-	Name            string
-	Trackers        [][]string
-	URLList         []string
-	FixedPeers      []string
-	Info            []byte
-	Bitfield        []byte
-	AddedAt         time.Time
-	BytesDownloaded int64
-	BytesUploaded   int64
-	BytesWasted     int64
-	SeededFor       time.Duration
-	Started         bool
+	InfoHash          []byte
+	Port              int
+	Name              string
+	Trackers          [][]string
+	URLList           []string
+	FixedPeers        []string
+	Info              []byte
+	Bitfield          []byte
+	AddedAt           time.Time
+	BytesDownloaded   int64
+	BytesUploaded     int64
+	BytesWasted       int64
+	SeededFor         time.Duration
+	Started           bool
+	StopAfterDownload bool
 }
 
 type jsonSpec struct {
-	Port            int
-	Name            string
-	Trackers        [][]string
-	URLList         []string
-	FixedPeers      []string
-	AddedAt         time.Time
-	BytesDownloaded int64
-	BytesUploaded   int64
-	BytesWasted     int64
-	Started         bool
+	Port              int
+	Name              string
+	Trackers          [][]string
+	URLList           []string
+	FixedPeers        []string
+	AddedAt           time.Time
+	BytesDownloaded   int64
+	BytesUploaded     int64
+	BytesWasted       int64
+	Started           bool
+	StopAfterDownload bool
 
 	// JSON safe types
 	InfoHash  string
@@ -44,16 +46,17 @@ type jsonSpec struct {
 
 func (s Spec) MarshalJSON() ([]byte, error) {
 	j := jsonSpec{
-		Port:            s.Port,
-		Name:            s.Name,
-		Trackers:        s.Trackers,
-		URLList:         s.URLList,
-		FixedPeers:      s.FixedPeers,
-		AddedAt:         s.AddedAt,
-		BytesDownloaded: s.BytesDownloaded,
-		BytesUploaded:   s.BytesUploaded,
-		BytesWasted:     s.BytesWasted,
-		Started:         s.Started,
+		Port:              s.Port,
+		Name:              s.Name,
+		Trackers:          s.Trackers,
+		URLList:           s.URLList,
+		FixedPeers:        s.FixedPeers,
+		AddedAt:           s.AddedAt,
+		BytesDownloaded:   s.BytesDownloaded,
+		BytesUploaded:     s.BytesUploaded,
+		BytesWasted:       s.BytesWasted,
+		Started:           s.Started,
+		StopAfterDownload: s.StopAfterDownload,
 
 		InfoHash:  base64.StdEncoding.EncodeToString(s.InfoHash),
 		Info:      base64.StdEncoding.EncodeToString(s.Info),
@@ -92,5 +95,6 @@ func (s *Spec) UnmarshalJSON(b []byte) error {
 	s.BytesUploaded = j.BytesUploaded
 	s.BytesWasted = j.BytesWasted
 	s.Started = j.Started
+	s.StopAfterDownload = j.StopAfterDownload
 	return nil
 }

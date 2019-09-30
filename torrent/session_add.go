@@ -22,16 +22,20 @@ import (
 )
 
 type AddTorrentOptions struct {
-	Stopped bool
-	ID      string
+	ID                string
+	Stopped           bool
+	StopAfterDownload bool
 }
 
 func (s *Session) AddTorrent(r io.Reader, opt *AddTorrentOptions) (*Torrent, error) {
+	if opt == nil {
+		opt = &AddTorrentOptions{}
+	}
 	t, err := s.addTorrentStopped(r, opt)
 	if err != nil {
 		return nil, err
 	}
-	if opt == nil || !opt.Stopped {
+	if !opt.Stopped {
 		err = t.Start()
 	}
 	return t, err
@@ -77,6 +81,7 @@ func (s *Session) addTorrentStopped(r io.Reader, opt *AddTorrentOptions) (*Torre
 		nil, // bitfield
 		resumer.Stats{},
 		webseedsource.NewList(mi.URLList),
+		opt.StopAfterDownload,
 	)
 	if err != nil {
 		return nil, err
@@ -88,13 +93,14 @@ func (s *Session) addTorrentStopped(r io.Reader, opt *AddTorrentOptions) (*Torre
 		}
 	}()
 	rspec := &boltdbresumer.Spec{
-		InfoHash: mi.Info.Hash[:],
-		Port:     port,
-		Name:     mi.Info.Name,
-		Trackers: mi.AnnounceList,
-		URLList:  mi.URLList,
-		Info:     mi.Info.Bytes,
-		AddedAt:  t.addedAt,
+		InfoHash:          mi.Info.Hash[:],
+		Port:              port,
+		Name:              mi.Info.Name,
+		Trackers:          mi.AnnounceList,
+		URLList:           mi.URLList,
+		Info:              mi.Info.Bytes,
+		AddedAt:           t.addedAt,
+		StopAfterDownload: opt.StopAfterDownload,
 	}
 	err = s.resumer.Write(id, rspec)
 	if err != nil {
@@ -106,7 +112,9 @@ func (s *Session) addTorrentStopped(r io.Reader, opt *AddTorrentOptions) (*Torre
 
 func (s *Session) AddURI(uri string, opt *AddTorrentOptions) (*Torrent, error) {
 	uri = filterOutControlChars(uri)
-
+	if opt == nil {
+		opt = &AddTorrentOptions{}
+	}
 	u, err := url.Parse(uri)
 	if err != nil {
 		return nil, newInputError(err)
@@ -179,6 +187,7 @@ func (s *Session) addMagnet(link string, opt *AddTorrentOptions) (*Torrent, erro
 		nil, // bitfield
 		resumer.Stats{},
 		nil, // webseedSources
+		opt.StopAfterDownload,
 	)
 	if err != nil {
 		return nil, err
@@ -190,19 +199,20 @@ func (s *Session) addMagnet(link string, opt *AddTorrentOptions) (*Torrent, erro
 		}
 	}()
 	rspec := &boltdbresumer.Spec{
-		InfoHash:   ma.InfoHash[:],
-		Port:       port,
-		Name:       ma.Name,
-		Trackers:   ma.Trackers,
-		FixedPeers: ma.Peers,
-		AddedAt:    t.addedAt,
+		InfoHash:          ma.InfoHash[:],
+		Port:              port,
+		Name:              ma.Name,
+		Trackers:          ma.Trackers,
+		FixedPeers:        ma.Peers,
+		AddedAt:           t.addedAt,
+		StopAfterDownload: opt.StopAfterDownload,
 	}
 	err = s.resumer.Write(id, rspec)
 	if err != nil {
 		return nil, err
 	}
 	t2 := s.insertTorrent(t)
-	if opt == nil || !opt.Stopped {
+	if !opt.Stopped {
 		err = t2.Start()
 	}
 	return t2, err
@@ -219,7 +229,7 @@ func (s *Session) add(opt *AddTorrentOptions) (id string, port int, sto *filesto
 		}
 	}()
 	var givenID string
-	if opt != nil {
+	if opt.ID != "" {
 		givenID = opt.ID
 	}
 	if givenID != "" {

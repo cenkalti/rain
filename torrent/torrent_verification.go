@@ -65,7 +65,10 @@ func (t *torrent) handleVerificationDone(ve *verifier.Verifier) {
 		t.updateInterestedState(pe)
 	}
 
-	t.checkCompletion()
+	if t.checkCompletion() && t.stopAfterDownload {
+		t.stop(nil)
+		return
+	}
 	t.processQueuedMessages()
 	t.addFixedPeers()
 	t.startAcceptor()

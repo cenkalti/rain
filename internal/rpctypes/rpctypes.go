@@ -160,8 +160,9 @@ type ListTorrentsResponse struct {
 }
 
 type AddTorrentOptions struct {
-	Stopped bool
-	ID      string
+	ID                string
+	Stopped           bool
+	StopAfterDownload bool
 }
 
 type AddTorrentRequest struct {

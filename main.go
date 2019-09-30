@@ -576,15 +576,18 @@ func handleDownload(c *cli.Context) error {
 		err = t.Start()
 	} else {
 		// Add as new torrent
+		opt := &torrent.AddTorrentOptions{
+			StopAfterDownload: !seed,
+		}
 		if isURI(arg) {
-			t, err = ses.AddURI(arg, nil)
+			t, err = ses.AddURI(arg, opt)
 		} else {
 			var f *os.File
 			f, err = os.Open(arg)
 			if err != nil {
 				return err
 			}
-			t, err = ses.AddTorrent(f, nil)
+			t, err = ses.AddTorrent(f, opt)
 			f.Close()
 		}
 	}
@@ -593,31 +596,14 @@ func handleDownload(c *cli.Context) error {
 	}
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-	stopAndWait := func() error {
-		err = t.Stop()
-		if err != nil {
-			return err
-		}
-		for {
-			select {
-			case <-ch:
-				return nil
-			case <-time.After(time.Second):
-				stats := t.Stats()
-				if stats.Error != nil {
-					return stats.Error
-				}
-				if stats.Status == torrent.Stopped {
-					return nil
-				}
-			}
-		}
-	}
 	for {
 		select {
 		case s := <-ch:
 			log.Noticef("received %s, stopping server", s)
-			return stopAndWait()
+			err = t.Stop()
+			if err != nil {
+				return err
+			}
 		case <-time.After(time.Second):
 			stats := t.Stats()
 			progress := 0
@@ -629,11 +615,7 @@ func handleDownload(c *cli.Context) error {
 				eta = stats.ETA.String()
 			}
 			log.Infof("Status: %s, Progress: %d%%, Peers: %d ETA: %s\n", stats.Status.String(), progress, stats.Peers.Total, eta)
-		case <-t.NotifyComplete():
-			if !seed {
-				return stopAndWait()
-			}
-		case err = <-t.NotifyError():
+		case err = <-t.NotifyStop():
 			return err
 		}
 	}

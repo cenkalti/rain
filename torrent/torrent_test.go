@@ -63,7 +63,8 @@ func seeder(t *testing.T) (addr string, c func()) {
 	}
 	defer f.Close()
 	s, closeSession := newTestSession(t)
-	tor, err := s.addTorrentStopped(f, nil)
+	opt := &AddTorrentOptions{Stopped: true}
+	tor, err := s.AddTorrent(f, opt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +157,8 @@ func TestDownloadWebseed(t *testing.T) {
 	}
 	defer f.Close()
 
-	tor, err := s.addTorrentStopped(f, nil)
+	opt := &AddTorrentOptions{Stopped: true}
+	tor, err := s.AddTorrent(f, opt)
 	if err != nil {
 		t.Fatal(err)
 	}

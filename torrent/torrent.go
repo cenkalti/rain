@@ -244,6 +244,9 @@ type torrent struct {
 	// Set to true when manual verification is requested
 	doVerify bool
 
+	// If true, the torrent is stopped automatically when all pieces are downloaded.
+	stopAfterDownload bool
+
 	log logger.Logger
 }
 
@@ -261,6 +264,7 @@ func newTorrent2(
 	bf *bitfield.Bitfield,
 	stats resumer.Stats, // initial stats from previous run
 	ws []*webseedsource.WebseedSource,
+	stopAfterDownload bool,
 ) (*torrent, error) {
 	if len(infoHash) != 20 {
 		return nil, errors.New("invalid infoHash (must be 20 bytes)")
@@ -338,6 +342,7 @@ func newTorrent2(
 		webseedPieceResultC:       suspendchan.New(0),
 		webseedRetryC:             make(chan *webseedsource.WebseedSource),
 		doneC:                     make(chan struct{}),
+		stopAfterDownload:         stopAfterDownload,
 	}
 	if len(t.webseedSources) > s.config.WebseedMaxSources {
 		t.webseedSources = t.webseedSources[:10]

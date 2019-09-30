@@ -53,7 +53,10 @@ func (t *torrent) handleAllocationDone(al *allocator.Allocator) {
 		for i := uint32(0); i < t.bitfield.Len(); i++ {
 			t.pieces[i].Done = t.bitfield.Test(i)
 		}
-		t.checkCompletion()
+		if t.checkCompletion() && t.stopAfterDownload {
+			t.stop(nil)
+			return
+		}
 		t.processQueuedMessages()
 		t.addFixedPeers()
 		t.startAcceptor()
