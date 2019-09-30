@@ -51,8 +51,6 @@ func (t *torrent) Close() {
 	<-t.doneC
 }
 
-// NotifyComplete returns a channel for notifying completion.
-// The channel is closed once all pieces are downloaded successfully.
 func (t *torrent) NotifyComplete() <-chan struct{} {
 	return t.completeC
 }
@@ -61,9 +59,6 @@ type notifyErrorCommand struct {
 	errCC chan chan error
 }
 
-// NotifyError returns a new channel for notifying fatal errors.
-// When an error is sent to the channel, torrent is stopped automatically.
-// NotifyError must be called after calling Start().
 func (t *torrent) NotifyError() <-chan error {
 	cmd := notifyErrorCommand{errCC: make(chan chan error)}
 	select {

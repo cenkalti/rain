@@ -629,12 +629,12 @@ func handleDownload(c *cli.Context) error {
 				eta = stats.ETA.String()
 			}
 			log.Infof("Status: %s, Progress: %d%%, Peers: %d ETA: %s\n", stats.Status.String(), progress, stats.Peers.Total, eta)
-			if stats.Error != nil {
-				return stats.Error
-			}
-			if !seed && stats.Status == torrent.Seeding {
+		case <-t.NotifyComplete():
+			if !seed {
 				return stopAndWait()
 			}
+		case err = <-t.NotifyError():
+			return err
 		}
 	}
 }
