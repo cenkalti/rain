@@ -186,6 +186,7 @@ type Config struct {
 	GraphitePrefix string
 }
 
+// DefaultConfig for Session. Do not pass zero value Config to NewSession. Copy this struct and modify instead.
 var DefaultConfig = Config{
 	// Session
 	Database:                               "~/rain/session.db",

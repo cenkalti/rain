@@ -8,37 +8,65 @@ import (
 	"github.com/cenkalti/rain/internal/resumer/boltdbresumer"
 )
 
+// SessionStats contains statistics about Session.
 type SessionStats struct {
-	Uptime         time.Duration
-	Torrents       int
-	Peers          int
+	// Time elapsed after creation of the Session object.
+	Uptime time.Duration
+	// Number of torrents in Session.
+	Torrents int
+	// Total number of connected peers.
+	Peers int
+	// Number of available ports for new torrents.
 	PortsAvailable int
 
-	BlockListRules   int
+	// Number of rules in blocklist.
+	BlockListRules int
+	// Time elapsed after the last successful update of blocklist.
 	BlockListRecency time.Duration
 
-	ReadCacheObjects     int
-	ReadCacheSize        int64
+	// Number of objects in piece read cache.
+	// Each object is a block whose size is defined in Config.ReadCacheBlockSize.
+	ReadCacheObjects int
+	// Current size of read cache.
+	ReadCacheSize int64
+	// Hit ratio of read cache.
 	ReadCacheUtilization int
 
+	// Number of reads per second from disk.
 	ReadsPerSecond int
-	ReadsActive    int
-	ReadsPending   int
+	// Number of active read requests from disk.
+	ReadsActive int
+	// Number of pending read requests from disk.
+	ReadsPending int
 
-	WriteCacheObjects     int
-	WriteCacheSize        int64
+	// Number of objects in piece write cache.
+	// Objects are complete pieces.
+	// Piece size differs among torrents.
+	WriteCacheObjects int
+	// Current size of write cache.
+	WriteCacheSize int64
+	// Number of pending torrents that is waiting for write cache.
 	WriteCachePendingKeys int
 
+	// Number of writes per second to disk.
+	// Each write is a complete piece.
 	WritesPerSecond int
-	WritesActive    int
-	WritesPending   int
+	// Number of active write requests to disk.
+	WritesActive int
+	// Number of pending write requests to disk.
+	WritesPending int
 
+	// Download speed from peers in bytes/s.
 	SpeedDownload int
-	SpeedUpload   int
-	SpeedRead     int
-	SpeedWrite    int
+	// Upload speed to peers in bytes/s.
+	SpeedUpload int
+	// Read speed from disk in bytes/s.
+	SpeedRead int
+	// Write speed to disk in bytes/s.
+	SpeedWrite int
 }
 
+// Stats returns current statistics about the Session.
 func (s *Session) Stats() SessionStats {
 	return SessionStats{
 		Uptime:         time.Duration(s.metrics.Uptime.Value()) * time.Second,

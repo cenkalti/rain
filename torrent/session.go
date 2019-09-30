@@ -255,6 +255,7 @@ func (s *Session) getTrackerUserAgent(private bool) string {
 	return trackerHTTPPublicUserAgent
 }
 
+// Close stops all torrents and release the resources.
 func (s *Session) Close() error {
 	close(s.closeC)
 
@@ -290,6 +291,8 @@ func (s *Session) Close() error {
 	return s.db.Close()
 }
 
+// ListTorrents returns all torrents in session as a slice.
+// The order of the torrents returned is different on each call.
 func (s *Session) ListTorrents() []*Torrent {
 	s.mTorrents.RLock()
 	defer s.mTorrents.RUnlock()
@@ -316,12 +319,14 @@ func (s *Session) releasePort(port int) {
 	s.availablePorts[port] = struct{}{}
 }
 
+// GetTorrent by its id. Returns nil if torrent with id is not found.
 func (s *Session) GetTorrent(id string) *Torrent {
 	s.mTorrents.RLock()
 	defer s.mTorrents.RUnlock()
 	return s.torrents[id]
 }
 
+// RemoveTorrent removes the torrent from the session and delete its files.
 func (s *Session) RemoveTorrent(id string) error {
 	t, err := s.removeTorrentFromClient(id)
 	if t != nil {
@@ -364,6 +369,7 @@ func (s *Session) stopAndRemoveData(t *Torrent) error {
 	return err
 }
 
+// StartAll starts all torrents in session.
 func (s *Session) StartAll() error {
 	err := s.db.Update(func(tx *bolt.Tx) error {
 		tb := tx.Bucket(torrentsBucket)
@@ -384,6 +390,7 @@ func (s *Session) StartAll() error {
 	return nil
 }
 
+// StopAll stops all torrents in session.
 func (s *Session) StopAll() error {
 	err := s.db.Update(func(tx *bolt.Tx) error {
 		tb := tx.Bucket(torrentsBucket)

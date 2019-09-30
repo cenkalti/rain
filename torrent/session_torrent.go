@@ -36,6 +36,8 @@ func (t *Torrent) ID() string {
 }
 
 // Name of the torrent.
+// For magnet downloads name can change after metadata is downloaded but this method still returns the initial name.
+// Use Stats() method to get name in info dictionary.
 func (t *Torrent) Name() string {
 	return t.torrent.Name()
 }
@@ -58,10 +60,14 @@ func (t *Torrent) Stats() Stats {
 	return t.torrent.Stats()
 }
 
+// Magnet returns the magnet link.
+// Returns error if torrent is private.
 func (t *Torrent) Magnet() (string, error) {
 	return t.torrent.Magnet()
 }
 
+// Torrent returns the metainfo bytes (contents of .torrent file).
+// Returns error if torrent has no metadata yet.
 func (t *Torrent) Torrent() ([]byte, error) {
 	return t.torrent.Torrent()
 }
@@ -179,6 +185,8 @@ func (t *Torrent) Verify() error {
 	return nil
 }
 
+// Move torrent to another Session.
+// target must be the RPC server address in host:port form.
 func (t *Torrent) Move(target string) error {
 	t.torrent.Stop()
 	spec, err := t.torrent.session.resumer.Read(t.torrent.id)

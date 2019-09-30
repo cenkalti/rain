@@ -21,12 +21,19 @@ import (
 	"github.com/nictuku/dht"
 )
 
+// AddTorrentOptions contains options for adding a new torrent.
 type AddTorrentOptions struct {
-	ID                string
-	Stopped           bool
+	// ID uniquely identifies the torrent in Session.
+	// If empty, a random ID is generated.
+	ID string
+	// Do not start torrent automatically after adding.
+	Stopped bool
+	// Stop torrent after all pieces are downloaded.
 	StopAfterDownload bool
 }
 
+// AddTorrent adds a new torrent to the session by reading .torrent metainfo from reader.
+// Nil value can be passed as opt for default options.
 func (s *Session) AddTorrent(r io.Reader, opt *AddTorrentOptions) (*Torrent, error) {
 	if opt == nil {
 		opt = &AddTorrentOptions{}
@@ -110,6 +117,10 @@ func (s *Session) addTorrentStopped(r io.Reader, opt *AddTorrentOptions) (*Torre
 	return t2, nil
 }
 
+// AddURI adds a new torrent to the session from a URI.
+// URI may be a magnet link or a HTTP URL.
+// In case of a HTTP address, a torrent is tried to be downloaded from that URL.
+// Nil value can be passed as opt for default options.
 func (s *Session) AddURI(uri string, opt *AddTorrentOptions) (*Torrent, error) {
 	uri = filterOutControlChars(uri)
 	if opt == nil {

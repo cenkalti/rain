@@ -384,14 +384,10 @@ func (t *torrent) getPeersForUnchoker() []unchoker.Peer {
 	return peers
 }
 
-// Name of the torrent.
-// For magnet downloads name can change after metadata is downloaded but this method still returns the initial name.
-// Use Stats() method to get name in info dictionary.
 func (t *torrent) Name() string {
 	return t.name
 }
 
-// InfoHash is a 20-bytes value that identifies the files in torrent.
 func (t *torrent) InfoHash() []byte {
 	b := make([]byte, 20)
 	copy(b, t.infoHash[:])

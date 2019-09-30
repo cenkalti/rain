@@ -158,12 +158,17 @@ func (t *torrent) AddTrackers(trackers []tracker.Tracker) {
 	}
 }
 
+// TrackerStatus is status of the Tracker.
 type TrackerStatus int
 
 const (
+	// NotContactedYet indicates that no announce request has been made to the tracker.
 	NotContactedYet TrackerStatus = iota
+	// Contacting the tracker. Sending request or waiting response from the tracker.
 	Contacting
+	// Working indicates that the tracker has responded as expected.
 	Working
+	// NotWorking indicates that the tracker didn't respond or returned an error.
 	NotWorking
 )
 
@@ -177,6 +182,7 @@ func trackerStatusToString(s TrackerStatus) string {
 	return m[s]
 }
 
+// Tracker is a server that tracks the peers of torrents.
 type Tracker struct {
 	URL          string
 	Status       TrackerStatus
@@ -206,6 +212,7 @@ func (t *torrent) Trackers() []Tracker {
 	return trackers
 }
 
+// Peer is a remote peer that is connected and completed protocol handshake.
 type Peer struct {
 	ID                 [20]byte
 	Client             string
@@ -225,13 +232,19 @@ type Peer struct {
 	UploadSpeed        int
 }
 
+// PeerSource indicates that how the peer is found.
 type PeerSource int
 
 const (
+	// SourceTracker indicates that the peer is found from one of the trackers.
 	SourceTracker PeerSource = iota
+	// SourceDHT indicates that the peer is found from Decentralised Hash Table.
 	SourceDHT
+	// SourcePEX indicates that the peer is found from another peer.
 	SourcePEX
+	// SourceIncoming indicates that the peer found us.
 	SourceIncoming
+	// SourceManual indicates that the peer is added manually via AddPeer method.
 	SourceManual
 )
 
@@ -253,6 +266,8 @@ func (t *torrent) Peers() []Peer {
 	return peers
 }
 
+// Webseed is a HTTP source defined in Torrent.
+// Client can download from these sources along with peers from the swarm.
 type Webseed struct {
 	URL           string
 	Error         error
