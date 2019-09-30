@@ -236,7 +236,7 @@ func (c *Console) drawTitle(g *gocui.Gui) error {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
-		v.Title = "Rain [" + c.client.Addr() + "] (Press '?' for help)"
+		v.Title = "Rain by put.io [" + c.client.Addr() + "] (Press '?' for help)"
 	}
 	return nil
 }

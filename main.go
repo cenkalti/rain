@@ -40,7 +40,7 @@ var (
 
 func main() {
 	app.Version = torrent.Version
-	app.Usage = "BitTorrent client"
+	app.Usage = "BitTorrent client from https://put.io"
 	app.EnableBashCompletion = true
 	app.Flags = []cli.Flag{
 		cli.BoolFlag{

@@ -1,7 +1,7 @@
 rain
 ====
 
-BitTorrent client and library in Go.
+BitTorrent client and library in Go. Running in production at [put.io](https://put.io).
 
 [![Build Status](https://travis-ci.org/cenkalti/rain.svg?branch=master)](https://travis-ci.org/cenkalti/rain)
 [![GoDoc](https://godoc.org/github.com/cenkalti/rain?status.svg)](https://godoc.org/github.com/cenkalti/rain/torrent)
@@ -26,7 +26,7 @@ Features
 
 Screenshot
 ----------
-![Rain Screenshot](https://cl.ly/462cefdf6c4a/rain.png)
+![Rain Screenshot](https://cl.ly/b03c639da66c/Screen%20Shot%202019-09-30%20at%2019.04.00.png)
 
 Installing
 ----------
