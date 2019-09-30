@@ -16,7 +16,6 @@ func (s *Session) checkTorrent(t *torrent) {
 		select {
 		case <-time.After(interval):
 			timeout := time.NewTimer(timeout)
-			defer timeout.Stop()
 			select {
 			case t.notifyErrorCommandC <- notifyErrorCommand{errCC: make(chan chan error, 1)}:
 				timeout.Stop()
