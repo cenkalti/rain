@@ -23,7 +23,7 @@ func (s *Session) checkTorrent(t *torrent) {
 			case <-t.closeC:
 				return
 			case <-timeout.C:
-				crash(t.id, "Torrent does not respond.")
+				crash(t.id, "Torrent (id="+t.id+") does not respond.")
 			}
 		case <-t.closeC:
 			return
