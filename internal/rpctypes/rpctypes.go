@@ -29,7 +29,7 @@ type Peer struct {
 
 type Webseed struct {
 	URL           string
-	Error         *string
+	Error         string
 	DownloadSpeed int
 }
 
@@ -38,10 +38,10 @@ type Tracker struct {
 	Status        string
 	Leechers      int
 	Seeders       int
-	Warning       *string
-	Error         *string
+	Warning       string
+	Error         string
 	ErrorUnknown  bool
-	ErrorInternal *string
+	ErrorInternal string
 	LastAnnounce  Time
 	NextAnnounce  Time
 }
@@ -81,7 +81,7 @@ type Stats struct {
 	InfoHash string
 	Port     int
 	Status   string
-	Error    *string
+	Error    string
 	Pieces   struct {
 		Checked   uint32
 		Have      uint32
@@ -133,7 +133,7 @@ type Stats struct {
 		Download int
 		Upload   int
 	}
-	ETA *uint
+	ETA int
 }
 
 type GetMagnetRequest struct {

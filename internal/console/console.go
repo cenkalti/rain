@@ -428,14 +428,14 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 				fmt.Fprintf(v, "#%d %s\n", i+1, t.URL)
 				switch t.Status {
 				case "Not working":
-					errStr := *t.Error
+					errStr := t.Error
 					if t.ErrorUnknown {
-						errStr = errStr + " (" + *t.ErrorInternal + ")"
+						errStr = errStr + " (" + t.ErrorInternal + ")"
 					}
 					fmt.Fprintf(v, "    Status: %s, Error: %s\n", t.Status, errStr)
 				default:
-					if t.Warning != nil {
-						fmt.Fprintf(v, "    Status: %s, Seeders: %d, Leechers: %d Warning: %s\n", t.Status, t.Seeders, t.Leechers, *t.Warning)
+					if t.Warning != "" {
+						fmt.Fprintf(v, "    Status: %s, Seeders: %d, Leechers: %d Warning: %s\n", t.Status, t.Seeders, t.Leechers, t.Warning)
 					} else {
 						fmt.Fprintf(v, "    Status: %s, Seeders: %d, Leechers: %d\n", t.Status, t.Seeders, t.Leechers)
 					}
@@ -473,8 +473,8 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 					dl = fmt.Sprintf("%d", p.DownloadSpeed/1024)
 				}
 				var errstr string
-				if p.Error != nil {
-					errstr = *p.Error
+				if p.Error != "" {
+					errstr = p.Error
 				}
 				fmt.Fprintf(v, format, num, p.URL, dl, errstr)
 			}
@@ -979,8 +979,8 @@ func FormatStats(stats *rpctypes.Stats, v io.Writer) {
 	fmt.Fprintf(v, "Name: %s\n", stats.Name)
 	fmt.Fprintf(v, "Private: %v\n", stats.Private)
 	status := stats.Status
-	if status == "Stopped" && stats.Error != nil {
-		status = status + ": " + *stats.Error
+	if status == "Stopped" && stats.Error != "" {
+		status = status + ": " + stats.Error
 	}
 	fmt.Fprintf(v, "Status: %s\n", status)
 	var progress int
@@ -1014,8 +1014,8 @@ func FormatStats(stats *rpctypes.Stats, v io.Writer) {
 	fmt.Fprintf(v, "Download speed: %5d KiB/s\n", stats.Speed.Download/1024)
 	fmt.Fprintf(v, "Upload speed:   %5d KiB/s\n", stats.Speed.Upload/1024)
 	var eta string
-	if stats.ETA != nil {
-		eta = (time.Duration(*stats.ETA) * time.Second).String()
+	if stats.ETA != -1 {
+		eta = (time.Duration(stats.ETA) * time.Second).String()
 	}
 	fmt.Fprintf(v, "ETA: %s\n", eta)
 }

@@ -248,12 +248,12 @@ func (h *rpcHandler) GetTorrentStats(args *rpctypes.GetTorrentStatsRequest, repl
 		},
 	}
 	if s.Error != nil {
-		errStr := s.Error.Error()
-		reply.Stats.Error = &errStr
+		reply.Stats.Error = s.Error.Error()
 	}
 	if s.ETA != nil {
-		eta := uint(*s.ETA / time.Second)
-		reply.Stats.ETA = &eta
+		reply.Stats.ETA = int(*s.ETA / time.Second)
+	} else {
+		reply.Stats.ETA = -1
 	}
 	return nil
 }
@@ -271,16 +271,11 @@ func (h *rpcHandler) GetTorrentTrackers(args *rpctypes.GetTorrentTrackersRequest
 			Status:   trackerStatusToString(t.Status),
 			Leechers: t.Leechers,
 			Seeders:  t.Seeders,
-		}
-		if t.Warning != "" {
-			warnStr := t.Warning
-			reply.Trackers[i].Warning = &warnStr
+			Warning:  t.Warning,
 		}
 		if t.Error != nil {
-			errStr := t.Error.Error()
-			internalErrStr := t.Error.err.ErrorWithType()
-			reply.Trackers[i].Error = &errStr
-			reply.Trackers[i].ErrorInternal = &internalErrStr
+			reply.Trackers[i].Error = t.Error.Error()
+			reply.Trackers[i].ErrorInternal = t.Error.err.ErrorWithType()
 			reply.Trackers[i].ErrorUnknown = t.Error.Unknown()
 		}
 		if !t.LastAnnounce.IsZero() {
@@ -351,8 +346,7 @@ func (h *rpcHandler) GetTorrentWebseeds(args *rpctypes.GetTorrentWebseedsRequest
 			DownloadSpeed: p.DownloadSpeed,
 		}
 		if p.Error != nil {
-			errStr := p.Error.Error()
-			reply.Webseeds[i].Error = &errStr
+			reply.Webseeds[i].Error = p.Error.Error()
 		}
 	}
 	return nil
