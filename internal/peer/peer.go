@@ -250,10 +250,7 @@ func (p *Peer) EnabledFast() bool {
 }
 
 func (p *Peer) Client() string {
-	if p.ExtensionHandshake == nil {
-		return ""
-	}
-	if p.ExtensionHandshake.V != "" {
+	if p.ExtensionHandshake != nil && p.ExtensionHandshake.V != "" {
 		return stringutil.Printable(p.ExtensionHandshake.V)
 	}
 	return stringutil.Asciify(clientID(string(p.ID[:])))
