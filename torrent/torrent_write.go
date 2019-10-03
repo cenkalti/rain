@@ -48,7 +48,6 @@ func (t *torrent) handlePieceWriteDone(pw *piecewriter.PieceWriter) {
 	t.mBitfield.Unlock()
 
 	if t.piecePicker != nil {
-
 		_, ok := pw.Source.(*urldownloader.URLDownloader)
 		src := t.piecePicker.RequestedWebseedSource(pw.Piece.Index)
 		if !ok && src != nil {

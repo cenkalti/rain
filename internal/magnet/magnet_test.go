@@ -25,7 +25,7 @@ func TestParse(t *testing.T) {
 		t.Fatal("invalid tracker")
 	}
 	s := m.String()
-	if strings.ToLower(u) != strings.ToLower(s) {
+	if !strings.EqualFold(u, s) {
 		t.Log(u)
 		t.Log(s)
 		t.FailNow()

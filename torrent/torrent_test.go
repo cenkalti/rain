@@ -137,7 +137,6 @@ func webseed(t *testing.T) (port int, c func()) {
 		l.Close()
 		<-servingDone
 	}
-
 }
 
 func TestDownloadWebseed(t *testing.T) {

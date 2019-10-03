@@ -20,7 +20,6 @@ func Accept(
 	hasInfoHash func([20]byte) bool,
 	ourExtensions [8]byte, ourID [20]byte) (
 	encConn net.Conn, cipher mse.CryptoMethod, peerExtensions [8]byte, peerID [20]byte, infoHash [20]byte, err error) {
-
 	log := logger.New("conn <- " + conn.RemoteAddr().String())
 
 	if forceEncryption && getSKey == nil {

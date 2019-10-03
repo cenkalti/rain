@@ -492,7 +492,6 @@ func (c *Console) updateTorrentsAndDetailsLoop(g *gocui.Gui, stop chan struct{})
 
 	c.triggerUpdateTorrents()
 	for {
-
 		select {
 		case <-ticker.C:
 			c.triggerUpdateTorrents()
@@ -513,7 +512,6 @@ func (c *Console) updateSessionStatsLoop(g *gocui.Gui, stop chan struct{}) {
 
 	c.updateSessionStats(g)
 	for {
-
 		select {
 		case <-ticker.C:
 			c.updateSessionStats(g)

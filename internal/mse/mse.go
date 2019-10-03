@@ -236,7 +236,6 @@ func (s *Stream) HandshakeOutgoing(sKey []byte, cryptoProvide CryptoMethod, init
 func (s *Stream) HandshakeIncoming(
 	getSKey func(sKeyHash [20]byte) (sKey []byte),
 	cryptoSelect func(provided CryptoMethod) (selected CryptoMethod)) (err error) {
-
 	writeBuf := bytes.NewBuffer(make([]byte, 0, 96+512))
 
 	Xb, Yb, err := keyPair()
