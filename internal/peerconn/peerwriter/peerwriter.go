@@ -16,6 +16,7 @@ import (
 
 const keepAlivePeriod = 2 * time.Minute
 
+// PeerWriter is responsible for writing BitTorrent protocol messages to the peer connection.
 type PeerWriter struct {
 	conn                  net.Conn
 	queueC                chan peerprotocol.Message
@@ -33,6 +34,7 @@ type PeerWriter struct {
 	doneC                 chan struct{}
 }
 
+// New returns a new PeerWriter by wrapping a net.Conn.
 func New(conn net.Conn, l logger.Logger, maxQueuedRequests int, fastEnabled bool, b *ratelimit.Bucket) *PeerWriter {
 	return &PeerWriter{
 		conn:              conn,
@@ -51,10 +53,12 @@ func New(conn net.Conn, l logger.Logger, maxQueuedRequests int, fastEnabled bool
 	}
 }
 
+// Messages returns a channel. Various events from the writer are sent to this channel.
 func (p *PeerWriter) Messages() <-chan interface{} {
 	return p.messages
 }
 
+// SendMessage is used to send a protocol message to the Peer.
 func (p *PeerWriter) SendMessage(msg peerprotocol.Message) {
 	select {
 	case p.queueC <- msg:
@@ -62,6 +66,9 @@ func (p *PeerWriter) SendMessage(msg peerprotocol.Message) {
 	}
 }
 
+// SendPiece is used to send a "piece" message to the Peer.
+// Data is not read when the method is called.
+// Data is read by the run loop when writing the piece message.
 func (p *PeerWriter) SendPiece(msg peerprotocol.RequestMessage, pi io.ReaderAt) {
 	m := Piece{Data: pi, RequestMessage: msg}
 	select {
@@ -70,6 +77,7 @@ func (p *PeerWriter) SendPiece(msg peerprotocol.RequestMessage, pi io.ReaderAt) 
 	}
 }
 
+// CancelRequest cancels the previously received "request" message.
 func (p *PeerWriter) CancelRequest(msg peerprotocol.CancelMessage) {
 	select {
 	case p.cancelC <- msg:
@@ -77,14 +85,17 @@ func (p *PeerWriter) CancelRequest(msg peerprotocol.CancelMessage) {
 	}
 }
 
+// Stop the writer loop.
 func (p *PeerWriter) Stop() {
 	close(p.stopC)
 }
 
+// Done returns a channel that is closed when run loop exists.
 func (p *PeerWriter) Done() chan struct{} {
 	return p.doneC
 }
 
+// Run the writer loop.
 func (p *PeerWriter) Run() {
 	defer close(p.doneC)
 

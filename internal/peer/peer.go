@@ -22,6 +22,7 @@ import (
 	"github.com/rcrowley/go-metrics"
 )
 
+// Peer of a Torrent. Wraps a BitTorrent connection.
 type Peer struct {
 	*peerconn.Conn
 
@@ -68,16 +69,19 @@ type Peer struct {
 	doneC  chan struct{}
 }
 
+// Message that is read from Peer
 type Message struct {
 	*Peer
 	Message interface{}
 }
 
+// PieceMessage is a Piece message that is read from Peer
 type PieceMessage struct {
 	*Peer
 	Piece peerreader.Piece
 }
 
+// New wraps the net.Conn and returns a new Peer.
 func New(conn net.Conn, source peersource.Source, id [20]byte, extensions [8]byte, cipher mse.CryptoMethod, pieceReadTimeout, snubTimeout time.Duration, maxRequestsIn int, br, bw *ratelimit.Bucket) *Peer {
 	bf, _ := bitfield.NewBytes(extensions[:], 64)
 	fastEnabled := bf.Test(61)
@@ -113,6 +117,7 @@ func newPeerLogger(src peersource.Source, conn net.Conn) logger.Logger {
 	return logger.New("peer -> " + conn.RemoteAddr().String())
 }
 
+// Close the peer connection.
 func (p *Peer) Close() {
 	p.snubTimer.Stop()
 	if p.PEX != nil {
@@ -125,10 +130,12 @@ func (p *Peer) Close() {
 	<-p.doneC
 }
 
+// Done returns a channel that is closed when a peers run loop is ended.
 func (p *Peer) Done() chan struct{} {
 	return p.doneC
 }
 
+// Run loop that reads messages from the Peer.
 func (p *Peer) Run(messages chan Message, pieces chan interface{}, snubbed, disconnect chan *Peer) {
 	defer close(p.doneC)
 	go p.Conn.Run()
@@ -172,6 +179,7 @@ func (p *Peer) Run(messages chan Message, pieces chan interface{}, snubbed, disc
 	}
 }
 
+// StartPEX starts the PEX goroutine for sending PEX messages to the Peer periodically.
 func (p *Peer) StartPEX(initialPeers map[*Peer]struct{}, recentlySeen *pexlist.RecentlySeen) {
 	if p.PEX == nil {
 		p.PEX = newPEX(p.Conn, p.ExtensionHandshake.M[peerprotocol.ExtensionKeyPEX], initialPeers, recentlySeen)
@@ -179,52 +187,64 @@ func (p *Peer) StartPEX(initialPeers map[*Peer]struct{}, recentlySeen *pexlist.R
 	}
 }
 
+// ResetSnubTimer is called when some data received from the Peer.
 func (p *Peer) ResetSnubTimer() {
 	p.snubTimer.Reset(p.snubTimeout)
 }
 
+// StopSnubTimer is used to stop the timer that is for detecting if the Peer is snub.
 func (p *Peer) StopSnubTimer() {
 	p.snubTimer.Stop()
 }
 
+// DownloadSpeed of the Peer in bytes per second.
 func (p *Peer) DownloadSpeed() int {
 	return int(p.downloadSpeed.Rate1())
 }
 
+// UploadSpeed of the Peer in bytes per second.
 func (p *Peer) UploadSpeed() int {
 	return int(p.uploadSpeed.Rate1())
 }
 
+// Choke the connected Peer by sending a "choke" protocol message.
 func (p *Peer) Choke() {
 	p.ClientChoking = true
 	p.SendMessage(peerprotocol.ChokeMessage{})
 }
 
+// Unchoke the connected Peer by sending an "unchoke" protocol message.
 func (p *Peer) Unchoke() {
 	p.ClientChoking = false
 	p.SendMessage(peerprotocol.UnchokeMessage{})
 }
 
+// Choking returns true if we are choking the remote Peer.
 func (p *Peer) Choking() bool {
 	return p.ClientChoking
 }
 
+// Interested returns true if remote Peer is interested for pieces we have.
 func (p *Peer) Interested() bool {
 	return p.PeerInterested
 }
 
+// Optimistic returns true if we are unchoking the Peer optimistically.
 func (p *Peer) Optimistic() bool {
 	return p.OptimisticUnchoked
 }
 
+// SetOptimistic sets the status of if we are chiking the peer optimistically.
 func (p *Peer) SetOptimistic(value bool) {
 	p.OptimisticUnchoked = value
 }
 
+// MetadataSize returns the torrent metadata size that is received from the Peer with an extension handshake message.
 func (p *Peer) MetadataSize() uint32 {
 	return uint32(p.ExtensionHandshake.MetadataSize)
 }
 
+// RequestMetadataPiece is used to send a message that is requesting a metadata piece at index.
 func (p *Peer) RequestMetadataPiece(index uint32) {
 	p.SendMessage(peerprotocol.ExtensionMessage{
 		ExtendedMessageID: p.ExtensionHandshake.M[peerprotocol.ExtensionKeyMetadata],
@@ -235,20 +255,25 @@ func (p *Peer) RequestMetadataPiece(index uint32) {
 	})
 }
 
+// RequestPiece is used to request a piece at index by sending a "piece" protocol message.
 func (p *Peer) RequestPiece(index, begin, length uint32) {
 	msg := peerprotocol.RequestMessage{Index: index, Begin: begin, Length: length}
 	p.SendMessage(msg)
 }
 
+// CancelPiece cancels previosly requested piece. Sends "cancel" protocol message.
 func (p *Peer) CancelPiece(index, begin, length uint32) {
 	msg := peerprotocol.CancelMessage{RequestMessage: peerprotocol.RequestMessage{Index: index, Begin: begin, Length: length}}
 	p.SendMessage(msg)
 }
 
+// EnabledFast returns true if the remote Peer supports Fast extension.
 func (p *Peer) EnabledFast() bool {
 	return p.FastEnabled
 }
 
+// Client returns the name of the client.
+// Returns client string in extension handshake. If extension handshake is not done, returns asciified version of the peer ID.
 func (p *Peer) Client() string {
 	if p.ExtensionHandshake != nil && p.ExtensionHandshake.V != "" {
 		return stringutil.Printable(p.ExtensionHandshake.V)
@@ -256,6 +281,7 @@ func (p *Peer) Client() string {
 	return stringutil.Asciify(clientID(string(p.ID[:])))
 }
 
+// GenerateAndSendAllowedFastMessages is used to send "allowed fast" protocol messages after handshake.
 func (p *Peer) GenerateAndSendAllowedFastMessages(k int, numPieces uint32, infoHash [20]byte, pieces []piece.Piece) {
 	if k == 0 {
 		return

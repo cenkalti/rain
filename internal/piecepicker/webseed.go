@@ -7,12 +7,14 @@ import (
 	"github.com/cenkalti/rain/internal/webseedsource"
 )
 
+// WebseedDownloadSpec contains information for downloading torrent data from webseed sources.
 type WebseedDownloadSpec struct {
 	Source *webseedsource.WebseedSource
 	Begin  uint32
 	End    uint32
 }
 
+// PickWebseed returns the next spec for downloading files from webseed sources.
 func (p *PiecePicker) PickWebseed(src *webseedsource.WebseedSource) *WebseedDownloadSpec {
 	begin, end := p.findRangeForWebseed()
 	if begin == end {

@@ -33,6 +33,7 @@ type Info struct {
 	pieces      []byte
 }
 
+// File represents a file inside a Torrent.
 type File struct {
 	Length int64
 	Path   string
@@ -140,6 +141,7 @@ func parsePrivateField(s bencode.RawMessage) bool {
 	return false
 }
 
+// NewInfoBytes creates a new Info dictionary by reading and hashing the files on the disk.
 func NewInfoBytes(path string, private bool, pieceLength uint32) ([]byte, error) {
 	fi, err := os.Stat(path)
 	if err != nil {
@@ -237,6 +239,7 @@ func NewInfoBytes(path string, private bool, pieceLength uint32) ([]byte, error)
 	return bencode.EncodeBytes(b)
 }
 
+// PieceHash returns the hash of a piece at index.
 func (i *Info) PieceHash(index uint32) []byte {
 	begin := index * sha1.Size
 	end := begin + sha1.Size

@@ -8,7 +8,9 @@ import (
 )
 
 var (
-	ErrBlockDuplicate    = errors.New("received duplicate block")
+	// ErrBlockDuplicate is returned from PieceDownloader.GotBlock method when the received block is already present.
+	ErrBlockDuplicate = errors.New("received duplicate block")
+	// ErrBlockNotRequested is returned from PieceDownloader.GotBlock method when the received block is not requested yet.
 	ErrBlockNotRequested = errors.New("received not requested block")
 )
 
@@ -24,12 +26,14 @@ type PieceDownloader struct {
 	done      map[int]struct{} // downloaded requests
 }
 
+// Peer of a Torrent.
 type Peer interface {
 	RequestPiece(index, begin, length uint32)
 	CancelPiece(index, begin, length uint32)
 	EnabledFast() bool
 }
 
+// New returns a new PieceDownloader.
 func New(pi *piece.Piece, pe Peer, allowedFast bool, buf bufferpool.Buffer) *PieceDownloader {
 	remaining := make([]int, pi.NumBlocks())
 	for i := range remaining {
@@ -46,6 +50,7 @@ func New(pi *piece.Piece, pe Peer, allowedFast bool, buf bufferpool.Buffer) *Pie
 	}
 }
 
+// Choked must be called when the peer has choked us. This will cancel pending reuqests.
 func (d *PieceDownloader) Choked() {
 	if d.AllowedFast {
 		return
@@ -60,6 +65,7 @@ func (d *PieceDownloader) Choked() {
 	}
 }
 
+// GotBlock must be called when a block is received from the piece.
 func (d *PieceDownloader) GotBlock(block piece.Block, data []byte) error {
 	var err error
 	if _, ok := d.done[block.Index]; ok {
@@ -73,11 +79,14 @@ func (d *PieceDownloader) GotBlock(block piece.Block, data []byte) error {
 	return err
 }
 
+// Rejected must be called when the peer has rejected a piece request.
 func (d *PieceDownloader) Rejected(block piece.Block) {
 	delete(d.pending, block.Index)
 	d.remaining = append(d.remaining, block.Index)
 }
 
+// CancelPending is called to cancel pending requests to the peer.
+// Must be called when remaining blocks are downloaded from another peer.
 func (d *PieceDownloader) CancelPending() {
 	for i := range d.pending {
 		b, ok := d.Piece.GetBlock(i)
@@ -88,6 +97,7 @@ func (d *PieceDownloader) CancelPending() {
 	}
 }
 
+// RequestBlocks is called to request remaining blocks of the piece up to `queueLength`.
 func (d *PieceDownloader) RequestBlocks(queueLength int) {
 	remaining := d.remaining
 	for _, i := range remaining {
@@ -106,6 +116,7 @@ func (d *PieceDownloader) RequestBlocks(queueLength int) {
 	}
 }
 
+// Done returns true if all blocks of the piece has been downloaded.
 func (d *PieceDownloader) Done() bool {
 	return len(d.done) == d.Piece.NumBlocks()
 }

@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// Tracker tracks the IP address of peers of a Torrent swarm.
 type Tracker interface {
 	// Announce transfer to the tracker.
 	// Announce should be called periodically with the interval returned in AnnounceResponse.
@@ -18,12 +19,14 @@ type Tracker interface {
 	URL() string
 }
 
+// AnnounceRequest contains the parameters that are sent in an announce request to trackers.
 type AnnounceRequest struct {
 	Torrent Torrent
 	Event   Event
 	NumWant int
 }
 
+// AnnounceResponse contains fields from a response to announce request.
 type AnnounceResponse struct {
 	Interval       time.Duration
 	MinInterval    time.Duration
@@ -33,6 +36,7 @@ type AnnounceResponse struct {
 	Peers          []*net.TCPAddr
 }
 
+// ErrDecode is returned from Tracker.Announce method when there is problem with the encoding of response.
 var ErrDecode = errors.New("cannot decode response")
 
 // Error is the string that is sent by the tracker from announce or scrape.

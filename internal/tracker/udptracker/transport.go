@@ -24,6 +24,7 @@ import (
 const connectionIDMagic = 0x41727101980
 const connectionIDInterval = time.Minute
 
+// Transport for UDP tracker implementation.
 type Transport struct {
 	blocklist  *blocklist.Blocklist
 	conn       *net.UDPConn
@@ -43,6 +44,7 @@ type connection struct {
 	m         sync.Mutex
 }
 
+// NewTransport returns a new UDP tracker transport.
 func NewTransport(bl *blocklist.Blocklist, dnsTimeout time.Duration) *Transport {
 	return &Transport{
 		blocklist:    bl,
@@ -84,6 +86,7 @@ func (t *Transport) listen() error {
 	return nil
 }
 
+// Do sends the transaction to the tracker. Retries on failure.
 func (t *Transport) Do(ctx context.Context, trx *transaction) ([]byte, error) {
 	err := t.listen()
 	if err != nil {

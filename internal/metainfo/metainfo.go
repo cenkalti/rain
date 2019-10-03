@@ -10,6 +10,7 @@ import (
 	"github.com/zeebo/bencode"
 )
 
+// Creator is the string that is put into the created torrent by NewBytes function.
 var Creator string
 
 // MetaInfo file dictionary
@@ -93,6 +94,7 @@ func isWebseedSupported(s string) bool {
 	return strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://")
 }
 
+// NewBytes creates a new torrent metadata file from given information.
 func NewBytes(info []byte, trackers [][]string, webseeds []string, comment string) ([]byte, error) {
 	mi := struct {
 		Info         bencode.RawMessage `bencode:"info"`

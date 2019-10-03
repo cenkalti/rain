@@ -17,6 +17,7 @@ func Asciify(s string) string {
 	return string(b)
 }
 
+// Printable returns a new string with non-printable characters are replaced with Unicode replacement character.
 func Printable(s string) string {
 	return strings.Map(func(r rune) rune {
 		if !unicode.IsPrint(r) {

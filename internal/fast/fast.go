@@ -8,6 +8,7 @@ import (
 	"net"
 )
 
+// GenerateFastSet returns a slice of k items that contains the piece indexes of the torrent with infoHash.
 func GenerateFastSet(k int, numPieces uint32, infoHash [20]byte, ip net.IP) []uint32 {
 	ip = ip.To4()
 	if ip == nil {

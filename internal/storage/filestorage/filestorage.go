@@ -8,10 +8,12 @@ import (
 	"github.com/cenkalti/rain/internal/storage"
 )
 
+// FileStorage implements Storage interface for saving files on disk.
 type FileStorage struct {
 	dest string
 }
 
+// New returns a new FileStorage at the destination.
 func New(dest string) (*FileStorage, error) {
 	var err error
 	dest, err = filepath.Abs(dest)
@@ -23,6 +25,7 @@ func New(dest string) (*FileStorage, error) {
 
 var _ storage.Storage = (*FileStorage)(nil)
 
+// Open a file.
 func (s *FileStorage) Open(name string, size int64) (f storage.File, exists bool, err error) {
 	name = filepath.Clean(name)
 

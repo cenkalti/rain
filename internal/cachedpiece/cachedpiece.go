@@ -7,6 +7,7 @@ import (
 	"github.com/cenkalti/rain/internal/piececache"
 )
 
+// CachedPiece is a wrapper around a piece.Piece object that is capable of reading the data from a picecache.Cache.
 type CachedPiece struct {
 	pi       *piece.Piece
 	cache    *piececache.Cache
@@ -14,6 +15,7 @@ type CachedPiece struct {
 	peerID   []byte
 }
 
+// New returns a new CachedPiece object. Reads are done with blocks of `readSize`.
 func New(pi *piece.Piece, cache *piececache.Cache, readSize int64, peerID [20]byte) *CachedPiece {
 	return &CachedPiece{
 		pi:       pi,
@@ -23,6 +25,7 @@ func New(pi *piece.Piece, cache *piececache.Cache, readSize int64, peerID [20]by
 	}
 }
 
+// ReadAt implements the io.ReaderAt interface.
 func (c *CachedPiece) ReadAt(p []byte, off int64) (n int, err error) {
 	blk := uint32(off / c.readSize)
 	blkBegin := uint32(int64(blk) * c.readSize)

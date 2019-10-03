@@ -478,6 +478,7 @@ func hashInt(prefix string, i *big.Int) []byte {
 	return h.Sum(nil)
 }
 
+// HashSKey returns the hash of key.
 func HashSKey(key []byte) [20]byte {
 	var sum [20]byte
 	h := sha1.New()

@@ -10,6 +10,7 @@ import (
 	"github.com/cenkalti/rain/internal/mse"
 )
 
+// IncomingHandshaker does the BitTorrent protocol handshake on an incoming connection.
 type IncomingHandshaker struct {
 	Conn       net.Conn
 	PeerID     [20]byte
@@ -21,6 +22,7 @@ type IncomingHandshaker struct {
 	doneC  chan struct{}
 }
 
+// New returns a new IncomingHandshaker for a net.Conn.
 func New(conn net.Conn) *IncomingHandshaker {
 	return &IncomingHandshaker{
 		Conn:   conn,
@@ -29,11 +31,13 @@ func New(conn net.Conn) *IncomingHandshaker {
 	}
 }
 
+// Close the IncomingHandshaker. Also closes the underlying connection if there is an ongoing handshake operation.
 func (h *IncomingHandshaker) Close() {
 	close(h.closeC)
 	<-h.doneC
 }
 
+// Run the handshaker goroutine.
 func (h *IncomingHandshaker) Run(peerID [20]byte, getSKeyFunc func([20]byte) []byte, checkInfoHashFunc func([20]byte) bool, resultC chan *IncomingHandshaker, timeout time.Duration, ourExtensions [8]byte, forceIncomingEncryption bool) {
 	defer close(h.doneC)
 	defer func() {
@@ -55,7 +59,7 @@ func (h *IncomingHandshaker) Run(peerID [20]byte, getSKeyFunc func([20]byte) []b
 			log.Debug("peer has closed the connection: Unexpected EOF")
 		} else if _, ok := err.(*net.OpError); ok {
 			log.Debugln("net operation error:", err)
-		} else if _, ok := err.(*btconn.Error); ok {
+		} else if _, ok := err.(*btconn.HandshakeError); ok {
 			log.Debugln("protocol error:", err)
 		} else {
 			log.Debugln("cannot complete incoming handshake:", err)

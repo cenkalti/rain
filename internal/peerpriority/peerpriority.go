@@ -8,10 +8,12 @@ import (
 	"net"
 )
 
+// Priority is a number that determines the connect order for Peers.
 type Priority = uint32
 
 var table = crc32.MakeTable(crc32.Castagnoli)
 
+// Calculate returns the priority of a to client address b.
 func Calculate(a, b *net.TCPAddr) Priority {
 	bs := calculateBytes(a, b)
 	d := crc32.New(table)

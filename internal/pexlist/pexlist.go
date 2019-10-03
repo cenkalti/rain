@@ -13,12 +13,15 @@ const (
 	maxPeers = 50
 )
 
+// PEXList contains the list of peer address for sending them to a peer at certain interval.
+// List contains 2 separate lists for added and dropped addresses.
 type PEXList struct {
 	added   map[tracker.CompactPeer]struct{}
 	dropped map[tracker.CompactPeer]struct{}
 	flushed bool
 }
 
+// New returns a new empty PEXList.
 func New() *PEXList {
 	return &PEXList{
 		added:   make(map[tracker.CompactPeer]struct{}),
@@ -26,6 +29,7 @@ func New() *PEXList {
 	}
 }
 
+// NewWithRecentlySeen returns a new PEXList with given peers added to the dropped part.
 func NewWithRecentlySeen(rs []tracker.CompactPeer) *PEXList {
 	l := New()
 	for _, cp := range rs {
@@ -34,18 +38,21 @@ func NewWithRecentlySeen(rs []tracker.CompactPeer) *PEXList {
 	return l
 }
 
+// Add adds the address to the added part and removes from dropped part.
 func (l *PEXList) Add(addr *net.TCPAddr) {
 	p := tracker.NewCompactPeer(addr)
 	l.added[p] = struct{}{}
 	delete(l.dropped, p)
 }
 
+// Drop adds the address to the dropped part and removes from added part.
 func (l *PEXList) Drop(addr *net.TCPAddr) {
 	peer := tracker.NewCompactPeer(addr)
 	l.dropped[peer] = struct{}{}
 	delete(l.added, peer)
 }
 
+// Flush returns added and dropped parts and empty the list.
 func (l *PEXList) Flush() (added, dropped string) {
 	added = l.flush(l.added, l.flushed)
 	dropped = l.flush(l.dropped, l.flushed)

@@ -8,6 +8,7 @@ import (
 	"github.com/cenkalti/rain/internal/tracker"
 )
 
+// StopAnnouncer is used to send a stop event to the Tracker.
 type StopAnnouncer struct {
 	log      logger.Logger
 	timeout  time.Duration
@@ -18,6 +19,7 @@ type StopAnnouncer struct {
 	doneC    chan struct{}
 }
 
+// NewStopAnnouncer returns a new StopAnnouncer.
 func NewStopAnnouncer(trackers []tracker.Tracker, tra tracker.Torrent, timeout time.Duration, resultC chan struct{}, l logger.Logger) *StopAnnouncer {
 	return &StopAnnouncer{
 		log:      l,
@@ -30,11 +32,13 @@ func NewStopAnnouncer(trackers []tracker.Tracker, tra tracker.Torrent, timeout t
 	}
 }
 
+// Close the announcer.
 func (a *StopAnnouncer) Close() {
 	close(a.closeC)
 	<-a.doneC
 }
 
+// Run the announcer.
 func (a *StopAnnouncer) Run() {
 	defer close(a.doneC)
 

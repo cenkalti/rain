@@ -2,6 +2,7 @@ package resourcemanager
 
 import "math/rand"
 
+// ResourceManager is a fair manager for distributing limited amount of resources to requesters.
 type ResourceManager struct {
 	limit     int64
 	available int64
@@ -23,12 +24,14 @@ type request struct {
 	doneC   chan bool
 }
 
+// Stats about ResourceManager
 type Stats struct {
 	AllocatedSize    int64
 	AllocatedObjects int
 	PendingKeys      int
 }
 
+// New returns a new ResourceManager with `limit` number of resources.
 func New(limit int64) *ResourceManager {
 	m := &ResourceManager{
 		limit:     limit,
@@ -44,11 +47,13 @@ func New(limit int64) *ResourceManager {
 	return m
 }
 
+// Close resource manager.
 func (m *ResourceManager) Close() {
 	close(m.closeC)
 	<-m.doneC
 }
 
+// Stats returns statistics about current status.
 func (m *ResourceManager) Stats() Stats {
 	var stats Stats
 	ch := make(chan Stats)
@@ -63,6 +68,8 @@ func (m *ResourceManager) Stats() Stats {
 	return stats
 }
 
+// Request `n` resource from the manager for key `key`.
+// Release must be called after done with the resource.
 func (m *ResourceManager) Request(key string, data interface{}, n int64, notifyC chan interface{}, cancelC chan struct{}) (acquired bool) {
 	if n < 0 {
 		return
@@ -86,6 +93,7 @@ func (m *ResourceManager) Request(key string, data interface{}, n int64, notifyC
 	return
 }
 
+// Release `n` resource to the manager.
 func (m *ResourceManager) Release(n int64) {
 	select {
 	case m.releaseC <- n:

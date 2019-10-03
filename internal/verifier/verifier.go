@@ -7,6 +7,7 @@ import (
 	"github.com/cenkalti/rain/internal/piece"
 )
 
+// Verifier verifies the pieces on disk.
 type Verifier struct {
 	Bitfield *bitfield.Bitfield
 	Error    error
@@ -15,10 +16,12 @@ type Verifier struct {
 	doneC  chan struct{}
 }
 
+// Progress information about the verification.
 type Progress struct {
 	Checked uint32
 }
 
+// New returns a new Verifier.
 func New() *Verifier {
 	return &Verifier{
 		closeC: make(chan struct{}),
@@ -26,11 +29,13 @@ func New() *Verifier {
 	}
 }
 
+// Close the verifier.
 func (v *Verifier) Close() {
 	close(v.closeC)
 	<-v.doneC
 }
 
+// Run and verify all pieces of the torrent.
 func (v *Verifier) Run(pieces []piece.Piece, progressC chan Progress, resultC chan *Verifier) {
 	defer close(v.doneC)
 

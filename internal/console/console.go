@@ -32,6 +32,7 @@ const (
 	webseeds
 )
 
+// Console is for drawing a text user interface for a remote Session.
 type Console struct {
 	client *rainrpc.Client
 
@@ -78,6 +79,7 @@ type Console struct {
 	updatingSessionStats      bool
 }
 
+// New returns a new Console object that uses a RPC client to get information from a torrent.Session.
 func New(clt *rainrpc.Client) *Console {
 	return &Console{
 		client:          clt,
@@ -86,6 +88,7 @@ func New(clt *rainrpc.Client) *Console {
 	}
 }
 
+// Run the UI loop.
 func (c *Console) Run() error {
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	if err != nil {
@@ -975,6 +978,7 @@ func flags(p rpctypes.Peer) string {
 	return sb.String()
 }
 
+// FormatStats returns the human readable representation of torrent stats object.
 func FormatStats(stats *rpctypes.Stats, v io.Writer) {
 	fmt.Fprintf(v, "Name: %s\n", stats.Name)
 	fmt.Fprintf(v, "Private: %v\n", stats.Private)
@@ -1020,6 +1024,7 @@ func FormatStats(stats *rpctypes.Stats, v io.Writer) {
 	fmt.Fprintf(v, "ETA: %s\n", eta)
 }
 
+// FormatSessionStats returns the human readable representation of session stats object.
 func FormatSessionStats(s *rpctypes.SessionStats, v io.Writer) {
 	fmt.Fprintf(v, "Torrents: %d, Peers: %d, Uptime: %s\n", s.Torrents, s.Peers, time.Duration(s.Uptime)*time.Second)
 	fmt.Fprintf(v, "BlocklistRules: %d, Updated: %s ago\n", s.BlockListRules, time.Duration(s.BlockListRecency)*time.Second)

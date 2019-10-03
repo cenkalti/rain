@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// Spec contains fields for resuming an existing torrent.
 type Spec struct {
 	InfoHash          []byte
 	Port              int
@@ -44,6 +45,7 @@ type jsonSpec struct {
 	SeededFor int64
 }
 
+// MarshalJSON converts the Spec to a JSON string.
 func (s Spec) MarshalJSON() ([]byte, error) {
 	j := jsonSpec{
 		Port:              s.Port,
@@ -66,6 +68,7 @@ func (s Spec) MarshalJSON() ([]byte, error) {
 	return json.Marshal(j)
 }
 
+// UnmarshalJSON fills the Spec from a JSON string.
 func (s *Spec) UnmarshalJSON(b []byte) error {
 	var j jsonSpec
 	err := json.Unmarshal(b, &j)

@@ -15,22 +15,26 @@ import (
 
 var errNotIPv4Address = errors.New("address is not ipv4")
 
+// Blocklist holds a list of IP ranges in a Segment Tree structure for faster lookups.
 type Blocklist struct {
 	tree  stree.Stree
 	m     sync.RWMutex
 	count int
 }
 
+// New returns a new Blocklist.
 func New() *Blocklist {
 	return &Blocklist{}
 }
 
+// Len returns the number of rules in the Blocklist.
 func (b *Blocklist) Len() int {
 	b.m.RLock()
 	defer b.m.RUnlock()
 	return b.count
 }
 
+// Blocked returns true if ip is in Blocklist.
 func (b *Blocklist) Blocked(ip net.IP) bool {
 	b.m.RLock()
 	defer b.m.RUnlock()
@@ -44,6 +48,7 @@ func (b *Blocklist) Blocked(ip net.IP) bool {
 	return b.tree.Contains(stree.ValueType(val))
 }
 
+// Reload the segment tree by reading new rules from a io.Reader.
 func (b *Blocklist) Reload(r io.Reader) (int, error) {
 	b.m.Lock()
 	defer b.m.Unlock()

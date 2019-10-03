@@ -1,5 +1,6 @@
 package tracker
 
+// Event type that is sent in an announce request.
 type Event int32
 
 // Tracker Announce Events. Numbers corresponds to constants in UDP tracker protocol.

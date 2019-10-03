@@ -10,6 +10,7 @@ type FileSection struct {
 	Name   string
 }
 
+// ReadWriterAt combines the io.ReaderAt and io.WriterAt interfaces.
 type ReadWriterAt interface {
 	io.ReaderAt
 	io.WriterAt

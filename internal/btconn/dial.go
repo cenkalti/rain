@@ -10,6 +10,9 @@ import (
 	"github.com/cenkalti/rain/internal/mse"
 )
 
+// Dial new connection to the address. Does the BitTorrent protocol handshake.
+// Handles encryption. May try to connect again if encryption does not match with given setting.
+// Returns a net.Conn that is ready for sending/receiving BitTorrent peer protocol messages.
 func Dial(
 	addr net.Addr,
 	dialTimeout, handshakeTimeout time.Duration,

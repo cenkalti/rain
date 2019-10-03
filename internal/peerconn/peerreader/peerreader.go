@@ -18,6 +18,7 @@ import (
 )
 
 const (
+	// MaxBlockSize allowed in "request" messages.
 	MaxBlockSize = 16 * 1024
 	// time to wait for a message. peer must send keep-alive messages to keep connection alive.
 	readTimeout = 2 * time.Minute
@@ -27,6 +28,7 @@ const (
 
 var blockPool = bufferpool.New(piece.BlockSize)
 
+// PeerReader is used for reading and parsing messages from a net.Conn.
 type PeerReader struct {
 	conn         net.Conn
 	r            io.Reader
@@ -38,6 +40,7 @@ type PeerReader struct {
 	doneC        chan struct{}
 }
 
+// New returns a new PeerReader by wrapping a net.Conn.
 func New(conn net.Conn, l logger.Logger, pieceTimeout time.Duration, b *ratelimit.Bucket) *PeerReader {
 	return &PeerReader{
 		conn:         conn,
@@ -51,18 +54,22 @@ func New(conn net.Conn, l logger.Logger, pieceTimeout time.Duration, b *ratelimi
 	}
 }
 
+// Messages returns a channel. All messages read by this PeerReader is sent to this channel.
 func (p *PeerReader) Messages() <-chan interface{} {
 	return p.messages
 }
 
+// Stop the read loop.
 func (p *PeerReader) Stop() {
 	close(p.stopC)
 }
 
+// Done returns a channel that is closed when the read loop exists.
 func (p *PeerReader) Done() chan struct{} {
 	return p.doneC
 }
 
+// Run the read loop.
 func (p *PeerReader) Run() {
 	defer close(p.doneC)
 

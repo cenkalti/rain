@@ -6,6 +6,7 @@ import (
 	"errors"
 )
 
+// NumBytes calculates the number of bytes required to represent a bitfield of `length` bits.
 func NumBytes(length uint32) int {
 	return int((uint64(length) + 7) / 8)
 }
@@ -46,6 +47,7 @@ func NewBytes(b []byte, length uint32) (*Bitfield, error) {
 	}, nil
 }
 
+// Copy returns a new copy of Bitfield.
 func (b *Bitfield) Copy() *Bitfield {
 	b2 := &Bitfield{
 		bytes:  make([]byte, len(b.bytes)),
@@ -123,24 +125,6 @@ func (b *Bitfield) All() bool {
 func (b *Bitfield) checkIndex(i uint32) {
 	if i >= b.Len() {
 		panic("index out of bound")
-	}
-}
-
-func (b *Bitfield) And(b2 *Bitfield) {
-	if b.length != b2.length {
-		panic("length mismatch")
-	}
-	for i := range b.bytes {
-		b.bytes[i] &= b2.bytes[i]
-	}
-}
-
-func (b *Bitfield) Or(b2 *Bitfield) {
-	if b.length != b2.length {
-		panic("length mismatch")
-	}
-	for i := range b.bytes {
-		b.bytes[i] |= b2.bytes[i]
 	}
 }
 

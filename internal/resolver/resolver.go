@@ -11,11 +11,15 @@ import (
 )
 
 var (
-	ErrBlocked        = errors.New("ip is blocked")
+	// ErrBlocked indicates that the resolved IP is blocked in the blocklist.
+	ErrBlocked = errors.New("ip is blocked")
+	// ErrNotIPv4Address indicates that the resolved IP address is not IPv4.
 	ErrNotIPv4Address = errors.New("not ipv4 address")
-	ErrInvalidPort    = errors.New("invalid port number")
+	// ErrInvalidPort indicates that the port number in the address is invalid.
+	ErrInvalidPort = errors.New("invalid port number")
 )
 
+// Resolve `hostport` to an IPv4 address.
 func Resolve(ctx context.Context, hostport string, timeout time.Duration, bl *blocklist.Blocklist) (net.IP, int, error) {
 	host, portStr, err := net.SplitHostPort(hostport)
 	if err != nil {
@@ -45,6 +49,7 @@ func Resolve(ctx context.Context, hostport string, timeout time.Duration, bl *bl
 	return i4, port, nil
 }
 
+// ResolveIPv4 resolves `host` to and IPv4 address.
 func ResolveIPv4(ctx context.Context, timeout time.Duration, host string) (net.IP, error) {
 	var cancel func()
 	ctx, cancel = context.WithTimeout(ctx, timeout)

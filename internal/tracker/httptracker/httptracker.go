@@ -17,6 +17,7 @@ import (
 	"github.com/zeebo/bencode"
 )
 
+// HTTPTracker is a torrent tracker that talks HTTP.
 type HTTPTracker struct {
 	rawURL            string
 	url               *url.URL
@@ -30,6 +31,7 @@ type HTTPTracker struct {
 
 var _ tracker.Tracker = (*HTTPTracker)(nil)
 
+// New returns a new HTTPTracker.
 func New(rawURL string, u *url.URL, timeout time.Duration, t *http.Transport, userAgent string, maxResponseLength int64) *HTTPTracker {
 	return &HTTPTracker{
 		rawURL:            rawURL,
@@ -45,10 +47,12 @@ func New(rawURL string, u *url.URL, timeout time.Duration, t *http.Transport, us
 	}
 }
 
+// URL returns the URL string of the tracker.
 func (t *HTTPTracker) URL() string {
 	return t.rawURL
 }
 
+// Announce the torrent by doing a GET request to the tracker.
 func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest) (*tracker.AnnounceResponse, error) {
 	u := *t.url
 

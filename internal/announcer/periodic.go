@@ -18,15 +18,21 @@ import (
 	"github.com/cenkalti/rain/internal/tracker/httptracker"
 )
 
+// Status of the announcer.
 type Status int
 
 const (
+	// NotContactedYet with the tracker.
 	NotContactedYet Status = iota
+	// Contacting the tracker.
 	Contacting
+	// Working as expected.
 	Working
+	// NotWorking as expected.
 	NotWorking
 )
 
+// PeriodicalAnnouncer announces the Torrent to the Tracker periodically.
 type PeriodicalAnnouncer struct {
 	Tracker       tracker.Tracker
 	status        Status
@@ -56,6 +62,7 @@ type PeriodicalAnnouncer struct {
 	needMorePeersC chan struct{}
 }
 
+// NewPeriodicalAnnouncer returns a new PeriodicalAnnouncer.
 func NewPeriodicalAnnouncer(trk tracker.Tracker, numWant int, minInterval time.Duration, getTorrent func() tracker.Torrent, completedC chan struct{}, newPeers chan []*net.TCPAddr, l logger.Logger) *PeriodicalAnnouncer {
 	return &PeriodicalAnnouncer{
 		Tracker:        trk,
@@ -83,6 +90,7 @@ func NewPeriodicalAnnouncer(trk tracker.Tracker, numWant int, minInterval time.D
 	}
 }
 
+// Close the announcer.
 func (a *PeriodicalAnnouncer) Close() {
 	close(a.closeC)
 	<-a.doneC
@@ -92,6 +100,7 @@ type statsRequest struct {
 	Response chan Stats
 }
 
+// Stats about the tracker and the announce operation.
 func (a *PeriodicalAnnouncer) Stats() Stats {
 	var stats Stats
 	req := statsRequest{Response: make(chan Stats, 1)}
@@ -106,6 +115,7 @@ func (a *PeriodicalAnnouncer) Stats() Stats {
 	return stats
 }
 
+// NeedMorePeers signals the announcer goroutine about the need of more peers.
 func (a *PeriodicalAnnouncer) NeedMorePeers(val bool) {
 	a.mNeedMorePeers.Lock()
 	a.needMorePeers = val
@@ -117,6 +127,7 @@ func (a *PeriodicalAnnouncer) NeedMorePeers(val bool) {
 	}
 }
 
+// Run the announcer goroutine. Invoke with go statement.
 func (a *PeriodicalAnnouncer) Run() {
 	defer close(a.doneC)
 	a.backoff.Reset()
@@ -227,6 +238,7 @@ func (a *PeriodicalAnnouncer) announce(ctx context.Context, event tracker.Event,
 	announce(ctx, a.Tracker, event, numWant, a.getTorrent(), a.responseC, a.errC)
 }
 
+// Stats about the announcer.
 type Stats struct {
 	Status       Status
 	Error        *AnnounceError
@@ -249,6 +261,7 @@ func (a *PeriodicalAnnouncer) stats() Stats {
 	}
 }
 
+// AnnounceError the error that comes from the Tracker itself.
 type AnnounceError struct {
 	Err     error
 	Message string
@@ -347,6 +360,7 @@ func (a *PeriodicalAnnouncer) newAnnounceError(err error) (e *AnnounceError) {
 	return
 }
 
+// ErrorWithType returns the error string that is prefixed with type name.
 func (e *AnnounceError) ErrorWithType() string {
 	return reflect.TypeOf(e.Err).String() + ": " + e.Err.Error()
 }

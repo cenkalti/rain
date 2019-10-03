@@ -25,6 +25,7 @@ type AddrList struct {
 	countBySource map[peersource.Source]int
 }
 
+// New returns a new AddrList.
 func New(maxItems int, blocklist *blocklist.Blocklist, listenPort int, clientIP *net.IP) *AddrList {
 	return &AddrList{
 		peerByPriority: btree.New(2),
@@ -37,20 +38,24 @@ func New(maxItems int, blocklist *blocklist.Blocklist, listenPort int, clientIP 
 	}
 }
 
+// Reset empties the address list.
 func (d *AddrList) Reset() {
 	d.peerByTime = nil
 	d.peerByPriority.Clear(false)
 	d.countBySource = make(map[peersource.Source]int)
 }
 
+// Len returns the number of addresses in the list.
 func (d *AddrList) Len() int {
 	return d.peerByPriority.Len()
 }
 
+// LenSource returns the number of addresses for a single source.
 func (d *AddrList) LenSource(s peersource.Source) int {
 	return d.countBySource[s]
 }
 
+// Pop returns the next address. The returned address is removed from the list.
 func (d *AddrList) Pop() (*net.TCPAddr, peersource.Source) {
 	item := d.peerByPriority.DeleteMax()
 	if item == nil {
@@ -62,6 +67,7 @@ func (d *AddrList) Pop() (*net.TCPAddr, peersource.Source) {
 	return p.addr, p.source
 }
 
+// Push adds a new address to the list. Does nothing if the address is already in the list.
 func (d *AddrList) Push(addrs []*net.TCPAddr, source peersource.Source) {
 	now := time.Now()
 	var added int

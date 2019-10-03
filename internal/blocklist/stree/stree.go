@@ -7,8 +7,10 @@ package stree
 
 import "sort"
 
+// ValueType is the type of a single value in the segment tree.
 type ValueType uint32
 
+// Stree represents a Segment Tree.
 type Stree struct {
 	// Number of intervals
 	count ValueType
@@ -109,6 +111,7 @@ func (t *Stree) insertNodes(leaves []segment) *node {
 	return n
 }
 
+// Contains returns truee if value is in segment tree.
 func (t Stree) Contains(value ValueType) bool {
 	return len(t.query(value, value)) > 0
 }

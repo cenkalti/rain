@@ -13,6 +13,7 @@ import (
 	"github.com/multiformats/go-multihash"
 )
 
+// Magnet link contains the information to download torrent metadata from network.
 type Magnet struct {
 	InfoHash [20]byte
 	Name     string
@@ -20,6 +21,7 @@ type Magnet struct {
 	Peers    []string
 }
 
+// New parses the string and returns new Magnet.
 func New(s string) (*Magnet, error) {
 	u, err := url.Parse(s)
 	if err != nil {

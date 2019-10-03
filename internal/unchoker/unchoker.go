@@ -5,6 +5,7 @@ import (
 	"sort"
 )
 
+// Unchoker implements an algorithm to select peers to unchoke based on their download speed.
 type Unchoker struct {
 	numUnchoked           int
 	numOptimisticUnchoked int
@@ -16,6 +17,7 @@ type Unchoker struct {
 	peersUnchokedOptimistic map[Peer]struct{}
 }
 
+// Peer of a torrent.
 type Peer interface {
 	// Sends messages and set choking status of local peeer
 	Choke()
@@ -36,6 +38,7 @@ type Peer interface {
 	UploadSpeed() int
 }
 
+// New returns a new Unchoker.
 func New(numUnchoked, numOptimisticUnchoked int) *Unchoker {
 	return &Unchoker{
 		numUnchoked:             numUnchoked,
@@ -45,6 +48,7 @@ func New(numUnchoked, numOptimisticUnchoked int) *Unchoker {
 	}
 }
 
+// HandleDisconnect must be called to remove the peer from internal indexes.
 func (u *Unchoker) HandleDisconnect(pe Peer) {
 	delete(u.peersUnchoked, pe)
 	delete(u.peersUnchokedOptimistic, pe)
@@ -138,6 +142,9 @@ func (u *Unchoker) optimisticUnchokePeer(pe Peer) {
 	pe.SetOptimistic(true)
 }
 
+// FastUnchoke must be called when remote peer is interested.
+// Remote peer is unchoked immediately if there are not enough unchoked peers.
+// Without this function, remote peer would have to wait for next unchoke period.
 func (u *Unchoker) FastUnchoke(pe Peer) {
 	if pe.Choking() && pe.Interested() && len(u.peersUnchoked) < u.numUnchoked {
 		u.unchokePeer(pe)

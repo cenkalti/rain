@@ -13,12 +13,14 @@ import (
 	"github.com/cenkalti/rain/internal/piece"
 )
 
+// URLDownloader downloads files from a HTTP source.
 type URLDownloader struct {
 	URL                 string
 	Begin, End, current uint32
 	closeC, doneC       chan struct{}
 }
 
+// PieceResult wraps the downloaded piece data.
 type PieceResult struct {
 	Downloader *URLDownloader
 	Buffer     bufferpool.Buffer
@@ -27,6 +29,7 @@ type PieceResult struct {
 	Done       bool
 }
 
+// New returns a new URLDownloader for the given source and piece range.
 func New(source string, begin, end uint32) *URLDownloader {
 	return &URLDownloader{
 		URL:     source,
@@ -38,15 +41,18 @@ func New(source string, begin, end uint32) *URLDownloader {
 	}
 }
 
+// Close the URLDownloader.
 func (d *URLDownloader) Close() {
 	close(d.closeC)
 	<-d.doneC
 }
 
+// String returns the URL being downloaded.
 func (d *URLDownloader) String() string {
 	return d.URL
 }
 
+// UpdateEnd updates the end index of the piece range being downloaded.
 func (d *URLDownloader) UpdateEnd(value uint32) {
 	atomic.StoreUint32(&d.End, value)
 }
@@ -59,10 +65,12 @@ func (d *URLDownloader) incrCurrent() uint32 {
 	return atomic.AddUint32(&d.current, 1)
 }
 
+// ReadCurrent returns the index of piece that is currently being downloaded.
 func (d *URLDownloader) ReadCurrent() uint32 {
 	return atomic.LoadUint32(&d.current)
 }
 
+// Run the URLDownloader and download pieces.
 func (d *URLDownloader) Run(client *http.Client, pieces []piece.Piece, multifile bool, resultC chan interface{}, pool *bufferpool.Pool, readTimeout time.Duration) {
 	defer close(d.doneC)
 	ctx, cancel := context.WithCancel(context.Background())

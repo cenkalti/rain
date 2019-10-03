@@ -10,6 +10,7 @@ import (
 	"github.com/boltdb/bolt"
 )
 
+// Keys for the persisten storage.
 var Keys = struct {
 	InfoHash        []byte
 	Port            []byte
@@ -44,11 +45,13 @@ var Keys = struct {
 	Started:         []byte("started"),
 }
 
+// Resumer contains methods for saving/loading resume information of a torrent to a BoltDB database.
 type Resumer struct {
 	db     *bolt.DB
 	bucket []byte
 }
 
+// New returns a new Resumer.
 func New(db *bolt.DB, bucket []byte) (*Resumer, error) {
 	err := db.Update(func(tx *bolt.Tx) error {
 		_, err2 := tx.CreateBucketIfNotExists(bucket)
@@ -63,6 +66,7 @@ func New(db *bolt.DB, bucket []byte) (*Resumer, error) {
 	}, nil
 }
 
+// Write the torrent spec for torrent with `torrentID`.
 func (r *Resumer) Write(torrentID string, spec *Spec) error {
 	port := strconv.Itoa(spec.Port)
 	trackers, err := json.Marshal(spec.Trackers)
@@ -100,6 +104,7 @@ func (r *Resumer) Write(torrentID string, spec *Spec) error {
 	})
 }
 
+// WriteInfo writes only the info dict of a torrent.
 func (r *Resumer) WriteInfo(torrentID string, value []byte) error {
 	return r.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(r.bucket).Bucket([]byte(torrentID))
@@ -110,6 +115,7 @@ func (r *Resumer) WriteInfo(torrentID string, value []byte) error {
 	})
 }
 
+// WriteBitfield writes only bitfield of a torrent.
 func (r *Resumer) WriteBitfield(torrentID string, value []byte) error {
 	return r.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(r.bucket).Bucket([]byte(torrentID))
@@ -120,6 +126,7 @@ func (r *Resumer) WriteBitfield(torrentID string, value []byte) error {
 	})
 }
 
+// WriteStarted writes the start status of a torrent.
 func (r *Resumer) WriteStarted(torrentID string, value bool) error {
 	return r.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(r.bucket).Bucket([]byte(torrentID))

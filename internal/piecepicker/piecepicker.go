@@ -29,6 +29,8 @@ Do not forget to re-check these when making changes.
 
 */
 
+// PiecePicker runs an algorithm to determine which piece to download next, from which peer or webseed source.
+// PiecePicker keeps track availability of pieces among peers.
 type PiecePicker struct {
 	webseedSources       []*webseedsource.WebseedSource
 	pieces               []myPiece
@@ -50,14 +52,19 @@ type myPiece struct {
 	RequestedWebseed *webseedsource.WebseedSource
 }
 
+// RunningDownloads returns the number of pieces that are being downloaded actively.
+// This number does not include downloads of a piece whose peers are snubbed or choked.
 func (p *myPiece) RunningDownloads() int {
-	return p.Requested.Len() - p.Snubbed.Len() - p.Choked.Len()
+	return p.Requested.Len() - p.StalledDownloads()
 }
 
+// StalledDownloads returns the number of piece downloads whose peers are snubbed or choked.
 func (p *myPiece) StalledDownloads() int {
 	return p.Snubbed.Len() + p.Choked.Len()
 }
 
+// AvailableForWebseed returns true if the piece can be downloaded from a webseed source.
+// If the piece is already requested from a peer, it does not become eligible for downloading from webseed until entering the endgame mode.
 func (p *myPiece) AvailableForWebseed(duplicate bool) bool {
 	if p.Done || p.Writing || p.RequestedWebseed != nil {
 		return false
@@ -68,6 +75,7 @@ func (p *myPiece) AvailableForWebseed(duplicate bool) bool {
 	return true
 }
 
+// New returns a new PiecePicker.
 func New(pieces []piece.Piece, maxDuplicateDownload int, webseedSources []*webseedsource.WebseedSource) *PiecePicker {
 	ps := make([]myPiece, len(pieces))
 	for i := range pieces {
@@ -88,6 +96,7 @@ func New(pieces []piece.Piece, maxDuplicateDownload int, webseedSources []*webse
 	}
 }
 
+// CloseWebseedDownloader closes the download from a webseed source.
 func (p *PiecePicker) CloseWebseedDownloader(src *webseedsource.WebseedSource) {
 	src.DownloadSpeed.Stop()
 	src.DownloadSpeed = metrics.NilMeter{}
@@ -104,6 +113,7 @@ func (p *PiecePicker) CloseWebseedDownloader(src *webseedsource.WebseedSource) {
 	src.Downloader = nil
 }
 
+// WebseedStopAt sets the webseed downloader to stop at index `i`.
 func (p *PiecePicker) WebseedStopAt(src *webseedsource.WebseedSource, i uint32) (closed bool) {
 	oldEnd := src.Downloader.End
 	newEnd := i
@@ -121,27 +131,33 @@ func (p *PiecePicker) WebseedStopAt(src *webseedsource.WebseedSource, i uint32) 
 	return false
 }
 
+// Available returns the number of available pieces among the swarm.
 func (p *PiecePicker) Available() uint32 {
 	return p.available
 }
 
+// RequestedPeers returns the number of peers that the piece with the index is requested from.
 func (p *PiecePicker) RequestedPeers(i uint32) []*peer.Peer {
 	return p.pieces[i].Requested.Peers
 }
 
+// RequestedWebseedSource returns the number of webseed sources that the piece with the index is requested from.
 func (p *PiecePicker) RequestedWebseedSource(i uint32) *webseedsource.WebseedSource {
 	return p.pieces[i].RequestedWebseed
 }
 
+// HandleHave must be called to set the availability of the piece at the peer.
 func (p *PiecePicker) HandleHave(pe *peer.Peer, i uint32) {
 	pe.Bitfield.Set(i)
 	p.addHavingPeer(i, pe)
 }
 
+// HandleAllowedFast must be called to set the allowed-fast status of the piece at peer.
 func (p *PiecePicker) HandleAllowedFast(pe *peer.Peer, i uint32) {
 	pe.ReceivedAllowedFast.Add(p.pieces[i].Piece)
 }
 
+// HandleSnubbed must be called to set the peer as snubbed when it is slow or stalled.
 func (p *PiecePicker) HandleSnubbed(pe *peer.Peer, i uint32) {
 	if p.pieces[i].Choked.Has(pe) {
 		panic("peer snubbed while choked")
@@ -149,20 +165,24 @@ func (p *PiecePicker) HandleSnubbed(pe *peer.Peer, i uint32) {
 	p.pieces[i].Snubbed.Add(pe)
 }
 
+// HandleChoke must be called to set choke status of the remote peer.
 func (p *PiecePicker) HandleChoke(pe *peer.Peer, i uint32) {
 	p.pieces[i].Snubbed.Remove(pe)
 	p.pieces[i].Choked.Add(pe)
 }
 
+// HandleUnchoke must be called to unset choke status of the remote peer.
 func (p *PiecePicker) HandleUnchoke(pe *peer.Peer, i uint32) {
 	p.pieces[i].Choked.Remove(pe)
 }
 
+// HandleCancelDownload must be called to update indexes when a piece download is canceled from the peer.
 func (p *PiecePicker) HandleCancelDownload(pe *peer.Peer, i uint32) {
 	p.pieces[i].Requested.Remove(pe)
 	p.pieces[i].Snubbed.Remove(pe)
 }
 
+// HandleDisconnect must be called to remove the peer from internal indexes.
 func (p *PiecePicker) HandleDisconnect(pe *peer.Peer) {
 	for i := range p.pieces {
 		p.HandleCancelDownload(pe, uint32(i))
@@ -189,6 +209,7 @@ func (p *PiecePicker) pickFor(pe *peer.Peer) *piece.Piece {
 	return pi
 }
 
+// PickFor selects the next piece for download from the peer.
 func (p *PiecePicker) PickFor(pe *peer.Peer) (pp *piece.Piece, allowedFast bool) {
 	pi, allowedFast := p.findPiece(pe)
 	if pi == nil {
@@ -320,10 +341,13 @@ func (p *PiecePicker) pickStalled(pe *peer.Peer) *myPiece {
 	return nil
 }
 
+// Range is a piece range.
+// Begin is inclusive, End is exclusive.
 type Range struct {
 	Begin, End uint32
 }
 
+// Len returns the number of pieces in the range.
 func (r Range) Len() uint32 {
 	return r.End - r.Begin
 }

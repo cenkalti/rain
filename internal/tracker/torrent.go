@@ -1,5 +1,6 @@
 package tracker
 
+// Torrent contains fields that are sent in an announce request.
 type Torrent struct {
 	BytesUploaded   int64
 	BytesDownloaded int64

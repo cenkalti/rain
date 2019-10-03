@@ -23,6 +23,7 @@ type Conn struct {
 	doneC    chan struct{}
 }
 
+// New returns a new PeerConn by wrapping a net.Conn.
 func New(conn net.Conn, l logger.Logger, pieceTimeout time.Duration, maxRequestsIn int, fastEnabled bool, br, bw *ratelimit.Bucket) *Conn {
 	return &Conn{
 		conn:     conn,
@@ -35,14 +36,17 @@ func New(conn net.Conn, l logger.Logger, pieceTimeout time.Duration, maxRequests
 	}
 }
 
+// Addr returns the net.TCPAddr of the peer.
 func (p *Conn) Addr() *net.TCPAddr {
 	return p.conn.RemoteAddr().(*net.TCPAddr)
 }
 
+// IP returns the string representation of IP address.
 func (p *Conn) IP() string {
 	return p.conn.RemoteAddr().(*net.TCPAddr).IP.String()
 }
 
+// String returns the remote address as string.
 func (p *Conn) String() string {
 	return p.conn.RemoteAddr().String()
 }
@@ -53,6 +57,7 @@ func (p *Conn) Close() {
 	<-p.doneC
 }
 
+// Logger for the peer that logs messages prefixed with peer address.
 func (p *Conn) Logger() logger.Logger {
 	return p.log
 }

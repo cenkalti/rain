@@ -15,17 +15,22 @@ func init() {
 	SetHandler(log.NewFileHandler(os.Stderr))
 }
 
+// SetHandler changes the global logging handler.
 func SetHandler(h log.Handler) {
 	handler = h
 	handler.SetFormatter(logFormatter{})
 }
 
+// SetLevel sets the logging level on the global handler.
 func SetLevel(l log.Level) {
 	handler.SetLevel(l)
 }
 
+// Logger is for logging messages from inside of the program in various logging levels.
 type Logger log.Logger
 
+// New returns a new Logger with a name.
+// Log messages are prefixed with this name by the default Handler.
 func New(name string) Logger {
 	logger := log.NewLogger(name)
 	logger.SetLevel(log.DEBUG) // forward all messages to handler

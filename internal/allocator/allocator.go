@@ -5,6 +5,7 @@ import (
 	"github.com/cenkalti/rain/internal/storage"
 )
 
+// Allocator allocates files on the disk.
 type Allocator struct {
 	Files         []File
 	NeedHashCheck bool
@@ -14,15 +15,18 @@ type Allocator struct {
 	doneC  chan struct{}
 }
 
+// File on the disk.
 type File struct {
 	Storage storage.File
 	Name    string
 }
 
+// Progress about the allocation.
 type Progress struct {
 	AllocatedSize int64
 }
 
+// New returns a new Allocator.
 func New() *Allocator {
 	return &Allocator{
 		closeC: make(chan struct{}),
@@ -30,11 +34,13 @@ func New() *Allocator {
 	}
 }
 
+// Close the Allocator.
 func (a *Allocator) Close() {
 	close(a.closeC)
 	<-a.doneC
 }
 
+// Run the Allocator.
 func (a *Allocator) Run(info *metainfo.Info, sto storage.Storage, progressC chan Progress, resultC chan *Allocator) {
 	defer close(a.doneC)
 

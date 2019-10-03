@@ -9,6 +9,8 @@ import (
 	"github.com/rcrowley/go-metrics"
 )
 
+// Cache is a LRU piece cache of certain size.
+// Items in the cache are expired after the defined TTL.
 type Cache struct {
 	size, maxSize int64
 	ttl           time.Duration
@@ -25,8 +27,10 @@ type Cache struct {
 	closeC chan struct{}
 }
 
+// Loader is a function that loads data from a piece.
 type Loader func() ([]byte, error)
 
+// New returns new Cache.
 func New(maxSize int64, ttl time.Duration, parallelReads uint) *Cache {
 	return &Cache{
 		maxSize:        maxSize,
@@ -41,6 +45,7 @@ func New(maxSize int64, ttl time.Duration, parallelReads uint) *Cache {
 	}
 }
 
+// Close the cache and release all resources.
 func (c *Cache) Close() {
 	close(c.closeC)
 	c.NumCached.Stop()
@@ -49,6 +54,7 @@ func (c *Cache) Close() {
 	c.NumLoadedBytes.Stop()
 }
 
+// Clear the cache. Drops all items in cache.
 func (c *Cache) Clear() {
 	c.m.Lock()
 	c.items = make(map[string]*item)
@@ -60,26 +66,31 @@ func (c *Cache) Clear() {
 	c.m.Unlock()
 }
 
+// Len returns the number of items in the cache. Items may be in different sizes.
 func (c *Cache) Len() int {
 	c.m.RLock()
 	defer c.m.RUnlock()
 	return len(c.items)
 }
 
+// LoadsActive returns the number of active Loader calls.
 func (c *Cache) LoadsActive() int {
 	return (c.sem.Len())
 }
 
+// LoadsWaiting returns the number of waiting Loader calls.
 func (c *Cache) LoadsWaiting() int {
 	return (c.sem.Waiting())
 }
 
+// Size returns the total size of the items in the cache.
 func (c *Cache) Size() int64 {
 	c.m.RLock()
 	defer c.m.RUnlock()
 	return c.size
 }
 
+// Utilization is a number between 0 and 100 that returns the hit-ratio of the cache.
 func (c *Cache) Utilization() int {
 	total := c.NumTotal.Rate1()
 	if total == 0 {
@@ -88,6 +99,7 @@ func (c *Cache) Utilization() int {
 	return int((100 * c.NumCached.Rate1()) / total)
 }
 
+// Get item with the key from cache. If item is not in cache, load by calling `loader` func and put into the cache.
 func (c *Cache) Get(key string, loader Loader) ([]byte, error) {
 	i := c.getItem(key)
 	return c.getValue(i, loader)

@@ -16,11 +16,14 @@ import (
 	"github.com/cenkalti/rain/internal/tracker/udptracker"
 )
 
+// TrackerManager is a manager for using the same transport for same domains/IPs.
+// Manages both HTTP and UDP trackers.
 type TrackerManager struct {
 	httpTransport *http.Transport
 	udpTransport  *udptracker.Transport
 }
 
+// New returns a new TrackerManager.
 func New(bl *blocklist.Blocklist, dnsTimeout time.Duration, tlsSkipVerify bool) *TrackerManager {
 	m := &TrackerManager{
 		httpTransport: &http.Transport{
@@ -40,6 +43,7 @@ func New(bl *blocklist.Blocklist, dnsTimeout time.Duration, tlsSkipVerify bool) 
 	return m
 }
 
+// Get a new Tracker implementation from the manager.
 func (m *TrackerManager) Get(s string, httpTimeout time.Duration, httpUserAgent string, httpMaxResponseLength int64) (tracker.Tracker, error) {
 	u, err := url.Parse(s)
 	if err != nil {

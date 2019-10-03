@@ -4,10 +4,12 @@ import (
 	"github.com/cenkalti/rain/internal/piece"
 )
 
+// PieceSet is a slice of Piece with methods for operating on that slice.
 type PieceSet struct {
 	Pieces []*piece.Piece
 }
 
+// Add the piece to the set.
 func (l *PieceSet) Add(pe *piece.Piece) bool {
 	for _, p := range l.Pieces {
 		if p == pe {
@@ -18,6 +20,7 @@ func (l *PieceSet) Add(pe *piece.Piece) bool {
 	return true
 }
 
+// Remove the piece from the set.
 func (l *PieceSet) Remove(pe *piece.Piece) bool {
 	for i, p := range l.Pieces {
 		if p == pe {
@@ -29,6 +32,7 @@ func (l *PieceSet) Remove(pe *piece.Piece) bool {
 	return false
 }
 
+// Has returns true if the set contains the piece.
 func (l *PieceSet) Has(pe *piece.Piece) bool {
 	for _, p := range l.Pieces {
 		if p == pe {
@@ -38,6 +42,7 @@ func (l *PieceSet) Has(pe *piece.Piece) bool {
 	return false
 }
 
+// Len returns the number of pieces in the set.
 func (l *PieceSet) Len() int {
 	return len(l.Pieces)
 }

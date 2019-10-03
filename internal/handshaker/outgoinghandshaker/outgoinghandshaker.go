@@ -11,6 +11,7 @@ import (
 	"github.com/cenkalti/rain/internal/peersource"
 )
 
+// OutgoingHandshaker does the BitTorrent handshake on an outgoing connection.
 type OutgoingHandshaker struct {
 	Addr       *net.TCPAddr
 	Source     peersource.Source
@@ -24,6 +25,7 @@ type OutgoingHandshaker struct {
 	doneC  chan struct{}
 }
 
+// New returns a new OutgoingHandshaker for a TCP address.
 func New(addr *net.TCPAddr, source peersource.Source) *OutgoingHandshaker {
 	return &OutgoingHandshaker{
 		Addr:   addr,
@@ -33,11 +35,13 @@ func New(addr *net.TCPAddr, source peersource.Source) *OutgoingHandshaker {
 	}
 }
 
+// Close the handshaker.
 func (h *OutgoingHandshaker) Close() {
 	close(h.closeC)
 	<-h.doneC
 }
 
+// Run the handshaker.
 func (h *OutgoingHandshaker) Run(dialTimeout, handshakeTimeout time.Duration, peerID, infoHash [20]byte, resultC chan *OutgoingHandshaker, ourExtensions [8]byte, disableOutgoingEncryption, forceOutgoingEncryption bool) {
 	defer close(h.doneC)
 	log := logger.New("peer -> " + h.Addr.String())
@@ -50,7 +54,7 @@ func (h *OutgoingHandshaker) Run(dialTimeout, handshakeTimeout time.Duration, pe
 			log.Debug("peer has closed the connection: Unexpected EOF")
 		} else if _, ok := err.(*net.OpError); ok {
 			log.Debugln("net operation error:", err)
-		} else if _, ok := err.(*btconn.Error); ok {
+		} else if _, ok := err.(*btconn.HandshakeError); ok {
 			log.Debugln("protocol error:", err)
 		} else {
 			log.Errorln("cannot complete outgoing handshake:", err)

@@ -10,6 +10,8 @@ import (
 	"github.com/cenkalti/rain/internal/mse"
 )
 
+// Accept BitTorrent handshake from the connection. Handles encryption.
+// Returns a new connection that is ready for sending/receiving BitTorrent protocol messages.
 func Accept(
 	conn net.Conn,
 	handshakeTimeout time.Duration,

@@ -17,6 +17,7 @@ func init() {
 	formatter.Newline = ""
 }
 
+// MarshalCompactPretty formats the value in a compact JSON form and add color information.
 func MarshalCompactPretty(v interface{}) ([]byte, error) {
 	var buf bytes.Buffer
 	m := structs.Map(v)

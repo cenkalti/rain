@@ -6,6 +6,7 @@ import (
 	"github.com/cenkalti/rain/internal/logger"
 )
 
+// DHTAnnouncer runs a function periodically to announce the Torrent to DHT network.
 type DHTAnnouncer struct {
 	lastAnnounce   time.Time
 	needMorePeers  bool
@@ -14,6 +15,7 @@ type DHTAnnouncer struct {
 	doneC          chan struct{}
 }
 
+// NewDHTAnnouncer returns a new DHTAnnouncer.
 func NewDHTAnnouncer() *DHTAnnouncer {
 	return &DHTAnnouncer{
 		needMorePeersC: make(chan bool),
@@ -22,11 +24,13 @@ func NewDHTAnnouncer() *DHTAnnouncer {
 	}
 }
 
+// Close the announcer.
 func (a *DHTAnnouncer) Close() {
 	close(a.closeC)
 	<-a.doneC
 }
 
+// NeedMorePeers signals the announcer goroutine to fetch more peers from DHT.
 func (a *DHTAnnouncer) NeedMorePeers(val bool) {
 	select {
 	case a.needMorePeersC <- val:
@@ -34,6 +38,7 @@ func (a *DHTAnnouncer) NeedMorePeers(val bool) {
 	}
 }
 
+// Run the announcer. Invoke with go statement.
 func (a *DHTAnnouncer) Run(announceFunc func(), interval, minInterval time.Duration, l logger.Logger) {
 	defer close(a.doneC)
 

@@ -19,11 +19,13 @@ type block struct {
 	requested bool
 }
 
+// Peer of a torrent.
 type Peer interface {
 	MetadataSize() uint32
 	RequestMetadataPiece(index uint32)
 }
 
+// New return new InfoDownloader for a single Peer.
 func New(pe Peer) *InfoDownloader {
 	d := &InfoDownloader{
 		Peer:  pe,
@@ -33,6 +35,7 @@ func New(pe Peer) *InfoDownloader {
 	return d
 }
 
+// GotBlock must be called when a metadata block is received from the peer.
 func (d *InfoDownloader) GotBlock(index uint32, data []byte) error {
 	if index >= uint32(len(d.blocks)) {
 		return fmt.Errorf("peer sent invalid metadata piece index: %q", index)
@@ -69,6 +72,7 @@ func (d *InfoDownloader) createBlocks() []block {
 	return blocks
 }
 
+// RequestBlocks is called to request remaining blocks of metadata from the peer.
 func (d *InfoDownloader) RequestBlocks(queueLength int) {
 	for ; d.nextBlockIndex < uint32(len(d.blocks)) && d.pending < queueLength; d.nextBlockIndex++ {
 		d.Peer.RequestMetadataPiece(d.nextBlockIndex)
@@ -77,6 +81,7 @@ func (d *InfoDownloader) RequestBlocks(queueLength int) {
 	}
 }
 
+// Done returns true if all pieces of the metadata is downloaded.
 func (d *InfoDownloader) Done() bool {
 	return d.nextBlockIndex == uint32(len(d.blocks)) && d.pending == 0
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/rcrowley/go-metrics"
 )
 
+// PieceWriter writes the data in the buffer to disk.
 type PieceWriter struct {
 	Piece  *piece.Piece
 	Source interface{}
@@ -18,6 +19,7 @@ type PieceWriter struct {
 	Error  error
 }
 
+// New returns new PieceWriter for a given piece.
 func New(p *piece.Piece, source interface{}, buf bufferpool.Buffer) *PieceWriter {
 	return &PieceWriter{
 		Piece:  p,
@@ -26,6 +28,7 @@ func New(p *piece.Piece, source interface{}, buf bufferpool.Buffer) *PieceWriter
 	}
 }
 
+// Run checks the hash, then writes the data in the buffer to the disk.
 func (w *PieceWriter) Run(resultC chan *PieceWriter, closeC chan struct{}, writesPerSecond, writeBytesPerSecond metrics.Meter, sem *semaphore.Semaphore) {
 	w.HashOK = w.Piece.VerifyHash(w.Buffer.Data, sha1.New()) // nolint: gosec
 	if w.HashOK {

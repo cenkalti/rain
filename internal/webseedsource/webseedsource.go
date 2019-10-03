@@ -7,6 +7,7 @@ import (
 	"github.com/rcrowley/go-metrics"
 )
 
+// WebseedSource is a URL for downloading torrent data from web sources.
 type WebseedSource struct {
 	URL           string
 	Disabled      bool
@@ -16,6 +17,7 @@ type WebseedSource struct {
 	DownloadSpeed metrics.Meter
 }
 
+// NewList returns a new WebseedSource list.
 func NewList(sources []string) []*WebseedSource {
 	l := make([]*WebseedSource, len(sources))
 	for i := range sources {
@@ -27,6 +29,7 @@ func NewList(sources []string) []*WebseedSource {
 	return l
 }
 
+// Downloading returns true if data is being downloaded from this source.
 func (s *WebseedSource) Downloading() bool {
 	return s.Downloader != nil
 }

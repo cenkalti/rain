@@ -11,33 +11,45 @@ import (
 )
 
 const (
+	// ExtensionIDHandshake is ID for extension handshake message.
 	ExtensionIDHandshake = iota
+	// ExtensionIDMetadata is ID for metadata extension messages.
 	ExtensionIDMetadata
+	// ExtensionIDPEX is ID for PEX extension messages.
 	ExtensionIDPEX
 )
 
 const (
+	// ExtensionKeyMetadata is the key for the metadata extension.
 	ExtensionKeyMetadata = "ut_metadata"
-	ExtensionKeyPEX      = "ut_pex"
+	// ExtensionKeyPEX is the key for the PEX extension.
+	ExtensionKeyPEX = "ut_pex"
 )
 
 const (
+	// ExtensionMetadataMessageTypeRequest is the id of metadata message when requesting a piece.
 	ExtensionMetadataMessageTypeRequest = iota
+	// ExtensionMetadataMessageTypeData is the id of metadata message when sending the piece data.
 	ExtensionMetadataMessageTypeData
+	// ExtensionMetadataMessageTypeReject is the id of metadata message when rejecting a piece.
 	ExtensionMetadataMessageTypeReject
 )
 
+// ExtensionMessage is extension to BitTorrent protocol.
 type ExtensionMessage struct {
 	ExtendedMessageID uint8
 	Payload           interface{}
 }
 
+// ID returns the type of a peer message.
 func (m ExtensionMessage) ID() MessageID { return Extension }
 
+// Read extension message bytes.
 func (m ExtensionMessage) Read([]byte) (int, error) {
 	panic("Read must not be called, use WriteTo")
 }
 
+// WriteTo writes the bytes into io.Writer.
 func (m ExtensionMessage) WriteTo(w io.Writer) (n int64, err error) {
 	nn, err := w.Write([]byte{m.ExtendedMessageID})
 	n += int64(nn)
@@ -57,6 +69,7 @@ func (m ExtensionMessage) WriteTo(w io.Writer) (n int64, err error) {
 	return
 }
 
+// UnmarshalBinary parses extension message.
 func (m *ExtensionMessage) UnmarshalBinary(data []byte) error {
 	var extID uint8
 	r := bytes.NewReader(data)
@@ -93,6 +106,7 @@ func (m *ExtensionMessage) UnmarshalBinary(data []byte) error {
 	return err
 }
 
+// ExtensionHandshakeMessage contains the information to do the extension handshake.
 type ExtensionHandshakeMessage struct {
 	M            map[string]uint8 `bencode:"m"`
 	V            string           `bencode:"v"`
@@ -101,6 +115,7 @@ type ExtensionHandshakeMessage struct {
 	RequestQueue int              `bencode:"reqq"`
 }
 
+// NewExtensionHandshake returns a new ExtensionHandshakeMessage by filling the struct with given values.
 func NewExtensionHandshake(metadataSize uint32, version string, yourip net.IP, requestQueueLength int) ExtensionHandshakeMessage {
 	return ExtensionHandshakeMessage{
 		M: map[string]uint8{
@@ -114,6 +129,7 @@ func NewExtensionHandshake(metadataSize uint32, version string, yourip net.IP, r
 	}
 }
 
+// ExtensionMetadataMessage is the message for the Metadata extension.
 type ExtensionMetadataMessage struct {
 	Type      int    `bencode:"msg_type"`
 	Piece     uint32 `bencode:"piece"`
@@ -121,6 +137,7 @@ type ExtensionMetadataMessage struct {
 	Data      []byte `bencode:"-"`
 }
 
+// ExtensionPEXMessage is the message for the PEX extension.
 type ExtensionPEXMessage struct {
 	Added   string `bencode:"added"`
 	Dropped string `bencode:"dropped"`

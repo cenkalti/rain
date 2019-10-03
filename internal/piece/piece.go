@@ -9,6 +9,7 @@ import (
 	"github.com/cenkalti/rain/internal/metainfo"
 )
 
+// BlockSize is the size of smallest piece data that we are going to request from peers.
 const BlockSize = 16 * 1024
 
 // Piece of a torrent.
@@ -28,6 +29,7 @@ type Block struct {
 	Length uint32 // always equal to BlockSize except the last block of a piece.
 }
 
+// NewPieces returns a slice of Pieces by mapping files to the pieces.
 func NewPieces(info *metainfo.Info, files []allocator.File) []Piece {
 	var (
 		fileIndex  int   // index of the current file in torrent
@@ -94,6 +96,7 @@ func NewPieces(info *metainfo.Info, files []allocator.File) []Piece {
 	return pieces
 }
 
+// NumBlocks returns the number of blocks in the piece.
 func (p *Piece) NumBlocks() int {
 	div, mod := divMod32(p.Length, BlockSize)
 	numBlocks := div
@@ -103,6 +106,7 @@ func (p *Piece) NumBlocks() int {
 	return int(numBlocks)
 }
 
+// GetBlock returns the Block at index i.
 func (p *Piece) GetBlock(i int) (b Block, ok bool) {
 	div, mod := divMod32(p.Length, BlockSize)
 	numBlocks := int(div)
@@ -125,6 +129,7 @@ func (p *Piece) GetBlock(i int) (b Block, ok bool) {
 	}, true
 }
 
+// FindBlock returns the block at offset `begin` and length `length`.
 func (p *Piece) FindBlock(begin, length uint32) (b Block, ok bool) {
 	idx, mod := divMod32(begin, BlockSize)
 	if mod != 0 {
@@ -141,6 +146,7 @@ func (p *Piece) FindBlock(begin, length uint32) (b Block, ok bool) {
 	return b, true
 }
 
+// VerifyHash returns true if hash of piece data in buffer `buf` matches the hash of Piece.
 func (p *Piece) VerifyHash(buf []byte, h hash.Hash) bool {
 	if uint32(len(buf)) != p.Length {
 		return false
