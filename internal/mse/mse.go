@@ -13,16 +13,14 @@
 // methods have been chosen over maximum-security algorithms.
 //
 // See http://wiki.vuze.com/w/Message_Stream_Encryption for details.
-//
-// nolint: gosec
 package mse
 
 import (
 	"bytes"
 	"crypto/cipher"
 	"crypto/rand"
-	"crypto/rc4"
-	"crypto/sha1"
+	"crypto/rc4"  // nolint: gosec
+	"crypto/sha1" // nolint: gosec
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -374,11 +372,11 @@ func (s *Stream) HandshakeIncoming(
 }
 
 func (s *Stream) initRC4(encKey, decKey string, S *big.Int, sKey []byte) error { //nolint:gocritic
-	cipherEnc, err := rc4.NewCipher(rc4Key(encKey, S, sKey))
+	cipherEnc, err := rc4.NewCipher(rc4Key(encKey, S, sKey)) // nolint: gosec
 	if err != nil {
 		return err
 	}
-	cipherDec, err := rc4.NewCipher(rc4Key(decKey, S, sKey))
+	cipherDec, err := rc4.NewCipher(rc4Key(decKey, S, sKey)) // nolint: gosec
 	if err != nil {
 		return err
 	}
@@ -471,7 +469,7 @@ func hashes(S *big.Int, sKey []byte) (hashS, hashSKey []byte) { // nolint:gocrit
 }
 
 func hashInt(prefix string, i *big.Int) []byte {
-	h := sha1.New()
+	h := sha1.New() // nolint: gosec
 	_, _ = h.Write([]byte(prefix))
 	_, _ = h.Write(bytesWithPad(i))
 	return h.Sum(nil)
@@ -480,7 +478,7 @@ func hashInt(prefix string, i *big.Int) []byte {
 // HashSKey returns the hash of key.
 func HashSKey(key []byte) [20]byte {
 	var sum [20]byte
-	h := sha1.New()
+	h := sha1.New() // nolint: gosec
 	_, _ = h.Write([]byte("req2"))
 	_, _ = h.Write(key)
 	copy(sum[:], h.Sum(nil))
@@ -488,7 +486,7 @@ func HashSKey(key []byte) [20]byte {
 }
 
 func rc4Key(prefix string, S *big.Int, sKey []byte) []byte { // nolint:gocritic
-	h := sha1.New()
+	h := sha1.New() // nolint: gosec
 	_, _ = h.Write([]byte(prefix))
 	_, _ = h.Write(bytesWithPad(S))
 	_, _ = h.Write(sKey)
