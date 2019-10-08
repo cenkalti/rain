@@ -316,12 +316,12 @@ func (a *PeriodicalAnnouncer) newAnnounceError(err error) (e *AnnounceError) {
 		}
 		if strings.HasSuffix(s, "no such host") {
 			parsed, _ := url.Parse(a.Tracker.URL())
-			e.Message = "host not found: " + parsed.Hostname()
+			e.Message = "no such host: " + parsed.Hostname()
 			return
 		}
 		if strings.HasSuffix(s, "server misbehaving") {
 			parsed, _ := url.Parse(a.Tracker.URL())
-			e.Message = "host not found: " + parsed.Hostname()
+			e.Message = "server misbehaving: " + parsed.Hostname()
 			return
 		}
 		if strings.HasSuffix(s, "tls: handshake failure") {
