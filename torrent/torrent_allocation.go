@@ -49,7 +49,7 @@ func (t *torrent) handleAllocationDone(al *allocator.Allocator) {
 	}
 
 	// If we already have bitfield from resume db, skip verification and start downloading.
-	if t.bitfield != nil {
+	if t.bitfield != nil && !al.HasMissing {
 		for i := uint32(0); i < t.bitfield.Len(); i++ {
 			t.pieces[i].Done = t.bitfield.Test(i)
 		}
@@ -66,7 +66,7 @@ func (t *torrent) handleAllocationDone(al *allocator.Allocator) {
 	}
 
 	// No need to verify files if they didn't exist when we create them.
-	if !al.NeedHashCheck {
+	if !al.HasExisting {
 		t.mBitfield.Lock()
 		t.bitfield = bitfield.New(t.info.NumPieces)
 		t.mBitfield.Unlock()

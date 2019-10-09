@@ -7,9 +7,10 @@ import (
 
 // Allocator allocates files on the disk.
 type Allocator struct {
-	Files         []File
-	NeedHashCheck bool
-	Error         error
+	Files       []File
+	HasExisting bool
+	HasMissing  bool
+	Error       error
 
 	closeC chan struct{}
 	doneC  chan struct{}
@@ -69,7 +70,9 @@ func (a *Allocator) Run(info *metainfo.Info, sto storage.Storage, progressC chan
 		}
 		a.Files[i] = File{Storage: sf, Name: f.Path}
 		if exists {
-			a.NeedHashCheck = true
+			a.HasExisting = true
+		} else {
+			a.HasMissing = true
 		}
 		allocatedSize += f.Length
 		a.sendProgress(progressC, allocatedSize)
