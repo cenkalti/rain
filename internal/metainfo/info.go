@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -110,18 +111,36 @@ func NewInfo(b []byte) (*Info, error) {
 	}
 
 	// construct files
+	const maxFileLength = 255
 	if multiFile {
 		i.Files = make([]File, len(ib.Files))
 		for j, f := range ib.Files {
+			parts := make([]string, 0, len(f.Path)+1)
+			parts = append(parts, trimName(i.Name, maxFileLength))
+			for _, p := range f.Path {
+				parts = append(parts, trimName(p, maxFileLength))
+			}
 			i.Files[j] = File{
-				Path:   filepath.Join(i.Name, filepath.Join(f.Path...)),
+				Path:   filepath.Join(parts...),
 				Length: f.Length,
 			}
 		}
 	} else {
-		i.Files = []File{{Path: i.Name, Length: i.Length}}
+		i.Files = []File{{Path: trimName(i.Name, maxFileLength), Length: i.Length}}
 	}
 	return &i, nil
+}
+
+// trimName trims the file name that it won't exceed 255 characters while keeping the extension.
+func trimName(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	ext := path.Ext(s)
+	if len(ext) > max {
+		return s[:max]
+	}
+	return s[:max-len(ext)] + ext
 }
 
 func parsePrivateField(s bencode.RawMessage) bool {
