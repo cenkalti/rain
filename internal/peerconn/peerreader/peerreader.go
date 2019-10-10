@@ -93,9 +93,6 @@ func (p *PeerReader) Run() {
 		}
 	}()
 
-	first := true
-	first10messages := make([]peerprotocol.MessageID, 0, 10)
-	var numMessages int
 	for {
 		err = p.conn.SetReadDeadline(time.Now().Add(readTimeout))
 		if err != nil {
@@ -123,10 +120,6 @@ func (p *PeerReader) Run() {
 		length--
 
 		// p.log.Debugf("Received message of type: %q", id)
-		if len(first10messages) < 10 {
-			first10messages = append(first10messages, id)
-		}
-		numMessages++
 
 		var msg interface{}
 
@@ -151,11 +144,6 @@ func (p *PeerReader) Run() {
 			}
 			msg = hm
 		case peerprotocol.Bitfield:
-			if !first {
-				errorMsg := fmt.Sprintf("bitfield can only be sent after handshake (numMessages: %d) (first 10 messages: %v)", numMessages, first10messages)
-				err = errors.New(errorMsg)
-				return
-			}
 			var bm peerprotocol.BitfieldMessage
 			bm.Data = make([]byte, length)
 			_, err = io.ReadFull(p.r, bm.Data)
@@ -209,18 +197,8 @@ func (p *PeerReader) Run() {
 			}
 			msg = Piece{PieceMessage: pm, Buffer: buf}
 		case peerprotocol.HaveAll:
-			if !first {
-				errorMsg := fmt.Sprintf("have_all can only be sent after handshake (numMessages: %d) (first 10 messages: %v)", numMessages, first10messages)
-				err = errors.New(errorMsg)
-				return
-			}
 			msg = peerprotocol.HaveAllMessage{}
 		case peerprotocol.HaveNone:
-			if !first {
-				errorMsg := fmt.Sprintf("have_none can only be sent after handshake (numMessages: %d) (first 10 messages: %v)", numMessages, first10messages)
-				err = errors.New(errorMsg)
-				return
-			}
 			msg = peerprotocol.HaveNoneMessage{}
 		case peerprotocol.AllowedFast:
 			var am peerprotocol.AllowedFastMessage
@@ -259,10 +237,6 @@ func (p *PeerReader) Run() {
 		}
 		if msg == nil {
 			panic("msg unset")
-		}
-		// Only message types defined in BEP 3 are counted.
-		if id < 9 {
-			first = false
 		}
 		select {
 		case p.messages <- msg:
