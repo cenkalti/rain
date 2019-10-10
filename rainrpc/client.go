@@ -88,6 +88,13 @@ func (c *Client) RemoveTorrent(id string) error {
 	return c.client.Call("Session.RemoveTorrent", args, &reply)
 }
 
+// CleanDatabase removes invalid records in session database.
+func (c *Client) CleanDatabase() error {
+	var args rpctypes.CleanDatabaseRequest
+	var reply rpctypes.CleanDatabaseResponse
+	return c.client.Call("Session.CleanDatabase", args, &reply)
+}
+
 // GetTorrentStats returns statistics about a torrent.
 func (c *Client) GetTorrentStats(id string) (*rpctypes.Stats, error) {
 	args := rpctypes.GetTorrentStatsRequest{ID: id}

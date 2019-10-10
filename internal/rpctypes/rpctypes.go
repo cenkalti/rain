@@ -209,6 +209,14 @@ type RemoveTorrentRequest struct {
 type RemoveTorrentResponse struct {
 }
 
+// CleanDatabaseRequest contains request arguments for Session.CleanDatabase method.
+type CleanDatabaseRequest struct {
+}
+
+// CleanDatabaseResponse contains response arguments for Session.CleanDatabase method.
+type CleanDatabaseResponse struct {
+}
+
 // GetSessionStatsRequest contains request arguments for Session.GetSessionStats method.
 type GetSessionStatsRequest struct {
 }

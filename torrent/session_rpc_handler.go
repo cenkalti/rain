@@ -111,6 +111,10 @@ func (h *rpcHandler) GetTorrent(args *rpctypes.GetTorrentRequest, reply *rpctype
 	return nil
 }
 
+func (h *rpcHandler) CleanDatabase(args *rpctypes.CleanDatabaseRequest, reply *rpctypes.CleanDatabaseResponse) error {
+	return h.session.CleanDatabase()
+}
+
 func (h *rpcHandler) GetSessionStats(args *rpctypes.GetSessionStatsRequest, reply *rpctypes.GetSessionStatsResponse) error {
 	s := h.session.Stats()
 	reply.Stats = rpctypes.SessionStats{

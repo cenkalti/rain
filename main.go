@@ -168,6 +168,11 @@ func main() {
 					},
 				},
 				{
+					Name:   "clean-database",
+					Usage:  "clean session database",
+					Action: handleCleanDatabase,
+				},
+				{
 					Name:   "stats",
 					Usage:  "get stats of torrent",
 					Action: handleStats,
@@ -690,6 +695,10 @@ func handleAdd(c *cli.Context) error {
 
 func handleRemove(c *cli.Context) error {
 	return clt.RemoveTorrent(c.String("id"))
+}
+
+func handleCleanDatabase(c *cli.Context) error {
+	return clt.CleanDatabase()
 }
 
 func handleStats(c *cli.Context) error {

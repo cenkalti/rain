@@ -4,6 +4,7 @@ import (
 	"errors"
 	"path/filepath"
 
+	"github.com/boltdb/bolt"
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/resumer"
@@ -20,6 +21,7 @@ func (s *Session) loadExistingTorrents(ids []string) {
 		t, hasStarted, err := s.loadExistingTorrent(id)
 		if err != nil {
 			s.log.Error(err)
+			s.invalidTorrentIDs = append(s.invalidTorrentIDs, id)
 			continue
 		}
 		s.log.Debugf("loaded existing torrent: #%s %s", id, t.Name())
@@ -108,4 +110,19 @@ func (s *Session) loadExistingTorrent(id string) (tt *Torrent, hasStarted bool, 
 
 	tt = s.insertTorrent(t)
 	return
+}
+
+// CleanDatabase removes invalid records in the database.
+// Normally you don't need to call this.
+func (s *Session) CleanDatabase() error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(torrentsBucket)
+		for _, id := range s.invalidTorrentIDs {
+			err := b.DeleteBucket([]byte(id))
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }

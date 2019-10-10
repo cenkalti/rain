@@ -62,6 +62,7 @@ type Session struct {
 	mTorrents          sync.RWMutex
 	torrents           map[string]*Torrent
 	torrentsByInfoHash map[dht.InfoHash][]*Torrent
+	invalidTorrentIDs  []string
 
 	mPorts         sync.RWMutex
 	availablePorts map[int]struct{}
