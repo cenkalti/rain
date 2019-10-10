@@ -350,6 +350,10 @@ func (a *PeriodicalAnnouncer) newAnnounceError(err error) (e *AnnounceError) {
 			e.Message = "invalid server response"
 			return
 		}
+		if strings.Contains(s, "malformed HTTP status code") {
+			e.Message = "invalid server response"
+			return
+		}
 	case *httptracker.StatusError:
 		if err.Code >= 400 {
 			e.Message = "tracker returned HTTP status: " + strconv.Itoa(err.Code)
