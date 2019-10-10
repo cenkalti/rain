@@ -89,7 +89,11 @@ func (p *PeerReader) Run() {
 		select {
 		case <-p.stopC: // don't log error if peer is stopped
 		default:
-			p.log.Error(err)
+			if _, ok := err.(*blockSizeError); ok {
+				p.log.Debug(err)
+			} else {
+				p.log.Error(err)
+			}
 		}
 	}()
 
@@ -160,7 +164,11 @@ func (p *PeerReader) Run() {
 			// p.log.Debugf("Received Request: %+v", rm)
 
 			if rm.Length > MaxBlockSize {
-				err = fmt.Errorf("received a request with block size larger than allowed (%d > %d)", rm.Length, MaxBlockSize)
+				err = &blockSizeError{
+					messageID:  id,
+					got:        rm.Length,
+					allowedMax: MaxBlockSize,
+				}
 				return
 			}
 			msg = rm
@@ -187,7 +195,11 @@ func (p *PeerReader) Run() {
 			}
 			length -= 8
 			if length > piece.BlockSize {
-				err = fmt.Errorf("received a piece with block size larger than allowed (%d > %d)", length, piece.BlockSize)
+				err = &blockSizeError{
+					messageID:  id,
+					got:        length,
+					allowedMax: piece.BlockSize,
+				}
 				return
 			}
 			var buf bufferpool.Buffer
@@ -291,3 +303,13 @@ func (p *PeerReader) readPiece(length uint32) (buf bufferpool.Buffer, err error)
 }
 
 var errStoppedWhileWaitingBucket = errors.New("peer reader stopped while waiting for bucket")
+
+type blockSizeError struct {
+	messageID  peerprotocol.MessageID
+	got        uint32
+	allowedMax uint32
+}
+
+func (e *blockSizeError) Error() string {
+	return fmt.Sprintf("received %s message with block size larger than allowed (%d > %d)", e.messageID, e.got, e.allowedMax)
+}
