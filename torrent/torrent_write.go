@@ -22,11 +22,11 @@ func (t *torrent) handlePieceWriteDone(pw *piecewriter.PieceWriter) {
 		t.bytesWasted.Inc(int64(len(pw.Buffer.Data)))
 		switch src := pw.Source.(type) {
 		case *peer.Peer:
-			t.log.Errorln("received corrupt piece from peer", src.String())
+			t.log.Debugln("received corrupt piece from peer", src.String())
 			t.closePeer(src)
 			t.bannedPeerIPs[src.IP()] = struct{}{}
 		case *urldownloader.URLDownloader:
-			t.log.Errorln("received corrupt piece from webseed", src.URL)
+			t.log.Debugln("received corrupt piece from webseed", src.URL)
 			t.disableSource(src.URL, errors.New("corrupt piece"), false)
 		default:
 			panic("unhandled piece source")
