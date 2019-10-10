@@ -137,6 +137,10 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			pe.Messages = append(pe.Messages, msg)
 			break
 		}
+		if len(msg.Data) == 0 {
+			pe.Logger().Debugln("received bitfield length of zero")
+			break
+		}
 		bf, err := bitfield.NewBytes(msg.Data, t.info.NumPieces)
 		if err != nil {
 			pe.Logger().Errorf("%s [len(bitfield)=%d] [numPieces=%d]", err, len(msg.Data), t.info.NumPieces)
