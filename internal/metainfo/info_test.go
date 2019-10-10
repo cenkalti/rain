@@ -25,10 +25,10 @@ func TestCalculatePieceLength(t *testing.T) {
 	}
 }
 
-func TestTrimName(t *testing.T) {
+func TestCleanName(t *testing.T) {
 	cases := []struct {
 		name    string
-		trimmed string
+		cleaned string
 		max     int
 	}{
 		{"foo.bar", "foo.bar", 10},
@@ -38,8 +38,12 @@ func TestTrimName(t *testing.T) {
 		{"foo.bar", "foo", 3},
 		{"foobar", "foobar", 10},
 		{"foobar", "fo", 2},
+		{"ğğğğ", "ğğğğ", 9},
+		{"ğğğğ", "ğğğğ", 8},
+		{"ğğğğ", "ğğğ", 7},
+		{"ğğğğ", "ğğğ", 6},
 	}
 	for _, c := range cases {
-		assert.Equal(t, c.trimmed, trimName(c.name, c.max))
+		assert.Equal(t, c.cleaned, cleanNameN(c.name, c.max))
 	}
 }

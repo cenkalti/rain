@@ -132,8 +132,13 @@ func NewInfo(b []byte) (*Info, error) {
 }
 
 func cleanName(s string) string {
+	return cleanNameN(s, 255)
+}
+
+func cleanNameN(s string, max int) string {
 	s = strings.ToValidUTF8(s, string(unicode.ReplacementChar))
-	s = trimName(s, 255)
+	s = trimName(s, max)
+	s = strings.ToValidUTF8(s, "")
 	return replaceSeparator(s)
 }
 
