@@ -127,19 +127,22 @@ func main() {
 			Before: handleBeforeClient,
 			Subcommands: []cli.Command{
 				{
-					Name:   "version",
-					Usage:  "server version",
-					Action: handleVersion,
+					Name:     "version",
+					Usage:    "server version",
+					Category: "Getters",
+					Action:   handleVersion,
 				},
 				{
-					Name:   "list",
-					Usage:  "list torrents",
-					Action: handleList,
+					Name:     "list",
+					Usage:    "list torrents",
+					Category: "Getters",
+					Action:   handleList,
 				},
 				{
-					Name:   "add",
-					Usage:  "add torrent or magnet",
-					Action: handleAdd,
+					Name:     "add",
+					Usage:    "add torrent or magnet",
+					Category: "Actions",
+					Action:   handleAdd,
 					Flags: []cli.Flag{
 						cli.StringFlag{
 							Name:     "torrent,t",
@@ -157,9 +160,10 @@ func main() {
 					},
 				},
 				{
-					Name:   "remove",
-					Usage:  "remove torrent",
-					Action: handleRemove,
+					Name:     "remove",
+					Usage:    "remove torrent",
+					Category: "Actions",
+					Action:   handleRemove,
 					Flags: []cli.Flag{
 						cli.StringFlag{
 							Name:     "id",
@@ -168,14 +172,16 @@ func main() {
 					},
 				},
 				{
-					Name:   "clean-database",
-					Usage:  "clean session database",
-					Action: handleCleanDatabase,
+					Name:     "clean-database",
+					Usage:    "clean session database",
+					Category: "Actions",
+					Action:   handleCleanDatabase,
 				},
 				{
-					Name:   "stats",
-					Usage:  "get stats of torrent",
-					Action: handleStats,
+					Name:     "stats",
+					Usage:    "get stats of torrent",
+					Category: "Getters",
+					Action:   handleStats,
 					Flags: []cli.Flag{
 						cli.StringFlag{
 							Name:     "id",
@@ -188,9 +194,10 @@ func main() {
 					},
 				},
 				{
-					Name:   "session-stats",
-					Usage:  "get stats of session",
-					Action: handleSessionStats,
+					Name:     "session-stats",
+					Usage:    "get stats of session",
+					Category: "Getters",
+					Action:   handleSessionStats,
 					Flags: []cli.Flag{
 						cli.BoolFlag{
 							Name:  "json",
@@ -199,9 +206,10 @@ func main() {
 					},
 				},
 				{
-					Name:   "trackers",
-					Usage:  "get trackers of torrent",
-					Action: handleTrackers,
+					Name:     "trackers",
+					Usage:    "get trackers of torrent",
+					Category: "Getters",
+					Action:   handleTrackers,
 					Flags: []cli.Flag{
 						cli.StringFlag{
 							Name:     "id",
@@ -210,9 +218,10 @@ func main() {
 					},
 				},
 				{
-					Name:   "webseeds",
-					Usage:  "get webseed sources of torrent",
-					Action: handleWebseeds,
+					Name:     "webseeds",
+					Usage:    "get webseed sources of torrent",
+					Category: "Getters",
+					Action:   handleWebseeds,
 					Flags: []cli.Flag{
 						cli.StringFlag{
 							Name:     "id",
@@ -221,9 +230,10 @@ func main() {
 					},
 				},
 				{
-					Name:   "peers",
-					Usage:  "get peers of torrent",
-					Action: handlePeers,
+					Name:     "peers",
+					Usage:    "get peers of torrent",
+					Category: "Getters",
+					Action:   handlePeers,
 					Flags: []cli.Flag{
 						cli.StringFlag{
 							Name:     "id",
@@ -232,9 +242,10 @@ func main() {
 					},
 				},
 				{
-					Name:   "add-peer",
-					Usage:  "add peer to torrent",
-					Action: handleAddPeer,
+					Name:     "add-peer",
+					Usage:    "add peer to torrent",
+					Category: "Actions",
+					Action:   handleAddPeer,
 					Flags: []cli.Flag{
 						cli.StringFlag{
 							Name:     "id",
@@ -248,9 +259,10 @@ func main() {
 					},
 				},
 				{
-					Name:   "add-tracker",
-					Usage:  "add tracker to torrent",
-					Action: handleAddTracker,
+					Name:     "add-tracker",
+					Usage:    "add tracker to torrent",
+					Category: "Actions",
+					Action:   handleAddTracker,
 					Flags: []cli.Flag{
 						cli.StringFlag{
 							Name:     "id",
@@ -264,9 +276,10 @@ func main() {
 					},
 				},
 				{
-					Name:   "start",
-					Usage:  "start torrent",
-					Action: handleStart,
+					Name:     "start",
+					Usage:    "start torrent",
+					Category: "Actions",
+					Action:   handleStart,
 					Flags: []cli.Flag{
 						cli.StringFlag{
 							Name:     "id",
@@ -275,9 +288,10 @@ func main() {
 					},
 				},
 				{
-					Name:   "stop",
-					Usage:  "stop torrent",
-					Action: handleStop,
+					Name:     "stop",
+					Usage:    "stop torrent",
+					Category: "Actions",
+					Action:   handleStop,
 					Flags: []cli.Flag{
 						cli.StringFlag{
 							Name:     "id",
@@ -286,19 +300,22 @@ func main() {
 					},
 				},
 				{
-					Name:   "start-all",
-					Usage:  "start all torrents",
-					Action: handleStartAll,
+					Name:     "start-all",
+					Usage:    "start all torrents",
+					Category: "Actions",
+					Action:   handleStartAll,
 				},
 				{
-					Name:   "stop-all",
-					Usage:  "stop all torrents",
-					Action: handleStopAll,
+					Name:     "stop-all",
+					Usage:    "stop all torrents",
+					Category: "Actions",
+					Action:   handleStopAll,
 				},
 				{
-					Name:   "move",
-					Usage:  "move torrent to another server",
-					Action: handleMove,
+					Name:     "move",
+					Usage:    "move torrent to another server",
+					Category: "Actions",
+					Action:   handleMove,
 					Flags: []cli.Flag{
 						cli.StringFlag{
 							Name:     "id",
@@ -312,9 +329,10 @@ func main() {
 					},
 				},
 				{
-					Name:   "torrent",
-					Usage:  "save torrent file",
-					Action: handleSaveTorrent,
+					Name:     "torrent",
+					Usage:    "save torrent file",
+					Category: "Getters",
+					Action:   handleSaveTorrent,
 					Flags: []cli.Flag{
 						cli.StringFlag{
 							Name:     "id",
@@ -327,9 +345,10 @@ func main() {
 					},
 				},
 				{
-					Name:   "magnet",
-					Usage:  "get magnet link",
-					Action: handleGetMagnet,
+					Name:     "magnet",
+					Usage:    "get magnet link",
+					Category: "Getters",
+					Action:   handleGetMagnet,
 					Flags: []cli.Flag{
 						cli.StringFlag{
 							Name:     "id",
@@ -338,9 +357,10 @@ func main() {
 					},
 				},
 				{
-					Name:   "console",
-					Usage:  "show client console",
-					Action: handleConsole,
+					Name:     "console",
+					Usage:    "show client console",
+					Category: "Other",
+					Action:   handleConsole,
 				},
 			},
 		},
