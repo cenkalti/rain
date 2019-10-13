@@ -7,8 +7,9 @@ linters:
     - gochecknoinits
     - gocyclo
     - nakedret
-    - dupl
     - funlen
+    - wsl
+    - gocognit
 issues:
   exclude-rules:
     - path: _test\.go

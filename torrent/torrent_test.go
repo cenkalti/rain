@@ -181,9 +181,9 @@ func assertCompleted(t *testing.T, tor *Torrent) {
 	case <-time.After(timeout):
 		t.Fatal("download did not finish")
 	}
-	cmd := exec.Command("diff", "-rq",
-		filepath.Join(torrentDataDir, torrentName),
-		filepath.Join(tor.torrent.session.config.DataDir, tor.ID(), torrentName))
+	dir1 := filepath.Join(torrentDataDir, torrentName)
+	dir2 := filepath.Join(tor.torrent.session.config.DataDir, tor.ID(), torrentName)
+	cmd := exec.Command("diff", "-rq", dir1, dir2)
 	err := cmd.Run()
 	if err != nil {
 		t.Fatal(err)
