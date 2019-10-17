@@ -34,11 +34,6 @@ func startUDPTracker(t *testing.T, port int) func() {
 		Addr:         "127.0.0.1:" + strconv.Itoa(port),
 		MaxClockSkew: time.Minute,
 		PrivateKey:   "M4YlzP02iB0B46P2i3QLyMOW6nWXnVlYeJ91xIdtu8Ao7IIVKLZEaCEshTChmFrS",
-		ParseOptions: udp.ParseOptions{
-			MaxNumWant:          200,
-			DefaultNumWant:      50,
-			MaxScrapeInfoHashes: 400,
-		},
 	})
 	if err != nil {
 		t.Fatal(err)

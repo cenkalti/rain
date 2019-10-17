@@ -34,11 +34,6 @@ func startHTTPTracker(t *testing.T) (stop func()) {
 		Addr:         "127.0.0.1:5000",
 		ReadTimeout:  time.Second,
 		WriteTimeout: time.Second,
-		ParseOptions: fhttp.ParseOptions{
-			MaxNumWant:          200,
-			DefaultNumWant:      50,
-			MaxScrapeInfoHashes: 400,
-		},
 	})
 	if err != nil {
 		t.Fatal(err)

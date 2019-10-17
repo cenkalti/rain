@@ -8,7 +8,7 @@ require (
 	github.com/cenkalti/backoff/v3 v3.0.0
 	github.com/cenkalti/boltbrowser v0.0.0-20190327195521-ebed13c76690
 	github.com/cenkalti/log v0.0.0-20180808170110-e1cf6d40cbc3
-	github.com/chihaya/chihaya v0.0.0-20190113170711-5f99a7e77885
+	github.com/chihaya/chihaya v1.0.1-0.20191017040149-0a420fe05344
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
 	github.com/cyberdelia/go-metrics-graphite v0.0.0-20161219230853-39f87cc3b432
 	github.com/fatih/color v1.7.0 // indirect
