@@ -117,6 +117,12 @@ func (s *Session) reloadBlocklist() error {
 	if resp.StatusCode != 200 {
 		return errors.New("invalid blocklist status code")
 	}
+	if resp.ContentLength == -1 {
+		return errors.New("unknown content length")
+	}
+	if resp.ContentLength > s.config.BlocklistMaxResponseSize {
+		return errors.New("response too big")
+	}
 
 	var r io.Reader = resp.Body
 	if resp.Header.Get("content-type") == "application/x-gzip" {
@@ -128,10 +134,13 @@ func (s *Session) reloadBlocklist() error {
 		r = gr
 	}
 
-	buf := bytes.NewBuffer(make([]byte, 0, resp.ContentLength))
-	r = io.TeeReader(r, buf)
+	buf := make([]byte, resp.ContentLength)
+	_, err = io.ReadFull(r, buf)
+	if err != nil {
+		return err
+	}
 
-	err = s.loadBlocklistReader(r)
+	err = s.loadBlocklistReader(bytes.NewReader(buf))
 	if err != nil {
 		return err
 	}
@@ -144,7 +153,7 @@ func (s *Session) reloadBlocklist() error {
 
 	return s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(sessionBucket)
-		err2 := b.Put(blocklistKey, buf.Bytes())
+		err2 := b.Put(blocklistKey, buf)
 		if err2 != nil {
 			return err2
 		}

@@ -51,6 +51,8 @@ type Config struct {
 	BlocklistEnabledForOutgoingConnections bool
 	// Do not accept connections from peer if it's IP is blocked
 	BlocklistEnabledForIncomingConnections bool
+	// Do not accept response larger than this size
+	BlocklistMaxResponseSize int64
 	// Time to wait when adding torrent with AddURI().
 	TorrentAddHTTPTimeout time.Duration
 	// Maximum allowed size to be received by metadata extension.
@@ -204,6 +206,7 @@ var DefaultConfig = Config{
 	BlocklistEnabledForTrackers:            true,
 	BlocklistEnabledForOutgoingConnections: true,
 	BlocklistEnabledForIncomingConnections: true,
+	BlocklistMaxResponseSize:               100 << 20,
 	TorrentAddHTTPTimeout:                  30 * time.Second,
 	MaxMetadataSize:                        10 << 20,
 	MaxTorrentSize:                         10 << 20,
