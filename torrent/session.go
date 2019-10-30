@@ -138,6 +138,7 @@ func NewSession(cfg Config) (*Session, error) {
 		dhtConfig.Port = int(cfg.DHTPort)
 		dhtConfig.DHTRouters = strings.Join(cfg.DHTBootstrapNodes, ",")
 		dhtConfig.SaveRoutingTable = false
+		dhtConfig.NumTargetPeers = 0
 		dhtNode, err = dht.New(dhtConfig)
 		if err != nil {
 			return nil, err
