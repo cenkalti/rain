@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"sync"
@@ -17,10 +16,14 @@ var errNotIPv4Address = errors.New("address is not ipv4")
 
 // Blocklist holds a list of IP ranges in a Segment Tree structure for faster lookups.
 type Blocklist struct {
+	Logger Logger
+
 	tree  stree.Stree
 	m     sync.RWMutex
 	count int
 }
+
+type Logger func(format string, v ...interface{})
 
 // New returns a new Blocklist.
 func New() *Blocklist {
@@ -53,7 +56,7 @@ func (b *Blocklist) Reload(r io.Reader) (int, error) {
 	b.m.Lock()
 	defer b.m.Unlock()
 
-	tree, n, err := load(r)
+	tree, n, err := load(r, b.Logger)
 	if err != nil {
 		return n, err
 	}
@@ -63,7 +66,7 @@ func (b *Blocklist) Reload(r io.Reader) (int, error) {
 	return n, nil
 }
 
-func load(r io.Reader) (stree.Stree, int, error) {
+func load(r io.Reader, logger Logger) (stree.Stree, int, error) {
 	var tree stree.Stree
 	var n int
 	scanner := bufio.NewScanner(r)
@@ -77,7 +80,10 @@ func load(r io.Reader) (stree.Stree, int, error) {
 		}
 		r, err := parseCIDR(l)
 		if err != nil {
-			return tree, n, fmt.Errorf("cannot parse blocklist line (%q): %s", string(l), err.Error())
+			if logger != nil {
+				logger("cannot parse blocklist line (%q): %s", string(l), err.Error())
+			}
+			continue
 		}
 		tree.AddRange(stree.ValueType(r.first), stree.ValueType(r.last))
 		n++
