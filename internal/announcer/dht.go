@@ -21,6 +21,7 @@ func NewDHTAnnouncer() *DHTAnnouncer {
 		needMorePeersC: make(chan bool),
 		closeC:         make(chan struct{}),
 		doneC:          make(chan struct{}),
+		needMorePeers:  true,
 	}
 }
 
@@ -42,7 +43,7 @@ func (a *DHTAnnouncer) NeedMorePeers(val bool) {
 func (a *DHTAnnouncer) Run(announceFunc func(), interval, minInterval time.Duration, l logger.Logger) {
 	defer close(a.doneC)
 
-	timer := time.NewTimer(interval)
+	timer := time.NewTimer(minInterval)
 	defer timer.Stop()
 
 	resetTimer := func() {
