@@ -34,6 +34,7 @@ var (
 	torrentsBucket        = []byte("torrents")
 	blocklistKey          = []byte("blocklist")
 	blocklistTimestampKey = []byte("blocklist-timestamp")
+	blocklistURLHashKey   = []byte("blocklist-url-hash")
 )
 
 // Session contains torrents, DHT node, caches and other data structures shared by multiple torrents.
