@@ -135,7 +135,7 @@ func (c *Console) keybindings(g *gocui.Gui) {
 	_ = g.SetKeybinding("torrents", gocui.KeyCtrlS, gocui.ModNone, c.startTorrent)
 	_ = g.SetKeybinding("torrents", gocui.KeyCtrlS, gocui.ModAlt, c.stopTorrent)
 	_ = g.SetKeybinding("torrents", gocui.KeyCtrlR, gocui.ModNone, c.removeTorrent)
-	_ = g.SetKeybinding("torrents", gocui.KeyCtrlA, gocui.ModNone, c.announce)
+	_ = g.SetKeybinding("torrents", gocui.KeyCtrlA, gocui.ModAlt, c.announce)
 	_ = g.SetKeybinding("torrents", gocui.KeyCtrlV, gocui.ModNone, c.verify)
 	_ = g.SetKeybinding("torrents", gocui.KeyCtrlA, gocui.ModNone, c.switchAddTorrent)
 	_ = g.SetKeybinding("add-torrent", gocui.KeyEnter, gocui.ModNone, c.addTorrentHandleEnter)
@@ -278,7 +278,7 @@ func (c *Console) drawHelp(g *gocui.Gui) error {
 	fmt.Fprintln(v, "    ctrl+s  Start torrent")
 	fmt.Fprintln(v, "ctrl+alt+s  Stop torrent")
 	fmt.Fprintln(v, "    ctrl+R  Remove torrent")
-	fmt.Fprintln(v, "    ctrl+a  Announce torrent")
+	fmt.Fprintln(v, "ctrl+alt+a  Announce torrent")
 	fmt.Fprintln(v, "    ctrl+v  Verify torrent")
 	fmt.Fprintln(v, "    ctrl+a  Add new torrent")
 
