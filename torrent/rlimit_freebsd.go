@@ -1,5 +1,4 @@
-// +build !windows
-// +build !freebsd
+// +build freebsd
 
 package torrent
 
@@ -7,8 +6,8 @@ import "syscall"
 
 func setNoFile(value uint64) error {
 	rLimit := syscall.Rlimit{
-		Cur: value,
-		Max: value,
+		Cur: int64(value),
+		Max: int64(value),
 	}
 	return syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rLimit)
 }
