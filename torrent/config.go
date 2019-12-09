@@ -179,13 +179,6 @@ type Config struct {
 	WebseedMaxSources int
 	// Number of maximum simulateous downloads from WebSeed sources.
 	WebseedMaxDownloads int
-
-	// Send metrics to graphite server
-	GraphiteAddr string
-	// Graphite flush interval
-	GraphiteFlushInterval time.Duration
-	// Prefix metric names
-	GraphitePrefix string
 }
 
 // DefaultConfig for Session. Do not pass zero value Config to NewSession. Copy this struct and modify instead.
@@ -276,8 +269,4 @@ var DefaultConfig = Config{
 	WebseedVerifyTLS:               true,
 	WebseedMaxSources:              10,
 	WebseedMaxDownloads:            4,
-
-	// Metrics
-	GraphiteFlushInterval: 10 * time.Second,
-	GraphitePrefix:        "rain.{hostname}",
 }
