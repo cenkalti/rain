@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	graphite "github.com/cyberdelia/go-metrics-graphite"
 	"github.com/rcrowley/go-metrics"
 )
 
@@ -92,41 +91,7 @@ func (s *Session) initMetrics() error {
 	}
 	_ = r.Register("speed_read", s.metrics.SpeedRead)
 	_ = r.Register("reads_per_seconds", s.metrics.ReadsPerSecond)
-	if s.config.GraphiteAddr != "" {
-		var err error
-		s.metrics.hostname, err = os.Hostname()
-		if err != nil {
-			return err
-		}
-		s.metrics.ticker = time.NewTicker(s.config.GraphiteFlushInterval)
-		go s.metrics.run()
-	}
 	return nil
-}
-
-func (m *sessionMetrics) run() {
-	for range m.ticker.C {
-		err := m.flush()
-		if err != nil {
-			m.session.log.Errorln("cannot flush graphite metrics:", err)
-		}
-	}
-}
-
-func (m *sessionMetrics) flush() error {
-	addr, err := net.ResolveTCPAddr("tcp", m.session.config.GraphiteAddr)
-	if err != nil {
-		return err
-	}
-	cfg := graphite.Config{
-		Addr:          addr,
-		Registry:      m.registry,
-		FlushInterval: m.session.config.GraphiteFlushInterval,
-		DurationUnit:  time.Nanosecond,
-		Prefix:        strings.Replace(m.session.config.GraphitePrefix, "{hostname}", strings.Replace(m.hostname, ".", "_", -1), 1),
-		Percentiles:   []float64{0.5, 0.75, 0.95, 0.99, 0.999},
-	}
-	return graphite.Once(cfg)
 }
 
 func (m *sessionMetrics) Close() {
