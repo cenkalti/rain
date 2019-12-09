@@ -1,9 +1,6 @@
 package torrent
 
 import (
-	"net"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/rcrowley/go-metrics"
@@ -95,9 +92,6 @@ func (s *Session) initMetrics() error {
 }
 
 func (m *sessionMetrics) Close() {
-	if m.ticker != nil {
-		m.ticker.Stop()
-	}
 	m.WritesPerSecond.Stop()
 	m.SpeedDownload.Stop()
 	m.SpeedUpload.Stop()
