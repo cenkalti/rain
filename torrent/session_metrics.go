@@ -9,8 +9,6 @@ import (
 type sessionMetrics struct {
 	session  *Session
 	registry metrics.Registry
-	ticker   *time.Ticker
-	hostname string
 
 	Torrents              metrics.Gauge
 	Peers                 metrics.Counter
@@ -36,7 +34,7 @@ type sessionMetrics struct {
 	SpeedWrite            metrics.Meter
 }
 
-func (s *Session) initMetrics() error {
+func (s *Session) initMetrics() {
 	r := metrics.NewRegistry()
 	s.metrics = &sessionMetrics{
 		session:  s,
@@ -88,7 +86,6 @@ func (s *Session) initMetrics() error {
 	}
 	_ = r.Register("speed_read", s.metrics.SpeedRead)
 	_ = r.Register("reads_per_seconds", s.metrics.ReadsPerSecond)
-	return nil
 }
 
 func (m *sessionMetrics) Close() {
