@@ -7,6 +7,7 @@ import (
 	"crypto/sha1" // nolint: gosec
 	"errors"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -133,20 +134,23 @@ func (s *Session) reloadBlocklist() error {
 		return errors.New("response too big")
 	}
 
-	var r io.Reader = resp.Body
+	buf := make([]byte, resp.ContentLength)
+	_, err = io.ReadFull(resp.Body, buf)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+
 	if resp.Header.Get("content-type") == "application/x-gzip" {
-		gr, gerr := gzip.NewReader(r)
+		gr, gerr := gzip.NewReader(bytes.NewReader(buf))
 		if gerr != nil {
 			return gerr
 		}
 		defer gr.Close()
-		r = gr
-	}
-
-	buf := make([]byte, resp.ContentLength)
-	_, err = io.ReadFull(r, buf)
-	if err != nil {
-		return err
+		buf, err = ioutil.ReadAll(gr)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = s.loadBlocklistReader(bytes.NewReader(buf))
