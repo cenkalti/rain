@@ -77,3 +77,8 @@ func newPeer(i int) *peer.Peer {
 		Bitfield: bitfield.New(numPieces),
 	}
 }
+
+func (p *PiecePicker) pickFor(pe *peer.Peer) *piece.Piece {
+	pi, _ := p.PickFor(pe)
+	return pi
+}

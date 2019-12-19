@@ -204,11 +204,6 @@ func (p *PiecePicker) removeHavingPeer(i int, pe *peer.Peer) {
 	}
 }
 
-func (p *PiecePicker) pickFor(pe *peer.Peer) *piece.Piece {
-	pi, _ := p.PickFor(pe)
-	return pi
-}
-
 // PickFor selects the next piece for download from the peer.
 func (p *PiecePicker) PickFor(pe *peer.Peer) (pp *piece.Piece, allowedFast bool) {
 	pi, allowedFast := p.findPiece(pe)
