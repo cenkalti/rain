@@ -51,7 +51,14 @@ func (t *torrent) handleVerificationDone(ve *verifier.Verifier) {
 		}
 	}
 
+	// We may detect missing pieces after verification. Then, status must be set from Seeding to Downloading.
+	if !t.bitfield.All() {
+		t.completed = false
+		t.completeC = make(chan struct{})
+	}
+
 	if t.doVerify {
+		// Stop after manual verification command.
 		t.doVerify = false
 		t.stop(nil)
 		return
