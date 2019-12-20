@@ -61,14 +61,15 @@ func (b *Blocklist) Reload(r io.Reader) (int, error) {
 		return n, err
 	}
 
-	b.tree = tree
+	b.tree = *tree
 	b.count = n
 	return n, nil
 }
 
-func load(r io.Reader, logger Logger) (stree.Stree, int, error) {
+func load(r io.Reader, logger Logger) (*stree.Stree, int, error) {
 	var tree stree.Stree
 	var n int
+	var hasError bool
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		l := bytes.TrimSpace(scanner.Bytes())
@@ -80,6 +81,7 @@ func load(r io.Reader, logger Logger) (stree.Stree, int, error) {
 		}
 		r, err := parseCIDR(l)
 		if err != nil {
+			hasError = true
 			if logger != nil {
 				logger("cannot parse blocklist line (%q): %s", string(l), err.Error())
 			}
@@ -88,8 +90,16 @@ func load(r io.Reader, logger Logger) (stree.Stree, int, error) {
 		tree.AddRange(stree.ValueType(r.first), stree.ValueType(r.last))
 		n++
 	}
+	if err := scanner.Err(); err != nil {
+		return nil, 0, err
+	}
+	if n == 0 && hasError {
+		// Probably we couln't decode the stream correctly.
+		// At least one line must be correct before we consider the load operation as successful.
+		return nil, 0, errors.New("cannot load blocklist")
+	}
 	tree.Build()
-	return tree, n, scanner.Err()
+	return &tree, n, nil
 }
 
 type ipRange struct {
