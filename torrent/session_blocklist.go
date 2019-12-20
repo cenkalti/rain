@@ -44,9 +44,13 @@ func (s *Session) startBlocklistReloader() error {
 		s.log.Infof("Loading blocklist from session db...")
 		err = s.loadBlocklistFromDB()
 		if err != nil {
-			return err
+			s.log.Errorln("Couldn't load blocklist from sesson db:", err)
+			s.log.Infof("Loading blocklist from remote URL...")
+			s.retryReloadBlocklist()
+			nextReload = s.config.BlocklistUpdateInterval
+		} else {
+			nextReload = deadline.Sub(now)
 		}
-		nextReload = deadline.Sub(now)
 	}
 	go s.blocklistReloader(nextReload)
 	return nil
@@ -123,6 +127,10 @@ func (s *Session) reloadBlocklist() error {
 		return err
 	}
 	defer resp.Body.Close()
+
+	s.log.Infoln("Blocklist response status code:", resp.StatusCode)
+	s.log.Infoln("Blocklist response content length:", resp.ContentLength)
+	s.log.Infoln("Blocklist response content type:", resp.Header.Get("content-type"))
 
 	if resp.StatusCode != 200 {
 		return errors.New("invalid blocklist status code")

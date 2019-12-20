@@ -96,7 +96,7 @@ func load(r io.Reader, logger Logger) (*stree.Stree, int, error) {
 	if n == 0 && hasError {
 		// Probably we couln't decode the stream correctly.
 		// At least one line must be correct before we consider the load operation as successful.
-		return nil, 0, errors.New("cannot load blocklist")
+		return nil, 0, errors.New("no valid rules")
 	}
 	tree.Build()
 	return &tree, n, nil
