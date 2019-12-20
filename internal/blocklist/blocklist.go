@@ -83,7 +83,7 @@ func load(r io.Reader, logger Logger) (*stree.Stree, int, error) {
 		if err != nil {
 			hasError = true
 			if logger != nil {
-				logger("cannot parse blocklist line (%q): %s", string(l), err.Error())
+				logger("cannot parse blocklist line (%q): %q", string(l), err.Error())
 			}
 			continue
 		}
