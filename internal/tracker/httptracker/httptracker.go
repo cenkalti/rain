@@ -94,6 +94,7 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 		if err != nil {
 			return 0, nil, err
 		}
+		t.log.Debugf("tracker responded %d with %d bytes body for %q", resp.StatusCode, resp.ContentLength, u.String())
 		defer resp.Body.Close()
 		if resp.ContentLength > t.maxResponseLength {
 			return 0, nil, fmt.Errorf("tracker respsonse too large: %d", resp.ContentLength)
