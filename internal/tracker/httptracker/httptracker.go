@@ -111,6 +111,7 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 	if err != nil {
 		return nil, err
 	}
+	t.log.Debugf("read %d bytes from body for %q", len(body), u.String())
 
 	var response announceResponse
 	err = bencode.DecodeBytes(body, &response)
