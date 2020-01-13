@@ -8,7 +8,6 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"math/rand"
 	"net"
 	"net/url"
 	"time"
@@ -53,10 +52,10 @@ func (t *UDPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest) 
 		Left:       req.Torrent.BytesLeft,
 		Uploaded:   req.Torrent.BytesUploaded,
 		Event:      req.Event,
-		Key:        rand.Uint32(),
 		NumWant:    int32(req.NumWant),
 		Port:       uint16(req.Torrent.Port),
 	}
+	binary.BigEndian.PutUint32(request.PeerID[16:20], request.Key)
 	request.SetAction(actionAnnounce)
 
 	request2 := &transferAnnounceRequest{
