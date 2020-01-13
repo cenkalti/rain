@@ -3,6 +3,7 @@ package httptracker
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -72,6 +73,7 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 	if t.trackerID != "" {
 		q.Set("trackerid", t.trackerID)
 	}
+	q.Set("key", hex.EncodeToString(req.Torrent.PeerID[16:20]))
 
 	u.RawQuery = q.Encode()
 	t.log.Debugf("making request to: %q", u.String())
