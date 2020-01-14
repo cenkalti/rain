@@ -96,7 +96,7 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 		if err != nil {
 			return 0, nil, err
 		}
-		t.log.Debugf("tracker responded %d with %d bytes body for %q", resp.StatusCode, resp.ContentLength, u.String())
+		t.log.Debugf("tracker responded %d with %d bytes body", resp.StatusCode, resp.ContentLength)
 		defer resp.Body.Close()
 		if resp.ContentLength > t.maxResponseLength {
 			return 0, nil, fmt.Errorf("tracker respsonse too large: %d", resp.ContentLength)
@@ -113,7 +113,7 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 	if err != nil {
 		return nil, err
 	}
-	t.log.Debugf("read %d bytes from body for %q", len(body), u.String())
+	t.log.Debugf("read %d bytes from body", len(body))
 
 	var response announceResponse
 	err = bencode.DecodeBytes(body, &response)
@@ -156,6 +156,7 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 	if err != nil {
 		return nil, err
 	}
+	t.log.Debugf("got %d peers", len(peers))
 
 	// Filter external IP
 	if len(response.ExternalIP) != 0 {
