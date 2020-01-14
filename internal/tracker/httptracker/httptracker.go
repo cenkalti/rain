@@ -159,12 +159,14 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 
 	// Filter external IP
 	if len(response.ExternalIP) != 0 {
+		var filtered int
 		for i, p := range peers {
-			if bytes.Equal(p.IP[:], response.ExternalIP) {
-				peers[i], peers = peers[len(peers)-1], peers[:len(peers)-1]
-				break
+			if !bytes.Equal(p.IP[:], response.ExternalIP) {
+				peers[i] = p
+				filtered++
 			}
 		}
+		peers = peers[:filtered]
 	}
 
 	return &tracker.AnnounceResponse{
