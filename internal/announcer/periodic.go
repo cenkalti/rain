@@ -178,6 +178,12 @@ func (a *PeriodicalAnnouncer) Run() {
 			a.backoff.Reset()
 			interval := a.getNextInterval()
 			resetTimer(interval)
+			go func() {
+				select {
+				case a.newPeers <- resp.Peers:
+				case <-a.closeC:
+				}
+			}()
 		case err := <-a.errC:
 			a.status = NotWorking
 			// Give more friendly error to the user
