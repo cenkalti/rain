@@ -348,7 +348,7 @@ func getHeader(columns []string) string {
 	return header
 }
 
-func getRow(columns []string, t rpctypes.Torrent) string {
+func getRow(columns []string, t rpctypes.Torrent, index int) string {
 	row := ""
 	for i, column := range columns {
 		if i != 0 {
@@ -357,7 +357,7 @@ func getRow(columns []string, t rpctypes.Torrent) string {
 
 		switch column {
 		case "#":
-			row += fmt.Sprintf("%3d", i+1)
+			row += fmt.Sprintf("%3d", index+1)
 		case "ID":
 			row += t.ID
 		case "Name":
@@ -412,7 +412,7 @@ func (c *Console) drawTorrents(g *gocui.Gui) error {
 		}
 		selectedIDrow := -1
 		for i, t := range c.torrents {
-			fmt.Fprint(v, getRow(c.columns, t))
+			fmt.Fprint(v, getRow(c.columns, t, i))
 
 			if t.ID == c.selectedID {
 				selectedIDrow = i
