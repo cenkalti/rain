@@ -351,7 +351,7 @@ func (c *Console) drawTorrents(g *gocui.Gui) error {
 			case "ID":
 				header += fmt.Sprintf("%-22s", column)
 			case "Name":
-				header += fmt.Sprintf("%s", column)
+				header += column
 			case "InfoHash":
 				header += fmt.Sprintf("%-40s", column)
 			case "Port":
@@ -393,18 +393,18 @@ func (c *Console) drawTorrents(g *gocui.Gui) error {
 				case "#":
 					row += fmt.Sprintf("%3d", i+1)
 				case "ID":
-					row += fmt.Sprintf("%s", t.ID)
+					row += t.ID
 				case "Name":
-					row += fmt.Sprintf("%s", t.Name)
+					row += t.Name
 				case "InfoHash":
-					row += fmt.Sprintf("%s", t.InfoHash)
+					row += t.InfoHash
 				case "Port":
 					row += fmt.Sprintf("%d", t.Port)
 				default:
 					panic(fmt.Sprintf("unsupported column %s", column))
 				}
 			}
-			fmt.Fprint(v, row + "\n")
+			fmt.Fprint(v, row+"\n")
 
 			if t.ID == c.selectedID {
 				selectedIDrow = i
