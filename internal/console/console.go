@@ -35,6 +35,7 @@ const (
 // Console is for drawing a text user interface for a remote Session.
 type Console struct {
 	client *rainrpc.Client
+	columns []string
 
 	// protects global state in client
 	m sync.Mutex
@@ -80,9 +81,10 @@ type Console struct {
 }
 
 // New returns a new Console object that uses a RPC client to get information from a torrent.Session.
-func New(clt *rainrpc.Client) *Console {
+func New(clt *rainrpc.Client, columns []string) *Console {
 	return &Console{
 		client:          clt,
+		columns:         columns,
 		updateTorrentsC: make(chan struct{}, 1),
 		updateDetailsC:  make(chan struct{}, 1),
 	}
@@ -336,7 +338,29 @@ func (c *Console) drawTorrents(g *gocui.Gui) error {
 			return err
 		}
 		v.Frame = false
-		fmt.Fprintf(v, "%3s %-22s %s", "#", "ID", "Name")
+
+		header := ""
+		for i, column := range c.columns {
+			if i != 0 {
+				header += " "
+			}
+
+			switch column {
+			case "#":
+				header += fmt.Sprintf("%3s", column)
+			case "ID":
+				header += fmt.Sprintf("%-22s", column)
+			case "Name":
+				header += fmt.Sprintf("%s", column)
+			case "InfoHash":
+				header += fmt.Sprintf("%-40s", column)
+			case "Port":
+				header += fmt.Sprintf("%-5s", column)
+			default:
+				panic(fmt.Sprintf("unsupported column %s", column))
+			}
+		}
+		fmt.Fprint(v, header)
 	}
 	if split <= 1 {
 		return nil
@@ -359,7 +383,29 @@ func (c *Console) drawTorrents(g *gocui.Gui) error {
 		}
 		selectedIDrow := -1
 		for i, t := range c.torrents {
-			fmt.Fprintf(v, "%3d %s %s\n", i+1, t.ID, t.Name)
+			row := ""
+			for j, column := range c.columns {
+				if j != 0 {
+					row += " "
+				}
+
+				switch column {
+				case "#":
+					row += fmt.Sprintf("%3d", i+1)
+				case "ID":
+					row += fmt.Sprintf("%s", t.ID)
+				case "Name":
+					row += fmt.Sprintf("%s", t.Name)
+				case "InfoHash":
+					row += fmt.Sprintf("%s", t.InfoHash)
+				case "Port":
+					row += fmt.Sprintf("%d", t.Port)
+				default:
+					panic(fmt.Sprintf("unsupported column %s", column))
+				}
+			}
+			fmt.Fprint(v, row + "\n")
+
 			if t.ID == c.selectedID {
 				selectedIDrow = i
 			}

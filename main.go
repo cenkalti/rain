@@ -361,6 +361,13 @@ func main() {
 					Usage:    "show client console",
 					Category: "Other",
 					Action:   handleConsole,
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:     "columns",
+							Value:    "# ID Name",
+							Required: false,
+						},
+					},
 				},
 			},
 		},
@@ -828,7 +835,9 @@ func handleMove(c *cli.Context) error {
 }
 
 func handleConsole(c *cli.Context) error {
-	con := console.New(clt)
+	columns := strings.Split(c.String("columns"), " ")
+
+	con := console.New(clt, columns)
 	return con.Run()
 }
 
