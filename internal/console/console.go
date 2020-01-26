@@ -34,7 +34,7 @@ const (
 
 // Console is for drawing a text user interface for a remote Session.
 type Console struct {
-	client *rainrpc.Client
+	client  *rainrpc.Client
 	columns []string
 
 	// protects global state in client
