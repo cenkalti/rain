@@ -835,9 +835,9 @@ func handleMove(c *cli.Context) error {
 }
 
 func handleConsole(c *cli.Context) error {
-	con := console.New(clt)
 	columns := strings.Split(c.String("columns"), " ")
-	con.SetColumns(columns)
+
+	con := console.New(clt, columns)
 	return con.Run()
 }
 

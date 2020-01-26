@@ -81,9 +81,10 @@ type Console struct {
 }
 
 // New returns a new Console object that uses a RPC client to get information from a torrent.Session.
-func New(clt *rainrpc.Client) *Console {
+func New(clt *rainrpc.Client, columns []string) *Console {
 	return &Console{
 		client:          clt,
+		columns:         columns,
 		updateTorrentsC: make(chan struct{}, 1),
 		updateDetailsC:  make(chan struct{}, 1),
 	}
@@ -1027,10 +1028,6 @@ func flags(p rpctypes.Peer) string {
 		sb.WriteString(" ")
 	}
 	return sb.String()
-}
-
-func (c *Console) SetColumns(columns []string) {
-	c.columns = columns
 }
 
 // FormatStats returns the human readable representation of torrent stats object.
