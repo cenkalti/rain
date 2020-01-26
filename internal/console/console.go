@@ -323,6 +323,56 @@ func (c *Console) drawSessionStats(g *gocui.Gui) error {
 	return nil
 }
 
+func getHeader(columns []string) string {
+	header := ""
+	for i, column := range columns {
+		if i != 0 {
+			header += " "
+		}
+
+		switch column {
+		case "#":
+			header += fmt.Sprintf("%3s", column)
+		case "ID":
+			header += fmt.Sprintf("%-22s", column)
+		case "Name":
+			header += column
+		case "InfoHash":
+			header += fmt.Sprintf("%-40s", column)
+		case "Port":
+			header += fmt.Sprintf("%-5s", column)
+		default:
+			panic(fmt.Sprintf("unsupported column %s", column))
+		}
+	}
+	return header
+}
+
+func getRow(columns []string, t rpctypes.Torrent) string {
+	row := ""
+	for i, column := range columns {
+		if i != 0 {
+			row += " "
+		}
+
+		switch column {
+		case "#":
+			row += fmt.Sprintf("%3d", i+1)
+		case "ID":
+			row += t.ID
+		case "Name":
+			row += t.Name
+		case "InfoHash":
+			row += t.InfoHash
+		case "Port":
+			row += fmt.Sprintf("%d", t.Port)
+		default:
+			panic(fmt.Sprintf("unsupported column %s", column))
+		}
+	}
+	return row + "\n"
+}
+
 func (c *Console) drawTorrents(g *gocui.Gui) error {
 	c.m.Lock()
 	defer c.m.Unlock()
@@ -339,28 +389,7 @@ func (c *Console) drawTorrents(g *gocui.Gui) error {
 		}
 		v.Frame = false
 
-		header := ""
-		for i, column := range c.columns {
-			if i != 0 {
-				header += " "
-			}
-
-			switch column {
-			case "#":
-				header += fmt.Sprintf("%3s", column)
-			case "ID":
-				header += fmt.Sprintf("%-22s", column)
-			case "Name":
-				header += column
-			case "InfoHash":
-				header += fmt.Sprintf("%-40s", column)
-			case "Port":
-				header += fmt.Sprintf("%-5s", column)
-			default:
-				panic(fmt.Sprintf("unsupported column %s", column))
-			}
-		}
-		fmt.Fprint(v, header)
+		fmt.Fprint(v, getHeader(c.columns))
 	}
 	if split <= 1 {
 		return nil
@@ -383,28 +412,7 @@ func (c *Console) drawTorrents(g *gocui.Gui) error {
 		}
 		selectedIDrow := -1
 		for i, t := range c.torrents {
-			row := ""
-			for j, column := range c.columns {
-				if j != 0 {
-					row += " "
-				}
-
-				switch column {
-				case "#":
-					row += fmt.Sprintf("%3d", i+1)
-				case "ID":
-					row += t.ID
-				case "Name":
-					row += t.Name
-				case "InfoHash":
-					row += t.InfoHash
-				case "Port":
-					row += fmt.Sprintf("%d", t.Port)
-				default:
-					panic(fmt.Sprintf("unsupported column %s", column))
-				}
-			}
-			fmt.Fprint(v, row+"\n")
+			fmt.Fprint(v, getRow(c.columns, t))
 
 			if t.ID == c.selectedID {
 				selectedIDrow = i
