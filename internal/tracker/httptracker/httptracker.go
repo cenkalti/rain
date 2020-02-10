@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/cenkalti/rain/internal/logger"
@@ -55,37 +56,47 @@ func (t *HTTPTracker) URL() string {
 
 // Announce the torrent by doing a GET request to the tracker.
 func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest) (*tracker.AnnounceResponse, error) {
-	u := *t.url
+	// Some private trackers require that first two parameters be info_hash and peer_id.
+	// This is the reason we don't use url.Values to encode query params.
+	var sb strings.Builder
+	sb.WriteString(t.rawURL)
+	if strings.ContainsRune(t.rawURL, '?') {
+		sb.WriteString("&info_hash=")
+	} else {
+		sb.WriteString("?info_hash=")
+	}
+	sb.WriteString(url.QueryEscape(string(req.Torrent.InfoHash[:])))
+	sb.WriteString("&peer_id=")
+	sb.WriteString(url.QueryEscape(string(req.Torrent.PeerID[:])))
+	sb.WriteString("&port=")
+	sb.WriteString(strconv.Itoa(req.Torrent.Port))
+	sb.WriteString("&uploaded=")
+	sb.WriteString(strconv.FormatInt(req.Torrent.BytesUploaded, 10))
+	sb.WriteString("&downloaded=")
+	sb.WriteString(strconv.FormatInt(req.Torrent.BytesDownloaded, 10))
+	sb.WriteString("&left=")
+	sb.WriteString(strconv.FormatInt(req.Torrent.BytesLeft, 10))
+	sb.WriteString("&compact=1")
+	sb.WriteString("&no_peer_id=1")
+	sb.WriteString("&numwant=")
+	sb.WriteString(strconv.Itoa(req.NumWant))
 
-	q := u.Query()
-	q.Set("info_hash", string(req.Torrent.InfoHash[:]))
-	q.Set("peer_id", string(req.Torrent.PeerID[:]))
-	q.Set("port", strconv.FormatUint(uint64(req.Torrent.Port), 10))
-	q.Set("uploaded", strconv.FormatInt(req.Torrent.BytesUploaded, 10))
-	q.Set("downloaded", strconv.FormatInt(req.Torrent.BytesDownloaded, 10))
-	q.Set("left", strconv.FormatInt(req.Torrent.BytesLeft, 10))
-	q.Set("compact", "1")
-	q.Set("no_peer_id", "1")
-	q.Set("numwant", strconv.Itoa(req.NumWant))
 	if req.Event != tracker.EventNone {
-		q.Set("event", req.Event.String())
+		sb.WriteString("&event=")
+		sb.WriteString(req.Event.String())
 	}
 	if t.trackerID != "" {
-		q.Set("trackerid", t.trackerID)
+		sb.WriteString("&trackerid=")
+		sb.WriteString(t.trackerID)
 	}
-	q.Set("key", hex.EncodeToString(req.Torrent.PeerID[16:20]))
+	sb.WriteString("&key=")
+	sb.WriteString(hex.EncodeToString(req.Torrent.PeerID[16:20]))
 
-	u.RawQuery = q.Encode()
-	t.log.Debugf("making request to: %q", u.String())
+	t.log.Debugf("making request to: %q", sb.String())
 
-	httpReq := &http.Request{
-		Method:     http.MethodGet,
-		URL:        &u,
-		Proto:      "HTTP/1.1",
-		ProtoMajor: 1,
-		ProtoMinor: 1,
-		Header:     make(http.Header),
-		Host:       u.Host,
+	httpReq, err := http.NewRequest(http.MethodGet, sb.String(), nil)
+	if err != nil {
+		return nil, err
 	}
 	httpReq = httpReq.WithContext(ctx)
 
