@@ -22,7 +22,6 @@ import (
 // HTTPTracker is a torrent tracker that talks HTTP.
 type HTTPTracker struct {
 	rawURL            string
-	url               *url.URL
 	log               logger.Logger
 	http              *http.Client
 	transport         *http.Transport
@@ -37,8 +36,7 @@ var _ tracker.Tracker = (*HTTPTracker)(nil)
 func New(rawURL string, u *url.URL, timeout time.Duration, t *http.Transport, userAgent string, maxResponseLength int64) *HTTPTracker {
 	return &HTTPTracker{
 		rawURL:            rawURL,
-		url:               u,
-		log:               logger.New("tracker " + u.String()),
+		log:               logger.New("tracker " + u.Host),
 		transport:         t,
 		userAgent:         userAgent,
 		maxResponseLength: maxResponseLength,
