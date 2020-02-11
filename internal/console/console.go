@@ -341,18 +341,32 @@ func getHeader(columns []string) string {
 			header += fmt.Sprintf("%-40s", column)
 		case "Port":
 			header += fmt.Sprintf("%-5s", column)
+		case "Status":
+			header += fmt.Sprintf("%-11s", column)
+		case "Speed":
+			header += fmt.Sprintf("%-11s", column)
+		case "ETA":
+			header += fmt.Sprintf("%-8s", column)
+		case "Size":
+			header += fmt.Sprintf("%-9s", column)
 		default:
-			panic(fmt.Sprintf("unsupported column %s", column))
+			// Add column without formatting
+			header += column
 		}
 	}
 	return header
 }
 
-func getRow(columns []string, t rpctypes.Torrent, index int) string {
+func getRow(c *Console, t rpctypes.Torrent, index int) string {
 	row := ""
-	for i, column := range columns {
+	for i, column := range c.columns {
 		if i != 0 {
 			row += " "
+		}
+
+		stats, err := c.client.GetTorrentStats(t.ID)
+		if err != nil {
+			panic(err)
 		}
 
 		switch column {
@@ -366,6 +380,22 @@ func getRow(columns []string, t rpctypes.Torrent, index int) string {
 			row += t.InfoHash
 		case "Port":
 			row += fmt.Sprintf("%d", t.Port)
+		case "Status":
+			row += fmt.Sprintf("%-11s", stats.Status)
+		case "Speed":
+			if stats.Status == "Seeding" {
+				row += fmt.Sprintf("%11s", getUploadSpeed(stats))
+			} else {
+				row += fmt.Sprintf("%11s", getDownloadSpeed(stats))
+			}
+		case "ETA":
+			row += fmt.Sprintf("%-8s", getETA(stats))
+		case "Progress":
+			row += fmt.Sprintf("%8d", getProgress(stats))
+		case "Ratio":
+			row += fmt.Sprintf("%5.2f", getRatio(stats))
+		case "Size":
+			row += fmt.Sprintf("%9s", getSize(stats))
 		default:
 			panic(fmt.Sprintf("unsupported column %s", column))
 		}
@@ -412,7 +442,7 @@ func (c *Console) drawTorrents(g *gocui.Gui) error {
 		}
 		selectedIDrow := -1
 		for i, t := range c.torrents {
-			fmt.Fprint(v, getRow(c.columns, t, i))
+			fmt.Fprint(v, getRow(c, t, i))
 
 			if t.ID == c.selectedID {
 				selectedIDrow = i
@@ -1030,15 +1060,7 @@ func flags(p rpctypes.Peer) string {
 	return sb.String()
 }
 
-// FormatStats returns the human readable representation of torrent stats object.
-func FormatStats(stats *rpctypes.Stats, v io.Writer) {
-	fmt.Fprintf(v, "Name: %s\n", stats.Name)
-	fmt.Fprintf(v, "Private: %v\n", stats.Private)
-	status := stats.Status
-	if status == "Stopped" && stats.Error != "" {
-		status = status + ": " + stats.Error
-	}
-	fmt.Fprintf(v, "Status: %s\n", status)
+func getProgress(stats *rpctypes.Stats) int {
 	var progress int
 	if stats.Pieces.Total > 0 {
 		switch stats.Status {
@@ -1050,12 +1072,18 @@ func FormatStats(stats *rpctypes.Stats, v io.Writer) {
 			progress = int(stats.Pieces.Have * 100 / stats.Pieces.Total)
 		}
 	}
-	fmt.Fprintf(v, "Progress: %d\n", progress)
+	return progress
+}
+
+func getRatio(stats *rpctypes.Stats) float64 {
 	var ratio float64
 	if stats.Bytes.Downloaded > 0 {
 		ratio = float64(stats.Bytes.Uploaded) / float64(stats.Bytes.Downloaded)
 	}
-	fmt.Fprintf(v, "Ratio: %.2f\n", ratio)
+	return ratio
+}
+
+func getSize(stats *rpctypes.Stats) string {
 	var size string
 	switch {
 	case stats.Bytes.Total < 1<<10:
@@ -1065,15 +1093,41 @@ func FormatStats(stats *rpctypes.Stats, v io.Writer) {
 	default:
 		size = fmt.Sprintf("%d MiB", stats.Bytes.Total/(1<<20))
 	}
-	fmt.Fprintf(v, "Size: %s\n", size)
-	fmt.Fprintf(v, "Peers: %d in %d out\n", stats.Peers.Incoming, stats.Peers.Outgoing)
-	fmt.Fprintf(v, "Download speed: %5d KiB/s\n", stats.Speed.Download/1024)
-	fmt.Fprintf(v, "Upload speed:   %5d KiB/s\n", stats.Speed.Upload/1024)
+	return size
+}
+
+func getDownloadSpeed(stats *rpctypes.Stats) string {
+	return fmt.Sprintf("%d KiB/s", stats.Speed.Download/1024)
+}
+
+func getUploadSpeed(stats *rpctypes.Stats) string {
+	return fmt.Sprintf("%d KiB/s", stats.Speed.Upload/1024)
+}
+
+func getETA(stats *rpctypes.Stats) string {
 	var eta string
 	if stats.ETA != -1 {
 		eta = (time.Duration(stats.ETA) * time.Second).String()
 	}
-	fmt.Fprintf(v, "ETA: %s\n", eta)
+	return eta
+}
+
+// FormatStats returns the human readable representation of torrent stats object.
+func FormatStats(stats *rpctypes.Stats, v io.Writer) {
+	fmt.Fprintf(v, "Name: %s\n", stats.Name)
+	fmt.Fprintf(v, "Private: %v\n", stats.Private)
+	status := stats.Status
+	if status == "Stopped" && stats.Error != "" {
+		status = status + ": " + stats.Error
+	}
+	fmt.Fprintf(v, "Status: %s\n", status)
+	fmt.Fprintf(v, "Progress: %d\n", getProgress(stats))
+	fmt.Fprintf(v, "Ratio: %.2f\n", getRatio(stats))
+	fmt.Fprintf(v, "Size: %s\n", getSize(stats))
+	fmt.Fprintf(v, "Peers: %d in %d out\n", stats.Peers.Incoming, stats.Peers.Outgoing)
+	fmt.Fprintf(v, "Download speed: %11s\n", getDownloadSpeed(stats))
+	fmt.Fprintf(v, "Upload speed:   %11s\n", getUploadSpeed(stats))
+	fmt.Fprintf(v, "ETA: %s\n", getETA(stats))
 }
 
 // FormatSessionStats returns the human readable representation of session stats object.
