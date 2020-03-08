@@ -440,16 +440,25 @@ func (c *Console) drawTorrents(g *gocui.Gui) error {
 			fmt.Fprintln(v, "error:", c.errTorrents)
 			return nil
 		}
+
+		_, cy := v.Cursor()
+		_, oy := v.Origin()
+
 		selectedIDrow := -1
+
 		for i, t := range c.torrents {
-			fmt.Fprint(v, getRow(c, t, i))
+			// Get rows only if they are inside the view
+			if i >= oy && i <= oy+halfY-2 {
+				fmt.Fprint(v, getRow(c, t, i))
+			} else {
+				fmt.Fprintln(v, " ")
+			}
 
 			if t.ID == c.selectedID {
 				selectedIDrow = i
 			}
 		}
-		_, cy := v.Cursor()
-		_, oy := v.Origin()
+
 		selectedRow := cy + oy
 		if selectedRow < len(c.torrents) {
 			if c.torrents[selectedRow].ID != c.selectedID && selectedIDrow != -1 {
