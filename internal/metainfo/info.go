@@ -170,14 +170,14 @@ func parsePrivateField(s bencode.RawMessage) bool {
 	var intVal int64
 	err := bencode.DecodeBytes(s, &intVal)
 	if err == nil {
-		return intVal == 1
+		return intVal != 0
 	}
 	var stringVal string
 	err = bencode.DecodeBytes(s, &stringVal)
-	if err == nil {
-		return stringVal == "1"
+	if err != nil {
+		return true
 	}
-	return false
+	return !(stringVal == "" || stringVal == "0")
 }
 
 // NewInfoBytes creates a new Info dictionary by reading and hashing the files on the disk.
