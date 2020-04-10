@@ -335,14 +335,3 @@ func (p *PiecePicker) pickStalled(pe *peer.Peer) *myPiece {
 	}
 	return nil
 }
-
-// Range is a piece range.
-// Begin is inclusive, End is exclusive.
-type Range struct {
-	Begin, End uint32
-}
-
-// Len returns the number of pieces in the range.
-func (r Range) Len() uint32 {
-	return r.End - r.Begin
-}
