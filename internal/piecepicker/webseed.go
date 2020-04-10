@@ -142,7 +142,8 @@ func (p *PiecePicker) pickLastPieceOfSmallestGap(pe *peer.Peer) *myPiece {
 	}
 	sort.Slice(gaps, func(i, j int) bool { return gaps[i].Len() < gaps[j].Len() })
 	for _, gap := range gaps {
-		for i := gap.End - 1; i >= gap.Begin; i-- {
+		// Convert index to int because it goes below zero in loop.
+		for i := int(gap.End - 1); i >= int(gap.Begin); i-- {
 			mp := &p.pieces[i]
 			if !mp.Having.Has(pe) {
 				continue
