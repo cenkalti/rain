@@ -4,6 +4,7 @@ package boltdbresumer
 import (
 	"encoding/json"
 	"fmt"
+	"runtime/debug"
 	"strconv"
 	"time"
 
@@ -138,6 +139,12 @@ func (r *Resumer) WriteStarted(torrentID string, value bool) error {
 }
 
 func (r *Resumer) Read(torrentID string) (spec *Spec, err error) {
+	defer debug.SetPanicOnFault(debug.SetPanicOnFault(true))
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("cannot read torrent %q from db: %s", torrentID, r)
+		}
+	}()
 	err = r.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(r.bucket).Bucket([]byte(torrentID))
 		if b == nil {
@@ -270,5 +277,5 @@ func (r *Resumer) Read(torrentID string) (spec *Spec, err error) {
 
 		return nil
 	})
-	return spec, err
+	return
 }
