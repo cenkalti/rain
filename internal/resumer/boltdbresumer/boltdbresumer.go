@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/boltdb/bolt"
+	"go.etcd.io/bbolt"
 )
 
 // Keys for the persisten storage.
@@ -47,13 +47,13 @@ var Keys = struct {
 
 // Resumer contains methods for saving/loading resume information of a torrent to a BoltDB database.
 type Resumer struct {
-	db     *bolt.DB
+	db     *bbolt.DB
 	bucket []byte
 }
 
 // New returns a new Resumer.
-func New(db *bolt.DB, bucket []byte) (*Resumer, error) {
-	err := db.Update(func(tx *bolt.Tx) error {
+func New(db *bbolt.DB, bucket []byte) (*Resumer, error) {
+	err := db.Update(func(tx *bbolt.Tx) error {
 		_, err2 := tx.CreateBucketIfNotExists(bucket)
 		return err2
 	})
@@ -81,7 +81,7 @@ func (r *Resumer) Write(torrentID string, spec *Spec) error {
 	if err != nil {
 		return err
 	}
-	return r.db.Update(func(tx *bolt.Tx) error {
+	return r.db.Update(func(tx *bbolt.Tx) error {
 		b, err := tx.Bucket(r.bucket).CreateBucketIfNotExists([]byte(torrentID))
 		if err != nil {
 			return err
@@ -106,7 +106,7 @@ func (r *Resumer) Write(torrentID string, spec *Spec) error {
 
 // WriteInfo writes only the info dict of a torrent.
 func (r *Resumer) WriteInfo(torrentID string, value []byte) error {
-	return r.db.Update(func(tx *bolt.Tx) error {
+	return r.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(r.bucket).Bucket([]byte(torrentID))
 		if b == nil {
 			return nil
@@ -117,7 +117,7 @@ func (r *Resumer) WriteInfo(torrentID string, value []byte) error {
 
 // WriteBitfield writes only bitfield of a torrent.
 func (r *Resumer) WriteBitfield(torrentID string, value []byte) error {
-	return r.db.Update(func(tx *bolt.Tx) error {
+	return r.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(r.bucket).Bucket([]byte(torrentID))
 		if b == nil {
 			return nil
@@ -128,7 +128,7 @@ func (r *Resumer) WriteBitfield(torrentID string, value []byte) error {
 
 // WriteStarted writes the start status of a torrent.
 func (r *Resumer) WriteStarted(torrentID string, value bool) error {
-	return r.db.Update(func(tx *bolt.Tx) error {
+	return r.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(r.bucket).Bucket([]byte(torrentID))
 		if b == nil {
 			return nil
@@ -137,9 +137,8 @@ func (r *Resumer) WriteStarted(torrentID string, value bool) error {
 	})
 }
 
-func (r *Resumer) Read(torrentID string) (*Spec, error) {
-	var spec *Spec
-	err := r.db.Update(func(tx *bolt.Tx) error {
+func (r *Resumer) Read(torrentID string) (spec *Spec, err error) {
+	err = r.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(r.bucket).Bucket([]byte(torrentID))
 		if b == nil {
 			return fmt.Errorf("bucket not found: %q", torrentID)

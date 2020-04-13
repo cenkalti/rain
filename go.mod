@@ -39,8 +39,9 @@ require (
 	github.com/urfave/cli v1.22.1
 	github.com/youtube/vitess v2.2.0-rc.1+incompatible // indirect
 	github.com/zeebo/bencode v1.0.0
+	go.etcd.io/bbolt v1.3.4
 	golang.org/x/crypto v0.0.0-20190923035154-9ee001bba392 // indirect
-	golang.org/x/sys v0.0.0-20190924154521-2837fb4f24fe
+	golang.org/x/sys v0.0.0-20200202164722-d101bd2416d5
 	gopkg.in/yaml.v2 v2.2.2
 )
 

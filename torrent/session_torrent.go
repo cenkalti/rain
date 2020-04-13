@@ -12,9 +12,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/boltdb/bolt"
 	"github.com/cenkalti/rain/internal/resumer/boltdbresumer"
 	"github.com/cenkalti/rain/internal/tracker"
+	"go.etcd.io/bbolt"
 )
 
 // Torrent is created from a torrent file or a magnet link.
@@ -121,7 +121,7 @@ func (t *Torrent) AddTracker(uri string) error {
 	if err != nil {
 		return err
 	}
-	err = t.torrent.session.db.Update(func(tx *bolt.Tx) error {
+	err = t.torrent.session.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(torrentsBucket).Bucket([]byte(t.torrent.id))
 		value := b.Get(boltdbresumer.Keys.Trackers)
 		var trackers [][]string
@@ -174,7 +174,7 @@ func (t *Torrent) Announce() {
 // After Verify called, the torrent is stopped, then verification starts and the torrent switches into Verifying state.
 // The torrent stays stopped after verification finishes.
 func (t *Torrent) Verify() error {
-	err := t.torrent.session.db.Update(func(tx *bolt.Tx) error {
+	err := t.torrent.session.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(torrentsBucket).Bucket([]byte(t.torrent.id))
 		return b.Delete([]byte("bitfield"))
 	})

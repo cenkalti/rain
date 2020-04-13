@@ -13,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/boltdb/bolt"
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/blocklist"
 	"github.com/cenkalti/rain/internal/logger"
@@ -27,6 +26,7 @@ import (
 	"github.com/juju/ratelimit"
 	"github.com/mitchellh/go-homedir"
 	"github.com/nictuku/dht"
+	"go.etcd.io/bbolt"
 )
 
 var (
@@ -40,7 +40,7 @@ var (
 // Session contains torrents, DHT node, caches and other data structures shared by multiple torrents.
 type Session struct {
 	config         Config
-	db             *bolt.DB
+	db             *bbolt.DB
 	resumer        *boltdbresumer.Resumer
 	log            logger.Logger
 	extensions     [8]byte
@@ -99,8 +99,8 @@ func NewSession(cfg Config) (*Session, error) {
 		return nil, err
 	}
 	l := logger.New("session")
-	db, err := bolt.Open(cfg.Database, 0640, &bolt.Options{Timeout: time.Second})
-	if err == bolt.ErrTimeout {
+	db, err := bbolt.Open(cfg.Database, 0640, &bbolt.Options{Timeout: time.Second})
+	if err == bbolt.ErrTimeout {
 		return nil, errors.New("resume database is locked by another process")
 	} else if err != nil {
 		return nil, err
@@ -111,7 +111,7 @@ func NewSession(cfg Config) (*Session, error) {
 		}
 	}()
 	var ids []string
-	err = db.Update(func(tx *bolt.Tx) error {
+	err = db.Update(func(tx *bbolt.Tx) error {
 		_, err2 := tx.CreateBucketIfNotExists(sessionBucket)
 		if err2 != nil {
 			return err2
@@ -346,7 +346,7 @@ func (s *Session) removeTorrentFromClient(id string) (*Torrent, error) {
 	t.torrent.log.Info("removing torrent")
 	delete(s.torrents, id)
 	delete(s.torrentsByInfoHash, dht.InfoHash(t.torrent.InfoHash()))
-	return t, s.db.Update(func(tx *bolt.Tx) error {
+	return t, s.db.Update(func(tx *bbolt.Tx) error {
 		return tx.Bucket(torrentsBucket).DeleteBucket([]byte(id))
 	})
 }
@@ -372,7 +372,7 @@ func (s *Session) stopAndRemoveData(t *Torrent) error {
 
 // StartAll starts all torrents in session.
 func (s *Session) StartAll() error {
-	err := s.db.Update(func(tx *bolt.Tx) error {
+	err := s.db.Update(func(tx *bbolt.Tx) error {
 		tb := tx.Bucket(torrentsBucket)
 		s.mTorrents.RLock()
 		for _, t := range s.torrents {
@@ -393,7 +393,7 @@ func (s *Session) StartAll() error {
 
 // StopAll stops all torrents in session.
 func (s *Session) StopAll() error {
-	err := s.db.Update(func(tx *bolt.Tx) error {
+	err := s.db.Update(func(tx *bbolt.Tx) error {
 		tb := tx.Bucket(torrentsBucket)
 		s.mTorrents.RLock()
 		for _, t := range s.torrents {

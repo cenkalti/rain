@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/boltdb/bolt"
 	"github.com/cenkalti/rain/internal/resumer/boltdbresumer"
+	"go.etcd.io/bbolt"
 )
 
 // SessionStats contains statistics about Session.
@@ -116,7 +116,7 @@ func (s *Session) updateStatsLoop() {
 func (s *Session) updateStats() {
 	s.mTorrents.RLock()
 	defer s.mTorrents.RUnlock()
-	err := s.db.Update(func(tx *bolt.Tx) error {
+	err := s.db.Update(func(tx *bbolt.Tx) error {
 		mb := tx.Bucket(torrentsBucket)
 		for _, t := range s.torrents {
 			b := mb.Bucket([]byte(t.torrent.id))

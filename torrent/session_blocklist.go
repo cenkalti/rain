@@ -11,8 +11,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/boltdb/bolt"
 	"github.com/cenkalti/backoff/v3"
+	"go.etcd.io/bbolt"
 )
 
 func (s *Session) startBlocklistReloader() error {
@@ -59,7 +59,7 @@ func (s *Session) startBlocklistReloader() error {
 func (s *Session) getBlocklistTimestamp() (time.Time, error) {
 	sum := sha1.Sum([]byte(s.config.BlocklistURL)) // nolint: gosec
 	var t time.Time
-	err := s.db.View(func(tx *bolt.Tx) error {
+	err := s.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(sessionBucket)
 		val := b.Get(blocklistURLHashKey)
 		if val == nil {
@@ -172,7 +172,7 @@ func (s *Session) reloadBlocklist() error {
 	s.blocklistTimestamp = now
 	s.mBlocklist.Unlock()
 
-	return s.db.Update(func(tx *bolt.Tx) error {
+	return s.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(sessionBucket)
 		err2 := b.Put(blocklistKey, buf)
 		if err2 != nil {
@@ -188,7 +188,7 @@ func (s *Session) reloadBlocklist() error {
 }
 
 func (s *Session) loadBlocklistFromDB() error {
-	return s.db.View(func(tx *bolt.Tx) error {
+	return s.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(sessionBucket)
 		val := b.Get(blocklistKey)
 		if len(val) == 0 {

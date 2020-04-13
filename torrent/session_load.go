@@ -4,12 +4,12 @@ import (
 	"errors"
 	"path/filepath"
 
-	"github.com/boltdb/bolt"
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/resumer"
 	"github.com/cenkalti/rain/internal/storage/filestorage"
 	"github.com/cenkalti/rain/internal/webseedsource"
+	"go.etcd.io/bbolt"
 )
 
 var errTooManyPieces = errors.New("too many pieces")
@@ -117,7 +117,7 @@ func (s *Session) loadExistingTorrent(id string) (tt *Torrent, hasStarted bool, 
 // CleanDatabase removes invalid records in the database.
 // Normally you don't need to call this.
 func (s *Session) CleanDatabase() error {
-	return s.db.Update(func(tx *bolt.Tx) error {
+	return s.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(torrentsBucket)
 		for _, id := range s.invalidTorrentIDs {
 			err := b.DeleteBucket([]byte(id))
