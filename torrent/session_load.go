@@ -31,8 +31,10 @@ func (s *Session) loadExistingTorrents(ids []string) {
 		}
 	}
 	s.log.Infof("loaded %d existing torrents", loaded)
-	for _, t := range started {
-		t.torrent.Start()
+	if s.config.ResumeOnStartup {
+		for _, t := range started {
+			t.torrent.Start()
+		}
 	}
 }
 

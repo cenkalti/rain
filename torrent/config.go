@@ -67,6 +67,8 @@ type Config struct {
 	SpeedLimitDownload int64
 	// Global upload speed limit in KB/s.
 	SpeedLimitUpload int64
+	// Start torrent automatically if it was running when previous session was closed.
+	ResumeOnStartup bool
 
 	// Enable RPC server
 	RPCEnabled bool
@@ -205,6 +207,7 @@ var DefaultConfig = Config{
 	MaxTorrentSize:                         10 << 20,
 	MaxPieces:                              64 << 10,
 	DNSResolveTimeout:                      5 * time.Second,
+	ResumeOnStartup:                        true,
 
 	// RPC Server
 	RPCEnabled:         true,
