@@ -5,6 +5,8 @@ import (
 	"encoding/base64"
 	"io"
 	"io/ioutil"
+	"net/http"
+	"time"
 
 	"github.com/cenkalti/rain/internal/rpctypes"
 	"github.com/powerman/rpc-codec/jsonrpc2"
@@ -12,16 +14,25 @@ import (
 
 // Client is a JSON-RPC 2.0 client for calling methods of a remote Session.
 type Client struct {
-	client *jsonrpc2.Client
-	addr   string
+	client     *jsonrpc2.Client
+	httpClient *http.Client
+	addr       string
 }
 
 // NewClient returns a new Client for remote address.
 func NewClient(addr string) *Client {
-	return &Client{
-		client: jsonrpc2.NewHTTPClient(addr),
-		addr:   addr,
+	hc := &http.Client{
+		Timeout: 10 * time.Second,
 	}
+	return &Client{
+		client:     jsonrpc2.NewCustomHTTPClient(addr, hc),
+		httpClient: hc,
+		addr:       addr,
+	}
+}
+
+func (c *Client) SetTimeout(d time.Duration) {
+	c.httpClient.Timeout = d
 }
 
 // Addr returns the address of remote Session.

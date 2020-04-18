@@ -123,6 +123,11 @@ func main() {
 					Usage: "URL of RPC server",
 					Value: "http://127.0.0.1:" + strconv.Itoa(torrent.DefaultConfig.RPCPort),
 				},
+				cli.DurationFlag{
+					Name:  "timeout",
+					Usage: "request timeout",
+					Value: 10 * time.Second,
+				},
 			},
 			Before: handleBeforeClient,
 			Subcommands: []cli.Command{
@@ -655,6 +660,7 @@ func handleDownload(c *cli.Context) error {
 
 func handleBeforeClient(c *cli.Context) error {
 	clt = rainrpc.NewClient(c.String("url"))
+	clt.SetTimeout(c.Duration("timeout"))
 	return nil
 }
 
