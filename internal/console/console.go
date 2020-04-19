@@ -464,11 +464,7 @@ func (c *Console) drawTorrents(g *gocui.Gui) error {
 			return nil
 		}
 
-		_, cy := v.Cursor()
-		_, oy := v.Origin()
-
 		selectedIDrow := -1
-
 		for i, t := range c.torrents {
 			fmt.Fprint(v, getRow(c.columns, t, i))
 
@@ -477,6 +473,8 @@ func (c *Console) drawTorrents(g *gocui.Gui) error {
 			}
 		}
 
+		_, cy := v.Cursor()
+		_, oy := v.Origin()
 		selectedRow := cy + oy
 		if selectedRow < len(c.torrents) {
 			if c.torrents[selectedRow].ID != c.selectedID && selectedIDrow != -1 {
@@ -648,6 +646,7 @@ func (c *Console) updateTorrents(g *gocui.Gui) {
 		torrents = append(torrents, Torrent{Torrent: t})
 	}
 
+	// Get torrent stats in parallel
 	inside := c.rowsInsideView(g)
 	var wg sync.WaitGroup
 	for _, i := range inside {
