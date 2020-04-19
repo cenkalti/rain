@@ -57,7 +57,7 @@ type Console struct {
 	tabAdjust int
 
 	// fields to hold responsed from rpc requests
-	torrents     []rpctypes.Torrent
+	torrents     []Torrent
 	stats        rpctypes.Stats
 	sessionStats rpctypes.SessionStats
 	trackers     []rpctypes.Tracker
@@ -78,6 +78,11 @@ type Console struct {
 	// state for updater goroutine for updating session-stats page
 	stopUpdatingSessionStatsC chan struct{}
 	updatingSessionStats      bool
+}
+
+type Torrent struct {
+	rpctypes.Torrent
+	Stats *rpctypes.Stats
 }
 
 // New returns a new Console object that uses a RPC client to get information from a torrent.Session.
@@ -357,18 +362,13 @@ func getHeader(columns []string) string {
 	return header
 }
 
-func getRow(c *Console, t rpctypes.Torrent, index int) string {
+func getRow(columns []string, t Torrent, index int) string {
 	row := ""
-	for i, column := range c.columns {
+	for i, column := range columns {
 		if i != 0 {
 			row += " "
 		}
-
-		stats, err := c.client.GetTorrentStats(t.ID)
-		if err != nil {
-			panic(err)
-		}
-
+		stats := t.Stats
 		switch column {
 		case "#":
 			row += fmt.Sprintf("%3d", index+1)
@@ -381,21 +381,44 @@ func getRow(c *Console, t rpctypes.Torrent, index int) string {
 		case "Port":
 			row += fmt.Sprintf("%d", t.Port)
 		case "Status":
-			row += fmt.Sprintf("%-11s", stats.Status)
-		case "Speed":
-			if stats.Status == "Seeding" {
-				row += fmt.Sprintf("%11s", getUploadSpeed(stats))
+			if stats == nil {
+				row += fmt.Sprintf("%-11s", "")
 			} else {
+				row += fmt.Sprintf("%-11s", stats.Status)
+			}
+		case "Speed":
+			switch {
+			case stats == nil:
+				row += fmt.Sprintf("%11s", "")
+			case stats.Status == "Seeding":
+				row += fmt.Sprintf("%11s", getUploadSpeed(stats))
+			default:
 				row += fmt.Sprintf("%11s", getDownloadSpeed(stats))
 			}
 		case "ETA":
-			row += fmt.Sprintf("%-8s", getETA(stats))
+			if stats == nil {
+				row += fmt.Sprintf("%-8s", "")
+			} else {
+				row += fmt.Sprintf("%-8s", getETA(stats))
+			}
 		case "Progress":
-			row += fmt.Sprintf("%8d", getProgress(stats))
+			if stats == nil {
+				row += fmt.Sprintf("%8s", "")
+			} else {
+				row += fmt.Sprintf("%8d", getProgress(stats))
+			}
 		case "Ratio":
-			row += fmt.Sprintf("%5.2f", getRatio(stats))
+			if stats == nil {
+				row += fmt.Sprintf("%5s", "")
+			} else {
+				row += fmt.Sprintf("%5.2f", getRatio(stats))
+			}
 		case "Size":
-			row += fmt.Sprintf("%9s", getSize(stats))
+			if stats == nil {
+				row += fmt.Sprintf("%9s", "")
+			} else {
+				row += fmt.Sprintf("%9s", getSize(stats))
+			}
 		default:
 			panic(fmt.Sprintf("unsupported column %s", column))
 		}
@@ -447,12 +470,7 @@ func (c *Console) drawTorrents(g *gocui.Gui) error {
 		selectedIDrow := -1
 
 		for i, t := range c.torrents {
-			// Get rows only if they are inside the view
-			if i >= oy && i <= oy+halfY-2 {
-				fmt.Fprint(v, getRow(c, t, i))
-			} else {
-				fmt.Fprintln(v, " ")
-			}
+			fmt.Fprint(v, getRow(c.columns, t, i))
 
 			if t.ID == c.selectedID {
 				selectedIDrow = i
@@ -615,15 +633,34 @@ func (c *Console) updateSessionStatsLoop(g *gocui.Gui, stop chan struct{}) {
 }
 
 func (c *Console) updateTorrents(g *gocui.Gui) {
-	torrents, err := c.client.ListTorrents()
+	rpcTorrents, err := c.client.ListTorrents()
 
-	sort.Slice(torrents, func(i, j int) bool {
-		a, b := torrents[i], torrents[j]
+	sort.Slice(rpcTorrents, func(i, j int) bool {
+		a, b := rpcTorrents[i], rpcTorrents[j]
 		if a.AddedAt.Equal(b.AddedAt.Time) {
 			return a.ID < b.ID
 		}
 		return a.AddedAt.Time.Before(b.AddedAt.Time)
 	})
+
+	torrents := make([]Torrent, 0, len(rpcTorrents))
+	for _, t := range rpcTorrents {
+		torrents = append(torrents, Torrent{Torrent: t})
+	}
+
+	inside := c.rowsInsideView(g)
+	var wg sync.WaitGroup
+	for _, i := range inside {
+		if i < len(torrents) {
+			t := &torrents[i]
+			wg.Add(1)
+			go func(t *Torrent) {
+				t.Stats, _ = c.client.GetTorrentStats(t.ID)
+				wg.Done()
+			}(t)
+		}
+	}
+	wg.Wait()
 
 	c.m.Lock()
 	c.torrents = torrents
@@ -636,6 +673,27 @@ func (c *Console) updateTorrents(g *gocui.Gui) {
 	c.m.Unlock()
 
 	g.Update(c.drawTorrents)
+}
+
+func (c *Console) rowsInsideView(g *gocui.Gui) []int {
+	c.m.Lock()
+	defer c.m.Unlock()
+	v, err := g.View("torrents")
+	if err != nil {
+		return nil
+	}
+	if c.errTorrents != nil {
+		return nil
+	}
+	_, maxY := g.Size()
+	halfY := maxY / 2
+	split := halfY + c.tabAdjust
+	_, oy := v.Origin()
+	var ret []int
+	for i := oy; i < oy+split-2; i++ {
+		ret = append(ret, i)
+	}
+	return ret
 }
 
 func (c *Console) updateDetails(g *gocui.Gui) {
