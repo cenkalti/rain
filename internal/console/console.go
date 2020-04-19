@@ -920,7 +920,7 @@ func (c *Console) verify(g *gocui.Gui, v *gocui.View) error {
 func (c *Console) tabAdjustDown(g *gocui.Gui, v *gocui.View) error {
 	_, maxY := g.Size()
 	halfY := maxY / 2
-	if c.tabAdjust < halfY {
+	if c.tabAdjust < halfY-1 {
 		c.tabAdjust++
 	}
 	return nil
