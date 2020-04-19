@@ -345,18 +345,21 @@ func getHeader(columns []string) string {
 		case "InfoHash":
 			header += fmt.Sprintf("%-40s", column)
 		case "Port":
-			header += fmt.Sprintf("%-5s", column)
+			header += fmt.Sprintf("%5s", column)
 		case "Status":
 			header += fmt.Sprintf("%-11s", column)
 		case "Speed":
-			header += fmt.Sprintf("%-11s", column)
+			header += fmt.Sprintf("%8s", column)
 		case "ETA":
-			header += fmt.Sprintf("%-8s", column)
+			header += fmt.Sprintf("%8s", column)
+		case "Progress":
+			header += fmt.Sprintf("%8s", column)
+		case "Ratio":
+			header += fmt.Sprintf("%5s", column)
 		case "Size":
-			header += fmt.Sprintf("%-9s", column)
+			header += fmt.Sprintf("%8s", column)
 		default:
-			// Add column without formatting
-			header += column
+			panic(fmt.Sprintf("unsupported column %s", column))
 		}
 	}
 	return header
@@ -379,27 +382,31 @@ func getRow(columns []string, t Torrent, index int) string {
 		case "InfoHash":
 			row += t.InfoHash
 		case "Port":
-			row += fmt.Sprintf("%d", t.Port)
+			row += fmt.Sprintf("%5d", t.Port)
 		case "Status":
 			if stats == nil {
 				row += fmt.Sprintf("%-11s", "")
 			} else {
-				row += fmt.Sprintf("%-11s", stats.Status)
+				status := stats.Status
+				if status == "Downloading Metadata" {
+					status = "Downloading"
+				}
+				row += fmt.Sprintf("%-11s", status)
 			}
 		case "Speed":
 			switch {
 			case stats == nil:
-				row += fmt.Sprintf("%11s", "")
+				row += fmt.Sprintf("%8s", "")
 			case stats.Status == "Seeding":
-				row += fmt.Sprintf("%11s", getUploadSpeed(stats))
+				row += fmt.Sprintf("%6d K", stats.Speed.Upload/1024)
 			default:
-				row += fmt.Sprintf("%11s", getDownloadSpeed(stats))
+				row += fmt.Sprintf("%6d K", stats.Speed.Download/1024)
 			}
 		case "ETA":
 			if stats == nil {
-				row += fmt.Sprintf("%-8s", "")
+				row += fmt.Sprintf("%8s", "")
 			} else {
-				row += fmt.Sprintf("%-8s", getETA(stats))
+				row += fmt.Sprintf("%8s", getETA(stats))
 			}
 		case "Progress":
 			if stats == nil {
@@ -415,9 +422,9 @@ func getRow(columns []string, t Torrent, index int) string {
 			}
 		case "Size":
 			if stats == nil {
-				row += fmt.Sprintf("%9s", "")
+				row += fmt.Sprintf("%8s", "")
 			} else {
-				row += fmt.Sprintf("%9s", getSize(stats))
+				row += fmt.Sprintf("%6d M", stats.Bytes.Total/(1<<20))
 			}
 		default:
 			panic(fmt.Sprintf("unsupported column %s", column))
