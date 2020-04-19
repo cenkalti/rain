@@ -115,6 +115,7 @@ func (m *ResourceManager) run() {
 			}
 		case req.notifyC <- req.data:
 			m.available -= req.n
+			m.objects++
 			if m.available < 0 {
 				panic("invalid request call 1")
 			}

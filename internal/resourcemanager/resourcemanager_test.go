@@ -2,17 +2,25 @@ package resourcemanager
 
 import (
 	"testing"
-	"time"
 )
 
 func TestResourceManager(t *testing.T) {
 	m := New(2)
+	if m.Stats().AllocatedObjects != 0 {
+		t.FailNow()
+	}
 	ok := m.Request("foo", nil, 1, nil, nil)
 	if !ok {
 		t.FailNow()
 	}
+	if m.Stats().AllocatedObjects != 1 {
+		t.FailNow()
+	}
 	ok = m.Request("foo", nil, 1, nil, nil)
 	if !ok {
+		t.FailNow()
+	}
+	if m.Stats().AllocatedObjects != 2 {
 		t.FailNow()
 	}
 	notifyC := make(chan interface{})
@@ -20,13 +28,23 @@ func TestResourceManager(t *testing.T) {
 	if ok {
 		t.FailNow()
 	}
+	if m.Stats().AllocatedObjects != 2 {
+		t.FailNow()
+	}
 	m.Release(1)
+	if m.Stats().AllocatedObjects != 1 {
+		t.FailNow()
+	}
+	var data interface{}
 	select {
-	case data := <-notifyC:
-		if data.(string) != "bar" {
-			t.FailNow()
-		}
-	case <-time.After(time.Second):
+	case data = <-notifyC:
+	default:
+		t.FailNow()
+	}
+	if data.(string) != "bar" {
+		t.FailNow()
+	}
+	if m.Stats().AllocatedObjects != 2 {
 		t.FailNow()
 	}
 }
