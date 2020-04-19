@@ -34,8 +34,9 @@ const (
 
 // Console is for drawing a text user interface for a remote Session.
 type Console struct {
-	client  *rainrpc.Client
-	columns []string
+	client    *rainrpc.Client
+	columns   []string
+	needStats bool
 
 	// protects global state in client
 	m sync.Mutex
@@ -90,9 +91,22 @@ func New(clt *rainrpc.Client, columns []string) *Console {
 	return &Console{
 		client:          clt,
 		columns:         columns,
+		needStats:       columnsNeedStats(columns),
 		updateTorrentsC: make(chan struct{}, 1),
 		updateDetailsC:  make(chan struct{}, 1),
 	}
+}
+
+func columnsNeedStats(columns []string) bool {
+	l := []string{"ID", "Name", "InfoHash", "Port"}
+	for _, c := range columns {
+		for _, d := range l {
+			if c != d {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // Run the UI loop.
@@ -654,19 +668,21 @@ func (c *Console) updateTorrents(g *gocui.Gui) {
 	}
 
 	// Get torrent stats in parallel
-	inside := c.rowsInsideView(g)
-	var wg sync.WaitGroup
-	for _, i := range inside {
-		if i < len(torrents) {
-			t := &torrents[i]
-			wg.Add(1)
-			go func(t *Torrent) {
-				t.Stats, _ = c.client.GetTorrentStats(t.ID)
-				wg.Done()
-			}(t)
+	if c.needStats {
+		inside := c.rowsInsideView(g)
+		var wg sync.WaitGroup
+		for _, i := range inside {
+			if i < len(torrents) {
+				t := &torrents[i]
+				wg.Add(1)
+				go func(t *Torrent) {
+					t.Stats, _ = c.client.GetTorrentStats(t.ID)
+					wg.Done()
+				}(t)
+			}
 		}
+		wg.Wait()
 	}
-	wg.Wait()
 
 	c.m.Lock()
 	c.torrents = torrents
