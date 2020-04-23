@@ -112,7 +112,7 @@ func NewBytes(info []byte, trackers [][]string, webseeds []string, comment strin
 	}
 	if len(trackers) == 1 && len(trackers[0]) == 1 {
 		mi.Announce = trackers[0][0]
-	} else if len(trackers) > 1 {
+	} else if len(trackers) > 0 {
 		mi.AnnounceList = trackers
 	}
 	if len(webseeds) == 1 {
