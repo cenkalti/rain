@@ -100,22 +100,22 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 
 	httpReq.Header.Set("User-Agent", t.userAgent)
 
-	doReq := func() (int, []byte, error) {
+	doReq := func() (int, http.Header, []byte, error) {
 		resp, err := t.http.Do(httpReq)
 		if err != nil {
-			return 0, nil, err
+			return 0, nil, nil, err
 		}
 		t.log.Debugf("tracker responded %d with %d bytes body", resp.StatusCode, resp.ContentLength)
 		defer resp.Body.Close()
 		if resp.ContentLength > t.maxResponseLength {
-			return 0, nil, fmt.Errorf("tracker respsonse too large: %d", resp.ContentLength)
+			return 0, resp.Header, nil, fmt.Errorf("tracker respsonse too large: %d", resp.ContentLength)
 		}
 		r := io.LimitReader(resp.Body, t.maxResponseLength)
 		data, err := ioutil.ReadAll(r)
-		return resp.StatusCode, data, err
+		return resp.StatusCode, resp.Header, data, err
 	}
 
-	code, body, err := doReq()
+	code, header, body, err := doReq()
 	if uerr, ok := err.(*url.Error); ok && uerr.Err == context.Canceled {
 		return nil, context.Canceled
 	}
@@ -129,8 +129,9 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 	if err != nil {
 		if code != 200 {
 			return nil, &StatusError{
-				Code: code,
-				Body: string(body),
+				Code:   code,
+				Header: header,
+				Body:   string(body),
 			}
 		}
 		return nil, tracker.ErrDecode

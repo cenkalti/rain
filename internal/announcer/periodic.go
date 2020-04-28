@@ -363,6 +363,13 @@ func (a *PeriodicalAnnouncer) newAnnounceError(err error) (e *AnnounceError) {
 	case *httptracker.StatusError:
 		if err.Code >= 400 {
 			e.Message = "tracker returned HTTP status: " + strconv.Itoa(err.Code)
+			if err.Header.Get("content-type") == "text/plain" {
+				msg := err.Body
+				if len(msg) > 100 {
+					msg = msg[:97] + "..."
+				}
+				e.Message += " message: " + msg
+			}
 			return
 		}
 	case *tracker.Error:
