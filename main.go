@@ -281,6 +281,30 @@ func main() {
 					},
 				},
 				{
+					Name:     "announce",
+					Usage:    "announce to tracker",
+					Category: "Actions",
+					Action:   handleAnnounce,
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:     "id",
+							Required: true,
+						},
+					},
+				},
+				{
+					Name:     "verify",
+					Usage:    "verify files",
+					Category: "Actions",
+					Action:   handleVerify,
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:     "id",
+							Required: true,
+						},
+					},
+				},
+				{
 					Name:     "start",
 					Usage:    "start torrent",
 					Category: "Actions",
@@ -818,6 +842,14 @@ func handleAddPeer(c *cli.Context) error {
 
 func handleAddTracker(c *cli.Context) error {
 	return clt.AddTracker(c.String("id"), c.String("tracker"))
+}
+
+func handleAnnounce(c *cli.Context) error {
+	return clt.AnnounceTorrent(c.String("id"))
+}
+
+func handleVerify(c *cli.Context) error {
+	return clt.VerifyTorrent(c.String("id"))
 }
 
 func handleStart(c *cli.Context) error {
