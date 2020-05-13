@@ -26,7 +26,7 @@ require (
 	github.com/minio/sha256-simd v0.1.1 // indirect
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-multihash v0.0.13
-	github.com/nictuku/dht v0.0.0-20190424204932-20d30c21bd4c
+	github.com/nictuku/dht v0.0.0-20200512202754-8008414d60e5
 	github.com/nsf/termbox-go v0.0.0-20200418040025-38ba6e5628f1 // indirect
 	github.com/powerman/rpc-codec v1.1.4
 	github.com/prometheus/client_golang v1.1.0 // indirect

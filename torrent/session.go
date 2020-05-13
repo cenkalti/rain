@@ -345,7 +345,21 @@ func (s *Session) removeTorrentFromClient(id string) (*Torrent, error) {
 	}
 	t.torrent.log.Info("removing torrent")
 	delete(s.torrents, id)
-	delete(s.torrentsByInfoHash, dht.InfoHash(t.torrent.InfoHash()))
+
+	// Delete from the list of torrents with same info hash
+	ih := dht.InfoHash(t.torrent.InfoHash())
+	a := s.torrentsByInfoHash[ih]
+	for i, it := range a {
+		if it == t {
+			a[i] = a[len(a)-1]
+			s.torrentsByInfoHash[ih] = a[:len(a)-1]
+			break
+		}
+	}
+
+	if len(s.torrentsByInfoHash[ih]) == 0 {
+		s.dht.RemoveInfoHash(string(ih))
+	}
 	return t, s.db.Update(func(tx *bbolt.Tx) error {
 		return tx.Bucket(torrentsBucket).DeleteBucket([]byte(id))
 	})

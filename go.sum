@@ -160,8 +160,8 @@ github.com/multiformats/go-multihash v0.0.13/go.mod h1:VdAWLKTwram9oKAatUcLxBNUj
 github.com/multiformats/go-varint v0.0.5 h1:XVZwSo04Cs3j/jS0uAEPpT3JY6DzMcVLLoWOSnCxOjg=
 github.com/multiformats/go-varint v0.0.5/go.mod h1:3Ls8CIEsrijN6+B7PbrXRPxHRPuXSrVKRY101jdMZYE=
 github.com/mwitkow/go-conntrack v0.0.0-20161129095857-cc309e4a2223/go.mod h1:qRWi+5nqEBWmkhHvq77mSJWrCKwh8bxhgT7d/eI7P4U=
-github.com/nictuku/dht v0.0.0-20190424204932-20d30c21bd4c h1:lf58u0D0vMjxaI/GCB43/4mG+bZALpm/85g1dU4YFDU=
-github.com/nictuku/dht v0.0.0-20190424204932-20d30c21bd4c/go.mod h1:OQ6jH4HHRpskJXlLCOeB1ckBSXXD4PmnPaIaFSi1dtI=
+github.com/nictuku/dht v0.0.0-20200512202754-8008414d60e5 h1:2w4yNWrlXbDfP/xS9FOfO5Rk2kf73BGDDt2Kaps3VYQ=
+github.com/nictuku/dht v0.0.0-20200512202754-8008414d60e5/go.mod h1:OQ6jH4HHRpskJXlLCOeB1ckBSXXD4PmnPaIaFSi1dtI=
 github.com/nictuku/nettools v0.0.0-20150117095333-8867a2107ad3 h1:q6P6rwaWsdWQlaDt0DYPtmpj37fq2S4/IrZQO0zx488=
 github.com/nictuku/nettools v0.0.0-20150117095333-8867a2107ad3/go.mod h1:m19Kd92g5zm0IuGkdZo/OHBSPp9mqGlevOJu00nBoYs=
 github.com/nsf/termbox-go v0.0.0-20180819125858-b66b20ab708e/go.mod h1:IuKpRQcYE1Tfu+oAQqaLisqDeXgjyyltCfsaoYN18NQ=
