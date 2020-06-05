@@ -360,6 +360,11 @@ func (a *PeriodicalAnnouncer) newAnnounceError(err error) (e *AnnounceError) {
 			e.Message = "invalid server response"
 			return
 		}
+		if strings.Contains(s, "network is unreachable") {
+			parsed, _ := url.Parse(a.Tracker.URL())
+			e.Message = "network is unreachable: " + parsed.Hostname()
+			return
+		}
 	case *httptracker.StatusError:
 		if err.Code >= 400 {
 			e.Message = "tracker returned HTTP status: " + strconv.Itoa(err.Code)
