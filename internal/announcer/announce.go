@@ -2,6 +2,7 @@ package announcer
 
 import (
 	"context"
+	"errors"
 
 	"github.com/cenkalti/rain/internal/tracker"
 )
@@ -21,7 +22,7 @@ func announce(
 		NumWant: numWant,
 	}
 	annResp, err := trk.Announce(ctx, annReq)
-	if err == context.Canceled {
+	if errors.Is(err, context.Canceled) {
 		return
 	}
 	if err != nil {
