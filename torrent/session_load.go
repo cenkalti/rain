@@ -117,7 +117,7 @@ func (s *Session) loadExistingTorrent(id string) (tt *Torrent, hasStarted bool, 
 // CleanDatabase removes invalid records in the database.
 // Normally you don't need to call this.
 func (s *Session) CleanDatabase() error {
-	return s.db.Update(func(tx *bbolt.Tx) error {
+	err := s.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(torrentsBucket)
 		for _, id := range s.invalidTorrentIDs {
 			err := b.DeleteBucket([]byte(id))
@@ -127,4 +127,9 @@ func (s *Session) CleanDatabase() error {
 		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	s.invalidTorrentIDs = nil
+	return nil
 }
