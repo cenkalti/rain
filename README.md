@@ -40,8 +40,8 @@ brew install rain
 
 Otherwise, get the latest binary from [releases page](https://github.com/cenkalti/rain/releases).
 
-Usage
------
+Usage as torrent client
+-----------------------
 
 Rain is distributed as single binary file.
 The main use case is running `rain server` command and operating the server with `rain client <subcommand>` commands.
@@ -49,6 +49,27 @@ Server consists of a BitTorrent client and a RPC server.
 `rain client` is used to give commands to the server.
 There is also `rain client console` command which opens up a text based UI that you can view and manage the torrents on the server.
 Run `rain help` to see other commands.
+
+Usage as library
+----------------
+
+```go
+// Create a session
+ses, _ := torrent.NewSession(torrent.DefaultConfig)
+
+// Add magnet link
+tor, _ := ses.AddURI(magnetLink, nil)
+
+// Watch the progress
+for range time.Tick(time.Second) {
+	s := tor.Stats()
+	log.Printf("Status: %s, Downloaded: %d, Peers: %d", s.Status.String(), s.Bytes.Completed, s.Peers.Total)
+}
+```
+
+More complete example can be found under `handleDownload` function at [main.go](https://github.com/cenkalti/rain/blob/master/main.go) file.
+
+See [package documentation](https://pkg.go.dev/github.com/cenkalti/rain/torrent?tab=doc) for complete API.
 
 Difference from other clients
 -----------------------------
