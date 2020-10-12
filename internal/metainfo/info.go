@@ -1,7 +1,7 @@
 package metainfo
 
 import (
-	"crypto/sha1" // nolint: gosec
+	"crypto/sha1"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -100,8 +100,8 @@ func NewInfo(b []byte) (*Info, error) {
 	i.Bytes = b
 
 	// calculate info hash
-	hash := sha1.New()   // nolint: gosec
-	_, _ = hash.Write(b) // nolint: gosec
+	hash := sha1.New()
+	_, _ = hash.Write(b)
 	copy(i.Hash[:], hash.Sum(nil))
 
 	// name field is optional
@@ -207,7 +207,7 @@ func NewInfoBytes(path string, private bool, pieceLength uint32) ([]byte, error)
 	buf := make([]byte, pieceLength)
 	offset := 0
 	remaining := func() []byte { return buf[offset:] }
-	hash := sha1.New() // nolint: gosec
+	hash := sha1.New()
 	root := path
 	var files []file
 	var pieces []byte

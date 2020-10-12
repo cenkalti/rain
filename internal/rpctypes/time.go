@@ -10,8 +10,10 @@ type Time struct {
 	time.Time
 }
 
-var _ json.Marshaler = (*Time)(nil)
-var _ json.Unmarshaler = (*Time)(nil)
+var (
+	_ json.Marshaler   = (*Time)(nil)
+	_ json.Unmarshaler = (*Time)(nil)
+)
 
 // MarshalJSON converts the time into RFC3339 string.
 func (t Time) MarshalJSON() ([]byte, error) {

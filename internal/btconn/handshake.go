@@ -8,7 +8,7 @@ import (
 var pstr = [20]byte{19, 'B', 'i', 't', 'T', 'o', 'r', 'r', 'e', 'n', 't', ' ', 'p', 'r', 'o', 't', 'o', 'c', 'o', 'l'}
 
 func writeHandshake(w io.Writer, ih [20]byte, id [20]byte, extensions [8]byte) error {
-	var h = struct {
+	h := struct {
 		Pstr       [20]byte
 		Extensions [8]byte
 		InfoHash   [20]byte

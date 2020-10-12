@@ -157,7 +157,7 @@ func (s *Session) addURL(u string, opt *AddTorrentOptions) (*Torrent, error) {
 	client := http.Client{
 		Timeout: s.config.TorrentAddHTTPTimeout,
 	}
-	resp, err := client.Get(u)
+	resp, err := client.Get(u) // nolint: noctx
 	if err != nil {
 		return nil, newInputError(err)
 	}

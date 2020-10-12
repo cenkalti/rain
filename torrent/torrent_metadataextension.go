@@ -2,7 +2,7 @@ package torrent
 
 import (
 	"bytes"
-	"crypto/sha1" // nolint: gosec
+	"crypto/sha1"
 	"errors"
 	"fmt"
 
@@ -71,9 +71,9 @@ func (t *torrent) handleMetadataMessage(pe *peer.Peer, msg peerprotocol.Extensio
 		}
 		pe.StopSnubTimer()
 
-		hash := sha1.New()                              // nolint: gosec
-		_, _ = hash.Write(id.Bytes)                     // nolint: gosec
-		if !bytes.Equal(hash.Sum(nil), t.infoHash[:]) { // nolint: gosec
+		hash := sha1.New()
+		_, _ = hash.Write(id.Bytes)
+		if !bytes.Equal(hash.Sum(nil), t.infoHash[:]) {
 			pe.Logger().Errorln("received info does not match with hash")
 			t.closePeer(id.Peer.(*peer.Peer))
 			t.startInfoDownloaders()

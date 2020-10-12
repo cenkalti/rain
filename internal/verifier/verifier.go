@@ -1,7 +1,7 @@
 package verifier
 
 import (
-	"crypto/sha1" // nolint: gosec
+	"crypto/sha1"
 
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/piece"
@@ -48,7 +48,7 @@ func (v *Verifier) Run(pieces []piece.Piece, progressC chan Progress, resultC ch
 
 	v.Bitfield = bitfield.New(uint32(len(pieces)))
 	buf := make([]byte, pieces[0].Length)
-	hash := sha1.New() // nolint: gosec
+	hash := sha1.New()
 	var numOK uint32
 	for _, p := range pieces {
 		buf = buf[:p.Length]

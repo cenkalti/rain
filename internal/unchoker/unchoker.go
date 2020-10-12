@@ -90,7 +90,7 @@ func (u *Unchoker) TickUnchoke(allPeers []Peer, torrentCompleted bool) {
 	peers = peers[i:]
 	if optimistic {
 		for i = 0; i < u.numOptimisticUnchoked && len(peers) > 0; i++ {
-			n := rand.Intn(len(peers))
+			n := rand.Intn(len(peers)) // nolint: gosec
 			pe := peers[n]
 			u.optimisticUnchokePeer(pe)
 			peers[n], peers = peers[len(peers)-1], peers[:len(peers)-1]

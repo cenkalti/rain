@@ -198,7 +198,7 @@ func (t *Torrent) Move(target string) error {
 	mw := multipart.NewWriter(pw)
 	go t.prepareBody(pw, mw, spec)
 
-	req, err := http.NewRequest(http.MethodPost, target+"/move-torrent?id="+t.torrent.id, pr)
+	req, err := http.NewRequest(http.MethodPost, target+"/move-torrent?id="+t.torrent.id, pr) // nolint: noctx
 	if err != nil {
 		return err
 	}

@@ -18,7 +18,7 @@ func TestFiles(t *testing.T) {
 	}
 	for i, s := range data {
 		filename := filepath.Join(dir, "file"+strconv.Itoa(i))
-		err = ioutil.WriteFile(filename, []byte(s), 0666)
+		err = ioutil.WriteFile(filename, []byte(s), 0600)
 		if err != nil {
 			t.Fatal(err)
 		}

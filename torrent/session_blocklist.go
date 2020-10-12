@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"crypto/sha1" // nolint: gosec
+	"crypto/sha1"
 	"errors"
 	"io"
 	"io/ioutil"
@@ -57,7 +57,7 @@ func (s *Session) startBlocklistReloader() error {
 }
 
 func (s *Session) getBlocklistTimestamp() (time.Time, error) {
-	sum := sha1.Sum([]byte(s.config.BlocklistURL)) // nolint: gosec
+	sum := sha1.Sum([]byte(s.config.BlocklistURL))
 	var t time.Time
 	err := s.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(sessionBucket)
@@ -178,7 +178,7 @@ func (s *Session) reloadBlocklist() error {
 		if err2 != nil {
 			return err2
 		}
-		sum := sha1.Sum([]byte(s.config.BlocklistURL)) // nolint: gosec
+		sum := sha1.Sum([]byte(s.config.BlocklistURL))
 		err2 = b.Put(blocklistURLHashKey, sum[:])
 		if err2 != nil {
 			return err2

@@ -35,8 +35,10 @@ func Accept(
 	// Try to do unencrypted handshake first.
 	// If protocol string is not valid, try to do encrypted handshake.
 	// rwConn returns the read bytes again that is read by handshake.Read1.
-	var buf bytes.Buffer
-	var reader = io.TeeReader(conn, &buf)
+	var (
+		buf    bytes.Buffer
+		reader = io.TeeReader(conn, &buf)
+	)
 
 	peerExtensions, infoHash, err = readHandshake1(reader)
 	if err == errInvalidProtocol && getSKey != nil {

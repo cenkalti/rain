@@ -26,6 +26,7 @@ func (p *TestPeer) RequestPiece(index, begin, length uint32) {
 	}
 	p.requested = append(p.requested, msg)
 }
+
 func (p *TestPeer) CancelPiece(index, begin, length uint32) {
 	msg := Message{
 		Index:  index,

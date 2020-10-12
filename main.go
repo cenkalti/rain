@@ -1,12 +1,14 @@
 package main
 
 import (
-	"crypto/sha1" // nolint: gosec
+	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	_ "net/http/pprof" // nolint: gosec
+
+	// nolint: gosec
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"runtime"
@@ -550,7 +552,7 @@ func prepareConfig(c *cli.Context) (torrent.Config, error) {
 		if err != nil {
 			return cfg, err
 		}
-		b, err := ioutil.ReadFile(cp) // nolint: gosec
+		b, err := ioutil.ReadFile(cp)
 		switch {
 		case os.IsNotExist(err):
 			log.Noticef("config file not found at %q, using default config", cp)
@@ -731,7 +733,7 @@ func handleAdd(c *cli.Context) error {
 		}
 		b, marshalErr = prettyjson.Marshal(resp)
 	} else {
-		f, err := os.Open(arg) // nolint: gosec
+		f, err := os.Open(arg)
 		if err != nil {
 			return err
 		}
@@ -880,7 +882,7 @@ func handleConsole(c *cli.Context) error {
 }
 
 func handleTorrentShow(c *cli.Context) error {
-	f, err := os.Open(c.String("file")) // nolint: gosec
+	f, err := os.Open(c.String("file"))
 	if err != nil {
 		return err
 	}
@@ -906,7 +908,7 @@ func handleTorrentShow(c *cli.Context) error {
 }
 
 func handleInfoHash(c *cli.Context) error {
-	f, err := os.Open(c.String("file")) // nolint: gosec
+	f, err := os.Open(c.String("file"))
 	if err != nil {
 		return err
 	}
@@ -919,7 +921,7 @@ func handleInfoHash(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	sum := sha1.Sum(metainfo.Info) // nolint: gosec
+	sum := sha1.Sum(metainfo.Info)
 	fmt.Println(hex.EncodeToString(sum[:]))
 	return nil
 }

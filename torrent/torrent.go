@@ -360,7 +360,7 @@ func newTorrent2(
 		t.piecePool = bufferpool.New(int(t.info.PieceLength))
 	}
 	n := t.copyPeerIDPrefix()
-	_, err := rand.Read(t.peerID[n:]) // nolint: gosec
+	_, err := rand.Read(t.peerID[n:])
 	if err != nil {
 		return nil, err
 	}
@@ -371,9 +371,9 @@ func newTorrent2(
 
 func (t *torrent) copyPeerIDPrefix() int {
 	if t.info != nil && t.info.Private {
-		return copy(t.peerID[:], []byte(t.session.config.PrivatePeerIDPrefix))
+		return copy(t.peerID[:], t.session.config.PrivatePeerIDPrefix)
 	}
-	return copy(t.peerID[:], []byte(publicPeerIDPrefix))
+	return copy(t.peerID[:], publicPeerIDPrefix)
 }
 
 func (t *torrent) getPeersForUnchoker() []unchoker.Peer {

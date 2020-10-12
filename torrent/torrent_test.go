@@ -72,7 +72,7 @@ func seeder(t *testing.T) (addr string, c func()) {
 	dst := filepath.Join(s.config.DataDir, tor.ID(), torrentName)
 	err = os.Mkdir(filepath.Join(s.config.DataDir, tor.ID()), os.ModeDir|0750)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	err = CopyDir(src, dst)
 	if err != nil {

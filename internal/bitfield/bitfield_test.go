@@ -3,8 +3,10 @@ package bitfield
 import "testing"
 
 func TestNew(t *testing.T) {
-	var v *Bitfield
-	var buf = []byte{0x0f}
+	var (
+		v   *Bitfield
+		buf = []byte{0x0f}
+	)
 
 	v, _ = NewBytes(buf, 8)
 	if v.Hex() != "0f" {

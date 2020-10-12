@@ -564,7 +564,7 @@ func readData(r io.Reader, dir string) error {
 		if err != nil {
 			return err
 		}
-		_, err = io.Copy(f, tr)
+		_, err = io.Copy(f, tr) // nolint: gosec
 		if err != nil {
 			return err
 		}

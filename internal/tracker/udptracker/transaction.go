@@ -15,7 +15,7 @@ type transaction struct {
 }
 
 func newTransaction(req udpRequest, dest string) *transaction {
-	req.SetTransactionID(rand.Int31())
+	req.SetTransactionID(rand.Int31()) // nolint: gosec
 	return &transaction{
 		request: req,
 		dest:    dest,

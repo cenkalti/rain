@@ -3,7 +3,7 @@
 package fast
 
 import (
-	"crypto/sha1" // nolint: gosec
+	"crypto/sha1"
 	"encoding/binary"
 	"net"
 )
@@ -28,7 +28,7 @@ func GenerateFastSet(k int, numPieces uint32, infoHash [20]byte, ip net.IP) []ui
 		}
 		return false
 	}
-	h := sha1.New() // nolint: gosec
+	h := sha1.New()
 	for j := 0; j < k && len(a) < k; j++ {
 		_, _ = h.Write(x)
 		x = h.Sum(x[:0])

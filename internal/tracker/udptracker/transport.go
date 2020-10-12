@@ -21,8 +21,10 @@ import (
 	"github.com/zeebo/bencode"
 )
 
-const connectionIDMagic = 0x41727101980
-const connectionIDInterval = time.Minute
+const (
+	connectionIDMagic    = 0x41727101980
+	connectionIDInterval = time.Minute
+)
 
 // Transport for UDP tracker implementation.
 type Transport struct {

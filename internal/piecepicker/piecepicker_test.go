@@ -9,8 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const numPieces = 7
-const numPeers = 3
+const (
+	numPieces = 7
+	numPeers  = 3
+)
 
 func TestPiecePicker(t *testing.T) {
 	pieces := make([]piece.Piece, numPieces)
