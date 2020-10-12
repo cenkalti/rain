@@ -11,6 +11,9 @@ linters:
     - wsl
     - gocognit
     - gomnd
+    - nlreturn
+    - goerr113
+    - testpackage
 issues:
   exclude-rules:
     - path: _test\.go

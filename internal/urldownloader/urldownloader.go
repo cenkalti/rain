@@ -91,7 +91,8 @@ func (d *URLDownloader) Run(client *http.Client, pieces []piece.Piece, multifile
 		u := d.getURL(job.Filename, multifile)
 		req, err := http.NewRequest(http.MethodGet, u, nil)
 		if err != nil {
-			panic(err)
+			d.sendResult(resultC, &PieceResult{Downloader: d, Error: err})
+			return false
 		}
 		req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", job.RangeBegin, job.RangeBegin+job.Length-1))
 		req = req.WithContext(ctx)
