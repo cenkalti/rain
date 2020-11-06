@@ -63,9 +63,9 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 	} else {
 		sb.WriteString("?info_hash=")
 	}
-	sb.WriteString(url.QueryEscape(string(req.Torrent.InfoHash[:])))
+	sb.WriteString(percentEscape(req.Torrent.InfoHash))
 	sb.WriteString("&peer_id=")
-	sb.WriteString(url.QueryEscape(string(req.Torrent.PeerID[:])))
+	sb.WriteString(percentEscape(req.Torrent.PeerID))
 	sb.WriteString("&port=")
 	sb.WriteString(strconv.Itoa(req.Torrent.Port))
 	sb.WriteString("&uploaded=")
@@ -188,6 +188,21 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 		Peers:          peers,
 		WarningMessage: response.WarningMessage,
 	}, nil
+}
+
+// percentEscape puts `%` before every byte.
+// Some trackers don't like the output of url.QueryEscape function because it may skip encoding safe characters.
+// This function escapes every byte explicitly.
+func percentEscape(b [20]byte) string {
+	var sb strings.Builder
+	sb.Grow(60)
+	s := hex.EncodeToString(b[:])
+	for i := 0; i < 20; i++ {
+		sb.WriteRune('%')
+		sb.WriteByte(s[i*2])
+		sb.WriteByte(s[i*2+1])
+	}
+	return sb.String()
 }
 
 func parsePeersDictionary(b bencode.RawMessage) ([]*net.TCPAddr, error) {
