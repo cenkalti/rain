@@ -357,7 +357,7 @@ func (s *Session) removeTorrentFromClient(id string) (*Torrent, error) {
 		}
 	}
 
-	if len(s.torrentsByInfoHash[ih]) == 0 {
+	if s.config.DHTEnabled && len(s.torrentsByInfoHash[ih]) == 0 {
 		s.dht.RemoveInfoHash(string(ih))
 	}
 	return t, s.db.Update(func(tx *bbolt.Tx) error {
