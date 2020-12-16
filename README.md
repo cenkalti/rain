@@ -34,8 +34,7 @@ Installing
 
 If you are on MacOS you can install from [brew](https://brew.sh/):
 ```sh
-brew tap cenkalti/rain
-brew install rain
+brew install cenkalti/rain/rain
 ```
 
 Otherwise, get the latest binary from [releases page](https://github.com/cenkalti/rain/releases).
