@@ -70,6 +70,13 @@ More complete example can be found under `handleDownload` function at [main.go](
 
 See [package documentation](https://pkg.go.dev/github.com/cenkalti/rain/torrent?tab=doc) for complete API.
 
+Configuration
+-------------
+
+All values have sensible defaults, so you can run Rain with an empty config but if you want to customize it's behavior,
+you can pass a YAML config with `-config` flag. Config keys must be in lowercase.
+See the description of values in here: [config.go](https://github.com/cenkalti/rain/blob/master/torrent/config.go)
+
 Difference from other clients
 -----------------------------
 
