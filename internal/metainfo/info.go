@@ -12,6 +12,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/cenkalti/rain/internal/logger"
 	"github.com/zeebo/bencode"
 )
 
@@ -181,26 +182,38 @@ func parsePrivateField(s bencode.RawMessage) bool {
 }
 
 // NewInfoBytes creates a new Info dictionary by reading and hashing the files on the disk.
-func NewInfoBytes(path string, private bool, pieceLength uint32) ([]byte, error) {
-	fi, err := os.Stat(path)
-	if err != nil {
-		return nil, err
-	}
-	rootIsDir := fi.IsDir()
-	var totalLength int64
-	if rootIsDir {
-		totalLength, err = findTotalLength(path)
+func NewInfoBytes(root string, paths []string, private bool, pieceLength uint32, name string, log logger.Logger) ([]byte, error) {
+	var singleFileTorrent bool
+	switch len(paths) {
+	case 0:
+		return nil, errors.New("no path specified")
+	case 1:
+		if name == "" {
+			name = filepath.Base(paths[0])
+		}
+		fi, err := os.Stat(paths[0])
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		totalLength = fi.Size()
+		singleFileTorrent = !fi.IsDir()
+	default:
+		if root == "" {
+			return nil, errors.New("no root specified")
+		}
+		if name == "" {
+			return nil, errors.New("no name specified")
+		}
+	}
+	totalLength, err := findTotalLength(paths)
+	if err != nil {
+		return nil, err
 	}
 	if totalLength == 0 {
 		return nil, errors.New("no files")
 	}
 	if pieceLength == 0 {
 		pieceLength = calculatePieceLength(totalLength)
+		log.Infof("Calculated piece length: %d K", pieceLength>>10)
 	} else if pieceLength%(16<<10) != 0 {
 		return nil, errPieceLength
 	}
@@ -208,49 +221,51 @@ func NewInfoBytes(path string, private bool, pieceLength uint32) ([]byte, error)
 	offset := 0
 	remaining := func() []byte { return buf[offset:] }
 	hash := sha1.New()
-	root := path
 	var files []file
 	var pieces []byte
-	visit := func(path string, fi os.FileInfo, err error) error {
-		if err != nil {
-			return err
+	for _, path := range paths {
+		relroot := path
+		if root != "" {
+			relroot = root
 		}
-		if fi.IsDir() {
-			return nil
-		}
-		f, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		rel, err := filepath.Rel(root, path)
-		if err != nil {
-			return err
-		}
-		files = append(files, file{Path: filepath.SplitList(rel), Length: fi.Size()})
-		for {
-			n, err := io.ReadFull(f, remaining())
-			offset += n
-			if err == io.ErrUnexpectedEOF || err == io.EOF {
-				return nil // file finished, continue with next file
-			}
+		visit := func(vpath string, fi os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
-			// buffer finished, calculate piece hash and append to pieces
-			_, _ = hash.Write(buf)
-			pieces = hash.Sum(pieces)
-			hash.Reset()
-			offset = 0
+			if fi.IsDir() {
+				return nil
+			}
+			f, err := os.Open(vpath)
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+			relpath, err := filepath.Rel(relroot, vpath)
+			log.Infof("Adding %q", relpath)
+			if err != nil {
+				return err
+			}
+			files = append(files, file{Path: filepath.SplitList(relpath), Length: fi.Size()})
+			for {
+				n, err := io.ReadFull(f, remaining())
+				offset += n
+				if err == io.ErrUnexpectedEOF || err == io.EOF {
+					return nil // file finished, continue with next file
+				}
+				if err != nil {
+					return err
+				}
+				// buffer finished, calculate piece hash and append to pieces
+				_, _ = hash.Write(buf)
+				pieces = hash.Sum(pieces)
+				hash.Reset()
+				offset = 0
+			}
 		}
-	}
-	if fi.IsDir() {
 		err = filepath.Walk(path, visit)
-	} else {
-		err = visit(path, fi, nil)
-	}
-	if err != nil {
-		return nil, err
+		if err != nil {
+			return nil, err
+		}
 	}
 	// hash remaining buffer
 	if offset > 0 {
@@ -265,15 +280,15 @@ func NewInfoBytes(path string, private bool, pieceLength uint32) ([]byte, error)
 		Length      int64  `bencode:"length,omitempty"` // Single File Mode
 		Files       []file `bencode:"files,omitempty"`  // Multiple File mode
 	}{
-		Name:        filepath.Base(path),
+		Name:        name,
 		Private:     private,
 		PieceLength: pieceLength,
 		Pieces:      pieces,
 	}
-	if rootIsDir {
-		b.Files = files
+	if singleFileTorrent {
+		b.Length = totalLength
 	} else {
-		b.Length = fi.Size()
+		b.Files = files
 	}
 	return bencode.EncodeBytes(b)
 }
@@ -285,17 +300,22 @@ func (i *Info) PieceHash(index uint32) []byte {
 	return i.pieces[begin:end]
 }
 
-func findTotalLength(path string) (n int64, err error) {
-	err = filepath.Walk(path, func(path string, fi os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if fi.IsDir() {
+func findTotalLength(paths []string) (n int64, err error) {
+	for _, path := range paths {
+		err = filepath.Walk(path, func(path string, fi os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if fi.IsDir() {
+				return nil
+			}
+			n += fi.Size()
 			return nil
+		})
+		if err != nil {
+			return
 		}
-		n += fi.Size()
-		return nil
-	})
+	}
 	return
 }
 

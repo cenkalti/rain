@@ -444,7 +444,7 @@ func main() {
 					Usage:  "create new torrent file",
 					Action: handleTorrentCreate,
 					Flags: []cli.Flag{
-						cli.StringFlag{
+						cli.StringSliceFlag{
 							Name:     "file,f",
 							Usage:    "include this file or directory in torrent",
 							Required: true,
@@ -453,6 +453,14 @@ func main() {
 							Name:     "out,o",
 							Usage:    "save generated torrent to this `FILE`",
 							Required: true,
+						},
+						cli.StringFlag{
+							Name:  "root,r",
+							Usage: "file paths given become relative to the root",
+						},
+						cli.StringFlag{
+							Name:  "name,n",
+							Usage: "set name of torrent. required if you specify more than one file.",
 						},
 						cli.BoolFlag{
 							Name:  "private,p",
@@ -927,8 +935,10 @@ func handleInfoHash(c *cli.Context) error {
 }
 
 func handleTorrentCreate(c *cli.Context) error {
-	path := c.String("file")
+	paths := c.StringSlice("file")
 	out := c.String("out")
+	root := c.String("root")
+	name := c.String("name")
 	private := c.Bool("private")
 	pieceLength := c.Uint("piece-length")
 	comment := c.String("comment")
@@ -940,9 +950,11 @@ func handleTorrentCreate(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	path, err = homedir.Expand(path)
-	if err != nil {
-		return err
+	for i, path := range paths {
+		paths[i], err = homedir.Expand(path)
+		if err != nil {
+			return err
+		}
 	}
 
 	tiers := make([][]string, len(trackers))
@@ -950,7 +962,7 @@ func handleTorrentCreate(c *cli.Context) error {
 		tiers[i] = []string{tr}
 	}
 
-	info, err := metainfo.NewInfoBytes(path, private, uint32(pieceLength<<10))
+	info, err := metainfo.NewInfoBytes(root, paths, private, uint32(pieceLength<<10), name, log)
 	if err != nil {
 		return err
 	}
@@ -958,6 +970,7 @@ func handleTorrentCreate(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	log.Infof("Created torrent size: %d bytes", len(mi))
 	f, err := os.Create(out)
 	if err != nil {
 		return err
