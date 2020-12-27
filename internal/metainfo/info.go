@@ -245,7 +245,7 @@ func NewInfoBytes(root string, paths []string, private bool, pieceLength uint32,
 			if err != nil {
 				return err
 			}
-			files = append(files, file{Path: filepath.SplitList(relpath), Length: fi.Size()})
+			files = append(files, file{Path: strings.Split(relpath, string(os.PathSeparator)), Length: fi.Size()})
 			for {
 				n, err := io.ReadFull(f, remaining())
 				offset += n
