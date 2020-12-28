@@ -563,6 +563,9 @@ func prepareConfig(c *cli.Context) (torrent.Config, error) {
 		b, err := ioutil.ReadFile(cp)
 		switch {
 		case os.IsNotExist(err):
+			if c.IsSet("config") {
+				return cfg, err
+			}
 			log.Noticef("config file not found at %q, using default config", cp)
 		case err != nil:
 			return cfg, err
