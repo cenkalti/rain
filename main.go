@@ -414,6 +414,11 @@ func main() {
 			},
 		},
 		{
+			Name:   "compact-database",
+			Usage:  "rewrite database to save up space",
+			Action: handleCompactDatabase,
+		},
+		{
 			Name:  "torrent",
 			Usage: "manage torrent files",
 			Subcommands: []cli.Command{
@@ -500,6 +505,39 @@ func handleBoltBrowser(c *cli.Context) error {
 	}
 	boltbrowser.Browse(db, false)
 	return db.Close()
+}
+
+func handleCompactDatabase(c *cli.Context) error {
+	cfg, err := prepareConfig(c)
+	if err != nil {
+		return err
+	}
+	cfg.ResumeOnStartup = false
+	ses, err := torrent.NewSession(cfg)
+	if err != nil {
+		return err
+	}
+	f, err := ioutil.TempFile("", "rain-compact-database-")
+	if err != nil {
+		return err
+	}
+	err = f.Close()
+	if err != nil {
+		return err
+	}
+	err = ses.CompactDatabase(f.Name())
+	if err != nil {
+		return err
+	}
+	dbPath, err := homedir.Expand(cfg.Database)
+	if err != nil {
+		return err
+	}
+	err = os.Rename(dbPath, dbPath+".bak")
+	if err != nil {
+		return err
+	}
+	return os.Rename(f.Name(), dbPath)
 }
 
 func handleBeforeCommand(c *cli.Context) error {

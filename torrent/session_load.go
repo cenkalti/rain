@@ -7,6 +7,7 @@ import (
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/resumer"
+	"github.com/cenkalti/rain/internal/resumer/boltdbresumer"
 	"github.com/cenkalti/rain/internal/storage/filestorage"
 	"github.com/cenkalti/rain/internal/webseedsource"
 	"go.etcd.io/bbolt"
@@ -107,6 +108,8 @@ func (s *Session) loadExistingTorrent(id string) (tt *Torrent, hasStarted bool, 
 	if err != nil {
 		return
 	}
+	t.rawTrackers = spec.Trackers
+	t.rawWebseedSources = spec.URLList
 	go s.checkTorrent(t)
 	delete(s.availablePorts, spec.Port)
 
@@ -132,4 +135,43 @@ func (s *Session) CleanDatabase() error {
 	}
 	s.invalidTorrentIDs = nil
 	return nil
+}
+
+// CompactDatabase rewrites the database using existing torrent records to a new file.
+// Normally you don't need to call this.
+func (s *Session) CompactDatabase(output string) error {
+	db, err := bbolt.Open(output, 0600, nil)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	err = db.Update(func(tx *bbolt.Tx) error {
+		_, err2 := tx.CreateBucketIfNotExists(torrentsBucket)
+		return err2
+	})
+	if err != nil {
+		return err
+	}
+	res, err := boltdbresumer.New(db, torrentsBucket)
+	if err != nil {
+		return err
+	}
+	for _, t := range s.torrents {
+		spec := &boltdbresumer.Spec{
+			InfoHash:          t.torrent.InfoHash(),
+			Port:              t.torrent.port,
+			Name:              t.torrent.name,
+			Trackers:          t.torrent.rawTrackers,
+			URLList:           t.torrent.rawWebseedSources,
+			FixedPeers:        t.torrent.fixedPeers,
+			Info:              t.torrent.info.Bytes,
+			AddedAt:           t.torrent.addedAt,
+			StopAfterDownload: t.torrent.stopAfterDownload,
+		}
+		err = res.Write(t.torrent.id, spec)
+		if err != nil {
+			return err
+		}
+	}
+	return db.Close()
 }

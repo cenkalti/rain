@@ -48,7 +48,8 @@ type torrent struct {
 	infoHash [20]byte
 
 	// List of addresses to announce this torrent.
-	trackers []tracker.Tracker
+	trackers    []tracker.Tracker
+	rawTrackers [][]string
 
 	// Peers added from magnet URLS with x.pe parameter.
 	fixedPeers []string
@@ -237,6 +238,7 @@ type torrent struct {
 
 	webseedClient          *http.Client
 	webseedSources         []*webseedsource.WebseedSource
+	rawWebseedSources      []string
 	webseedPieceResultC    *suspendchan.Chan
 	webseedRetryC          chan *webseedsource.WebseedSource
 	webseedActiveDownloads int
