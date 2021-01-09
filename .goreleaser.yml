@@ -33,7 +33,7 @@ changelog:
     - '^docs:'
     - '^test:'
 brews:
-  - github:
+  - tap:
       owner: cenkalti
       name: homebrew-rain
     folder: Formula
