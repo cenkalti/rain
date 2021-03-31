@@ -401,3 +401,9 @@ func (t *torrent) announceDHT() {
 	t.session.dhtPeerRequests[t] = struct{}{}
 	t.session.mPeerRequests.Unlock()
 }
+
+// DisableLogging disables all log messages printed to console.
+// This function needs to be called before creating a Session.
+func DisableLogging() {
+	logger.Disable()
+}

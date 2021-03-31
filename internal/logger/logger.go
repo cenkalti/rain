@@ -2,6 +2,7 @@ package logger
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -24,6 +25,11 @@ func SetHandler(h log.Handler) {
 // SetLevel sets the logging level on the global handler.
 func SetLevel(l log.Level) {
 	handler.SetLevel(l)
+}
+
+// Disable all logging by setting a handler that discards all messages.
+func Disable() {
+	SetHandler(log.NewWriterHandler(io.Discard))
 }
 
 // Logger is for logging messages from inside of the program in various logging levels.
