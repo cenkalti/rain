@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cenkalti/log"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/webseedsource"
 	"github.com/fortytw2/leaktest"
@@ -27,7 +26,7 @@ var (
 )
 
 func init() {
-	logger.SetLevel(log.DEBUG)
+	logger.SetDebug()
 }
 
 func newTestSession(t *testing.T) (*Session, func()) {

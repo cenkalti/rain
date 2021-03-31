@@ -22,9 +22,9 @@ func SetHandler(h log.Handler) {
 	handler.SetFormatter(logFormatter{})
 }
 
-// SetLevel sets the logging level on the global handler.
-func SetLevel(l log.Level) {
-	handler.SetLevel(l)
+// SetLevel sets the logging level to DEBUG on the global handler.
+func SetDebug() {
+	handler.SetLevel(log.DEBUG)
 }
 
 // Disable all logging by setting a handler that discards all messages.

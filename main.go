@@ -20,7 +20,6 @@ import (
 
 	"github.com/boltdb/bolt"
 	"github.com/cenkalti/boltbrowser/boltbrowser"
-	clog "github.com/cenkalti/log"
 	"github.com/cenkalti/rain/internal/console"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/magnet"
@@ -562,7 +561,7 @@ func handleBeforeCommand(c *cli.Context) error {
 		runtime.SetBlockProfileRate(blockProfile)
 	}
 	if c.GlobalBool("debug") {
-		logger.SetLevel(clog.DEBUG)
+		logger.SetDebug()
 	}
 	return nil
 }
