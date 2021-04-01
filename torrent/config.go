@@ -203,7 +203,7 @@ var DefaultConfig = Config{
 	BlocklistEnabledForIncomingConnections: true,
 	BlocklistMaxResponseSize:               100 << 20,
 	TorrentAddHTTPTimeout:                  30 * time.Second,
-	MaxMetadataSize:                        10 << 20,
+	MaxMetadataSize:                        30 << 20,
 	MaxTorrentSize:                         10 << 20,
 	MaxPieces:                              64 << 10,
 	DNSResolveTimeout:                      5 * time.Second,
