@@ -6,6 +6,7 @@ import "io"
 // Storage is an interface for reading/writing torrent files.
 type Storage interface {
 	Open(name string, size int64) (f File, exists bool, err error)
+	RootDir() string
 }
 
 // File interface for reading/writing torrent data.

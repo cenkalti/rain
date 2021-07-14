@@ -33,7 +33,7 @@ func (s *FileStorage) Open(name string, size int64) (f storage.File, exists bool
 	name = filepath.Join(s.dest, name)
 
 	// Create containing dir if not exists.
-	err = os.MkdirAll(filepath.Dir(name), os.ModeDir|0750)
+	err = os.MkdirAll(filepath.Dir(name), os.ModeDir|0o750)
 	if err != nil {
 		return
 	}
@@ -52,7 +52,7 @@ func (s *FileStorage) Open(name string, size int64) (f storage.File, exists bool
 	}()
 
 	// Open OS file.
-	const mode = 0640
+	const mode = 0o640
 	openFlags := os.O_RDWR | os.O_SYNC
 	openFlags = applyNoAtimeFlag(openFlags)
 	of, err = os.OpenFile(name, openFlags, mode)
@@ -77,4 +77,8 @@ func (s *FileStorage) Open(name string, size int64) (f storage.File, exists bool
 		err = of.Truncate(size)
 	}
 	return
+}
+
+func (s *FileStorage) RootDir() string {
+	return s.dest
 }
