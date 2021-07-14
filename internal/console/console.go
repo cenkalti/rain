@@ -137,11 +137,15 @@ func (c *Console) keybindings(g *gocui.Gui) {
 
 	// Navigation
 	_ = g.SetKeybinding("torrents", 'j', gocui.ModNone, c.cursorDown)
+	_ = g.SetKeybinding("torrents", gocui.KeyArrowDown, gocui.ModNone, c.cursorDown)
 	_ = g.SetKeybinding("torrents", 'k', gocui.ModNone, c.cursorUp)
+	_ = g.SetKeybinding("torrents", gocui.KeyArrowUp, gocui.ModNone, c.cursorUp)
 	_ = g.SetKeybinding("torrents", 'j', gocui.ModAlt, c.tabAdjustDown)
 	_ = g.SetKeybinding("torrents", 'k', gocui.ModAlt, c.tabAdjustUp)
 	_ = g.SetKeybinding("torrents", 'g', gocui.ModNone, c.goTop)
+	_ = g.SetKeybinding("torrents", gocui.KeyHome, gocui.ModNone, c.goTop)
 	_ = g.SetKeybinding("torrents", 'G', gocui.ModNone, c.goBottom)
+	_ = g.SetKeybinding("torrents", gocui.KeyEnd, gocui.ModNone, c.goBottom)
 	_ = g.SetKeybinding("torrents", 'a', gocui.ModAlt, c.switchSessionStats)
 	_ = g.SetKeybinding("torrents", '?', gocui.ModNone, c.switchHelp)
 
@@ -278,12 +282,12 @@ func (c *Console) drawHelp(g *gocui.Gui) error {
 		v.Clear()
 	}
 	fmt.Fprintln(v, "         q  Quit")
-	fmt.Fprintln(v, "         j  move down")
-	fmt.Fprintln(v, "         k  move up")
+	fmt.Fprintln(v, "    j|down  move down")
+	fmt.Fprintln(v, "      k|up  move up")
 	fmt.Fprintln(v, "     alt+j  move tab separator down")
 	fmt.Fprintln(v, "     alt+k  move tab separator up")
-	fmt.Fprintln(v, "         g  Go to top")
-	fmt.Fprintln(v, "         G  Go to bottom")
+	fmt.Fprintln(v, "    g|home  Go to top")
+	fmt.Fprintln(v, "     G|end  Go to bottom")
 	fmt.Fprintln(v, "     alt+a  show session stats page")
 
 	fmt.Fprintln(v, "")
@@ -849,7 +853,7 @@ func (c *Console) switchRow(v *gocui.View, row int) error {
 
 	if len(c.torrents) > height {
 		if row > currentRow {
-			// sroll down
+			// scroll down
 			if row >= oy+height {
 				// move origin
 				_ = v.SetOrigin(0, row-height+1)
@@ -1210,10 +1214,10 @@ func FormatStats(stats *rpctypes.Stats, v io.Writer) {
 		status = status + ": " + stats.Error
 	}
 	fmt.Fprintf(v, "Status: %s\n", status)
-	fmt.Fprintf(v, "Progress: %d\n", getProgress(stats))
+	fmt.Fprintf(v, "Progress: %d%%\n", getProgress(stats))
 	fmt.Fprintf(v, "Ratio: %.2f\n", getRatio(stats))
 	fmt.Fprintf(v, "Size: %s\n", getSize(stats))
-	fmt.Fprintf(v, "Peers: %d in %d out\n", stats.Peers.Incoming, stats.Peers.Outgoing)
+	fmt.Fprintf(v, "Peers: %d in / %d out\n", stats.Peers.Incoming, stats.Peers.Outgoing)
 	fmt.Fprintf(v, "Download speed: %11s\n", getDownloadSpeed(stats))
 	fmt.Fprintf(v, "Upload speed:   %11s\n", getUploadSpeed(stats))
 	fmt.Fprintf(v, "ETA: %s\n", getETA(stats))
