@@ -181,6 +181,9 @@ type Config struct {
 	WebseedMaxSources int
 	// Number of maximum simulateous downloads from WebSeed sources.
 	WebseedMaxDownloads int
+
+	// Shell command to execute on torrent completion.
+	OnCompleteCmd []string
 }
 
 // DefaultConfig for Session. Do not pass zero value Config to NewSession. Copy this struct and modify instead.
