@@ -47,7 +47,10 @@ func (t *torrent) checkCompletion() bool {
 	if !t.completeCmdRun && len(t.session.config.OnCompleteCmd) > 0 {
 		go t.session.runOnCompleteCmd(t)
 		t.completeCmdRun = true
-		t.session.resumer.WriteCompleteCmdRun(t.id)
+		err := t.session.resumer.WriteCompleteCmdRun(t.id)
+		if err != nil {
+			t.stop(err)
+		}
 	}
 	return true
 }
