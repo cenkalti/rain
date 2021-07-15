@@ -89,6 +89,7 @@ func (s *Session) addTorrentStopped(r io.Reader, opt *AddTorrentOptions) (*Torre
 		resumer.Stats{},
 		webseedsource.NewList(mi.URLList),
 		opt.StopAfterDownload,
+		false, // completeCmdRun
 	)
 	if err != nil {
 		return nil, err
@@ -199,6 +200,7 @@ func (s *Session) addMagnet(link string, opt *AddTorrentOptions) (*Torrent, erro
 		resumer.Stats{},
 		nil, // webseedSources
 		opt.StopAfterDownload,
+		false, // completeCmdRun
 	)
 	if err != nil {
 		return nil, err

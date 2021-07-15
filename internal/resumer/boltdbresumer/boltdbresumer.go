@@ -28,6 +28,7 @@ var Keys = struct {
 	BytesWasted     []byte
 	SeededFor       []byte
 	Started         []byte
+	CompleteCmdRun  []byte
 }{
 	InfoHash:        []byte("info_hash"),
 	Port:            []byte("port"),
@@ -44,6 +45,7 @@ var Keys = struct {
 	BytesWasted:     []byte("bytes_wasted"),
 	SeededFor:       []byte("seeded_for"),
 	Started:         []byte("started"),
+	CompleteCmdRun:  []byte("complete_cmd_run"),
 }
 
 // Resumer contains methods for saving/loading resume information of a torrent to a BoltDB database.
@@ -101,6 +103,7 @@ func (r *Resumer) Write(torrentID string, spec *Spec) error {
 		_ = b.Put(Keys.BytesWasted, []byte(strconv.FormatInt(spec.BytesWasted, 10)))
 		_ = b.Put(Keys.SeededFor, []byte(spec.SeededFor.String()))
 		_ = b.Put(Keys.Started, []byte(strconv.FormatBool(spec.Started)))
+		_ = b.Put(Keys.CompleteCmdRun, []byte(strconv.FormatBool(spec.CompleteCmdRun)))
 		return nil
 	})
 }
@@ -135,6 +138,17 @@ func (r *Resumer) WriteStarted(torrentID string, value bool) error {
 			return nil
 		}
 		return b.Put(Keys.Started, []byte(strconv.FormatBool(value)))
+	})
+}
+
+// WriteCompleteCmdRun writes the start status of a torrent.
+func (r *Resumer) WriteCompleteCmdRun(torrentID string) error {
+	return r.db.Update(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(r.bucket).Bucket([]byte(torrentID))
+		if b == nil {
+			return nil
+		}
+		return b.Put(Keys.CompleteCmdRun, []byte(strconv.FormatBool(true)))
 	})
 }
 
@@ -270,6 +284,14 @@ func (r *Resumer) Read(torrentID string) (spec *Spec, err error) {
 		value = b.Get(Keys.Started)
 		if value != nil {
 			spec.Started, err = strconv.ParseBool(string(value))
+			if err != nil {
+				return err
+			}
+		}
+
+		value = b.Get(Keys.CompleteCmdRun)
+		if value != nil {
+			spec.CompleteCmdRun, err = strconv.ParseBool(string(value))
 			if err != nil {
 				return err
 			}

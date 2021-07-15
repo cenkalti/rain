@@ -249,6 +249,9 @@ type torrent struct {
 	// If true, the torrent is stopped automatically when all pieces are downloaded.
 	stopAfterDownload bool
 
+	// True means that completeCmd has run before.
+	completeCmdRun bool
+
 	log logger.Logger
 }
 
@@ -267,6 +270,7 @@ func newTorrent2(
 	stats resumer.Stats, // initial stats from previous run
 	ws []*webseedsource.WebseedSource,
 	stopAfterDownload bool,
+	completeCmdRun bool,
 ) (*torrent, error) {
 	if len(infoHash) != 20 {
 		return nil, errors.New("invalid infoHash (must be 20 bytes)")
@@ -345,6 +349,7 @@ func newTorrent2(
 		webseedRetryC:             make(chan *webseedsource.WebseedSource),
 		doneC:                     make(chan struct{}),
 		stopAfterDownload:         stopAfterDownload,
+		completeCmdRun:            completeCmdRun,
 	}
 	if len(t.webseedSources) > s.config.WebseedMaxSources {
 		t.webseedSources = t.webseedSources[:10]

@@ -44,8 +44,10 @@ func (t *torrent) checkCompletion() bool {
 	}
 	t.piecePicker = nil
 	t.updateSeedDuration(time.Now())
-	if len(t.session.config.OnCompleteCmd) > 0 {
+	if !t.completeCmdRun && len(t.session.config.OnCompleteCmd) > 0 {
 		go t.session.runOnCompleteCmd(t)
+		t.completeCmdRun = true
+		t.session.resumer.WriteCompleteCmdRun(t.id)
 	}
 	return true
 }

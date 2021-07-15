@@ -104,6 +104,7 @@ func (s *Session) loadExistingTorrent(id string) (tt *Torrent, hasStarted bool, 
 		},
 		webseedsource.NewList(spec.URLList),
 		spec.StopAfterDownload,
+		spec.CompleteCmdRun,
 	)
 	if err != nil {
 		return
