@@ -5,6 +5,7 @@ BitTorrent client and library in Go. Running in production at [put.io](https://p
 
 [![GoDoc](https://godoc.org/github.com/cenkalti/rain?status.svg)](https://pkg.go.dev/github.com/cenkalti/rain/torrent?tab=doc)
 [![GitHub Release](https://img.shields.io/github/release/cenkalti/rain.svg)](https://github.com/cenkalti/rain/releases)
+[![Coverage Status](https://coveralls.io/repos/github/cenkalti/rain/badge.svg)](https://coveralls.io/github/cenkalti/rain)
 [![Go Report Card](https://goreportcard.com/badge/github.com/cenkalti/rain)](https://goreportcard.com/report/github.com/cenkalti/rain)
 
 Features
