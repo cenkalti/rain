@@ -14,7 +14,9 @@ func (s *Session) processDHTResults() {
 			s.handleDHTtick()
 		case res := <-s.dht.PeersRequestResults:
 			for ih, peers := range res {
+				s.mTorrentsByInfoHash.RLock()
 				torrents, ok := s.torrentsByInfoHash[ih]
+				s.mTorrentsByInfoHash.RUnlock()
 				if !ok {
 					continue
 				}
