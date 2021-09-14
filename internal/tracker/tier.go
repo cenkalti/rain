@@ -10,6 +10,7 @@ import (
 type Tier struct {
 	Trackers []Tracker
 	index    int
+	mutex    *sync.Mutex
 }
 
 var _ Tracker = (*Tier)(nil)
@@ -28,7 +29,7 @@ func NewTier(trackers []Tracker) *Tier {
 func (t *Tier) Announce(ctx context.Context, req AnnounceRequest) (*AnnounceResponse, error) {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
-	
+
 	resp, err := t.Trackers[t.index].Announce(ctx, req)
 	if err != nil {
 		t.index = (t.index + 1) % len(t.Trackers)
