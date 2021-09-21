@@ -3,14 +3,14 @@ package tracker
 import (
 	"context"
 	"math/rand"
-	"sync"
+	"sync/atomic"
 )
 
 // Tier implements the Tracker interface and contains multiple Trackers which tries to announce to the working Tracker.
 type Tier struct {
-	Trackers []Tracker
-	index    int
-	mutex    *sync.Mutex
+	Trackers     []Tracker
+	index        int32
+	trackerCount int32
 }
 
 var _ Tracker = (*Tier)(nil)
@@ -19,20 +19,20 @@ var _ Tracker = (*Tier)(nil)
 func NewTier(trackers []Tracker) *Tier {
 	rand.Shuffle(len(trackers), func(i, j int) { trackers[i], trackers[j] = trackers[j], trackers[i] })
 	return &Tier{
-		Trackers: trackers,
-		mutex: &sync.Mutex{},
+		Trackers:     trackers,
+		trackerCount: int32(len(trackers)),
 	}
 }
 
 // Announce a torrent to the tracker.
 // If annouce fails, the next announce will be made to the next Tracker in the tier.
 func (t *Tier) Announce(ctx context.Context, req AnnounceRequest) (*AnnounceResponse, error) {
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
+	index := atomic.LoadInt32(&t.index)
 
-	resp, err := t.Trackers[t.index].Announce(ctx, req)
+	resp, err := t.Trackers[index].Announce(ctx, req)
 	if err != nil {
-		t.index = (t.index + 1) % len(t.Trackers)
+		index = (index + 1) % t.trackerCount
+		atomic.StoreInt32(&t.index, index)
 	}
 	return resp, err
 }
