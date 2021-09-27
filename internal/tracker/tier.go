@@ -28,13 +28,13 @@ func NewTier(trackers []Tracker) *Tier {
 // If annouce fails, the next announce will be made to the next Tracker in the tier.
 func (t *Tier) Announce(ctx context.Context, req AnnounceRequest) (*AnnounceResponse, error) {
 	index := atomic.LoadInt32(&t.index)
+	if index == t.trackerCount {
+		index = 0
+	}
 
 	resp, err := t.Trackers[index].Announce(ctx, req)
 	if err != nil {
-		// Re-read index, it could have been modified since the first load
-		index = atomic.LoadInt32(&t.index)
-		index = (index + 1) % t.trackerCount
-		atomic.StoreInt32(&t.index, index)
+		atomic.AddInt32(&t.index, 1)
 	}
 	return resp, err
 }
