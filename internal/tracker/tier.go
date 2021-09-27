@@ -31,6 +31,8 @@ func (t *Tier) Announce(ctx context.Context, req AnnounceRequest) (*AnnounceResp
 
 	resp, err := t.Trackers[index].Announce(ctx, req)
 	if err != nil {
+		// Re-read index, it could have been modified since the first load
+		index = atomic.LoadInt32(&t.index)
 		index = (index + 1) % t.trackerCount
 		atomic.StoreInt32(&t.index, index)
 	}
