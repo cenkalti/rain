@@ -283,6 +283,8 @@ func (s *Session) insertTorrent(t *torrent) *Torrent {
 	defer s.mTorrents.Unlock()
 	s.torrents[t.id] = t2
 	ih := dht.InfoHash(t.InfoHash())
+	s.mTorrentsByInfoHash.Lock()
 	s.torrentsByInfoHash[ih] = append(s.torrentsByInfoHash[ih], t2)
+	s.mTorrentsByInfoHash.Unlock()
 	return t2
 }
