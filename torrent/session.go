@@ -60,11 +60,10 @@ type Session struct {
 	mPeerRequests   sync.Mutex
 	dhtPeerRequests map[*torrent]struct{}
 
-	mTorrents           sync.RWMutex
-	torrents            map[string]*Torrent
-	mTorrentsByInfoHash sync.RWMutex
-	torrentsByInfoHash  map[dht.InfoHash][]*Torrent
-	invalidTorrentIDs   []string
+	mTorrents          sync.RWMutex
+	torrents           map[string]*Torrent
+	torrentsByInfoHash map[dht.InfoHash][]*Torrent
+	invalidTorrentIDs  []string
 
 	mPorts         sync.RWMutex
 	availablePorts map[int]struct{}
@@ -349,8 +348,6 @@ func (s *Session) removeTorrentFromClient(id string) (*Torrent, error) {
 
 	// Delete from the list of torrents with same info hash
 	ih := dht.InfoHash(t.torrent.InfoHash())
-	s.mTorrentsByInfoHash.Lock()
-	defer s.mTorrentsByInfoHash.Unlock()
 	a := s.torrentsByInfoHash[ih]
 	for i, it := range a {
 		if it == t {
