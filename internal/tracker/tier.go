@@ -8,9 +8,8 @@ import (
 
 // Tier implements the Tracker interface and contains multiple Trackers which tries to announce to the working Tracker.
 type Tier struct {
-	Trackers     []Tracker
-	index        int32
-	trackerCount int32
+	Trackers []Tracker
+	index    int32
 }
 
 var _ Tracker = (*Tier)(nil)
@@ -19,8 +18,7 @@ var _ Tracker = (*Tier)(nil)
 func NewTier(trackers []Tracker) *Tier {
 	rand.Shuffle(len(trackers), func(i, j int) { trackers[i], trackers[j] = trackers[j], trackers[i] })
 	return &Tier{
-		Trackers:     trackers,
-		trackerCount: int32(len(trackers)),
+		Trackers: trackers,
 	}
 }
 
@@ -28,18 +26,17 @@ func NewTier(trackers []Tracker) *Tier {
 // If annouce fails, the next announce will be made to the next Tracker in the tier.
 func (t *Tier) Announce(ctx context.Context, req AnnounceRequest) (*AnnounceResponse, error) {
 	index := atomic.LoadInt32(&t.index)
-	if index == t.trackerCount {
+	if index >= int32(len(t.Trackers)) {
 		index = 0
 	}
-
 	resp, err := t.Trackers[index].Announce(ctx, req)
 	if err != nil {
-		atomic.AddInt32(&t.index, 1)
+		atomic.CompareAndSwapInt32(&t.index, index, index+1)
 	}
 	return resp, err
 }
 
 // URL returns the current Tracker in the Tier.
 func (t *Tier) URL() string {
-	return t.Trackers[t.index].URL()
+	return t.Trackers[atomic.LoadInt32(&t.index)].URL()
 }
