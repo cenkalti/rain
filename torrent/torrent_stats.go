@@ -200,7 +200,10 @@ func (t *torrent) avaliablePieceCount() uint32 {
 }
 
 func (t *torrent) bytesComplete() int64 {
+	t.mBitfield.RLock()
+
 	if t.bitfield == nil || len(t.pieces) == 0 {
+		t.mBitfield.RUnlock()
 		return 0
 	}
 	n := int64(t.info.PieceLength) * int64(t.bitfield.Count())
@@ -208,6 +211,8 @@ func (t *torrent) bytesComplete() int64 {
 		n -= int64(t.info.PieceLength)
 		n += int64(t.pieces[t.bitfield.Len()-1].Length)
 	}
+
+	t.mBitfield.RUnlock()
 	return n
 }
 

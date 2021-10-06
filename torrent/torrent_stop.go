@@ -131,6 +131,10 @@ func (t *torrent) closeData() {
 			t.log.Error(err)
 		}
 	}
+
+	t.mBitfield.Lock()
+	defer t.mBitfield.Unlock()
+
 	t.files = nil
 	t.pieces = nil
 	t.piecePicker = nil
