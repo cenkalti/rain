@@ -3,6 +3,7 @@ package peer
 import (
 	"math"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/cenkalti/rain/internal/bitfield"
@@ -67,6 +68,10 @@ type Peer struct {
 
 	closeC chan struct{}
 	doneC  chan struct{}
+	
+	// In some situation the closeC channel is closed twice which create a panic
+	// Prevent this by using a sync object which will ever close the channel once
+	once sync.Once
 }
 
 // Message that is read from Peer
@@ -123,11 +128,18 @@ func (p *Peer) Close() {
 	if p.PEX != nil {
 		p.PEX.close()
 	}
-	close(p.closeC)
+	p.SafeClose()
 	p.Conn.Close()
 	p.downloadSpeed.Stop()
 	p.uploadSpeed.Stop()
 	<-p.doneC
+}
+
+// Close the closeC channel safely
+func (p *Peer) SafeClose() {
+       p.once.Do(func() {
+               close(p.closeC)
+       })
 }
 
 // Done returns a channel that is closed when a peers run loop is ended.
