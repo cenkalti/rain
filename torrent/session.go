@@ -350,7 +350,6 @@ func (s *Session) removeTorrentFromClient(id string) (*Torrent, error) {
 	// Delete from the list of torrents with same info hash
 	ih := dht.InfoHash(t.torrent.InfoHash())
 	s.mTorrentsByInfoHash.Lock()
-	defer s.mTorrentsByInfoHash.Unlock()
 	a := s.torrentsByInfoHash[ih]
 	for i, it := range a {
 		if it == t {
@@ -363,6 +362,7 @@ func (s *Session) removeTorrentFromClient(id string) (*Torrent, error) {
 	if s.config.DHTEnabled && len(s.torrentsByInfoHash[ih]) == 0 {
 		s.dht.RemoveInfoHash(string(ih))
 	}
+	s.mTorrentsByInfoHash.Unlock()
 	return t, s.db.Update(func(tx *bbolt.Tx) error {
 		return tx.Bucket(torrentsBucket).DeleteBucket([]byte(id))
 	})
