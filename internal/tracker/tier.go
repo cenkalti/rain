@@ -25,10 +25,7 @@ func NewTier(trackers []Tracker) *Tier {
 // Announce a torrent to the tracker.
 // If annouce fails, the next announce will be made to the next Tracker in the tier.
 func (t *Tier) Announce(ctx context.Context, req AnnounceRequest) (*AnnounceResponse, error) {
-	index := atomic.LoadInt32(&t.index)
-	if index >= int32(len(t.Trackers)) {
-		index = 0
-	}
+	index := t.loadIndex()
 	resp, err := t.Trackers[index].Announce(ctx, req)
 	if err != nil {
 		atomic.CompareAndSwapInt32(&t.index, index, index+1)
@@ -38,5 +35,13 @@ func (t *Tier) Announce(ctx context.Context, req AnnounceRequest) (*AnnounceResp
 
 // URL returns the current Tracker in the Tier.
 func (t *Tier) URL() string {
-	return t.Trackers[atomic.LoadInt32(&t.index)].URL()
+	return t.Trackers[t.loadIndex()].URL()
+}
+
+func (t *Tier) loadIndex() int32 {
+	index := atomic.LoadInt32(&t.index)
+	if index >= int32(len(t.Trackers)) {
+		index = 0
+	}
+	return index
 }
