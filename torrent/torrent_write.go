@@ -2,7 +2,6 @@ package torrent
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peerprotocol"
@@ -41,7 +40,8 @@ func (t *torrent) handlePieceWriteDone(pw *piecewriter.PieceWriter) {
 
 	pw.Piece.Done = true
 	if t.bitfield.Test(pw.Piece.Index) {
-		panic(fmt.Sprintf("already have the piece #%d", pw.Piece.Index))
+		t.log.Errorf("already have the piece #%d", pw.Piece.Index)
+		return
 	}
 	t.mBitfield.Lock()
 	t.bitfield.Set(pw.Piece.Index)
