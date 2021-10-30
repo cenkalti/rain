@@ -43,6 +43,13 @@ func (t *torrent) stop(err error) {
 		_ = t.writeBitfield()
 	}
 
+	// Stop periodical announcers first. We'll create another announcer for announcing Stopped event.
+	// This must be done before closing data files because announcer accesses to t.pieces.
+	// If the announcer goroutine is active during close it is a data race.
+	// Bug details: https://github.com/cenkalti/rain/issues/33
+	announcers := t.announcers // keep a reference to the list before nilling in order to start StopAnnouncer
+	t.stopPeriodicalAnnouncers()
+
 	// Closing data is necessary to cancel ongoing IO operations on files.
 	t.closeData()
 	// Data must be closed before closing Allocator.
@@ -55,11 +62,7 @@ func (t *torrent) stop(err error) {
 
 	t.resetSpeeds()
 
-	// Stop periodical announcers first.
-	announcers := t.announcers // keep a reference to the list before nilling in order to start StopAnnouncer
-	t.stopPeriodicalAnnouncers()
-
-	// Then start another announcer to announce Stopped event to the trackers.
+	// Start new announcer to announce Stopped event to the trackers.
 	// The torrent enters "Stopping" state.
 	// This announcer times out in 5 seconds. After it's done the torrent is in "Stopped" status.
 	trackers := make([]tracker.Tracker, 0, len(announcers))
