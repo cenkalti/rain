@@ -13,6 +13,10 @@ import (
 
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/webseedsource"
+	fhttp "github.com/chihaya/chihaya/frontend/http"
+	"github.com/chihaya/chihaya/middleware"
+	"github.com/chihaya/chihaya/storage"
+	_ "github.com/chihaya/chihaya/storage/memory"
 	"github.com/fortytw2/leaktest"
 )
 
@@ -55,7 +59,7 @@ func CopyDir(src, dst string) error {
 	return cmd.Run()
 }
 
-func seeder(t *testing.T) (addr string, c func()) {
+func seeder(t *testing.T, clearTrackers bool) (addr string, c func()) {
 	f, err := os.Open(torrentFile)
 	if err != nil {
 		t.Fatal(err)
@@ -77,7 +81,9 @@ func seeder(t *testing.T) (addr string, c func()) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tor.torrent.trackers = nil
+	if clearTrackers {
+		tor.torrent.trackers = nil
+	}
 	tor.Start()
 	var port int
 	select {
@@ -107,7 +113,7 @@ func tempdir(t *testing.T) (string, func()) {
 
 func TestDownloadMagnet(t *testing.T) {
 	defer leaktest.Check(t)()
-	addr, cl := seeder(t)
+	addr, cl := seeder(t, true)
 	defer cl()
 	s, closeSession := newTestSession(t)
 	defer closeSession()
@@ -117,6 +123,56 @@ func TestDownloadMagnet(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertCompleted(t, tor)
+}
+
+func TestDownloadTorrent(t *testing.T) {
+	// TODO defer leaktest.Check(t)()
+	defer startHTTPTracker(t)()
+
+	_, cl := seeder(t, false)
+	defer cl()
+
+	s, closeSession := newTestSession(t)
+	defer closeSession()
+
+	f, err := os.Open(torrentFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	tor, err := s.AddTorrent(f, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertCompleted(t, tor)
+}
+
+func startHTTPTracker(t *testing.T) (stop func()) {
+	responseConfig := middleware.ResponseConfig{
+		AnnounceInterval: time.Minute,
+	}
+	ps, err := storage.NewPeerStore("memory", map[string]interface{}{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lgc := middleware.NewLogic(responseConfig, ps, nil, nil)
+	fe, err := fhttp.NewFrontend(lgc, fhttp.Config{
+		Addr:         "127.0.0.1:5000",
+		ReadTimeout:  time.Second,
+		WriteTimeout: time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return func() {
+		errC := fe.Stop()
+		err := <-errC
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
 }
 
 func webseed(t *testing.T) (port int, c func()) {
@@ -144,7 +200,7 @@ func TestDownloadWebseed(t *testing.T) {
 	defer close1()
 	port2, close2 := webseed(t)
 	defer close2()
-	addr, cl := seeder(t)
+	addr, cl := seeder(t, true)
 	defer cl()
 	s, closeSession := newTestSession(t)
 	defer closeSession()
