@@ -24,6 +24,7 @@ func (t *torrent) announcerFields() tracker.Torrent {
 		BytesDownloaded: t.bytesDownloaded.Count(),
 		BytesUploaded:   t.bytesUploaded.Count(),
 	}
+	// t.bytesComplete() uses t.bitfied for calculation.
 	t.mBitfield.RLock()
 	if t.bitfield == nil {
 		// Some trackers don't send any peer address if don't tell we have missing bytes.
