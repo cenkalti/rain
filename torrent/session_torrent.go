@@ -100,10 +100,17 @@ func (t *Torrent) NotifyStop() <-chan error {
 }
 
 // NotifyComplete returns a channel for notifying completion.
-// The channel is closed once all pieces are downloaded successfully.
+// The channel is closed once all torrent pieces are downloaded successfully.
 // NotifyComplete must be called after calling Start().
 func (t *Torrent) NotifyComplete() <-chan struct{} {
 	return t.torrent.NotifyComplete()
+}
+
+// NotifyMetadata returns a channel for notifying completion of metadata download from magnet links.
+// The channel is closed once all metadata pieces are downloaded successfully.
+// NotifyMetadata must be called after calling Start().
+func (t *Torrent) NotifyMetadata() <-chan struct{} {
+	return t.torrent.NotifyMetadata()
 }
 
 // AddPeer adds a new peer to the torrent. Does nothing if torrent is stopped.

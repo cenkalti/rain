@@ -117,8 +117,11 @@ type torrent struct {
 
 	pieceWriterResultC chan *piecewriter.PieceWriter
 
-	// This channel is closed once all pieces are downloaded and verified.
+	// This channel is closed once all torrent pieces are downloaded and verified.
 	completeC chan struct{}
+
+	// This channel is closed once all metadata pieces are downloaded and verified.
+	completeMetadataC chan struct{}
 
 	// True after all pieces are download, verified and written to disk.
 	completed bool
@@ -247,8 +250,11 @@ type torrent struct {
 	// Set to true when manual verification is requested
 	doVerify bool
 
-	// If true, the torrent is stopped automatically when all pieces are downloaded.
+	// If true, the torrent is stopped automatically when all torrent pieces are downloaded.
 	stopAfterDownload bool
+
+	// If true, the torrent is stopped automatically when all metadata pieces are downloaded.
+	stopAfterMetadata bool
 
 	// True means that completeCmd has run before.
 	completeCmdRun bool
@@ -256,6 +262,8 @@ type torrent struct {
 	log logger.Logger
 }
 
+// newTorrent2 is a constructor for torrent struct.
+// loadExistingTorrents, addTorrentStopped and addMagnet ultimately calls this method.
 func newTorrent2(
 	s *Session,
 	id string,
@@ -271,6 +279,7 @@ func newTorrent2(
 	stats resumer.Stats, // initial stats from previous run
 	ws []*webseedsource.WebseedSource,
 	stopAfterDownload bool,
+	stopAfterMetadata bool,
 	completeCmdRun bool,
 ) (*torrent, error) {
 	if len(infoHash) != 20 {
@@ -306,6 +315,7 @@ func newTorrent2(
 		infoDownloadersSnubbed:    make(map[*peer.Peer]*infodownloader.InfoDownloader),
 		pieceWriterResultC:        make(chan *piecewriter.PieceWriter),
 		completeC:                 make(chan struct{}),
+		completeMetadataC:         make(chan struct{}),
 		closeC:                    make(chan chan struct{}),
 		startCommandC:             make(chan struct{}),
 		stopCommandC:              make(chan struct{}),
@@ -350,6 +360,7 @@ func newTorrent2(
 		webseedRetryC:             make(chan *webseedsource.WebseedSource),
 		doneC:                     make(chan struct{}),
 		stopAfterDownload:         stopAfterDownload,
+		stopAfterMetadata:         stopAfterMetadata,
 		completeCmdRun:            completeCmdRun,
 	}
 	if len(t.webseedSources) > s.config.WebseedMaxSources {

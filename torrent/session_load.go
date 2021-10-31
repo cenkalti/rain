@@ -104,6 +104,7 @@ func (s *Session) loadExistingTorrent(id string) (tt *Torrent, hasStarted bool, 
 		},
 		webseedsource.NewList(spec.URLList),
 		spec.StopAfterDownload,
+		spec.StopAfterMetadata,
 		spec.CompleteCmdRun,
 	)
 	if err != nil {
@@ -168,6 +169,7 @@ func (s *Session) CompactDatabase(output string) error {
 			Info:              t.torrent.info.Bytes,
 			AddedAt:           t.torrent.addedAt,
 			StopAfterDownload: t.torrent.stopAfterDownload,
+			StopAfterMetadata: t.torrent.stopAfterMetadata,
 		}
 		err = res.Write(t.torrent.id, spec)
 		if err != nil {

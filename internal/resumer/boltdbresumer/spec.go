@@ -23,6 +23,7 @@ type Spec struct {
 	SeededFor         time.Duration
 	Started           bool
 	StopAfterDownload bool
+	StopAfterMetadata bool
 	CompleteCmdRun    bool
 }
 
@@ -38,6 +39,7 @@ type jsonSpec struct {
 	BytesWasted       int64
 	Started           bool
 	StopAfterDownload bool
+	StopAfterMetadata bool
 	CompleteCmdRun    bool
 
 	// JSON unsafe types
@@ -61,6 +63,7 @@ func (s Spec) MarshalJSON() ([]byte, error) {
 		BytesWasted:       s.BytesWasted,
 		Started:           s.Started,
 		StopAfterDownload: s.StopAfterDownload,
+		StopAfterMetadata: s.StopAfterMetadata,
 		CompleteCmdRun:    s.CompleteCmdRun,
 
 		InfoHash:  base64.StdEncoding.EncodeToString(s.InfoHash),
@@ -102,6 +105,7 @@ func (s *Spec) UnmarshalJSON(b []byte) error {
 	s.BytesWasted = j.BytesWasted
 	s.Started = j.Started
 	s.StopAfterDownload = j.StopAfterDownload
+	s.StopAfterMetadata = j.StopAfterMetadata
 	s.CompleteCmdRun = j.CompleteCmdRun
 	return nil
 }
