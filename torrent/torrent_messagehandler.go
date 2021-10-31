@@ -67,6 +67,9 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 			// if we request it twice.
 			pe.Logger().Debugln("received duplicate block:", block.Index)
 		}
+		t.bytesWasted.Inc(l)
+		msg.Buffer.Release()
+		return
 	case piecedownloader.ErrBlockNotRequested:
 		if pe.FastEnabled {
 			pe.Logger().Warningln("received not requested block:", block.Index)

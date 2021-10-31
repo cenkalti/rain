@@ -67,6 +67,7 @@ type torrent struct {
 	info *metainfo.Info
 
 	// Bitfield for pieces we have. It is created after we got info.
+	// Bits are set only after data is written to file.
 	bitfield *bitfield.Bitfield
 
 	// Protects bitfield writing from torrent loop and reading from announcer loop.
