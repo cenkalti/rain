@@ -147,25 +147,33 @@ func (r *Resumer) WriteStarted(torrentID string, value bool) error {
 	})
 }
 
-// WriteStopAfterDownload writes the start status of a torrent.
-func (r *Resumer) WriteStopAfterDownload(torrentID string, value bool) error {
+// HandleStopAfterDownload clears the start status and stop_after_download fields.
+func (r *Resumer) HandleStopAfterDownload(torrentID string) error {
 	return r.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(r.bucket).Bucket([]byte(torrentID))
 		if b == nil {
 			return nil
 		}
-		return b.Put(Keys.StopAfterDownload, []byte(strconv.FormatBool(value)))
+		err := b.Put(Keys.Started, []byte(strconv.FormatBool(false)))
+		if err != nil {
+			return err
+		}
+		return b.Put(Keys.StopAfterDownload, []byte(strconv.FormatBool(false)))
 	})
 }
 
-// WriteStopAfterMetadata writes the start status of a torrent.
-func (r *Resumer) WriteStopAfterMetadata(torrentID string, value bool) error {
+// HandleStopAfterMetadata clears the start status and stop_after_metadata fields.
+func (r *Resumer) HandleStopAfterMetadata(torrentID string) error {
 	return r.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(r.bucket).Bucket([]byte(torrentID))
 		if b == nil {
 			return nil
 		}
-		return b.Put(Keys.StopAfterMetadata, []byte(strconv.FormatBool(value)))
+		err := b.Put(Keys.Started, []byte(strconv.FormatBool(false)))
+		if err != nil {
+			return err
+		}
+		return b.Put(Keys.StopAfterMetadata, []byte(strconv.FormatBool(false)))
 	})
 }
 
