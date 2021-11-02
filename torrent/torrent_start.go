@@ -35,15 +35,6 @@ func (t *torrent) start() {
 	t.downloadSpeed = metrics.NewMeter()
 	t.uploadSpeed = metrics.NewMeter()
 
-	if t.info != nil && t.stopAfterMetadata {
-		t.stopAfterMetadata = false
-		_ = t.session.resumer.WriteStopAfterMetadata(t.id, false)
-	}
-	if t.completed && t.stopAfterDownload {
-		t.stopAfterDownload = false
-		_ = t.session.resumer.WriteStopAfterDownload(t.id, false)
-	}
-
 	if t.info != nil {
 		if t.pieces != nil {
 			if t.bitfield != nil {

@@ -73,7 +73,7 @@ func (t *torrent) handleVerificationDone(ve *verifier.Verifier) {
 	}
 
 	if t.checkCompletion() && t.stopAfterDownload {
-		t.stop(nil)
+		t.stopAndSetStoppedOnComplete()
 		return
 	}
 	t.processQueuedMessages()

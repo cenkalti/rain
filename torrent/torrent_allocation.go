@@ -54,7 +54,7 @@ func (t *torrent) handleAllocationDone(al *allocator.Allocator) {
 			t.pieces[i].Done = t.bitfield.Test(i)
 		}
 		if t.checkCompletion() && t.stopAfterDownload {
-			t.stop(nil)
+			t.stopAndSetStoppedOnComplete()
 			return
 		}
 		t.processQueuedMessages()

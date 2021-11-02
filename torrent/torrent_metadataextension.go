@@ -103,7 +103,7 @@ func (t *torrent) handleMetadataMessage(pe *peer.Peer, msg peerprotocol.Extensio
 			close(t.completeMetadataC)
 		}
 		if t.stopAfterMetadata {
-			t.stop(nil)
+			t.stopAndSetStoppedOnMetadata()
 		} else {
 			t.startAllocator()
 		}

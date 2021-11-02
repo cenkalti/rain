@@ -21,6 +21,30 @@ func (t *torrent) handleStopped() {
 	}
 }
 
+func (t *torrent) stopAndSetStoppedOnComplete() {
+	err := t.session.resumer.WriteStarted(t.id, false)
+	if err != nil {
+		t.log.Errorf("cannot write status to resume db: %s", err)
+	}
+	err = t.session.resumer.WriteStopAfterDownload(t.id, false)
+	if err != nil {
+		t.log.Errorf("cannot write status to resume db: %s", err)
+	}
+	t.stop(nil)
+}
+
+func (t *torrent) stopAndSetStoppedOnMetadata() {
+	err := t.session.resumer.WriteStarted(t.id, false)
+	if err != nil {
+		t.log.Errorf("cannot write status to resume db: %s", err)
+	}
+	err = t.session.resumer.WriteStopAfterMetadata(t.id, false)
+	if err != nil {
+		t.log.Errorf("cannot write status to resume db: %s", err)
+	}
+	t.stop(nil)
+}
+
 func (t *torrent) stop(err error) {
 	s := t.status()
 	if s == Stopping || s == Stopped {

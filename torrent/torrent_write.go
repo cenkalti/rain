@@ -84,7 +84,7 @@ func (t *torrent) handlePieceWriteDone(pw *piecewriter.PieceWriter) {
 		if err != nil {
 			t.stop(err)
 		} else if t.stopAfterDownload {
-			t.stop(nil)
+			t.stopAndSetStoppedOnComplete()
 		}
 	}
 }
