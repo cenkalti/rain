@@ -760,7 +760,7 @@ func handleDownload(c *cli.Context) error {
 			if stats.ETA != nil {
 				eta = stats.ETA.String()
 			}
-			log.Infof("Status: %s, Progress: %d%%, Peers: %d ETA: %s\n", stats.Status.String(), progress, stats.Peers.Total, eta)
+			log.Infof("Status: %s, Progress: %d%%, Peers: %d, Speed: %dK/s, ETA: %s\n", stats.Status.String(), progress, stats.Peers.Total, stats.Speed.Download/1024, eta)
 		case err = <-t.NotifyStop():
 			return err
 		}
