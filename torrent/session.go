@@ -194,11 +194,13 @@ func NewSession(cfg Config) (*Session, error) {
 			},
 		},
 	}
+	dlSpeed := cfg.SpeedLimitDownload * 1024
 	if cfg.SpeedLimitDownload > 0 {
-		c.bucketDownload = ratelimit.NewBucketWithRate(float64(cfg.SpeedLimitDownload), cfg.SpeedLimitDownload)
+		c.bucketDownload = ratelimit.NewBucketWithRate(float64(dlSpeed), dlSpeed)
 	}
+	ulSpeed := cfg.SpeedLimitUpload * 1024
 	if cfg.SpeedLimitUpload > 0 {
-		c.bucketUpload = ratelimit.NewBucketWithRate(float64(cfg.SpeedLimitUpload), cfg.SpeedLimitUpload)
+		c.bucketUpload = ratelimit.NewBucketWithRate(float64(ulSpeed), ulSpeed)
 	}
 	err = c.startBlocklistReloader()
 	if err != nil {
