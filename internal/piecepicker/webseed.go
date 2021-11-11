@@ -10,13 +10,13 @@ import (
 // WebseedDownloadSpec contains information for downloading torrent data from webseed sources.
 type WebseedDownloadSpec struct {
 	Source *webseedsource.WebseedSource
-	Begin  uint32
-	End    uint32
+	Begin  uint32 // piece index
+	End    uint32 // piece index
 }
 
 // PickWebseed returns the next spec for downloading files from webseed sources.
 func (p *PiecePicker) PickWebseed(src *webseedsource.WebseedSource) *WebseedDownloadSpec {
-	begin, end := p.findRangeForWebseed()
+	begin, end := p.findPieceRangeForWebseed()
 	if begin == end {
 		return nil
 	}
@@ -43,7 +43,7 @@ func (p *PiecePicker) downloadingWebseed() bool {
 	return false
 }
 
-func (p *PiecePicker) findRangeForWebseed() (begin, end uint32) {
+func (p *PiecePicker) findPieceRangeForWebseed() (begin, end uint32) {
 	gaps := p.findGaps()
 	if len(gaps) == 0 {
 		gap := p.webseedStealsFromAnotherWebseed()
@@ -157,7 +157,7 @@ func (p *PiecePicker) pickLastPieceOfSmallestGap(pe *peer.Peer) *myPiece {
 	return nil
 }
 
-// Range is a piece range.
+// Range is a piece index range.
 // Begin is inclusive, End is exclusive.
 type Range struct {
 	Begin, End uint32

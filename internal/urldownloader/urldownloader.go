@@ -28,7 +28,7 @@ type PieceResult struct {
 	Buffer     bufferpool.Buffer
 	Index      uint32
 	Error      error
-	Done       bool
+	Done       bool // URL downloader finished downloading all requested pieces
 }
 
 // New returns a new URLDownloader for the given source and piece range.
