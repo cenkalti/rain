@@ -11,12 +11,14 @@ import (
 
 	"github.com/cenkalti/rain/internal/bufferpool"
 	"github.com/cenkalti/rain/internal/piece"
+	"github.com/juju/ratelimit"
 )
 
 // URLDownloader downloads files from a HTTP source.
 type URLDownloader struct {
 	URL                 string
-	Begin, End, current uint32
+	Begin, End, current uint32 // piece index
+	bucket              *ratelimit.Bucket
 	closeC, doneC       chan struct{}
 }
 
@@ -30,12 +32,13 @@ type PieceResult struct {
 }
 
 // New returns a new URLDownloader for the given source and piece range.
-func New(source string, begin, end uint32) *URLDownloader {
+func New(source string, begin, end uint32, b *ratelimit.Bucket) *URLDownloader {
 	return &URLDownloader{
 		URL:     source,
 		Begin:   begin,
 		current: begin,
 		End:     end,
+		bucket:  b,
 		closeC:  make(chan struct{}),
 		doneC:   make(chan struct{}),
 	}
@@ -112,6 +115,14 @@ func (d *URLDownloader) Run(client *http.Client, pieces []piece.Piece, multifile
 		var m int64 // position in response
 		for m < job.Length {
 			readSize := calcReadSize(buf, n, job, m)
+			if d.bucket != nil {
+				waitDuration := d.bucket.Take(readSize)
+				select {
+				case <-time.After(waitDuration):
+				case <-d.closeC:
+					return false
+				}
+			}
 			o, err := readFull(resp.Body, buf.Data[n:int64(n)+readSize], timer, readTimeout)
 			if err != nil {
 				d.sendResult(resultC, &PieceResult{Downloader: d, Error: err})
