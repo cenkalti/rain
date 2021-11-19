@@ -49,5 +49,3 @@ require (
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/yaml.v2 v2.4.0
 )
-
-replace github.com/rcrowley/go-metrics => github.com/cenkalti/go-metrics v0.0.0-20190910102919-35c391953d1c
