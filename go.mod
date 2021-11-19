@@ -38,7 +38,7 @@ require (
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.7.0
 	github.com/urfave/cli v1.22.5
 	github.com/youtube/vitess v3.0.0-rc.3+incompatible // indirect
 	github.com/zeebo/bencode v1.0.0
