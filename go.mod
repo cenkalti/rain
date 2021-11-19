@@ -21,7 +21,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hokaccha/go-prettyjson v0.0.0-20210113012101-fb4e108d2519
 	github.com/jackpal/bencode-go v1.0.0 // indirect
-	github.com/jroimartin/gocui v0.4.0
+	github.com/jroimartin/gocui v0.5.0
 	github.com/juju/ratelimit v1.0.1
 	github.com/klauspost/cpuid/v2 v2.0.6 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
@@ -30,7 +30,6 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-multihash v0.0.15
 	github.com/nictuku/dht v0.0.0-20201226073453-fd1c1dd3d66a
-	github.com/nsf/termbox-go v1.1.0 // indirect
 	github.com/powerman/rpc-codec v1.2.2
 	github.com/prometheus/client_golang v1.1.0 // indirect
 	github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4 // indirect

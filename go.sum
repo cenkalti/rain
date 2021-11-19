@@ -42,8 +42,6 @@ github.com/cenkalti/backoff/v3 v3.2.2 h1:cfUAAO3yvKMYKPrvhDuHSwQnhZNk/RMHKdZqKTx
 github.com/cenkalti/backoff/v3 v3.2.2/go.mod h1:cIeZDE3IrqwwJl6VUwCN6trj1oXrTS4rc0ij+ULvLYs=
 github.com/cenkalti/boltbrowser v0.0.0-20190327195521-ebed13c76690 h1:cUjJIucCXCb0CWVYLvuYbUn4TID1NL+cqNboGRMekKk=
 github.com/cenkalti/boltbrowser v0.0.0-20190327195521-ebed13c76690/go.mod h1:TRC4W+aL8EZntkBiCvi7AGR0MH3JdBZUEx29Xm8cVoU=
-github.com/cenkalti/go-metrics v0.0.0-20190910102919-35c391953d1c h1:z+Syy0AMNLWpMEbuTGkhCaVqrS2nh5xJVLuvtDxoT+g=
-github.com/cenkalti/go-metrics v0.0.0-20190910102919-35c391953d1c/go.mod h1:vQgsGO875RMj4Mm16CEKHg2FI4Xy+pvqZv9mk89xnOE=
 github.com/cenkalti/log v1.0.0 h1:0SITaDyovlmHFLaV+qenYmDxh8TNgxbJscMyn4W8XWk=
 github.com/cenkalti/log v1.0.0/go.mod h1:Kbz0XnbnTBtcJN8yeRuPW/9SNtP1tx5SwjU+357jKYM=
 github.com/chihaya/chihaya v1.0.1-0.20191017040149-0a420fe05344 h1:sPhIxxsbeANHva7ZC1SPMactDgb9WxFusp55GX0dd+E=
@@ -114,8 +112,8 @@ github.com/jackpal/bencode-go v0.0.0-20180813173944-227668e840fa/go.mod h1:5FSBQ
 github.com/jackpal/bencode-go v1.0.0 h1:lzbSPPqqSfWQnqVNe/BBY1NXdDpncArxShL10+fmFus=
 github.com/jackpal/bencode-go v1.0.0/go.mod h1:5FSBQ74yhCl5oQ+QxRPYzWMONFnxbL68/23eezsBI5c=
 github.com/jessevdk/go-flags v1.4.0/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJSGM75WSRxI=
-github.com/jroimartin/gocui v0.4.0 h1:52jnalstgmc25FmtGcWqa0tcbMEWS6RpFLsOIO+I+E8=
-github.com/jroimartin/gocui v0.4.0/go.mod h1:7i7bbj99OgFHzo7kB2zPb8pXLqMBSQegY7azfqXMkyY=
+github.com/jroimartin/gocui v0.5.0 h1:DCZc97zY9dMnHXJSJLLmx9VqiEnAj0yh0eTNpuEtG/4=
+github.com/jroimartin/gocui v0.5.0/go.mod h1:l7Hz8DoYoL6NoYnlnaX6XCNR62G7J5FfSW5jEogzaxE=
 github.com/json-iterator/go v1.1.6/go.mod h1:+SdeFBvtyEkXs7REEP0seUULqWtbJapLOCVDaaPEHmU=
 github.com/json-iterator/go v1.1.7/go.mod h1:KdQUCv79m/52Kvf8AW2vK1V8akMuk1QjK/uOdHXbAo4=
 github.com/juju/ratelimit v1.0.1 h1:+7AIFJVQ0EQgq/K9+0Krm7m530Du7tIz0METWzN0RgY=
@@ -170,8 +168,8 @@ github.com/nictuku/dht v0.0.0-20201226073453-fd1c1dd3d66a/go.mod h1:OQ6jH4HHRpsk
 github.com/nictuku/nettools v0.0.0-20150117095333-8867a2107ad3 h1:q6P6rwaWsdWQlaDt0DYPtmpj37fq2S4/IrZQO0zx488=
 github.com/nictuku/nettools v0.0.0-20150117095333-8867a2107ad3/go.mod h1:m19Kd92g5zm0IuGkdZo/OHBSPp9mqGlevOJu00nBoYs=
 github.com/nsf/termbox-go v0.0.0-20180819125858-b66b20ab708e/go.mod h1:IuKpRQcYE1Tfu+oAQqaLisqDeXgjyyltCfsaoYN18NQ=
-github.com/nsf/termbox-go v1.1.0 h1:R+GIXVMaDxDQ2VHem5vO5h0mI8ZxLECTUNw1ZzXODzI=
-github.com/nsf/termbox-go v1.1.0/go.mod h1:T0cTdVuOwf7pHQNtfhnEbzHbcNyCEcVU4YPpouCbVxo=
+github.com/nsf/termbox-go v1.1.1 h1:nksUPLCb73Q++DwbYUBEglYBRPZyoXJdrj5L+TkjyZY=
+github.com/nsf/termbox-go v1.1.1/go.mod h1:T0cTdVuOwf7pHQNtfhnEbzHbcNyCEcVU4YPpouCbVxo=
 github.com/op/go-logging v0.0.0-20160315200505-970db520ece7/go.mod h1:HzydrMdWErDVzsI23lYNej1Htcns9BCg93Dk0bBINWk=
 github.com/philhofer/fwd v1.0.0/go.mod h1:gk3iGcWd9+svBvR0sR+KPcfE+RNWozjowpeBVG3ZVNU=
 github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
