@@ -43,7 +43,7 @@ require (
 	github.com/urfave/cli v1.22.5
 	github.com/youtube/vitess v3.0.0-rc.3+incompatible // indirect
 	github.com/zeebo/bencode v1.0.0
-	go.etcd.io/bbolt v1.3.5
+	go.etcd.io/bbolt v1.3.6
 	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2 // indirect
 	golang.org/x/sys v0.0.0-20210809222454-d867a43fc93e
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
