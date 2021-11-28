@@ -340,9 +340,9 @@ func (s *Session) RemoveTorrent(id string) error {
 
 func (s *Session) removeTorrentFromClient(id string) (*Torrent, error) {
 	s.mTorrents.Lock()
-	defer s.mTorrents.Unlock()
 	t, ok := s.torrents[id]
 	if !ok {
+		s.mTorrents.Unlock()
 		return nil, nil
 	}
 	t.torrent.log.Info("removing torrent")
@@ -358,6 +358,12 @@ func (s *Session) removeTorrentFromClient(id string) (*Torrent, error) {
 			break
 		}
 	}
+
+	// DHT.RemoveInfoHash below sends a message to DHT loop, hence it is blocking.
+	// We need to make sure that we are not holding any lock that cause a block in DHT loop.
+	// DHT.PeersRequestResults tries to hold the same lock (mTorrents) when a message is received from
+	// DHT.PeersRequestResults. That's why we are releasing the lock before calling DHT.RemoveInfoHash.
+	s.mTorrents.Unlock()
 
 	if s.config.DHTEnabled && len(s.torrentsByInfoHash[ih]) == 0 {
 		s.dht.RemoveInfoHash(string(ih))
