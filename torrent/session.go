@@ -381,7 +381,7 @@ func (s *Session) stopAndRemoveData(t *Torrent) error {
 	if s.config.DataDirIncludesTorrentID {
 		dest = filepath.Join(s.config.DataDir, t.torrent.id)
 	} else if t.torrent.info != nil {
-		dest = t.torrent.info.Name
+		dest = filepath.Join(s.config.DataDir, t.torrent.info.Name)
 	}
 	if dest != "" {
 		err = os.RemoveAll(dest)
