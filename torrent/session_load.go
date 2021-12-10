@@ -2,7 +2,6 @@ package torrent
 
 import (
 	"errors"
-	"path/filepath"
 
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/metainfo"
@@ -74,13 +73,7 @@ func (s *Session) loadExistingTorrent(id string) (tt *Torrent, hasStarted bool, 
 			bf = bf3
 		}
 	}
-	var dest string
-	if s.config.DataDirIncludesTorrentID {
-		dest = filepath.Join(s.config.DataDir, id)
-	} else {
-		dest = s.config.DataDir
-	}
-	sto, err := filestorage.New(dest)
+	sto, err := filestorage.New(s.getDataDir(id))
 	if err != nil {
 		return
 	}

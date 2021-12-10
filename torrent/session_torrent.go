@@ -269,12 +269,7 @@ func (t *Torrent) generateTar(pw *io.PipeWriter) {
 	defer func() { _ = pw.CloseWithError(err) }()
 
 	tw := tar.NewWriter(pw)
-	var root string
-	if t.torrent.session.config.DataDirIncludesTorrentID {
-		root = filepath.Join(t.torrent.session.config.DataDir, t.torrent.id)
-	} else {
-		root = t.torrent.session.config.DataDir
-	}
+	root := t.torrent.session.getDataDir(t.torrent.id)
 	walkFunc := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err

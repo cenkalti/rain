@@ -433,3 +433,10 @@ func (s *Session) StopAll() error {
 	}
 	return nil
 }
+
+func (s *Session) getDataDir(torrentID string) string {
+	if s.config.DataDirIncludesTorrentID {
+		return filepath.Join(s.config.DataDir, torrentID)
+	}
+	return s.config.DataDir
+}
