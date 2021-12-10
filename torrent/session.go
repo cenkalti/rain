@@ -333,7 +333,7 @@ func (s *Session) GetTorrent(id string) *Torrent {
 func (s *Session) RemoveTorrent(id string) error {
 	t, err := s.removeTorrentFromClient(id)
 	if t != nil {
-		go func() { _ = s.stopAndRemoveData(t) }()
+		err = s.stopAndRemoveData(t)
 	}
 	return err
 }
