@@ -3,23 +3,23 @@ package resourcemanager
 import "math/rand"
 
 // ResourceManager is a fair manager for distributing limited amount of resources to requesters.
-type ResourceManager struct {
+type ResourceManager[T any] struct {
 	limit     int64
 	available int64
 	objects   int
-	requests  map[string][]request
-	requestC  chan request
+	requests  map[string][]request[T]
+	requestC  chan request[T]
 	releaseC  chan int64
 	statsC    chan chan Stats
 	closeC    chan struct{}
 	doneC     chan struct{}
 }
 
-type request struct {
+type request[T any] struct {
 	key     string
-	data    interface{}
+	data    T
 	n       int64
-	notifyC chan interface{}
+	notifyC chan T
 	cancelC chan struct{}
 	doneC   chan bool
 }
@@ -32,12 +32,12 @@ type Stats struct {
 }
 
 // New returns a new ResourceManager with `limit` number of resources.
-func New(limit int64) *ResourceManager {
-	m := &ResourceManager{
+func New[T any](limit int64) *ResourceManager[T] {
+	m := &ResourceManager[T]{
 		limit:     limit,
 		available: limit,
-		requests:  make(map[string][]request),
-		requestC:  make(chan request),
+		requests:  make(map[string][]request[T]),
+		requestC:  make(chan request[T]),
 		releaseC:  make(chan int64),
 		statsC:    make(chan chan Stats),
 		closeC:    make(chan struct{}),
@@ -48,13 +48,13 @@ func New(limit int64) *ResourceManager {
 }
 
 // Close resource manager.
-func (m *ResourceManager) Close() {
+func (m *ResourceManager[T]) Close() {
 	close(m.closeC)
 	<-m.doneC
 }
 
 // Stats returns statistics about current status.
-func (m *ResourceManager) Stats() Stats {
+func (m *ResourceManager[T]) Stats() Stats {
 	var stats Stats
 	ch := make(chan Stats)
 	select {
@@ -70,11 +70,11 @@ func (m *ResourceManager) Stats() Stats {
 
 // Request `n` resource from the manager for key `key`.
 // Release must be called after done with the resource.
-func (m *ResourceManager) Request(key string, data interface{}, n int64, notifyC chan interface{}, cancelC chan struct{}) (acquired bool) {
+func (m *ResourceManager[T]) Request(key string, data T, n int64, notifyC chan T, cancelC chan struct{}) (acquired bool) {
 	if n < 0 {
 		return
 	}
-	r := request{
+	r := request[T]{
 		key:     key,
 		data:    data,
 		n:       n,
@@ -94,14 +94,14 @@ func (m *ResourceManager) Request(key string, data interface{}, n int64, notifyC
 }
 
 // Release `n` resource to the manager.
-func (m *ResourceManager) Release(n int64) {
+func (m *ResourceManager[T]) Release(n int64) {
 	select {
 	case m.releaseC <- n:
 	case <-m.closeC:
 	}
 }
 
-func (m *ResourceManager) run() {
+func (m *ResourceManager[T]) run() {
 	for {
 		req, i := m.randomRequest()
 		select {
@@ -139,7 +139,7 @@ func (m *ResourceManager) run() {
 	}
 }
 
-func (m *ResourceManager) deleteRequest(key string, i int) {
+func (m *ResourceManager[T]) deleteRequest(key string, i int) {
 	rs := m.requests[key]
 	rs[i] = rs[len(rs)-1]
 	rs = rs[:len(rs)-1]
@@ -150,7 +150,7 @@ func (m *ResourceManager) deleteRequest(key string, i int) {
 	}
 }
 
-func (m *ResourceManager) randomRequest() (request, int) {
+func (m *ResourceManager[T]) randomRequest() (request[T], int) {
 	for _, rs := range m.requests {
 		i := rand.Intn(len(rs)) // nolint: gosec
 		r := rs[i]
@@ -159,10 +159,10 @@ func (m *ResourceManager) randomRequest() (request, int) {
 		}
 		return r, i
 	}
-	return request{}, -1
+	return request[T]{}, -1
 }
 
-func (m *ResourceManager) handleRequest(r request) {
+func (m *ResourceManager[T]) handleRequest(r request[T]) {
 	acquired := m.available >= r.n
 	select {
 	case r.doneC <- acquired:

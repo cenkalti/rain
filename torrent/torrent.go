@@ -238,7 +238,7 @@ type torrent struct {
 	// Then, updated from "yourip" field in BEP 10 extension handshake message.
 	externalIP net.IP
 
-	ramNotifyC chan interface{}
+	ramNotifyC chan *peer.Peer
 
 	webseedClient          *http.Client
 	webseedSources         []*webseedsource.WebseedSource
@@ -353,7 +353,7 @@ func newTorrent2(
 		bytesUploaded:             metrics.NewCounter(),
 		bytesWasted:               metrics.NewCounter(),
 		seededFor:                 metrics.NewCounter(),
-		ramNotifyC:                make(chan interface{}),
+		ramNotifyC:                make(chan *peer.Peer),
 		webseedClient:             &s.webseedClient,
 		webseedSources:            ws,
 		webseedPieceResultC:       suspendchan.New(0),

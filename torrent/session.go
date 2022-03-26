@@ -16,6 +16,7 @@ import (
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/blocklist"
 	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/piececache"
 	"github.com/cenkalti/rain/internal/resolver"
 	"github.com/cenkalti/rain/internal/resourcemanager"
@@ -47,7 +48,7 @@ type Session struct {
 	dht            *dht.DHT
 	rpc            *rpcServer
 	trackerManager *trackermanager.TrackerManager
-	ram            *resourcemanager.ResourceManager
+	ram            *resourcemanager.ResourceManager[*peer.Peer]
 	pieceCache     *piececache.Cache
 	webseedClient  http.Client
 	createdAt      time.Time
@@ -171,7 +172,7 @@ func NewSession(cfg Config) (*Session, error) {
 		availablePorts:     ports,
 		dht:                dhtNode,
 		pieceCache:         piececache.New(cfg.ReadCacheSize, cfg.ReadCacheTTL, cfg.ParallelReads),
-		ram:                resourcemanager.New(cfg.WriteCacheSize),
+		ram:                resourcemanager.New[*peer.Peer](cfg.WriteCacheSize),
 		createdAt:          time.Now(),
 		semWrite:           semaphore.New(int(cfg.ParallelWrites)),
 		closeC:             make(chan struct{}),
