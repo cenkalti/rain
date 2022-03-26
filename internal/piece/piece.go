@@ -7,6 +7,7 @@ import (
 	"github.com/cenkalti/rain/internal/allocator"
 	"github.com/cenkalti/rain/internal/filesection"
 	"github.com/cenkalti/rain/internal/metainfo"
+	"golang.org/x/exp/constraints"
 )
 
 // BlockSize is the size of smallest piece data that we are going to request from peers.
@@ -66,7 +67,7 @@ func NewPieces(info *metainfo.Info, files []allocator.File) []Piece {
 		var pieceOffset uint32
 		pieceLeft := func() uint32 { return info.PieceLength - pieceOffset }
 		for left := pieceLeft(); left > 0; {
-			n := uint32(minInt64(int64(left), fileLeft())) // number of bytes to write
+			n := uint32(min(int64(left), fileLeft())) // number of bytes to write
 
 			file := filesection.FileSection{
 				File:   files[fileIndex].Storage,
@@ -98,7 +99,7 @@ func NewPieces(info *metainfo.Info, files []allocator.File) []Piece {
 
 // NumBlocks returns the number of blocks in the piece.
 func (p *Piece) NumBlocks() int {
-	div, mod := divMod32(p.Length, BlockSize)
+	div, mod := divmod(p.Length, BlockSize)
 	numBlocks := div
 	if mod != 0 {
 		numBlocks++
@@ -108,7 +109,7 @@ func (p *Piece) NumBlocks() int {
 
 // GetBlock returns the Block at index i.
 func (p *Piece) GetBlock(i int) (b Block, ok bool) {
-	div, mod := divMod32(p.Length, BlockSize)
+	div, mod := divmod(p.Length, BlockSize)
 	numBlocks := int(div)
 	if mod != 0 {
 		numBlocks++
@@ -131,7 +132,7 @@ func (p *Piece) GetBlock(i int) (b Block, ok bool) {
 
 // FindBlock returns the block at offset `begin` and length `length`.
 func (p *Piece) FindBlock(begin, length uint32) (b Block, ok bool) {
-	idx, mod := divMod32(begin, BlockSize)
+	idx, mod := divmod(begin, BlockSize)
 	if mod != 0 {
 		return
 	}
@@ -156,11 +157,11 @@ func (p *Piece) VerifyHash(buf []byte, h hash.Hash) bool {
 	return bytes.Equal(sum, p.Hash)
 }
 
-func minInt64(a, b int64) int64 {
+func min[T constraints.Ordered](a, b T) T {
 	if a < b {
 		return a
 	}
 	return b
 }
 
-func divMod32(a, b uint32) (uint32, uint32) { return a / b, a % b }
+func divmod[T constraints.Unsigned](a, b T) (T, T) { return a / b, a % b }
