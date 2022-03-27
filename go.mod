@@ -24,6 +24,7 @@ require (
 	github.com/urfave/cli v1.22.5
 	github.com/zeebo/bencode v1.0.0
 	go.etcd.io/bbolt v1.3.6
+	golang.org/x/exp v0.0.0-20220325121720-054d8573a5d8
 	golang.org/x/sys v0.0.0-20211019181941-9d821ace8654
 	gopkg.in/yaml.v2 v2.4.0
 )
@@ -65,7 +66,6 @@ require (
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/youtube/vitess v3.0.0-rc.3+incompatible // indirect
 	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2 // indirect
-	golang.org/x/exp v0.0.0-20220325121720-054d8573a5d8 // indirect
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
 	lukechampine.com/blake3 v1.1.6 // indirect
