@@ -148,7 +148,7 @@ func (p *Peer) Done() chan struct{} {
 }
 
 // Run loop that reads messages from the Peer.
-func (p *Peer) Run(messages chan Message, pieces chan interface{}, snubbed, disconnect chan *Peer) {
+func (p *Peer) Run(messages chan Message, pieces chan PieceMessage, snubbed, disconnect chan *Peer) {
 	defer close(p.doneC)
 	go p.Conn.Run()
 

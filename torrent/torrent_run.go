@@ -3,9 +3,7 @@ package torrent
 import (
 	"time"
 
-	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peersource"
-	"github.com/cenkalti/rain/internal/urldownloader"
 )
 
 // Torrent event loop
@@ -65,7 +63,7 @@ func (t *torrent) run() {
 		case conn := <-t.incomingConnC:
 			t.handleNewConnection(conn)
 		case res := <-t.webseedPieceResultC.ReceiveC():
-			t.handleWebseedPieceResult(res.(*urldownloader.PieceResult))
+			t.handleWebseedPieceResult(res)
 		case src := <-t.webseedRetryC:
 			t.startPieceDownloaderForWebseed(src)
 		case pw := <-t.pieceWriterResultC:
@@ -83,7 +81,7 @@ func (t *torrent) run() {
 		case pe := <-t.peerDisconnectedC:
 			t.closePeer(pe)
 		case pm := <-t.pieceMessagesC.ReceiveC():
-			t.handlePieceMessage(pm.(peer.PieceMessage))
+			t.handlePieceMessage(pm)
 		case pm := <-t.messages:
 			t.handlePeerMessage(pm)
 		}

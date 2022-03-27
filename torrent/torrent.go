@@ -19,6 +19,7 @@ import (
 	"github.com/cenkalti/rain/internal/handshaker/incominghandshaker"
 	"github.com/cenkalti/rain/internal/handshaker/outgoinghandshaker"
 	"github.com/cenkalti/rain/internal/infodownloader"
+	"github.com/cenkalti/rain/internal/urldownloader"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/mse"
@@ -85,7 +86,7 @@ type torrent struct {
 	peerDisconnectedC chan *peer.Peer
 
 	// Piece messages coming from peers are sent this channel.
-	pieceMessagesC *suspendchan.Chan
+	pieceMessagesC *suspendchan.Chan[peer.PieceMessage]
 
 	// Other messages coming from peers are sent to this channel.
 	messages chan peer.Message
@@ -243,7 +244,7 @@ type torrent struct {
 	webseedClient          *http.Client
 	webseedSources         []*webseedsource.WebseedSource
 	rawWebseedSources      []string
-	webseedPieceResultC    *suspendchan.Chan
+	webseedPieceResultC    *suspendchan.Chan[*urldownloader.PieceResult]
 	webseedRetryC          chan *webseedsource.WebseedSource
 	webseedActiveDownloads int
 
@@ -303,7 +304,7 @@ func newTorrent2(
 		log:                       logger.New("torrent " + id),
 		peerDisconnectedC:         make(chan *peer.Peer),
 		messages:                  make(chan peer.Message),
-		pieceMessagesC:            suspendchan.New(0),
+		pieceMessagesC:            suspendchan.New[peer.PieceMessage](0),
 		peers:                     make(map[*peer.Peer]struct{}),
 		incomingPeers:             make(map[*peer.Peer]struct{}),
 		outgoingPeers:             make(map[*peer.Peer]struct{}),
@@ -356,7 +357,7 @@ func newTorrent2(
 		ramNotifyC:                make(chan *peer.Peer),
 		webseedClient:             &s.webseedClient,
 		webseedSources:            ws,
-		webseedPieceResultC:       suspendchan.New(0),
+		webseedPieceResultC:       suspendchan.New[*urldownloader.PieceResult](0),
 		webseedRetryC:             make(chan *webseedsource.WebseedSource),
 		doneC:                     make(chan struct{}),
 		stopAfterDownload:         stopAfterDownload,

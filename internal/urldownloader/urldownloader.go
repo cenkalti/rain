@@ -74,7 +74,7 @@ func (d *URLDownloader) ReadCurrent() uint32 {
 }
 
 // Run the URLDownloader and download pieces.
-func (d *URLDownloader) Run(client *http.Client, pieces []piece.Piece, multifile bool, resultC chan interface{}, pool *bufferpool.Pool, readTimeout time.Duration) {
+func (d *URLDownloader) Run(client *http.Client, pieces []piece.Piece, multifile bool, resultC chan *PieceResult, pool *bufferpool.Pool, readTimeout time.Duration) {
 	defer close(d.doneC)
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
@@ -191,7 +191,7 @@ func (d *URLDownloader) getURL(filename string, multifile bool) string {
 	return src + url.PathEscape(filename)
 }
 
-func (d *URLDownloader) sendResult(resultC chan interface{}, res *PieceResult) {
+func (d *URLDownloader) sendResult(resultC chan *PieceResult, res *PieceResult) {
 	select {
 	case <-d.closeC:
 		return

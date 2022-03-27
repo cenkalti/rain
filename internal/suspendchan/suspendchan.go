@@ -3,26 +3,26 @@ package suspendchan
 // Chan is a wrapper around a channel.
 // Underlying chan must be accessed with ReceiveC method.
 // If the Chan is suspended, ReceiveC will return nil which makes the receiver to block on the Chan.
-type Chan struct {
-	ch        chan interface{}
+type Chan[T any] struct {
+	ch        chan T
 	suspended bool
 }
 
 // New returns a new Chan.
-func New(buflen int) *Chan {
-	return &Chan{
-		ch: make(chan interface{}, buflen),
+func New[T any](buflen int) *Chan[T] {
+	return &Chan[T]{
+		ch: make(chan T, buflen),
 	}
 }
 
 // SendC returns the underlying channel for sending values.
-func (c *Chan) SendC() chan interface{} {
+func (c *Chan[T]) SendC() chan T {
 	return c.ch
 }
 
 // ReceiveC returns the underlying channel for receiving values.
 // If the channel is suspended, it returns nil.
-func (c *Chan) ReceiveC() chan interface{} {
+func (c *Chan[T]) ReceiveC() chan T {
 	if c.suspended {
 		return nil
 	}
@@ -30,11 +30,11 @@ func (c *Chan) ReceiveC() chan interface{} {
 }
 
 // Suspend the channel.
-func (c *Chan) Suspend() {
+func (c *Chan[T]) Suspend() {
 	c.suspended = true
 }
 
 // Resume the channel. Reverts previous suspend operation.
-func (c *Chan) Resume() {
+func (c *Chan[T]) Resume() {
 	c.suspended = false
 }
