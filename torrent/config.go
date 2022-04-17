@@ -69,6 +69,10 @@ type Config struct {
 	SpeedLimitUpload int64
 	// Start torrent automatically if it was running when previous session was closed.
 	ResumeOnStartup bool
+	// Check each torrent loop for aliveness. Helps to detect bugs earlier.
+	HealthCheckInterval time.Duration
+	// If torrent loop is stuck for more than this duration. Program crashes with stacktrace.
+	HealthCheckTimeout time.Duration
 
 	// Enable RPC server
 	RPCEnabled bool
@@ -211,6 +215,8 @@ var DefaultConfig = Config{
 	MaxPieces:                              64 << 10,
 	DNSResolveTimeout:                      5 * time.Second,
 	ResumeOnStartup:                        true,
+	HealthCheckInterval:                    10 * time.Second,
+	HealthCheckTimeout:                     60 * time.Second,
 
 	// RPC Server
 	RPCEnabled:         true,
