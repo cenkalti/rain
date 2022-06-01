@@ -111,7 +111,7 @@ func (t *torrent) startAcceptor() {
 	if t.acceptor != nil {
 		return
 	}
-	ip := net.ParseIP(t.session.config.AcceptorHost)
+	ip := net.ParseIP(t.session.config.Host)
 	listener, err := net.ListenTCP("tcp4", &net.TCPAddr{IP: ip, Port: t.port})
 	if err != nil {
 		t.log.Warningf("cannot listen port %d: %s", t.port, err)

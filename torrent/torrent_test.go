@@ -41,7 +41,7 @@ func newTestSession(t *testing.T) (*Session, func()) {
 	cfg.DHTEnabled = false
 	cfg.PEXEnabled = false
 	cfg.RPCEnabled = false
-	cfg.AcceptorHost = "127.0.0.1"
+	cfg.Host = "127.0.0.1"
 	s, err := NewSession(cfg)
 	if err != nil {
 		t.Fatal(err)

@@ -25,6 +25,8 @@ type Config struct {
 	// If true, torrent files are saved into <data_dir>/<torrent_id>/<torrent_name>.
 	// Useful if downloading the same torrent from multiple sources.
 	DataDirIncludesTorrentID bool
+	// Host to listen for TCP Acceptor. Port is computed automatically
+	AcceptorHost string
 	// New torrents will be listened at selected port in this range.
 	PortBegin, PortEnd uint16
 	// At start, client will set max open files limit to this number. (like "ulimit -n" command)
@@ -73,8 +75,6 @@ type Config struct {
 	HealthCheckInterval time.Duration
 	// If torrent loop is stuck for more than this duration. Program crashes with stacktrace.
 	HealthCheckTimeout time.Duration
-	// Host to listen for TCP Acceptor. Port is computed automatically
-	AcceptorHost string
 
 	// Enable RPC server
 	RPCEnabled bool
@@ -198,6 +198,7 @@ var DefaultConfig = Config{
 	Database:                               "~/rain/session.db",
 	DataDir:                                "~/rain/data",
 	DataDirIncludesTorrentID:               true,
+	Host:                                   "0.0.0.0",
 	PortBegin:                              20000,
 	PortEnd:                                30000,
 	MaxOpenFiles:                           10240,
@@ -219,7 +220,6 @@ var DefaultConfig = Config{
 	ResumeOnStartup:                        true,
 	HealthCheckInterval:                    10 * time.Second,
 	HealthCheckTimeout:                     60 * time.Second,
-	AcceptorHost:                           "0.0.0.0",
 
 	// RPC Server
 	RPCEnabled:         true,
