@@ -11,12 +11,14 @@ import (
 
 	"github.com/cenkalti/rain/internal/bufferpool"
 	"github.com/cenkalti/rain/internal/piece"
+	"github.com/juju/ratelimit"
 )
 
 // URLDownloader downloads files from a HTTP source.
 type URLDownloader struct {
 	URL                 string
-	Begin, End, current uint32
+	Begin, End, current uint32 // piece index
+	bucket              *ratelimit.Bucket
 	closeC, doneC       chan struct{}
 }
 
@@ -26,16 +28,17 @@ type PieceResult struct {
 	Buffer     bufferpool.Buffer
 	Index      uint32
 	Error      error
-	Done       bool
+	Done       bool // URL downloader finished downloading all requested pieces
 }
 
 // New returns a new URLDownloader for the given source and piece range.
-func New(source string, begin, end uint32) *URLDownloader {
+func New(source string, begin, end uint32, b *ratelimit.Bucket) *URLDownloader {
 	return &URLDownloader{
 		URL:     source,
 		Begin:   begin,
 		current: begin,
 		End:     end,
+		bucket:  b,
 		closeC:  make(chan struct{}),
 		doneC:   make(chan struct{}),
 	}
@@ -71,7 +74,7 @@ func (d *URLDownloader) ReadCurrent() uint32 {
 }
 
 // Run the URLDownloader and download pieces.
-func (d *URLDownloader) Run(client *http.Client, pieces []piece.Piece, multifile bool, resultC chan interface{}, pool *bufferpool.Pool, readTimeout time.Duration) {
+func (d *URLDownloader) Run(client *http.Client, pieces []piece.Piece, multifile bool, resultC chan *PieceResult, pool *bufferpool.Pool, readTimeout time.Duration) {
 	defer close(d.doneC)
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
@@ -112,6 +115,14 @@ func (d *URLDownloader) Run(client *http.Client, pieces []piece.Piece, multifile
 		var m int64 // position in response
 		for m < job.Length {
 			readSize := calcReadSize(buf, n, job, m)
+			if d.bucket != nil {
+				waitDuration := d.bucket.Take(readSize)
+				select {
+				case <-time.After(waitDuration):
+				case <-d.closeC:
+					return false
+				}
+			}
 			o, err := readFull(resp.Body, buf.Data[n:int64(n)+readSize], timer, readTimeout)
 			if err != nil {
 				d.sendResult(resultC, &PieceResult{Downloader: d, Error: err})
@@ -180,7 +191,7 @@ func (d *URLDownloader) getURL(filename string, multifile bool) string {
 	return src + url.PathEscape(filename)
 }
 
-func (d *URLDownloader) sendResult(resultC chan interface{}, res *PieceResult) {
+func (d *URLDownloader) sendResult(resultC chan *PieceResult, res *PieceResult) {
 	select {
 	case <-d.closeC:
 		return

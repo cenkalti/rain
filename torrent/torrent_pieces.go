@@ -1,7 +1,6 @@
 package torrent
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/cenkalti/rain/internal/handshaker/outgoinghandshaker"
@@ -10,8 +9,7 @@ import (
 func (t *torrent) writeBitfield() error {
 	err := t.session.resumer.WriteBitfield(t.id, t.bitfield.Bytes())
 	if err != nil {
-		err = fmt.Errorf("cannot write bitfield to resume db: %s", err)
-		t.log.Errorln(err)
+		t.log.Errorf("cannot write bitfield to resume db: %s", err)
 	}
 	return err
 }

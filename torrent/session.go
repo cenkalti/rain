@@ -16,6 +16,7 @@ import (
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/blocklist"
 	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/piececache"
 	"github.com/cenkalti/rain/internal/resolver"
 	"github.com/cenkalti/rain/internal/resourcemanager"
@@ -47,7 +48,7 @@ type Session struct {
 	dht            *dht.DHT
 	rpc            *rpcServer
 	trackerManager *trackermanager.TrackerManager
-	ram            *resourcemanager.ResourceManager
+	ram            *resourcemanager.ResourceManager[*peer.Peer]
 	pieceCache     *piececache.Cache
 	webseedClient  http.Client
 	createdAt      time.Time
@@ -171,7 +172,7 @@ func NewSession(cfg Config) (*Session, error) {
 		availablePorts:     ports,
 		dht:                dhtNode,
 		pieceCache:         piececache.New(cfg.ReadCacheSize, cfg.ReadCacheTTL, cfg.ParallelReads),
-		ram:                resourcemanager.New(cfg.WriteCacheSize),
+		ram:                resourcemanager.New[*peer.Peer](cfg.WriteCacheSize),
 		createdAt:          time.Now(),
 		semWrite:           semaphore.New(int(cfg.ParallelWrites)),
 		closeC:             make(chan struct{}),
@@ -194,11 +195,13 @@ func NewSession(cfg Config) (*Session, error) {
 			},
 		},
 	}
+	dlSpeed := cfg.SpeedLimitDownload * 1024
 	if cfg.SpeedLimitDownload > 0 {
-		c.bucketDownload = ratelimit.NewBucketWithRate(float64(cfg.SpeedLimitDownload), cfg.SpeedLimitDownload)
+		c.bucketDownload = ratelimit.NewBucketWithRate(float64(dlSpeed), dlSpeed)
 	}
+	ulSpeed := cfg.SpeedLimitUpload * 1024
 	if cfg.SpeedLimitUpload > 0 {
-		c.bucketUpload = ratelimit.NewBucketWithRate(float64(cfg.SpeedLimitUpload), cfg.SpeedLimitUpload)
+		c.bucketUpload = ratelimit.NewBucketWithRate(float64(ulSpeed), ulSpeed)
 	}
 	err = c.startBlocklistReloader()
 	if err != nil {
@@ -331,16 +334,16 @@ func (s *Session) GetTorrent(id string) *Torrent {
 func (s *Session) RemoveTorrent(id string) error {
 	t, err := s.removeTorrentFromClient(id)
 	if t != nil {
-		go func() { _ = s.stopAndRemoveData(t) }()
+		err = s.stopAndRemoveData(t)
 	}
 	return err
 }
 
 func (s *Session) removeTorrentFromClient(id string) (*Torrent, error) {
 	s.mTorrents.Lock()
-	defer s.mTorrents.Unlock()
 	t, ok := s.torrents[id]
 	if !ok {
+		s.mTorrents.Unlock()
 		return nil, nil
 	}
 	t.torrent.log.Info("removing torrent")
@@ -356,6 +359,12 @@ func (s *Session) removeTorrentFromClient(id string) (*Torrent, error) {
 			break
 		}
 	}
+
+	// DHT.RemoveInfoHash below sends a message to DHT loop, hence it is blocking.
+	// We need to make sure that we are not holding any lock that cause a block in DHT loop.
+	// DHT.PeersRequestResults tries to hold the same lock (mTorrents) when a message is received from
+	// DHT.PeersRequestResults. That's why we are releasing the lock before calling DHT.RemoveInfoHash.
+	s.mTorrents.Unlock()
 
 	if s.config.DHTEnabled && len(s.torrentsByInfoHash[ih]) == 0 {
 		s.dht.RemoveInfoHash(string(ih))
@@ -373,7 +382,7 @@ func (s *Session) stopAndRemoveData(t *Torrent) error {
 	if s.config.DataDirIncludesTorrentID {
 		dest = filepath.Join(s.config.DataDir, t.torrent.id)
 	} else if t.torrent.info != nil {
-		dest = t.torrent.info.Name
+		dest = filepath.Join(s.config.DataDir, t.torrent.info.Name)
 	}
 	if dest != "" {
 		err = os.RemoveAll(dest)
@@ -424,4 +433,11 @@ func (s *Session) StopAll() error {
 		t.torrent.Stop()
 	}
 	return nil
+}
+
+func (s *Session) getDataDir(torrentID string) string {
+	if s.config.DataDirIncludesTorrentID {
+		return filepath.Join(s.config.DataDir, torrentID)
+	}
+	return s.config.DataDir
 }

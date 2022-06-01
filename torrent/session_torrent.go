@@ -100,10 +100,17 @@ func (t *Torrent) NotifyStop() <-chan error {
 }
 
 // NotifyComplete returns a channel for notifying completion.
-// The channel is closed once all pieces are downloaded successfully.
+// The channel is closed once all torrent pieces are downloaded successfully.
 // NotifyComplete must be called after calling Start().
 func (t *Torrent) NotifyComplete() <-chan struct{} {
 	return t.torrent.NotifyComplete()
+}
+
+// NotifyMetadata returns a channel for notifying completion of metadata download from magnet links.
+// The channel is closed once all metadata pieces are downloaded successfully.
+// NotifyMetadata must be called after calling Start().
+func (t *Torrent) NotifyMetadata() <-chan struct{} {
+	return t.torrent.NotifyMetadata()
 }
 
 // AddPeer adds a new peer to the torrent. Does nothing if torrent is stopped.
@@ -262,12 +269,7 @@ func (t *Torrent) generateTar(pw *io.PipeWriter) {
 	defer func() { _ = pw.CloseWithError(err) }()
 
 	tw := tar.NewWriter(pw)
-	var root string
-	if t.torrent.session.config.DataDirIncludesTorrentID {
-		root = filepath.Join(t.torrent.session.config.DataDir, t.torrent.id)
-	} else {
-		root = t.torrent.session.config.DataDir
-	}
+	root := t.torrent.session.getDataDir(t.torrent.id)
 	walkFunc := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err

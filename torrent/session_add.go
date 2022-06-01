@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -30,6 +29,8 @@ type AddTorrentOptions struct {
 	Stopped bool
 	// Stop torrent after all pieces are downloaded.
 	StopAfterDownload bool
+	// Stop torrent after metadata is downloaded from magnet links.
+	StopAfterMetadata bool
 }
 
 // AddTorrent adds a new torrent to the session by reading .torrent metainfo from reader.
@@ -89,6 +90,7 @@ func (s *Session) addTorrentStopped(r io.Reader, opt *AddTorrentOptions) (*Torre
 		resumer.Stats{},
 		webseedsource.NewList(mi.URLList),
 		opt.StopAfterDownload,
+		opt.StopAfterMetadata,
 		false, // completeCmdRun
 	)
 	if err != nil {
@@ -109,6 +111,7 @@ func (s *Session) addTorrentStopped(r io.Reader, opt *AddTorrentOptions) (*Torre
 		Info:              mi.Info.Bytes,
 		AddedAt:           t.addedAt,
 		StopAfterDownload: opt.StopAfterDownload,
+		StopAfterMetadata: opt.StopAfterMetadata,
 	}
 	err = s.resumer.Write(id, rspec)
 	if err != nil {
@@ -200,6 +203,7 @@ func (s *Session) addMagnet(link string, opt *AddTorrentOptions) (*Torrent, erro
 		resumer.Stats{},
 		nil, // webseedSources
 		opt.StopAfterDownload,
+		opt.StopAfterMetadata,
 		false, // completeCmdRun
 	)
 	if err != nil {
@@ -219,6 +223,7 @@ func (s *Session) addMagnet(link string, opt *AddTorrentOptions) (*Torrent, erro
 		FixedPeers:        ma.Peers,
 		AddedAt:           t.addedAt,
 		StopAfterDownload: opt.StopAfterDownload,
+		StopAfterMetadata: opt.StopAfterMetadata,
 	}
 	err = s.resumer.Write(id, rspec)
 	if err != nil {
@@ -261,13 +266,7 @@ func (s *Session) add(opt *AddTorrentOptions) (id string, port int, sto *filesto
 		}
 		id = base64.RawURLEncoding.EncodeToString(u1[:])
 	}
-	var dest string
-	if s.config.DataDirIncludesTorrentID {
-		dest = filepath.Join(s.config.DataDir, id)
-	} else {
-		dest = s.config.DataDir
-	}
-	sto, err = filestorage.New(dest)
+	sto, err = filestorage.New(s.getDataDir(id))
 	if err != nil {
 		return
 	}

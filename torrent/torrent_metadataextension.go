@@ -97,7 +97,16 @@ func (t *torrent) handleMetadataMessage(pe *peer.Peer, msg peerprotocol.Extensio
 			t.stop(fmt.Errorf("cannot write resume info: %s", err))
 			break
 		}
-		t.startAllocator()
+		select {
+		case <-t.completeMetadataC:
+		default:
+			close(t.completeMetadataC)
+		}
+		if t.stopAfterMetadata {
+			t.stopAndSetStoppedOnMetadata()
+		} else {
+			t.startAllocator()
+		}
 	case peerprotocol.ExtensionMetadataMessageTypeReject:
 		id, ok := t.infoDownloaders[pe]
 		if ok {

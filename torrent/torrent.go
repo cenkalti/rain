@@ -19,6 +19,7 @@ import (
 	"github.com/cenkalti/rain/internal/handshaker/incominghandshaker"
 	"github.com/cenkalti/rain/internal/handshaker/outgoinghandshaker"
 	"github.com/cenkalti/rain/internal/infodownloader"
+	"github.com/cenkalti/rain/internal/urldownloader"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/mse"
@@ -85,7 +86,7 @@ type torrent struct {
 	peerDisconnectedC chan *peer.Peer
 
 	// Piece messages coming from peers are sent this channel.
-	pieceMessagesC *suspendchan.Chan
+	pieceMessagesC *suspendchan.Chan[peer.PieceMessage]
 
 	// Other messages coming from peers are sent to this channel.
 	messages chan peer.Message
@@ -117,8 +118,11 @@ type torrent struct {
 
 	pieceWriterResultC chan *piecewriter.PieceWriter
 
-	// This channel is closed once all pieces are downloaded and verified.
+	// This channel is closed once all torrent pieces are downloaded and verified.
 	completeC chan struct{}
+
+	// This channel is closed once all metadata pieces are downloaded and verified.
+	completeMetadataC chan struct{}
 
 	// True after all pieces are download, verified and written to disk.
 	completed bool
@@ -235,20 +239,23 @@ type torrent struct {
 	// Then, updated from "yourip" field in BEP 10 extension handshake message.
 	externalIP net.IP
 
-	ramNotifyC chan interface{}
+	ramNotifyC chan *peer.Peer
 
 	webseedClient          *http.Client
 	webseedSources         []*webseedsource.WebseedSource
 	rawWebseedSources      []string
-	webseedPieceResultC    *suspendchan.Chan
+	webseedPieceResultC    *suspendchan.Chan[*urldownloader.PieceResult]
 	webseedRetryC          chan *webseedsource.WebseedSource
 	webseedActiveDownloads int
 
 	// Set to true when manual verification is requested
 	doVerify bool
 
-	// If true, the torrent is stopped automatically when all pieces are downloaded.
+	// If true, the torrent is stopped automatically when all torrent pieces are downloaded.
 	stopAfterDownload bool
+
+	// If true, the torrent is stopped automatically when all metadata pieces are downloaded.
+	stopAfterMetadata bool
 
 	// True means that completeCmd has run before.
 	completeCmdRun bool
@@ -256,6 +263,8 @@ type torrent struct {
 	log logger.Logger
 }
 
+// newTorrent2 is a constructor for torrent struct.
+// loadExistingTorrents, addTorrentStopped and addMagnet ultimately calls this method.
 func newTorrent2(
 	s *Session,
 	id string,
@@ -271,6 +280,7 @@ func newTorrent2(
 	stats resumer.Stats, // initial stats from previous run
 	ws []*webseedsource.WebseedSource,
 	stopAfterDownload bool,
+	stopAfterMetadata bool,
 	completeCmdRun bool,
 ) (*torrent, error) {
 	if len(infoHash) != 20 {
@@ -294,7 +304,7 @@ func newTorrent2(
 		log:                       logger.New("torrent " + id),
 		peerDisconnectedC:         make(chan *peer.Peer),
 		messages:                  make(chan peer.Message),
-		pieceMessagesC:            suspendchan.New(0),
+		pieceMessagesC:            suspendchan.New[peer.PieceMessage](0),
 		peers:                     make(map[*peer.Peer]struct{}),
 		incomingPeers:             make(map[*peer.Peer]struct{}),
 		outgoingPeers:             make(map[*peer.Peer]struct{}),
@@ -306,6 +316,7 @@ func newTorrent2(
 		infoDownloadersSnubbed:    make(map[*peer.Peer]*infodownloader.InfoDownloader),
 		pieceWriterResultC:        make(chan *piecewriter.PieceWriter),
 		completeC:                 make(chan struct{}),
+		completeMetadataC:         make(chan struct{}),
 		closeC:                    make(chan chan struct{}),
 		startCommandC:             make(chan struct{}),
 		stopCommandC:              make(chan struct{}),
@@ -343,13 +354,14 @@ func newTorrent2(
 		bytesUploaded:             metrics.NewCounter(),
 		bytesWasted:               metrics.NewCounter(),
 		seededFor:                 metrics.NewCounter(),
-		ramNotifyC:                make(chan interface{}),
+		ramNotifyC:                make(chan *peer.Peer),
 		webseedClient:             &s.webseedClient,
 		webseedSources:            ws,
-		webseedPieceResultC:       suspendchan.New(0),
+		webseedPieceResultC:       suspendchan.New[*urldownloader.PieceResult](0),
 		webseedRetryC:             make(chan *webseedsource.WebseedSource),
 		doneC:                     make(chan struct{}),
 		stopAfterDownload:         stopAfterDownload,
+		stopAfterMetadata:         stopAfterMetadata,
 		completeCmdRun:            completeCmdRun,
 	}
 	if len(t.webseedSources) > s.config.WebseedMaxSources {

@@ -62,6 +62,7 @@ type AddTorrentOptions struct {
 	ID                string
 	Stopped           bool
 	StopAfterDownload bool
+	StopAfterMetadata bool
 }
 
 // AddTorrent adds a new torrent by reading .torrent file.
@@ -75,6 +76,7 @@ func (c *Client) AddTorrent(f io.Reader, options *AddTorrentOptions) (*rpctypes.
 		args.AddTorrentOptions.ID = options.ID
 		args.AddTorrentOptions.Stopped = options.Stopped
 		args.AddTorrentOptions.StopAfterDownload = options.StopAfterDownload
+		args.AddTorrentOptions.StopAfterMetadata = options.StopAfterMetadata
 	}
 	var reply rpctypes.AddTorrentResponse
 	return &reply.Torrent, c.client.Call("Session.AddTorrent", args, &reply)
@@ -87,6 +89,7 @@ func (c *Client) AddURI(uri string, options *AddTorrentOptions) (*rpctypes.Torre
 		args.AddTorrentOptions.ID = options.ID
 		args.AddTorrentOptions.Stopped = options.Stopped
 		args.AddTorrentOptions.StopAfterDownload = options.StopAfterDownload
+		args.AddTorrentOptions.StopAfterMetadata = options.StopAfterMetadata
 	}
 	var reply rpctypes.AddURIResponse
 	return &reply.Torrent, c.client.Call("Session.AddURI", args, &reply)

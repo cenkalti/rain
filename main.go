@@ -105,6 +105,32 @@ func main() {
 			Action: handleDownload,
 		},
 		{
+			Name:  "magnet-to-torrent",
+			Usage: "download torrent from magnet link",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "config,c",
+					Usage: "read config from `FILE`",
+					Value: "~/rain/config.yaml",
+				},
+				cli.StringFlag{
+					Name:     "magnet,m",
+					Usage:    "magnet link",
+					Required: true,
+				},
+				cli.StringFlag{
+					Name:  "output,o",
+					Usage: "output file",
+				},
+				cli.DurationFlag{
+					Name:  "timeout,t",
+					Usage: "command fails if torrent cannot be downloaded after duration",
+					Value: time.Minute,
+				},
+			},
+			Action: handleMagnetToTorrent,
+		},
+		{
 			Name:  "server",
 			Usage: "run rpc server and torrent client",
 			Flags: []cli.Flag{
@@ -159,6 +185,14 @@ func main() {
 						cli.BoolFlag{
 							Name:  "stopped",
 							Usage: "do not start torrent automatically",
+						},
+						cli.BoolFlag{
+							Name:  "stop-after-download",
+							Usage: "stop the torrent after download is finished",
+						},
+						cli.BoolFlag{
+							Name:  "stop-after-metadata",
+							Usage: "stop the torrent after metadata download is finished",
 						},
 						cli.StringFlag{
 							Name:  "id",
@@ -726,7 +760,84 @@ func handleDownload(c *cli.Context) error {
 			if stats.ETA != nil {
 				eta = stats.ETA.String()
 			}
-			log.Infof("Status: %s, Progress: %d%%, Peers: %d ETA: %s\n", stats.Status.String(), progress, stats.Peers.Total, eta)
+			log.Infof("Status: %s, Progress: %d%%, Peers: %d, Speed: %dK/s, ETA: %s\n", stats.Status.String(), progress, stats.Peers.Total, stats.Speed.Download/1024, eta)
+		case err = <-t.NotifyStop():
+			return err
+		}
+	}
+}
+
+func handleMagnetToTorrent(c *cli.Context) error {
+	arg := c.String("magnet")
+	output := c.String("output")
+	timeout := c.Duration("timeout")
+	cfg, err := prepareConfig(c)
+	if err != nil {
+		return err
+	}
+	dbFile, err := ioutil.TempFile("", "")
+	if err != nil {
+		return err
+	}
+	dbFileName := dbFile.Name()
+	defer os.Remove(dbFileName)
+	err = dbFile.Close()
+	if err != nil {
+		return err
+	}
+	cfg.Database = dbFileName
+	ses, err := torrent.NewSession(cfg)
+	if err != nil {
+		return err
+	}
+	defer ses.Close()
+	opt := &torrent.AddTorrentOptions{
+		StopAfterMetadata: true,
+	}
+	t, err := ses.AddURI(arg, opt)
+	if err != nil {
+		return err
+	}
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
+	timeoutC := time.After(timeout)
+	metadataC := t.NotifyMetadata()
+	for {
+		select {
+		case s := <-ch:
+			log.Noticef("received %s, stopping server", s)
+			err = t.Stop()
+			if err != nil {
+				return err
+			}
+		case <-time.After(timeout):
+			stats := t.Stats()
+			log.Infof("Status: %s, Peers: %d\n", stats.Status.String(), stats.Peers.Total)
+		case <-metadataC:
+			name := output
+			if name == "" {
+				name = t.Name() + ".torrent"
+			}
+			data, err := t.Torrent()
+			if err != nil {
+				return err
+			}
+			f, err := os.Create(name)
+			if err != nil {
+				return err
+			}
+			_, err = f.Write(data)
+			if err != nil {
+				return err
+			}
+			err = f.Close()
+			if err != nil {
+				return err
+			}
+			fmt.Println(name)
+			return nil
+		case <-timeoutC:
+			return fmt.Errorf("metadata cannot be downloaded in %s, try increasing timeout", timeout.String())
 		case err = <-t.NotifyStop():
 			return err
 		}
@@ -772,8 +883,10 @@ func handleAdd(c *cli.Context) error {
 	var marshalErr error
 	arg := c.String("torrent")
 	addOpt := &rainrpc.AddTorrentOptions{
-		Stopped: c.Bool("stopped"),
-		ID:      c.String("id"),
+		Stopped:           c.Bool("stopped"),
+		StopAfterDownload: c.Bool("stop-after-download"),
+		StopAfterMetadata: c.Bool("stop-after-metadata"),
+		ID:                c.String("id"),
 	}
 	if isURI(arg) {
 		resp, err := clt.AddURI(arg, addOpt)

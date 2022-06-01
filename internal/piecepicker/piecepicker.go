@@ -5,7 +5,7 @@ import (
 	"sort"
 
 	"github.com/cenkalti/rain/internal/peer"
-	"github.com/cenkalti/rain/internal/peerset"
+	"github.com/cenkalti/rain/internal/sliceset"
 	"github.com/cenkalti/rain/internal/piece"
 	"github.com/cenkalti/rain/internal/webseedsource"
 	"github.com/rcrowley/go-metrics"
@@ -43,10 +43,10 @@ type PiecePicker struct {
 
 type myPiece struct {
 	*piece.Piece
-	Having    peerset.PeerSet
-	Requested peerset.PeerSet
-	Snubbed   peerset.PeerSet
-	Choked    peerset.PeerSet
+	Having    sliceset.SliceSet[peer.Peer]
+	Requested sliceset.SliceSet[peer.Peer]
+	Snubbed   sliceset.SliceSet[peer.Peer]
+	Choked    sliceset.SliceSet[peer.Peer]
 
 	// Downloading from webseed source or marked to be downloaded later.
 	RequestedWebseed *webseedsource.WebseedSource
@@ -138,7 +138,7 @@ func (p *PiecePicker) Available() uint32 {
 
 // RequestedPeers returns the number of peers that the piece with the index is requested from.
 func (p *PiecePicker) RequestedPeers(i uint32) []*peer.Peer {
-	return p.pieces[i].Requested.Peers
+	return p.pieces[i].Requested.Items
 }
 
 // RequestedWebseedSource returns the number of webseed sources that the piece with the index is requested from.
@@ -261,7 +261,7 @@ func (p *PiecePicker) findPiece(pe *peer.Peer) (mp *myPiece, allowedFast bool) {
 }
 
 func (p *PiecePicker) pickAllowedFast(pe *peer.Peer) *myPiece {
-	for _, pi := range pe.ReceivedAllowedFast.Pieces {
+	for _, pi := range pe.ReceivedAllowedFast.Items {
 		mp := &p.pieces[pi.Index]
 		if mp.Done || mp.Writing {
 			continue
@@ -276,7 +276,7 @@ func (p *PiecePicker) pickAllowedFast(pe *peer.Peer) *myPiece {
 func (p *PiecePicker) pickRarest(pe *peer.Peer) *myPiece {
 	// Sort by rarity
 	sort.Slice(p.piecesByAvailability, func(i, j int) bool {
-		return len(p.piecesByAvailability[i].Having.Peers) < len(p.piecesByAvailability[j].Having.Peers)
+		return len(p.piecesByAvailability[i].Having.Items) < len(p.piecesByAvailability[j].Having.Items)
 	})
 	var picked *myPiece
 	var hasUnrequested bool

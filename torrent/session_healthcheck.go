@@ -10,12 +10,10 @@ import (
 // specified timeout. This is not a good behavior for a production program but it helps to find deadlocks easily,
 // at least while developing.
 func (s *Session) checkTorrent(t *torrent) {
-	const interval = 10 * time.Second
-	const timeout = 60 * time.Second
 	for {
 		select {
-		case <-time.After(interval):
-			timeout := time.NewTimer(timeout)
+		case <-time.After(s.config.HealthCheckInterval):
+			timeout := time.NewTimer(s.config.HealthCheckTimeout)
 			select {
 			case t.notifyErrorCommandC <- notifyErrorCommand{errCC: make(chan chan error, 1)}:
 				timeout.Stop()

@@ -13,39 +13,43 @@ import (
 
 // Keys for the persisten storage.
 var Keys = struct {
-	InfoHash        []byte
-	Port            []byte
-	Name            []byte
-	Trackers        []byte
-	URLList         []byte
-	FixedPeers      []byte
-	Dest            []byte
-	Info            []byte
-	Bitfield        []byte
-	AddedAt         []byte
-	BytesDownloaded []byte
-	BytesUploaded   []byte
-	BytesWasted     []byte
-	SeededFor       []byte
-	Started         []byte
-	CompleteCmdRun  []byte
+	InfoHash          []byte
+	Port              []byte
+	Name              []byte
+	Trackers          []byte
+	URLList           []byte
+	FixedPeers        []byte
+	Dest              []byte
+	Info              []byte
+	Bitfield          []byte
+	AddedAt           []byte
+	BytesDownloaded   []byte
+	BytesUploaded     []byte
+	BytesWasted       []byte
+	SeededFor         []byte
+	Started           []byte
+	StopAfterDownload []byte
+	StopAfterMetadata []byte
+	CompleteCmdRun    []byte
 }{
-	InfoHash:        []byte("info_hash"),
-	Port:            []byte("port"),
-	Name:            []byte("name"),
-	Trackers:        []byte("trackers"),
-	URLList:         []byte("url_list"),
-	FixedPeers:      []byte("fixed_peers"),
-	Dest:            []byte("dest"),
-	Info:            []byte("info"),
-	Bitfield:        []byte("bitfield"),
-	AddedAt:         []byte("added_at"),
-	BytesDownloaded: []byte("bytes_downloaded"),
-	BytesUploaded:   []byte("bytes_uploaded"),
-	BytesWasted:     []byte("bytes_wasted"),
-	SeededFor:       []byte("seeded_for"),
-	Started:         []byte("started"),
-	CompleteCmdRun:  []byte("complete_cmd_run"),
+	InfoHash:          []byte("info_hash"),
+	Port:              []byte("port"),
+	Name:              []byte("name"),
+	Trackers:          []byte("trackers"),
+	URLList:           []byte("url_list"),
+	FixedPeers:        []byte("fixed_peers"),
+	Dest:              []byte("dest"),
+	Info:              []byte("info"),
+	Bitfield:          []byte("bitfield"),
+	AddedAt:           []byte("added_at"),
+	BytesDownloaded:   []byte("bytes_downloaded"),
+	BytesUploaded:     []byte("bytes_uploaded"),
+	BytesWasted:       []byte("bytes_wasted"),
+	SeededFor:         []byte("seeded_for"),
+	Started:           []byte("started"),
+	StopAfterDownload: []byte("stop_after_download"),
+	StopAfterMetadata: []byte("stop_after_metadata"),
+	CompleteCmdRun:    []byte("complete_cmd_run"),
 }
 
 // Resumer contains methods for saving/loading resume information of a torrent to a BoltDB database.
@@ -103,6 +107,8 @@ func (r *Resumer) Write(torrentID string, spec *Spec) error {
 		_ = b.Put(Keys.BytesWasted, []byte(strconv.FormatInt(spec.BytesWasted, 10)))
 		_ = b.Put(Keys.SeededFor, []byte(spec.SeededFor.String()))
 		_ = b.Put(Keys.Started, []byte(strconv.FormatBool(spec.Started)))
+		_ = b.Put(Keys.StopAfterDownload, []byte(strconv.FormatBool(spec.StopAfterDownload)))
+		_ = b.Put(Keys.StopAfterMetadata, []byte(strconv.FormatBool(spec.StopAfterMetadata)))
 		_ = b.Put(Keys.CompleteCmdRun, []byte(strconv.FormatBool(spec.CompleteCmdRun)))
 		return nil
 	})
@@ -138,6 +144,36 @@ func (r *Resumer) WriteStarted(torrentID string, value bool) error {
 			return nil
 		}
 		return b.Put(Keys.Started, []byte(strconv.FormatBool(value)))
+	})
+}
+
+// HandleStopAfterDownload clears the start status and stop_after_download fields.
+func (r *Resumer) HandleStopAfterDownload(torrentID string) error {
+	return r.db.Update(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(r.bucket).Bucket([]byte(torrentID))
+		if b == nil {
+			return nil
+		}
+		err := b.Put(Keys.Started, []byte(strconv.FormatBool(false)))
+		if err != nil {
+			return err
+		}
+		return b.Put(Keys.StopAfterDownload, []byte(strconv.FormatBool(false)))
+	})
+}
+
+// HandleStopAfterMetadata clears the start status and stop_after_metadata fields.
+func (r *Resumer) HandleStopAfterMetadata(torrentID string) error {
+	return r.db.Update(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(r.bucket).Bucket([]byte(torrentID))
+		if b == nil {
+			return nil
+		}
+		err := b.Put(Keys.Started, []byte(strconv.FormatBool(false)))
+		if err != nil {
+			return err
+		}
+		return b.Put(Keys.StopAfterMetadata, []byte(strconv.FormatBool(false)))
 	})
 }
 
@@ -284,6 +320,22 @@ func (r *Resumer) Read(torrentID string) (spec *Spec, err error) {
 		value = b.Get(Keys.Started)
 		if value != nil {
 			spec.Started, err = strconv.ParseBool(string(value))
+			if err != nil {
+				return err
+			}
+		}
+
+		value = b.Get(Keys.StopAfterDownload)
+		if value != nil {
+			spec.StopAfterDownload, err = strconv.ParseBool(string(value))
+			if err != nil {
+				return err
+			}
+		}
+
+		value = b.Get(Keys.StopAfterMetadata)
+		if value != nil {
+			spec.StopAfterMetadata, err = strconv.ParseBool(string(value))
 			if err != nil {
 				return err
 			}

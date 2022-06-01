@@ -17,7 +17,7 @@ import (
 	"github.com/cenkalti/rain/internal/peersource"
 	"github.com/cenkalti/rain/internal/pexlist"
 	"github.com/cenkalti/rain/internal/piece"
-	"github.com/cenkalti/rain/internal/pieceset"
+	"github.com/cenkalti/rain/internal/sliceset"
 	"github.com/cenkalti/rain/internal/stringutil"
 	"github.com/juju/ratelimit"
 	"github.com/rcrowley/go-metrics"
@@ -32,8 +32,8 @@ type Peer struct {
 	Source peersource.Source
 
 	Bitfield            *bitfield.Bitfield
-	ReceivedAllowedFast pieceset.PieceSet
-	SentAllowedFast     pieceset.PieceSet
+	ReceivedAllowedFast sliceset.SliceSet[piece.Piece]
+	SentAllowedFast     sliceset.SliceSet[piece.Piece]
 
 	ID                [20]byte
 	ExtensionsEnabled bool
@@ -148,7 +148,7 @@ func (p *Peer) Done() chan struct{} {
 }
 
 // Run loop that reads messages from the Peer.
-func (p *Peer) Run(messages chan Message, pieces chan interface{}, snubbed, disconnect chan *Peer) {
+func (p *Peer) Run(messages chan Message, pieces chan PieceMessage, snubbed, disconnect chan *Peer) {
 	defer close(p.doneC)
 	go p.Conn.Run()
 

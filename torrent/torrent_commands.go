@@ -55,6 +55,10 @@ func (t *torrent) NotifyComplete() <-chan struct{} {
 	return t.completeC
 }
 
+func (t *torrent) NotifyMetadata() <-chan struct{} {
+	return t.completeMetadataC
+}
+
 type notifyErrorCommand struct {
 	errCC chan chan error
 }
