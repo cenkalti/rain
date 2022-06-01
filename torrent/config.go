@@ -73,6 +73,8 @@ type Config struct {
 	HealthCheckInterval time.Duration
 	// If torrent loop is stuck for more than this duration. Program crashes with stacktrace.
 	HealthCheckTimeout time.Duration
+	// Host to listen for TCP Acceptor. Port is computed automatically
+	AcceptorHost string
 
 	// Enable RPC server
 	RPCEnabled bool
@@ -217,6 +219,7 @@ var DefaultConfig = Config{
 	ResumeOnStartup:                        true,
 	HealthCheckInterval:                    10 * time.Second,
 	HealthCheckTimeout:                     60 * time.Second,
+	AcceptorHost:                           "0.0.0.0",
 
 	// RPC Server
 	RPCEnabled:         true,
