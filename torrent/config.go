@@ -25,6 +25,8 @@ type Config struct {
 	// If true, torrent files are saved into <data_dir>/<torrent_id>/<torrent_name>.
 	// Useful if downloading the same torrent from multiple sources.
 	DataDirIncludesTorrentID bool
+	// Host to listen for TCP Acceptor. Port is computed automatically
+	Host string
 	// New torrents will be listened at selected port in this range.
 	PortBegin, PortEnd uint16
 	// At start, client will set max open files limit to this number. (like "ulimit -n" command)
@@ -196,6 +198,7 @@ var DefaultConfig = Config{
 	Database:                               "~/rain/session.db",
 	DataDir:                                "~/rain/data",
 	DataDirIncludesTorrentID:               true,
+	Host:                                   "0.0.0.0",
 	PortBegin:                              20000,
 	PortEnd:                                30000,
 	MaxOpenFiles:                           10240,
