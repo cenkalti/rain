@@ -26,7 +26,7 @@ type Config struct {
 	// Useful if downloading the same torrent from multiple sources.
 	DataDirIncludesTorrentID bool
 	// Host to listen for TCP Acceptor. Port is computed automatically
-	AcceptorHost string
+	Host string
 	// New torrents will be listened at selected port in this range.
 	PortBegin, PortEnd uint16
 	// At start, client will set max open files limit to this number. (like "ulimit -n" command)
