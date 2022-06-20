@@ -11,7 +11,7 @@ require (
 	github.com/fatih/structs v1.1.0
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/gofrs/uuid v4.2.0+incompatible
-	github.com/google/btree v1.1.1
+	github.com/google/btree v1.1.2
 	github.com/hokaccha/go-prettyjson v0.0.0-20210113012101-fb4e108d2519
 	github.com/jroimartin/gocui v0.5.0
 	github.com/juju/ratelimit v1.0.1
