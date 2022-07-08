@@ -73,7 +73,7 @@ func (s *Session) loadExistingTorrent(id string) (tt *Torrent, hasStarted bool, 
 			bf = bf3
 		}
 	}
-	sto, err := filestorage.New(s.getDataDir(id))
+	sto, err := filestorage.New(s.getDataDir(id), s.config.FilePermissions)
 	if err != nil {
 		return
 	}

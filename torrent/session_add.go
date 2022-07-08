@@ -266,7 +266,7 @@ func (s *Session) add(opt *AddTorrentOptions) (id string, port int, sto *filesto
 		}
 		id = base64.RawURLEncoding.EncodeToString(u1[:])
 	}
-	sto, err = filestorage.New(s.getDataDir(id))
+	sto, err = filestorage.New(s.getDataDir(id), s.config.FilePermissions)
 	if err != nil {
 		return
 	}

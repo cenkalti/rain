@@ -2,6 +2,7 @@
 package filestorage
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -11,16 +12,17 @@ import (
 // FileStorage implements Storage interface for saving files on disk.
 type FileStorage struct {
 	dest string
+	perm fs.FileMode
 }
 
 // New returns a new FileStorage at the destination.
-func New(dest string) (*FileStorage, error) {
+func New(dest string, perm fs.FileMode) (*FileStorage, error) {
 	var err error
 	dest, err = filepath.Abs(dest)
 	if err != nil {
 		return nil, err
 	}
-	return &FileStorage{dest: dest}, nil
+	return &FileStorage{dest: dest, perm: perm}, nil
 }
 
 var _ storage.Storage = (*FileStorage)(nil)
@@ -33,7 +35,7 @@ func (s *FileStorage) Open(name string, size int64) (f storage.File, exists bool
 	name = filepath.Join(s.dest, name)
 
 	// Create containing dir if not exists.
-	err = os.MkdirAll(filepath.Dir(name), os.ModeDir|0o750)
+	err = os.MkdirAll(filepath.Dir(name), os.ModeDir|s.perm)
 	if err != nil {
 		return
 	}
@@ -52,7 +54,7 @@ func (s *FileStorage) Open(name string, size int64) (f storage.File, exists bool
 	}()
 
 	// Open OS file.
-	const mode = 0o640
+	var mode = s.perm &^ 0111
 	openFlags := os.O_RDWR | os.O_SYNC
 	openFlags = applyNoAtimeFlag(openFlags)
 	of, err = os.OpenFile(name, openFlags, mode)
