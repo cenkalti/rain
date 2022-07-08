@@ -74,7 +74,7 @@ func seeder(t *testing.T, clearTrackers bool) (addr string, c func()) {
 	}
 	src := filepath.Join(torrentDataDir, torrentName)
 	dst := filepath.Join(s.config.DataDir, tor.ID(), torrentName)
-	err = os.Mkdir(filepath.Join(s.config.DataDir, tor.ID()), os.ModeDir|0750)
+	err = os.Mkdir(filepath.Join(s.config.DataDir, tor.ID()), os.ModeDir|s.config.FilePermissions)
 	if err != nil {
 		t.Fatal(err)
 	}

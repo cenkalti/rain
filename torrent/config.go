@@ -1,6 +1,7 @@
 package torrent
 
 import (
+	"io/fs"
 	"time"
 
 	"github.com/cenkalti/rain/internal/metainfo"
@@ -75,6 +76,8 @@ type Config struct {
 	HealthCheckInterval time.Duration
 	// If torrent loop is stuck for more than this duration. Program crashes with stacktrace.
 	HealthCheckTimeout time.Duration
+	// The unix permission of created files, execute bit is removed for files
+	FilePermissions fs.FileMode
 
 	// Enable RPC server
 	RPCEnabled bool
@@ -220,6 +223,7 @@ var DefaultConfig = Config{
 	ResumeOnStartup:                        true,
 	HealthCheckInterval:                    10 * time.Second,
 	HealthCheckTimeout:                     60 * time.Second,
+	FilePermissions:                        0o750,
 
 	// RPC Server
 	RPCEnabled:         true,

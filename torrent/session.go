@@ -95,12 +95,12 @@ func NewSession(cfg Config) (*Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = os.MkdirAll(filepath.Dir(cfg.Database), 0750)
+	err = os.MkdirAll(filepath.Dir(cfg.Database), os.ModeDir|cfg.FilePermissions)
 	if err != nil {
 		return nil, err
 	}
 	l := logger.New("session")
-	db, err := bbolt.Open(cfg.Database, 0640, &bbolt.Options{Timeout: time.Second})
+	db, err := bbolt.Open(cfg.Database, cfg.FilePermissions&^0111, &bbolt.Options{Timeout: time.Second})
 	if err == bbolt.ErrTimeout {
 		return nil, errors.New("resume database is locked by another process")
 	} else if err != nil {

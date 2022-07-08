@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -514,7 +515,7 @@ func (h *rpcHandler) handleMoveTorrent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "data expected in multipart form", http.StatusBadRequest)
 		return
 	}
-	err = readData(p, h.session.getDataDir(id))
+	err = readData(p, h.session.getDataDir(id), h.session.config.FilePermissions)
 	if err != nil {
 		h.session.log.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -543,7 +544,7 @@ func (h *rpcHandler) handleMoveTorrent(w http.ResponseWriter, r *http.Request) {
 	success = true
 }
 
-func readData(r io.Reader, dir string) error {
+func readData(r io.Reader, dir string, perm fs.FileMode) error {
 	tr := tar.NewReader(r)
 	for {
 		hdr, err := tr.Next()
@@ -554,7 +555,7 @@ func readData(r io.Reader, dir string) error {
 			return err
 		}
 		name := filepath.Join(dir, hdr.Name)
-		err = os.MkdirAll(filepath.Dir(name), os.ModeDir|0750)
+		err = os.MkdirAll(filepath.Dir(name), os.ModeDir|perm)
 		if err != nil {
 			return err
 		}
