@@ -14,7 +14,7 @@ require (
 	github.com/google/btree v1.1.2
 	github.com/hokaccha/go-prettyjson v0.0.0-20210113012101-fb4e108d2519
 	github.com/jroimartin/gocui v0.5.0
-	github.com/juju/ratelimit v1.0.1
+	github.com/juju/ratelimit v1.0.2
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-multihash v0.2.0
 	github.com/nictuku/dht v0.0.0-20201226073453-fd1c1dd3d66a
