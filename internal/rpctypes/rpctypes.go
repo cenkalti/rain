@@ -133,6 +133,7 @@ type Stats struct {
 	}
 	Name        string
 	Private     bool
+	FileCount   int
 	PieceLength uint32
 	SeededFor   uint
 	Speed       struct {

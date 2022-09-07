@@ -97,6 +97,8 @@ type Stats struct {
 	Name string
 	// Is private torrent?
 	Private bool
+	// Number of files.
+	FileCount int
 	// Length of a single piece.
 	PieceLength uint32
 	// Duration while the torrent is in Seeding status.
@@ -154,6 +156,7 @@ func (t *torrent) stats() Stats {
 
 		s.Name = t.info.Name
 		s.Private = t.info.Private
+		s.FileCount = len(t.info.Files)
 		s.PieceLength = t.info.PieceLength
 		s.Pieces.Total = t.info.NumPieces
 	} else {

@@ -246,6 +246,7 @@ func (h *rpcHandler) GetTorrentStats(args *rpctypes.GetTorrentStatsRequest, repl
 		},
 		Name:        s.Name,
 		Private:     s.Private,
+		FileCount:   s.FileCount,
 		PieceLength: s.PieceLength,
 		SeededFor:   uint(s.SeededFor / time.Second),
 		Speed: struct {
