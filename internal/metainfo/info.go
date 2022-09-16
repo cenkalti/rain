@@ -43,8 +43,9 @@ type File struct {
 }
 
 type file struct {
-	Length int64    `bencode:"length"`
-	Path   []string `bencode:"path"`
+	Length   int64    `bencode:"length"`
+	Path     []string `bencode:"path"`
+	PathUTF8 []string `bencode:"path.utf-8,omitempty"`
 }
 
 // NewInfo returns info from bencoded bytes in b.
@@ -53,6 +54,7 @@ func NewInfo(b []byte) (*Info, error) {
 		PieceLength uint32             `bencode:"piece length"`
 		Pieces      []byte             `bencode:"pieces"`
 		Name        string             `bencode:"name"`
+		NameUTF8    string             `bencode:"name.utf-8,omitempty"`
 		Private     bencode.RawMessage `bencode:"private"`
 		Length      int64              `bencode:"length"` // Single File Mode
 		Files       []file             `bencode:"files"`  // Multiple File mode
@@ -69,6 +71,14 @@ func NewInfo(b []byte) (*Info, error) {
 	numPieces := len(ib.Pieces) / sha1.Size
 	if numPieces == 0 {
 		return nil, errZeroPieces
+	}
+	if len(ib.NameUTF8) > 0 {
+		ib.Name = ib.NameUTF8
+	}
+	for i := range ib.Files {
+		if len(ib.Files[i].PathUTF8) > 0 {
+			ib.Files[i].Path = ib.Files[i].PathUTF8
+		}
 	}
 	// ".." is not allowed in file names
 	for _, file := range ib.Files {
