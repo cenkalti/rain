@@ -45,26 +45,9 @@ func (t *UDPTracker) URL() string {
 
 // Announce the torrent to UDP tracker.
 func (t *UDPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest) (*tracker.AnnounceResponse, error) {
-	request := &announceRequest{
-		InfoHash:   req.Torrent.InfoHash,
-		PeerID:     req.Torrent.PeerID,
-		Downloaded: req.Torrent.BytesDownloaded,
-		Left:       req.Torrent.BytesLeft,
-		Uploaded:   req.Torrent.BytesUploaded,
-		Event:      req.Event,
-		NumWant:    int32(req.NumWant),
-		Port:       uint16(req.Torrent.Port),
-	}
-	binary.BigEndian.PutUint32(request.PeerID[16:20], request.Key)
-	request.SetAction(actionAnnounce)
+	announce := newTransportRequest(ctx, req, t.dest, t.urlData)
 
-	request2 := &transferAnnounceRequest{
-		announceRequest: request,
-		urlData:         t.urlData,
-	}
-	trx := newTransaction(request2, t.dest)
-
-	reply, err := t.transport.Do(ctx, trx)
+	reply, err := t.transport.Do(announce)
 	if err != nil {
 		return nil, err
 	}

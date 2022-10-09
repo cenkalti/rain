@@ -31,6 +31,7 @@ func New(bl *blocklist.Blocklist, dnsTimeout time.Duration, tlsSkipVerify bool) 
 		},
 		udpTransport: udptracker.NewTransport(bl, dnsTimeout),
 	}
+	go m.udpTransport.Run()
 	m.httpTransport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 		ip, port, err := resolver.Resolve(ctx, addr, dnsTimeout, bl)
 		if err != nil {
@@ -41,6 +42,11 @@ func New(bl *blocklist.Blocklist, dnsTimeout time.Duration, tlsSkipVerify bool) 
 		return d.DialContext(ctx, network, taddr.String())
 	}
 	return m
+}
+
+func (m *TrackerManager) Close() {
+	m.httpTransport.CloseIdleConnections()
+	m.udpTransport.Close()
 }
 
 // Get a new Tracker implementation from the manager.

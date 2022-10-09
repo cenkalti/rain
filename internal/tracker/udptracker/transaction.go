@@ -1,32 +1,39 @@
 package udptracker
 
 import (
+	"context"
+	"io"
 	"math/rand"
-	"net"
 )
 
 type transaction struct {
-	request  udpRequest
-	dest     string
-	addr     net.Addr
-	response []byte
-	err      error
-	done     chan struct{}
+	id int32
+
+	// This can be a connection or announce request
+	request udpRequest
+
+	// Child context of the request.
+	// Transaction has it's own sub-context.
+	// This context will be closed by run loop to signal waiters that the transaction is finished.
+	// Either successfull or with error.
+	ctx    context.Context
+	cancel func()
 }
 
-func newTransaction(req udpRequest, dest string) *transaction {
-	req.SetTransactionID(rand.Int31()) // nolint: gosec
-	return &transaction{
+type udpRequest interface {
+	io.WriterTo
+	SetTransactionID(int32)
+	GetContext() context.Context
+	GetResponse() (data []byte, err error)
+	SetResponse(data []byte, err error)
+}
+
+func newTransaction(req udpRequest) *transaction {
+	t := &transaction{
+		id:      rand.Int31(), // nolint: gosec
 		request: req,
-		dest:    dest,
-		done:    make(chan struct{}),
 	}
-}
-
-func (t *transaction) ID() int32 {
-	return t.request.GetTransactionID()
-}
-
-func (t *transaction) Done() {
-	close(t.done)
+	req.SetTransactionID(t.id)
+	t.ctx, t.cancel = context.WithCancel(req.GetContext())
+	return t
 }
