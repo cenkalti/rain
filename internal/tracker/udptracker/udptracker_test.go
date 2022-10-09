@@ -56,6 +56,8 @@ func TestUDPTracker(t *testing.T) {
 		t.Fatal(err)
 	}
 	tr := udptracker.NewTransport(nil, 5*time.Second)
+	go tr.Run()
+	defer tr.Close()
 	trk := udptracker.New(rawURL, u, tr)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)

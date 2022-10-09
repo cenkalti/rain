@@ -291,6 +291,7 @@ func (s *Session) Close() error {
 
 	s.ram.Close()
 	s.pieceCache.Close()
+	s.trackerManager.Close()
 	s.metrics.Close()
 	return s.db.Close()
 }
