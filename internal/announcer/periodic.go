@@ -307,6 +307,10 @@ func (a *PeriodicalAnnouncer) newAnnounceError(err error) (e *AnnounceError) {
 			e.Message = "host not found: " + err.Name
 			return
 		}
+		if strings.HasSuffix(s, "Temporary failure in name resolution") {
+			e.Message = "temporary failure in name resolution: " + err.Name
+			return
+		}
 	case *net.AddrError:
 		s := err.Error()
 		if strings.HasSuffix(s, "missing port in address") {
@@ -337,6 +341,11 @@ func (a *PeriodicalAnnouncer) newAnnounceError(err error) (e *AnnounceError) {
 		if strings.HasSuffix(s, "no route to host") {
 			parsed, _ := url.Parse(a.Tracker.URL())
 			e.Message = "no route to host: " + parsed.Hostname()
+			return
+		}
+		if strings.HasSuffix(s, "No address associated with hostname") {
+			parsed, _ := url.Parse(a.Tracker.URL())
+			e.Message = "no address associated with hostname: " + parsed.Hostname()
 			return
 		}
 		if strings.HasSuffix(s, resolver.ErrNotIPv4Address.Error()) {
