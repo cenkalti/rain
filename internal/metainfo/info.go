@@ -49,7 +49,7 @@ type file struct {
 }
 
 // NewInfo returns info from bencoded bytes in b.
-func NewInfo(b []byte) (*Info, error) {
+func NewInfo(b []byte, utf8 bool) (*Info, error) {
 	var ib struct {
 		PieceLength uint32             `bencode:"piece length"`
 		Pieces      []byte             `bencode:"pieces"`
@@ -72,12 +72,14 @@ func NewInfo(b []byte) (*Info, error) {
 	if numPieces == 0 {
 		return nil, errZeroPieces
 	}
-	if len(ib.NameUTF8) > 0 {
-		ib.Name = ib.NameUTF8
-	}
-	for i := range ib.Files {
-		if len(ib.Files[i].PathUTF8) > 0 {
-			ib.Files[i].Path = ib.Files[i].PathUTF8
+	if utf8 { // override name and path from utf8 keys
+		if len(ib.NameUTF8) > 0 {
+			ib.Name = ib.NameUTF8
+		}
+		for i := range ib.Files {
+			if len(ib.Files[i].PathUTF8) > 0 {
+				ib.Files[i].Path = ib.Files[i].PathUTF8
+			}
 		}
 	}
 	// ".." is not allowed in file names

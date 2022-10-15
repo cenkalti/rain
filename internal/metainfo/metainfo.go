@@ -36,7 +36,7 @@ func New(r io.Reader) (*MetaInfo, error) {
 	if len(t.Info) == 0 {
 		return nil, errors.New("no info dict in torrent file")
 	}
-	info, err := NewInfo(t.Info)
+	info, err := NewInfo(t.Info, true)
 	if err != nil {
 		return nil, err
 	}

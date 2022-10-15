@@ -2,6 +2,7 @@ package torrent
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/metainfo"
@@ -38,8 +39,16 @@ func (s *Session) loadExistingTorrents(ids []string) {
 	}
 }
 
-func (s *Session) parseInfo(b []byte) (*metainfo.Info, error) {
-	i, err := metainfo.NewInfo(b)
+func (s *Session) parseInfo(b []byte, version int) (*metainfo.Info, error) {
+	var useUTF8Keys bool
+	switch version {
+	case 1:
+	case 2:
+		useUTF8Keys = true
+	default:
+		return nil, fmt.Errorf("unknown resume data version: %d", version)
+	}
+	i, err := metainfo.NewInfo(b, useUTF8Keys)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +68,7 @@ func (s *Session) loadExistingTorrent(id string) (tt *Torrent, hasStarted bool, 
 	var bf *bitfield.Bitfield
 	var private bool
 	if len(spec.Info) > 0 {
-		info2, err2 := s.parseInfo(spec.Info)
+		info2, err2 := s.parseInfo(spec.Info, spec.Version)
 		if err2 != nil {
 			return nil, spec.Started, err2
 		}
