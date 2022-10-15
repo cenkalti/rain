@@ -9,6 +9,7 @@ import (
 	"github.com/cenkalti/rain/internal/bufferpool"
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peerprotocol"
+	"github.com/cenkalti/rain/internal/resumer/boltdbresumer"
 )
 
 func (t *torrent) handleMetadataMessage(pe *peer.Peer, msg peerprotocol.ExtensionMetadataMessage) {
@@ -81,7 +82,7 @@ func (t *torrent) handleMetadataMessage(pe *peer.Peer, msg peerprotocol.Extensio
 		}
 		t.stopInfoDownloaders()
 
-		info, err := t.session.parseInfo(id.Bytes)
+		info, err := t.session.parseInfo(id.Bytes, boltdbresumer.LatestVersion)
 		if err != nil {
 			t.stop(fmt.Errorf("cannot parse info bytes: %s", err))
 			break

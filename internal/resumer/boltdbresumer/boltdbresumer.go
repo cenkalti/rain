@@ -11,6 +11,9 @@ import (
 	"go.etcd.io/bbolt"
 )
 
+// LatestVersion is incremented every time there is a backwards-incompatible change in the interpretation of existing resumer data.
+const LatestVersion = 2
+
 // Keys for the persisten storage.
 var Keys = struct {
 	InfoHash          []byte
@@ -31,6 +34,7 @@ var Keys = struct {
 	StopAfterDownload []byte
 	StopAfterMetadata []byte
 	CompleteCmdRun    []byte
+	Version           []byte
 }{
 	InfoHash:          []byte("info_hash"),
 	Port:              []byte("port"),
@@ -50,6 +54,7 @@ var Keys = struct {
 	StopAfterDownload: []byte("stop_after_download"),
 	StopAfterMetadata: []byte("stop_after_metadata"),
 	CompleteCmdRun:    []byte("complete_cmd_run"),
+	Version:           []byte("version"),
 }
 
 // Resumer contains methods for saving/loading resume information of a torrent to a BoltDB database.
@@ -88,6 +93,10 @@ func (r *Resumer) Write(torrentID string, spec *Spec) error {
 	if err != nil {
 		return err
 	}
+	version := LatestVersion
+	if spec.Version != 0 {
+		version = spec.Version
+	}
 	return r.db.Update(func(tx *bbolt.Tx) error {
 		b, err := tx.Bucket(r.bucket).CreateBucketIfNotExists([]byte(torrentID))
 		if err != nil {
@@ -110,6 +119,7 @@ func (r *Resumer) Write(torrentID string, spec *Spec) error {
 		_ = b.Put(Keys.StopAfterDownload, []byte(strconv.FormatBool(spec.StopAfterDownload)))
 		_ = b.Put(Keys.StopAfterMetadata, []byte(strconv.FormatBool(spec.StopAfterMetadata)))
 		_ = b.Put(Keys.CompleteCmdRun, []byte(strconv.FormatBool(spec.CompleteCmdRun)))
+		_ = b.Put(Keys.Version, []byte(strconv.Itoa(version)))
 		return nil
 	})
 }
@@ -347,6 +357,18 @@ func (r *Resumer) Read(torrentID string) (spec *Spec, err error) {
 			if err != nil {
 				return err
 			}
+		}
+
+		value = b.Get(Keys.Version)
+		if value != nil {
+			spec.Version, err = strconv.Atoi(string(value))
+			if err != nil {
+				return err
+			}
+		} else {
+			// Version field is added on version 2.
+			// Existing records with no version data must be interpreted as version 1.
+			spec.Version = 1
 		}
 
 		return nil
