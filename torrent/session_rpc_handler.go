@@ -151,6 +151,11 @@ func (h *rpcHandler) GetSessionStats(args *rpctypes.GetSessionStatsRequest, repl
 		SpeedUpload:   s.SpeedUpload,
 		SpeedRead:     s.SpeedRead,
 		SpeedWrite:    s.SpeedWrite,
+
+		BytesDownloaded: s.BytesDownloaded,
+		BytesUploaded:   s.BytesUploaded,
+		BytesRead:       s.BytesRead,
+		BytesWritten:    s.BytesWritten,
 	}
 	return nil
 }

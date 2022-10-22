@@ -64,6 +64,15 @@ type SessionStats struct {
 	SpeedRead int
 	// Write speed to disk in bytes/s.
 	SpeedWrite int
+
+	// Number of bytes downloaded from peers.
+	BytesDownloaded int64
+	// Number of bytes uploaded to peers.
+	BytesUploaded int64
+	// Number of bytes read from disk.
+	BytesRead int64
+	// Number of bytes written to disk.
+	BytesWritten int64
 }
 
 // Stats returns current statistics about the Session.
@@ -97,6 +106,11 @@ func (s *Session) Stats() SessionStats {
 		SpeedUpload:   int(s.metrics.SpeedUpload.Rate1()),
 		SpeedRead:     int(s.metrics.SpeedRead.Rate1()),
 		SpeedWrite:    int(s.metrics.SpeedWrite.Rate1()),
+
+		BytesDownloaded: s.metrics.SpeedDownload.Count(),
+		BytesUploaded:   s.metrics.SpeedUpload.Count(),
+		BytesRead:       s.metrics.SpeedRead.Count(),
+		BytesWritten:    s.metrics.SpeedWrite.Count(),
 	}
 }
 

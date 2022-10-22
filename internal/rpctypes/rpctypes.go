@@ -80,6 +80,11 @@ type SessionStats struct {
 	SpeedUpload   int
 	SpeedRead     int
 	SpeedWrite    int
+
+	BytesDownloaded int64
+	BytesUploaded   int64
+	BytesRead       int64
+	BytesWritten    int64
 }
 
 // Stats contains statistics about a Torrent.

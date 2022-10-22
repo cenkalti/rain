@@ -1232,4 +1232,6 @@ func FormatSessionStats(s *rpctypes.SessionStats, v io.Writer) {
 	fmt.Fprintf(v, "ReadCache Objects: %d, Size: %dMB, Utilization: %d%%\n", s.ReadCacheObjects, s.ReadCacheSize/(1<<20), s.ReadCacheUtilization)
 	fmt.Fprintf(v, "WriteCache Objects: %d, Size: %dMB, PendingKeys: %d\n", s.WriteCacheObjects, s.WriteCacheSize/(1<<20), s.WriteCachePendingKeys)
 	fmt.Fprintf(v, "DownloadSpeed: %dKB/s, UploadSpeed: %dKB/s\n", s.SpeedDownload/1024, s.SpeedUpload/1024)
+	fmt.Fprintf(v, "BytesDownloaded: %dMB, BytesUploaded: %dMB\n", s.BytesDownloaded/1024/1024, s.BytesUploaded/1024/1024)
+	fmt.Fprintf(v, "BytesRead: %dMB, BytesWritten: %dMB\n", s.BytesRead/1024/1024, s.BytesWritten/1024/1024)
 }
