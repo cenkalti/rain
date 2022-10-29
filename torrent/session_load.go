@@ -41,14 +41,18 @@ func (s *Session) loadExistingTorrents(ids []string) {
 
 func (s *Session) parseInfo(b []byte, version int) (*metainfo.Info, error) {
 	var useUTF8Keys bool
+	var hidePaddings bool
 	switch version {
 	case 1:
 	case 2:
 		useUTF8Keys = true
+	case 3:
+		useUTF8Keys = true
+		hidePaddings = true
 	default:
 		return nil, fmt.Errorf("unknown resume data version: %d", version)
 	}
-	i, err := metainfo.NewInfo(b, useUTF8Keys)
+	i, err := metainfo.NewInfo(b, useUTF8Keys, hidePaddings)
 	if err != nil {
 		return nil, err
 	}

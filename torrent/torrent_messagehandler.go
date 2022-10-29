@@ -48,35 +48,33 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 		return
 	}
 	piece := pd.Piece
-	block, ok := piece.FindBlock(msg.Begin, uint32(len(msg.Buffer.Data)))
-	if !ok {
-		pe.Logger().Errorln("invalid piece index:", msg.Index, "begin:", msg.Begin, "length:", len(msg.Buffer.Data))
+	err := pd.GotBlock(msg.Begin, msg.Buffer.Data)
+	switch err {
+	case piecedownloader.ErrBlockInvalid:
+		pe.Logger().Errorln("received invalid piece index:", msg.Index, "begin:", msg.Begin, "length:", len(msg.Buffer.Data))
 		t.bytesWasted.Inc(l)
 		t.closePeer(pe)
 		msg.Buffer.Release()
 		return
-	}
-	err := pd.GotBlock(block, msg.Buffer.Data)
-	switch err {
 	case piecedownloader.ErrBlockDuplicate:
 		if pe.FastEnabled {
-			pe.Logger().Warningln("received duplicate block:", block.Index)
+			pe.Logger().Warningf("received duplicate block index:", msg.Index, "begin:", msg.Begin, "length:", len(msg.Buffer.Data))
 		} else {
 			// If peer does not support fast extension, we cancel all pending requests on choke message.
 			// After an unchoke we request them again. Some clients appears to be sending the same block
 			// if we request it twice.
-			pe.Logger().Debugln("received duplicate block:", block.Index)
+			pe.Logger().Debugf("received duplicate block index:", msg.Index, "begin:", msg.Begin, "length:", len(msg.Buffer.Data))
 		}
 		t.bytesWasted.Inc(l)
 		msg.Buffer.Release()
 		return
 	case piecedownloader.ErrBlockNotRequested:
 		if pe.FastEnabled {
-			pe.Logger().Warningln("received not requested block:", block.Index)
+			pe.Logger().Warningf("received not requested block index:", msg.Index, "begin:", msg.Begin, "length:", len(msg.Buffer.Data))
 		} else {
 			// If peer does not support fast extension, we cancel all pending requests on choke message.
 			// That's why we think that we have received an unrequested block.
-			pe.Logger().Debugln("received not requested block:", block.Index)
+			pe.Logger().Debugf("received not requested block index:", msg.Index, "begin:", msg.Begin, "length:", len(msg.Buffer.Data))
 		}
 	case nil:
 	default:
@@ -278,13 +276,12 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 		if pd.Piece.Index != msg.Index {
 			break
 		}
-		block, ok := pd.Piece.FindBlock(msg.Begin, msg.Length)
+		ok = pd.Rejected(msg.Begin, msg.Length)
 		if !ok {
 			pe.Logger().Errorln("invalid reject index:", msg.Index, "begin:", msg.Begin, "length:", msg.Length)
 			t.closePeer(pe)
 			break
 		}
-		pd.Rejected(block)
 	case peerprotocol.CancelMessage:
 		if t.pieces == nil || t.bitfield == nil {
 			pe.Logger().Error("cancel received but we don't have info")

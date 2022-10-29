@@ -20,6 +20,7 @@ type Allocator struct {
 type File struct {
 	Storage storage.File
 	Name    string
+	Padding bool
 }
 
 // Progress about the allocation.
@@ -64,16 +65,20 @@ func (a *Allocator) Run(info *metainfo.Info, sto storage.Storage, progressC chan
 	for i, f := range info.Files {
 		var sf storage.File
 		var exists bool
-		sf, exists, a.Error = sto.Open(f.Path, f.Length)
-		if a.Error != nil {
-			return
-		}
-		a.Files[i] = File{Storage: sf, Name: f.Path}
-		if exists {
-			a.HasExisting = true
+		if f.Padding {
+			sf = storage.NewPaddingFile(f.Length)
 		} else {
-			a.HasMissing = true
+			sf, exists, a.Error = sto.Open(f.Path, f.Length)
+			if a.Error != nil {
+				return
+			}
+			if exists {
+				a.HasExisting = true
+			} else {
+				a.HasMissing = true
+			}
 		}
+		a.Files[i] = File{Storage: sf, Name: f.Path, Padding: f.Padding}
 		allocatedSize += f.Length
 		a.sendProgress(progressC, allocatedSize)
 	}

@@ -40,25 +40,53 @@ type Info struct {
 type File struct {
 	Length int64
 	Path   string
+	// https://www.bittorrent.org/beps/bep_0047.html
+	Padding bool
 }
 
 type file struct {
 	Length   int64    `bencode:"length"`
 	Path     []string `bencode:"path"`
 	PathUTF8 []string `bencode:"path.utf-8,omitempty"`
+	Attr     string   `bencode:"attr"`
+}
+
+func (f *file) isPadding() bool {
+	// BEP 0047
+	if strings.ContainsRune(f.Attr, 'p') {
+		return true
+	}
+	// BitComet convention that do not conform BEP 0047
+	if len(f.Path) > 0 && strings.HasPrefix(f.Path[len(f.Path)-1], "_____padding_file") {
+		return true
+	}
+	return false
+}
+
+type infoType struct {
+	PieceLength uint32             `bencode:"piece length"`
+	Pieces      []byte             `bencode:"pieces"`
+	Name        string             `bencode:"name"`
+	NameUTF8    string             `bencode:"name.utf-8,omitempty"`
+	Private     bencode.RawMessage `bencode:"private"`
+	Length      int64              `bencode:"length"` // Single File Mode
+	Files       []file             `bencode:"files"`  // Multiple File mode
+}
+
+func (ib *infoType) overrideUTF8Keys() {
+	if len(ib.NameUTF8) > 0 {
+		ib.Name = ib.NameUTF8
+	}
+	for i := range ib.Files {
+		if len(ib.Files[i].PathUTF8) > 0 {
+			ib.Files[i].Path = ib.Files[i].PathUTF8
+		}
+	}
 }
 
 // NewInfo returns info from bencoded bytes in b.
-func NewInfo(b []byte, utf8 bool) (*Info, error) {
-	var ib struct {
-		PieceLength uint32             `bencode:"piece length"`
-		Pieces      []byte             `bencode:"pieces"`
-		Name        string             `bencode:"name"`
-		NameUTF8    string             `bencode:"name.utf-8,omitempty"`
-		Private     bencode.RawMessage `bencode:"private"`
-		Length      int64              `bencode:"length"` // Single File Mode
-		Files       []file             `bencode:"files"`  // Multiple File mode
-	}
+func NewInfo(b []byte, utf8 bool, pad bool) (*Info, error) {
+	var ib infoType
 	if err := bencode.DecodeBytes(b, &ib); err != nil {
 		return nil, err
 	}
@@ -72,15 +100,8 @@ func NewInfo(b []byte, utf8 bool) (*Info, error) {
 	if numPieces == 0 {
 		return nil, errZeroPieces
 	}
-	if utf8 { // override name and path from utf8 keys
-		if len(ib.NameUTF8) > 0 {
-			ib.Name = ib.NameUTF8
-		}
-		for i := range ib.Files {
-			if len(ib.Files[i].PathUTF8) > 0 {
-				ib.Files[i].Path = ib.Files[i].PathUTF8
-			}
-		}
+	if utf8 {
+		ib.overrideUTF8Keys()
 	}
 	// ".." is not allowed in file names
 	for _, file := range ib.Files {
@@ -136,6 +157,9 @@ func NewInfo(b []byte, utf8 bool) (*Info, error) {
 			i.Files[j] = File{
 				Path:   filepath.Join(parts...),
 				Length: f.Length,
+			}
+			if pad {
+				i.Files[j].Padding = f.isPadding()
 			}
 		}
 	} else {
