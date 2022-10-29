@@ -35,11 +35,16 @@ type Buffer struct {
 }
 
 func newBuffer(buf *[]byte, length int, pool *Pool) Buffer {
-	return Buffer{
+	b := Buffer{
 		Data: (*buf)[:length],
 		buf:  buf,
 		pool: pool,
 	}
+	// Clear contents before returning to the caller.
+	for i := range b.Data {
+		b.Data[i] = 0
+	}
+	return b
 }
 
 // Release the Buffer and return it to the Pool.

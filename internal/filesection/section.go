@@ -8,6 +8,9 @@ type FileSection struct {
 	Offset int64
 	Length int64
 	Name   string
+	// Padding indicates that the file is used as padding so it should not be requested from peers.
+	// The contents of padding files are always zero.
+	Padding bool
 }
 
 // ReadWriterAt combines the io.ReaderAt and io.WriterAt interfaces.

@@ -12,7 +12,7 @@ import (
 )
 
 // LatestVersion is incremented every time there is a backwards-incompatible change in the interpretation of existing resumer data.
-const LatestVersion = 2
+const LatestVersion = 3
 
 // Keys for the persisten storage.
 var Keys = struct {

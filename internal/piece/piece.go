@@ -25,9 +25,8 @@ type Piece struct {
 
 // Block is part of a Piece that is specified in peerprotocol.Request messages.
 type Block struct {
-	Index  int    // index in piece
-	Begin  uint32 // offset in piece
-	Length uint32 // always equal to BlockSize except the last block of a piece.
+	Begin  uint32 // Offset in piece
+	Length uint32 // Cannot exceed BlockSize. It's shorter for last block or if the next file is a padding file.
 }
 
 // NewPieces returns a slice of Pieces by mapping files to the pieces.
@@ -70,10 +69,11 @@ func NewPieces(info *metainfo.Info, files []allocator.File) []Piece {
 			n := uint32(min(int64(left), fileLeft())) // number of bytes to write
 
 			file := filesection.FileSection{
-				File:   files[fileIndex].Storage,
-				Offset: fileOffset,
-				Length: int64(n),
-				Name:   files[fileIndex].Name,
+				File:    files[fileIndex].Storage,
+				Offset:  fileOffset,
+				Length:  int64(n),
+				Name:    files[fileIndex].Name,
+				Padding: files[fileIndex].Padding,
 			}
 			sections = append(sections, file)
 
@@ -97,8 +97,10 @@ func NewPieces(info *metainfo.Info, files []allocator.File) []Piece {
 	return pieces
 }
 
-// NumBlocks returns the number of blocks in the piece.
-func (p *Piece) NumBlocks() int {
+// numBlocks returns the number of blocks in the piece.
+// The calculation is only correct when there is no padding in piece.
+// It is only used in per-allocation of blocks slice in CalculateBlocks().
+func (p *Piece) numBlocks() int {
 	div, mod := divmod(p.Length, BlockSize)
 	numBlocks := div
 	if mod != 0 {
@@ -107,44 +109,61 @@ func (p *Piece) NumBlocks() int {
 	return int(numBlocks)
 }
 
-// GetBlock returns the Block at index i.
-func (p *Piece) GetBlock(i int) (b Block, ok bool) {
-	div, mod := divmod(p.Length, BlockSize)
-	numBlocks := int(div)
-	if mod != 0 {
-		numBlocks++
-	}
-	if i >= numBlocks {
-		return
-	}
-	var blen uint32
-	if mod != 0 && i == numBlocks-1 {
-		blen = mod
-	} else {
-		blen = BlockSize
-	}
-	return Block{
-		Index:  i,
-		Begin:  uint32(i) * BlockSize,
-		Length: blen,
-	}, true
+func (p *Piece) CalculateBlocks() []Block {
+	return p.calculateBlocks(BlockSize)
 }
 
-// FindBlock returns the block at offset `begin` and length `length`.
-func (p *Piece) FindBlock(begin, length uint32) (b Block, ok bool) {
-	idx, mod := divmod(begin, BlockSize)
-	if mod != 0 {
-		return
+func (p *Piece) calculateBlocks(blockSize uint32) []Block {
+	blocks := make([]Block, 0, p.numBlocks())
+
+	secIndex := 0
+	sec := p.Data[secIndex]
+	blk := Block{
+		Begin:  0,
+		Length: 0,
 	}
-	b, ok = p.GetBlock(int(idx))
-	if !ok {
-		return
+	pieceOffset := uint32(0)
+	secOffset := uint32(0)
+	blkLeft := func() uint32 { return blockSize - blk.Length }
+	secLeft := func() uint32 { return uint32(sec.Length) - secOffset }
+	nextBlock := func() {
+		if blk.Length == 0 {
+			return
+		}
+		blocks = append(blocks, blk)
+		blk.Begin = pieceOffset
+		blk.Length = 0
 	}
-	if b.Length != length {
-		ok = false
-		return
+	hasNextSection := true
+	nextSection := func() {
+		secIndex++
+		if secIndex == len(p.Data) {
+			hasNextSection = false
+			return
+		}
+		secOffset = 0
+		sec = p.Data[secIndex]
 	}
-	return b, true
+	for hasNextSection {
+		if sec.Padding {
+			pieceOffset += uint32(sec.Length)
+			nextBlock()
+			nextSection()
+			continue
+		}
+		n := min(secLeft(), blkLeft())
+		blk.Length += n
+		pieceOffset += n
+		secOffset += n
+		if blkLeft() == 0 {
+			nextBlock()
+		}
+		if secLeft() == 0 {
+			nextSection()
+		}
+	}
+	nextBlock()
+	return blocks
 }
 
 // VerifyHash returns true if hash of piece data in buffer `buf` matches the hash of Piece.

@@ -32,10 +32,10 @@ func TestFiles(t *testing.T) {
 		}
 	}
 	files := []FileSection{
-		{osFiles[0], 2, 2, ""},
-		{osFiles[1], 0, 1, ""},
-		{osFiles[2], 0, 0, ""},
-		{osFiles[3], 0, 2, ""},
+		{osFiles[0], 2, 2, "", false},
+		{osFiles[1], 0, 1, "", false},
+		{osFiles[2], 0, 0, "", false},
+		{osFiles[3], 0, 2, "", false},
 	}
 	pf := Piece(files)
 
