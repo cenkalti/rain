@@ -63,6 +63,9 @@ func (p Piece) ReadAt(b []byte, off int64) (int, error) {
 func (p Piece) Write(b []byte) (n int, err error) {
 	var m int
 	for _, sec := range p {
+		if sec.Padding {
+			continue
+		}
 		m, err = sec.File.WriteAt(b[:sec.Length], sec.Offset)
 		n += m
 		if err != nil {
