@@ -7,7 +7,6 @@ import (
 	"crypto/sha1"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -155,7 +154,7 @@ func (s *Session) reloadBlocklist() error {
 			return gerr
 		}
 		defer gr.Close()
-		buf, err = ioutil.ReadAll(gr)
+		buf, err = io.ReadAll(gr)
 		if err != nil {
 			return err
 		}

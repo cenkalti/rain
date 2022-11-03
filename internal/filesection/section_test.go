@@ -2,7 +2,6 @@ package filesection
 
 import (
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -12,13 +11,13 @@ import (
 var data = []string{"asdf", "a", "", "qwerty"}
 
 func TestFiles(t *testing.T) {
-	dir, err := ioutil.TempDir("", "partialfile-")
+	dir, err := os.MkdirTemp("", "partialfile-")
 	if err != nil {
 		t.Fatal(err)
 	}
 	for i, s := range data {
 		filename := filepath.Join(dir, "file"+strconv.Itoa(i))
-		err = ioutil.WriteFile(filename, []byte(s), 0600)
+		err = os.WriteFile(filename, []byte(s), 0600)
 		if err != nil {
 			t.Fatal(err)
 		}

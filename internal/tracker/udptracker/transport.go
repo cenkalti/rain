@@ -151,7 +151,7 @@ func (t *Transport) Run() {
 		case res := <-connectDone:
 			conn := res.trx.request.(*connection)
 
-			// Transaction must be finished, successfull or not.
+			// Transaction must be finished, successful or not.
 			delete(transactions, res.trx.id)
 
 			// Handle connection error.

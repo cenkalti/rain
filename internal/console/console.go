@@ -81,6 +81,7 @@ type Console struct {
 	updatingSessionStats      bool
 }
 
+// Torrent in the ssession.
 type Torrent struct {
 	rpctypes.Torrent
 	Stats *rpctypes.Stats

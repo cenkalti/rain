@@ -1,7 +1,7 @@
 package torrent
 
 import (
-	"io/ioutil"
+	"os"
 	"runtime"
 	"time"
 )
@@ -31,7 +31,7 @@ func (s *Session) checkTorrent(t *torrent) {
 }
 
 func crash(torrentID string, msg string) {
-	f, err := ioutil.TempFile("", "rain-crash-dump-"+torrentID+"-*")
+	f, err := os.CreateTemp("", "rain-crash-dump-"+torrentID+"-*")
 	if err == nil {
 		msg += " Saving goroutine stacks to: " + f.Name()
 		b := make([]byte, 100<<20)

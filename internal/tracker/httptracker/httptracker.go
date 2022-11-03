@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -111,7 +110,7 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 			return 0, resp.Header, nil, fmt.Errorf("tracker respsonse too large: %d", resp.ContentLength)
 		}
 		r := io.LimitReader(resp.Body, t.maxResponseLength)
-		data, err := ioutil.ReadAll(r)
+		data, err := io.ReadAll(r)
 		return resp.StatusCode, resp.Header, data, err
 	}
 

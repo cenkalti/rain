@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"time"
 
@@ -241,7 +240,7 @@ func (p *PeerReader) Run() {
 		default:
 			p.log.Debugf("unhandled message type: %s", id)
 			p.log.Debugln("Discarding", length, "bytes...")
-			_, err = io.CopyN(ioutil.Discard, p.r, int64(length))
+			_, err = io.CopyN(io.Discard, p.r, int64(length))
 			if err != nil {
 				return
 			}

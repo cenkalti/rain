@@ -9,7 +9,7 @@ func NewPaddingFile(length int64) File {
 var _ File = PaddingFile{}
 
 func (f PaddingFile) ReadAt(p []byte, off int64) (n int, err error) {
-	// Need to serve zeroes to be backwards compatibile with clients that do not support padding files.
+	// Need to serve zeroes to be backwards compatible with clients that do not support padding files.
 	for i := range p {
 		p[i] = 0
 	}

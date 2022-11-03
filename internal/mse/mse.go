@@ -26,7 +26,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"math/big"
 )
@@ -203,7 +202,7 @@ func (s *Stream) HandshakeOutgoing(sKey []byte, cryptoProvide CryptoMethod, init
 		return
 	}
 	debugf("--- out: lenPadD: %d\n", lenPadD)
-	_, err = io.CopyN(ioutil.Discard, s.r, int64(lenPadD))
+	_, err = io.CopyN(io.Discard, s.r, int64(lenPadD))
 	if err != nil {
 		return
 	}
@@ -330,7 +329,7 @@ func (s *Stream) HandshakeIncoming(
 	if err != nil {
 		return
 	}
-	_, err = io.CopyN(ioutil.Discard, s.r, int64(lenPadC))
+	_, err = io.CopyN(io.Discard, s.r, int64(lenPadC))
 	if err != nil {
 		return
 	}
@@ -415,7 +414,7 @@ func (s *Stream) readSync(key []byte, max int) error {
 			return err
 		}
 		max--
-		if _, err := io.CopyN(ioutil.Discard, &readBuf, 1); err != nil {
+		if _, err := io.CopyN(io.Discard, &readBuf, 1); err != nil {
 			return err
 		}
 	}

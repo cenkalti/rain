@@ -1,5 +1,4 @@
-// +build !windows
-// +build !freebsd
+//go:build !windows && !freebsd
 
 package torrent
 

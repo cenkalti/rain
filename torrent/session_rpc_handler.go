@@ -8,7 +8,6 @@ import (
 	"errors"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -464,7 +463,7 @@ func (h *rpcHandler) handleMoveTorrent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "id expected in multipart form", http.StatusBadRequest)
 		return
 	}
-	b, err := ioutil.ReadAll(p)
+	b, err := io.ReadAll(p)
 	if err != nil {
 		h.session.log.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

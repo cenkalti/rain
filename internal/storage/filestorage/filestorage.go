@@ -81,6 +81,7 @@ func (s *FileStorage) Open(name string, size int64) (f storage.File, exists bool
 	return
 }
 
+// RootDir is the root of opened storage file.
 func (s *FileStorage) RootDir() string {
 	return s.dest
 }

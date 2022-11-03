@@ -4,7 +4,6 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 
 	// nolint: gosec
@@ -551,7 +550,7 @@ func handleCompactDatabase(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	f, err := ioutil.TempFile("", "rain-compact-database-")
+	f, err := os.CreateTemp("", "rain-compact-database-")
 	if err != nil {
 		return err
 	}
@@ -632,7 +631,7 @@ func prepareConfig(c *cli.Context) (torrent.Config, error) {
 		if err != nil {
 			return cfg, err
 		}
-		b, err := ioutil.ReadFile(cp)
+		b, err := os.ReadFile(cp)
 		switch {
 		case os.IsNotExist(err):
 			if c.IsSet("config") {
@@ -775,7 +774,7 @@ func handleMagnetToTorrent(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	dbFile, err := ioutil.TempFile("", "")
+	dbFile, err := os.CreateTemp("", "")
 	if err != nil {
 		return err
 	}

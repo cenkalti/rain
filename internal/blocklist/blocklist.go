@@ -16,18 +16,24 @@ var errNotIPv4Address = errors.New("address is not ipv4")
 
 // Blocklist holds a list of IP ranges in a Segment Tree structure for faster lookups.
 type Blocklist struct {
-	Logger Logger
+	logger Logger
 
 	tree  stree.Stree
 	m     sync.RWMutex
 	count int
 }
 
+// Logger prints error messages during loading. Arguments are handled in the manner of fmt.Printf.
 type Logger func(format string, v ...interface{})
 
 // New returns a new Blocklist.
 func New() *Blocklist {
-	return &Blocklist{}
+	return NewLogger(nil)
+}
+
+// NewLogger returns a new Blocklist with a logger that prints error messages during loading.
+func NewLogger(logger Logger) *Blocklist {
+	return &Blocklist{logger: logger}
 }
 
 // Len returns the number of rules in the Blocklist.
@@ -56,7 +62,7 @@ func (b *Blocklist) Reload(r io.Reader) (int, error) {
 	b.m.Lock()
 	defer b.m.Unlock()
 
-	tree, n, err := load(r, b.Logger)
+	tree, n, err := load(r, b.logger)
 	if err != nil {
 		return n, err
 	}

@@ -154,8 +154,7 @@ func NewSession(cfg Config) (*Session, error) {
 	for p := cfg.PortBegin; p < cfg.PortEnd; p++ {
 		ports[int(p)] = struct{}{}
 	}
-	bl := blocklist.New()
-	bl.Logger = l.Errorf
+	bl := blocklist.NewLogger(l.Errorf)
 	var blTracker *blocklist.Blocklist
 	if cfg.BlocklistEnabledForTrackers {
 		blTracker = bl

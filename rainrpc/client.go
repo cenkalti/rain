@@ -4,7 +4,6 @@ package rainrpc
 import (
 	"encoding/base64"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -31,6 +30,7 @@ func NewClient(addr string) *Client {
 	}
 }
 
+// SetTimeout sets the timeout value on underlying HTTP client.
 func (c *Client) SetTimeout(d time.Duration) {
 	c.httpClient.Timeout = d
 }
@@ -67,7 +67,7 @@ type AddTorrentOptions struct {
 
 // AddTorrent adds a new torrent by reading .torrent file.
 func (c *Client) AddTorrent(f io.Reader, options *AddTorrentOptions) (*rpctypes.Torrent, error) {
-	b, err := ioutil.ReadAll(f)
+	b, err := io.ReadAll(f)
 	if err != nil {
 		return nil, err
 	}

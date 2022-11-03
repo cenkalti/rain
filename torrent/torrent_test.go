@@ -1,7 +1,6 @@
 package torrent
 
 import (
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -100,7 +99,7 @@ func seeder(t *testing.T, clearTrackers bool) (addr string, c func()) {
 }
 
 func tempdir(t *testing.T) (string, func()) {
-	where, err := ioutil.TempDir("", "rain-")
+	where, err := os.MkdirTemp("", "rain-")
 	if err != nil {
 		t.Fatal(err)
 	}

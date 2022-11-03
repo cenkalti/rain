@@ -22,7 +22,7 @@ func SetHandler(h log.Handler) {
 	handler.SetFormatter(logFormatter{})
 }
 
-// SetLevel sets the logging level to DEBUG on the global handler.
+// SetDebug sets the logging level to DEBUG on the global handler.
 func SetDebug() {
 	handler.SetLevel(log.DEBUG)
 }

@@ -68,7 +68,7 @@ type Peer struct {
 
 	closeC chan struct{}
 	doneC  chan struct{}
-	
+
 	// In some situation the closeC channel is closed twice which create a panic
 	// Prevent this by using a sync object which will ever close the channel once
 	once sync.Once
@@ -135,11 +135,11 @@ func (p *Peer) Close() {
 	<-p.doneC
 }
 
-// Close the closeC channel safely
+// SafeClose closes the closeC channel safely.
 func (p *Peer) SafeClose() {
-       p.once.Do(func() {
-               close(p.closeC)
-       })
+	p.once.Do(func() {
+		close(p.closeC)
+	})
 }
 
 // Done returns a channel that is closed when a peers run loop is ended.

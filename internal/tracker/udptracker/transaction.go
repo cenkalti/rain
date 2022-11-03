@@ -15,7 +15,7 @@ type transaction struct {
 	// Child context of the request.
 	// Transaction has it's own sub-context.
 	// This context will be closed by run loop to signal waiters that the transaction is finished.
-	// Either successfull or with error.
+	// Either successful or with error.
 	ctx    context.Context
 	cancel func()
 }
