@@ -10,15 +10,15 @@ BitTorrent client and library in Go. Running in production at [put.io](https://p
 
 Features
 --------
-- [Core protocol](http://bittorrent.org/beps/bep_0003.html)
-- [Fast extension](http://bittorrent.org/beps/bep_0006.html)
-- [Magnet links](http://bittorrent.org/beps/bep_0009.html)
-- [Multiple trackers](http://bittorrent.org/beps/bep_0012.html)
-- [UDP trackers](http://bittorrent.org/beps/bep_0015.html)
-- [DHT](http://bittorrent.org/beps/bep_0005.html)
-- [PEX](http://bittorrent.org/beps/bep_0011.html)
+- [Core protocol](https://github.com/bittorrent/bittorrent.org/blob/master/beps/bep_0003.rst)
+- [Fast extension](https://github.com/bittorrent/bittorrent.org/blob/master/beps/bep_0006.rst)
+- [Magnet links](https://github.com/bittorrent/bittorrent.org/blob/master/beps/bep_0009.rst)
+- [Multiple trackers](https://github.com/bittorrent/bittorrent.org/blob/master/beps/bep_0012.rst)
+- [UDP trackers](https://github.com/bittorrent/bittorrent.org/blob/master/beps/bep_0015.rst)
+- [DHT](https://github.com/bittorrent/bittorrent.org/blob/master/beps/bep_0005.rst)
+- [PEX](https://github.com/bittorrent/bittorrent.org/blob/master/beps/bep_0011.rst)
 - [Message stream encryption](http://wiki.vuze.com/w/Message_Stream_Encryption)
-- [WebSeed](http://bittorrent.org/beps/bep_0019.html)
+- [WebSeed](https://github.com/bittorrent/bittorrent.org/blob/master/beps/bep_0019.rst)
 - Fast resuming
 - IP blocklist
 - RPC server & client
@@ -87,12 +87,12 @@ This allows Rain to download same torrent for multiple accounts in same private 
 
 Missing features
 ----------------
-- [IPv6 tracker extension](http://bittorrent.org/beps/bep_0007.html)
-- [IPv6 extension for DHT](http://bittorrent.org/beps/bep_0032.html)
-- [uTorrent transport protocol](http://bittorrent.org/beps/bep_0029.html)
-- [Superseeding](http://bittorrent.org/beps/bep_0016.html)
-- [HTTP seeding](http://bittorrent.org/beps/bep_0017.html)
-- [Merkle tree torrent extension](http://bittorrent.org/beps/bep_0030.html)
+- [IPv6 tracker extension](https://github.com/bittorrent/bittorrent.org/blob/master/beps/bep_0007.rst)
+- [IPv6 extension for DHT](https://github.com/bittorrent/bittorrent.org/blob/master/beps/bep_0032.rst)
+- [uTorrent transport protocol](https://github.com/bittorrent/bittorrent.org/blob/master/beps/bep_0029.rst)
+- [Superseeding](https://github.com/bittorrent/bittorrent.org/blob/master/beps/bep_0016.rst)
+- [HTTP seeding](https://github.com/bittorrent/bittorrent.org/blob/master/beps/bep_0017.rst)
+- [Merkle tree torrent extension](https://github.com/bittorrent/bittorrent.org/blob/master/beps/bep_0030.rst)
 - uPnP port forwarding
 - Selective downloading
 - Sequential downloading
