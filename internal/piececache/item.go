@@ -30,14 +30,14 @@ func (l accessList) Swap(i, j int) {
 	l[j].index = j
 }
 
-func (l *accessList) Push(x interface{}) {
+func (l *accessList) Push(x any) {
 	n := len(*l)
 	i := x.(*item)
 	i.index = n
 	*l = append(*l, i)
 }
 
-func (l *accessList) Pop() interface{} {
+func (l *accessList) Pop() any {
 	old := *l
 	n := len(old)
 	i := old[n-1]

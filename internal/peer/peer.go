@@ -57,7 +57,7 @@ type Peer struct {
 	uploadSpeed   metrics.Meter
 
 	// Messages received while we don't have info yet are saved here.
-	Messages []interface{}
+	Messages []any
 
 	ExtensionHandshake *peerprotocol.ExtensionHandshakeMessage
 
@@ -77,7 +77,7 @@ type Peer struct {
 // Message that is read from Peer
 type Message struct {
 	*Peer
-	Message interface{}
+	Message any
 }
 
 // PieceMessage is a Piece message that is read from Peer

@@ -1049,12 +1049,12 @@ func handleTorrentShow(c *cli.Context) error {
 	}
 	defer f.Close()
 
-	val := make(map[string]interface{})
+	val := make(map[string]any)
 	err = bencode.NewDecoder(f).Decode(&val)
 	if err != nil {
 		return err
 	}
-	if info, ok := val["info"].(map[string]interface{}); ok {
+	if info, ok := val["info"].(map[string]any); ok {
 		if pieces, ok := info["pieces"].(string); ok {
 			info["pieces"] = fmt.Sprintf("<<< %d bytes of data >>>", len(pieces))
 		}

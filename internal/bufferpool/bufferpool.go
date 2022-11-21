@@ -12,7 +12,7 @@ type Pool struct {
 func New(buflen int) *Pool {
 	return &Pool{
 		pool: sync.Pool{
-			New: func() interface{} {
+			New: func() any {
 				b := make([]byte, buflen)
 				return &b
 			},

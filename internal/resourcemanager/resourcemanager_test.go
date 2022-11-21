@@ -35,7 +35,7 @@ func TestResourceManager(t *testing.T) {
 	if m.Stats().AllocatedObjects != 1 {
 		t.FailNow()
 	}
-	var data interface{}
+	var data any
 	select {
 	case data = <-notifyC:
 	default:

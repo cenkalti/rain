@@ -32,13 +32,13 @@ import (
 
 const enableDebug = false
 
-func debugln(args ...interface{}) {
+func debugln(args ...any) {
 	if enableDebug {
 		fmt.Println(args...)
 	}
 }
 
-func debugf(format string, args ...interface{}) {
+func debugf(format string, args ...any) {
 	if enableDebug {
 		fmt.Printf(format, args...)
 	}

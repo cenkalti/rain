@@ -12,7 +12,7 @@ import (
 // PieceWriter writes the data in the buffer to disk.
 type PieceWriter struct {
 	Piece  *piece.Piece
-	Source interface{}
+	Source any
 	Buffer bufferpool.Buffer
 
 	HashOK bool
@@ -20,7 +20,7 @@ type PieceWriter struct {
 }
 
 // New returns new PieceWriter for a given piece.
-func New(p *piece.Piece, source interface{}, buf bufferpool.Buffer) *PieceWriter {
+func New(p *piece.Piece, source any, buf bufferpool.Buffer) *PieceWriter {
 	return &PieceWriter{
 		Piece:  p,
 		Source: source,

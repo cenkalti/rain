@@ -17,7 +17,7 @@ type Conn struct {
 	conn     net.Conn
 	reader   *peerreader.PeerReader
 	writer   *peerwriter.PeerWriter
-	messages chan interface{}
+	messages chan any
 	log      logger.Logger
 	closeC   chan struct{}
 	doneC    chan struct{}
@@ -29,7 +29,7 @@ func New(conn net.Conn, l logger.Logger, pieceTimeout time.Duration, maxRequests
 		conn:     conn,
 		reader:   peerreader.New(conn, l, pieceTimeout, br),
 		writer:   peerwriter.New(conn, l, maxRequestsIn, fastEnabled, bw),
-		messages: make(chan interface{}),
+		messages: make(chan any),
 		log:      l,
 		closeC:   make(chan struct{}),
 		doneC:    make(chan struct{}),
@@ -64,7 +64,7 @@ func (p *Conn) Logger() logger.Logger {
 
 // Messages received from the peer will be sent to the channel returned.
 // The channel and underlying net.Conn will be closed if any error occurs while receiving or sending.
-func (p *Conn) Messages() <-chan interface{} {
+func (p *Conn) Messages() <-chan any {
 	return p.messages
 }
 

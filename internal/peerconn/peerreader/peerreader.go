@@ -34,7 +34,7 @@ type PeerReader struct {
 	log          logger.Logger
 	pieceTimeout time.Duration
 	bucket       *ratelimit.Bucket
-	messages     chan interface{}
+	messages     chan any
 	stopC        chan struct{}
 	doneC        chan struct{}
 }
@@ -47,14 +47,14 @@ func New(conn net.Conn, l logger.Logger, pieceTimeout time.Duration, b *ratelimi
 		log:          l,
 		pieceTimeout: pieceTimeout,
 		bucket:       b,
-		messages:     make(chan interface{}),
+		messages:     make(chan any),
 		stopC:        make(chan struct{}),
 		doneC:        make(chan struct{}),
 	}
 }
 
 // Messages returns a channel. All messages read by this PeerReader is sent to this channel.
-func (p *PeerReader) Messages() <-chan interface{} {
+func (p *PeerReader) Messages() <-chan any {
 	return p.messages
 }
 
@@ -124,7 +124,7 @@ func (p *PeerReader) Run() {
 
 		// p.log.Debugf("Received message of type: %q", id)
 
-		var msg interface{}
+		var msg any
 
 		switch id {
 		case peerprotocol.Choke:

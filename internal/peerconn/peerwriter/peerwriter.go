@@ -26,7 +26,7 @@ type PeerWriter struct {
 	fastEnabled           bool
 	currentQueuedRequests int
 	writeC                chan peerprotocol.Message
-	messages              chan interface{}
+	messages              chan any
 	servedRequests        map[peerprotocol.RequestMessage]struct{}
 	bucket                *ratelimit.Bucket
 	log                   logger.Logger
@@ -44,7 +44,7 @@ func New(conn net.Conn, l logger.Logger, maxQueuedRequests int, fastEnabled bool
 		maxQueuedRequests: maxQueuedRequests,
 		fastEnabled:       fastEnabled,
 		writeC:            make(chan peerprotocol.Message),
-		messages:          make(chan interface{}),
+		messages:          make(chan any),
 		servedRequests:    make(map[peerprotocol.RequestMessage]struct{}),
 		bucket:            b,
 		log:               l,
@@ -54,7 +54,7 @@ func New(conn net.Conn, l logger.Logger, maxQueuedRequests int, fastEnabled bool
 }
 
 // Messages returns a channel. Various events from the writer are sent to this channel.
-func (p *PeerWriter) Messages() <-chan interface{} {
+func (p *PeerWriter) Messages() <-chan any {
 	return p.messages
 }
 

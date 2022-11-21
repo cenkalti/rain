@@ -153,7 +153,7 @@ func startHTTPTracker(t *testing.T) (stop func()) {
 	responseConfig := middleware.ResponseConfig{
 		AnnounceInterval: time.Minute,
 	}
-	ps, err := storage.NewPeerStore("memory", map[string]interface{}{})
+	ps, err := storage.NewPeerStore("memory", map[string]any{})
 	if err != nil {
 		t.Fatal(err)
 	}

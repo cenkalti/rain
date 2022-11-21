@@ -38,7 +38,7 @@ const (
 // ExtensionMessage is extension to BitTorrent protocol.
 type ExtensionMessage struct {
 	ExtendedMessageID uint8
-	Payload           interface{}
+	Payload           any
 }
 
 // ID returns the type of a peer message.

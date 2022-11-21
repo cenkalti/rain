@@ -24,7 +24,7 @@ type Blocklist struct {
 }
 
 // Logger prints error messages during loading. Arguments are handled in the manner of fmt.Printf.
-type Logger func(format string, v ...interface{})
+type Logger func(format string, v ...any)
 
 // New returns a new Blocklist.
 func New() *Blocklist {
