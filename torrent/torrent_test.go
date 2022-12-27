@@ -177,10 +177,10 @@ func TestTorrentFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = tor.Files()
+	_, err = tor.FilePaths()
 	assert.EqualError(t, err, "torrent metadata not ready")
 	waitForMetadata(t, tor)
-	files, err := tor.Files()
+	files, err := tor.FilePaths()
 	assert.NoError(t, err)
 	assert.Equal(t, 6, len(files))
 	assert.Equal(t, "sample_torrent/data/file1.bin", files[0])

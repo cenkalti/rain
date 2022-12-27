@@ -418,16 +418,18 @@ func (t *torrent) RootDirectory() string {
 	return t.storage.RootDir()
 }
 
-func (t *torrent) Files() ([]string, error) {
+func (t *torrent) FilePaths() ([]string, error) {
 	if t.info == nil {
 		return nil, errors.New("torrent metadata not ready")
 	}
 
-	fileNames := make([]string, len(t.info.Files))
-	for i, f := range t.info.Files {
-		fileNames[i] = f.Path
+	var filePaths []string
+	for _, f := range t.info.Files {
+		if !f.Padding {
+			filePaths = append(filePaths, f.Path)
+		}
 	}
-	return fileNames, nil
+	return filePaths, nil
 }
 
 func (t *torrent) announceDHT() {

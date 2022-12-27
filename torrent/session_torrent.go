@@ -49,9 +49,9 @@ func (t *Torrent) RootDirectory() string {
 }
 
 // The files in the torrent.
-// The names of the files are relative to the root directory.
-func (t *Torrent) Files() ([]string, error) {
-	return t.torrent.Files()
+// The paths of the files are relative to the root directory.
+func (t *Torrent) FilePaths() ([]string, error) {
+	return t.torrent.FilePaths()
 }
 
 // InfoHash returns the hash of the info dictionary of torrent file.
