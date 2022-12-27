@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strconv"
 	"testing"
@@ -17,6 +18,7 @@ import (
 	"github.com/chihaya/chihaya/storage"
 	_ "github.com/chihaya/chihaya/storage/memory"
 	"github.com/fortytw2/leaktest"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -149,6 +151,42 @@ func TestDownloadTorrent(t *testing.T) {
 	assertCompleted(t, tor)
 }
 
+func TestTorrentRootDirectory(t *testing.T) {
+	defer leaktest.Check(t)()
+	addr, cl := seeder(t, true)
+	defer cl()
+	s, closeSession := newTestSession(t)
+	defer closeSession()
+
+	tor, err := s.AddURI(torrentMagnetLink+"&x.pe="+addr, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, path.Join(s.config.DataDir, tor.ID()), tor.RootDirectory())
+	assertCompleted(t, tor)
+}
+
+func TestTorrentFiles(t *testing.T) {
+	defer leaktest.Check(t)()
+	addr, cl := seeder(t, true)
+	defer cl()
+	s, closeSession := newTestSession(t)
+	defer closeSession()
+
+	tor, err := s.AddURI(torrentMagnetLink+"&x.pe="+addr, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = tor.FilePaths()
+	assert.EqualError(t, err, "torrent metadata not ready")
+	waitForMetadata(t, tor)
+	files, err := tor.FilePaths()
+	assert.NoError(t, err)
+	assert.Equal(t, 6, len(files))
+	assert.Equal(t, "sample_torrent/data/file1.bin", files[0])
+	assertCompleted(t, tor)
+}
+
 func startHTTPTracker(t *testing.T) (stop func()) {
 	responseConfig := middleware.ResponseConfig{
 		AnnounceInterval: time.Minute,
@@ -242,5 +280,16 @@ func assertCompleted(t *testing.T, tor *Torrent) {
 	err := cmd.Run()
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func waitForMetadata(t *testing.T, tor *Torrent) {
+	t2 := tor.torrent
+	select {
+	case <-t2.NotifyMetadata():
+	case err := <-t2.NotifyError():
+		t.Fatal(err)
+	case <-time.After(timeout):
+		t.Fatal("metadata did not finish downloading")
 	}
 }

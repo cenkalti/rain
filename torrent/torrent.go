@@ -19,7 +19,6 @@ import (
 	"github.com/cenkalti/rain/internal/handshaker/incominghandshaker"
 	"github.com/cenkalti/rain/internal/handshaker/outgoinghandshaker"
 	"github.com/cenkalti/rain/internal/infodownloader"
-	"github.com/cenkalti/rain/internal/urldownloader"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/mse"
@@ -34,6 +33,7 @@ import (
 	"github.com/cenkalti/rain/internal/suspendchan"
 	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/internal/unchoker"
+	"github.com/cenkalti/rain/internal/urldownloader"
 	"github.com/cenkalti/rain/internal/verifier"
 	"github.com/cenkalti/rain/internal/webseedsource"
 	"github.com/rcrowley/go-metrics"
@@ -412,6 +412,24 @@ func (t *torrent) InfoHash() []byte {
 	b := make([]byte, 20)
 	copy(b, t.infoHash[:])
 	return b
+}
+
+func (t *torrent) RootDirectory() string {
+	return t.storage.RootDir()
+}
+
+func (t *torrent) FilePaths() ([]string, error) {
+	if t.info == nil {
+		return nil, errors.New("torrent metadata not ready")
+	}
+
+	var filePaths []string
+	for _, f := range t.info.Files {
+		if !f.Padding {
+			filePaths = append(filePaths, f.Path)
+		}
+	}
+	return filePaths, nil
 }
 
 func (t *torrent) announceDHT() {
