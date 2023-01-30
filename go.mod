@@ -10,7 +10,7 @@ require (
 	github.com/chihaya/chihaya v1.0.1-0.20191017040149-0a420fe05344
 	github.com/fatih/structs v1.1.0
 	github.com/fortytw2/leaktest v1.3.0
-	github.com/gofrs/uuid v4.3.1+incompatible
+	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/google/btree v1.1.2
 	github.com/hokaccha/go-prettyjson v0.0.0-20210113012101-fb4e108d2519
 	github.com/jroimartin/gocui v0.5.0
