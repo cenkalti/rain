@@ -23,9 +23,9 @@ require (
 	github.com/stretchr/testify v1.8.1
 	github.com/urfave/cli v1.22.10
 	github.com/zeebo/bencode v1.0.0
-	go.etcd.io/bbolt v1.3.6
+	go.etcd.io/bbolt v1.3.7
 	golang.org/x/exp v0.0.0-20220325121720-054d8573a5d8
-	golang.org/x/sys v0.0.0-20211019181941-9d821ace8654
+	golang.org/x/sys v0.4.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
