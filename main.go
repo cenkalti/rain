@@ -757,7 +757,7 @@ func handleDownload(c *cli.Context) error {
 	for {
 		select {
 		case s := <-ch:
-			log.Noticef("received %s, stopping server", s)
+			log.Noticef("received %s, stopping torrent", s)
 			err = t.Stop()
 			if err != nil {
 				return err
@@ -817,7 +817,7 @@ func handleMagnetToTorrent(c *cli.Context) error {
 	for {
 		select {
 		case s := <-ch:
-			log.Noticef("received %s, stopping server", s)
+			log.Noticef("received %s, stopping torrent", s)
 			err = t.Stop()
 			if err != nil {
 				return err
