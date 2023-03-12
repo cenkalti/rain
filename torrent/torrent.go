@@ -137,7 +137,7 @@ type torrent struct {
 	lastError error
 
 	// When Stop() is called, it will close this channel to signal run() function to stop.
-	closeC chan chan struct{}
+	closeC chan struct{}
 
 	// Close() blocks until doneC is closed.
 	doneC chan struct{}
@@ -317,7 +317,7 @@ func newTorrent2(
 		pieceWriterResultC:        make(chan *piecewriter.PieceWriter),
 		completeC:                 make(chan struct{}),
 		completeMetadataC:         make(chan struct{}),
-		closeC:                    make(chan chan struct{}),
+		closeC:                    make(chan struct{}),
 		startCommandC:             make(chan struct{}),
 		stopCommandC:              make(chan struct{}),
 		announceCommandC:          make(chan struct{}),
