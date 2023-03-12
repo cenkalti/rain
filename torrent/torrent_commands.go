@@ -51,10 +51,6 @@ func (t *torrent) Close() {
 	<-t.doneC
 }
 
-func (t *torrent) NotifyClose() <-chan struct{} {
-	return t.closeC
-}
-
 func (t *torrent) NotifyComplete() <-chan struct{} {
 	return t.completeC
 }
