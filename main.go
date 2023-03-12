@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	// nolint: gosec
+	"io"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
@@ -684,7 +685,7 @@ func handleDownload(c *cli.Context) error {
 	cfg.DataDir = "."
 	cfg.DataDirIncludesTorrentID = false
 	var ih torrent.InfoHash
-	if isURI(arg) {
+	if strings.HasPrefix(arg, "magnet:") {
 		magnet, err := magnet.New(arg)
 		if err != nil {
 			return err
@@ -692,16 +693,28 @@ func handleDownload(c *cli.Context) error {
 		ih = torrent.InfoHash(magnet.InfoHash)
 		cfg.Database = magnet.Name + ".resume"
 	} else {
-		f, err := os.Open(arg)
+		var rc io.ReadCloser
+
+		if strings.HasPrefix(arg, "http://") || strings.HasPrefix(arg, "https://") {
+			resp, err := http.DefaultClient.Get(arg) // nolint: noctx
+			if err != nil {
+				return err
+			}
+			defer resp.Body.Close()
+			rc = resp.Body
+		} else {
+			f, err := os.Open(arg)
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+			rc = f
+		}
+		mi, err := metainfo.New(rc)
 		if err != nil {
 			return err
 		}
-		defer f.Close()
-		mi, err := metainfo.New(f)
-		if err != nil {
-			return err
-		}
-		_ = f.Close()
+		rc.Close()
 		ih = mi.Info.Hash
 		cfg.Database = mi.Info.Name + ".resume"
 	}
