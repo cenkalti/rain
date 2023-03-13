@@ -104,10 +104,10 @@ func (t *Torrent) Port() int {
 	return t.torrent.port
 }
 
-// NotifyCose returns a channel for notifying removal/closure.  The
+// NotifyClose returns a channel for notifying removal/closure.  The
 // channel is closed once RemoveTorrent() is called, dropping it from
 // the session.
-func (t *Torrent) NotifyCose() <-chan struct{} {
+func (t *Torrent) NotifyClose() <-chan struct{} {
 	return t.torrent.NotifyClose()
 }
 
