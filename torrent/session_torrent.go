@@ -48,6 +48,10 @@ func (t *Torrent) RootDirectory() string {
 	return t.torrent.RootDirectory()
 }
 
+func (t *Torrent) FileStats() ([]fileStat, error) {
+	return t.torrent.FileStats()
+}
+
 // The files in the torrent.
 // The paths of the files are relative to the root directory.
 func (t *Torrent) FilePaths() ([]string, error) {

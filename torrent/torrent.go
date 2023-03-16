@@ -446,6 +446,33 @@ func (t *torrent) FilePaths() ([]string, error) {
 	return filePaths, nil
 }
 
+type fileStat struct {
+	Path            string
+	BytesDownloaded int64
+	BytesTotal      int64
+}
+
+func (t *torrent) FileStats() ([]fileStat, error) {
+	if t.info == nil {
+		return nil, errors.New("torrent metadata not ready")
+	}
+
+	var stats []fileStat
+	t.mPerFile.RLock()
+	defer t.mPerFile.RUnlock()
+	for _, f := range t.info.Files {
+		if !f.Padding {
+			stats = append(stats, fileStat{
+				Path:            f.Path,
+				BytesDownloaded: t.perFileBytesDownloaded[f.Path].Count(),
+				BytesTotal:      f.Length,
+			})
+		}
+	}
+
+	return stats, nil
+}
+
 func (t *torrent) announceDHT() {
 	t.session.mPeerRequests.Lock()
 	t.session.dhtPeerRequests[t] = struct{}{}
