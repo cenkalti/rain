@@ -1,6 +1,7 @@
 package torrent
 
 import (
+	"encoding/json"
 	"strconv"
 	"time"
 
@@ -138,6 +139,17 @@ func (s *Session) updateStats() {
 			_ = b.Put(boltdbresumer.Keys.BytesUploaded, []byte(strconv.FormatInt(t.torrent.bytesUploaded.Count(), 10)))
 			_ = b.Put(boltdbresumer.Keys.BytesWasted, []byte(strconv.FormatInt(t.torrent.bytesWasted.Count(), 10)))
 			_ = b.Put(boltdbresumer.Keys.SeededFor, []byte(time.Duration(t.torrent.seededFor.Count()).String()))
+
+			if t.torrent.info != nil {
+				fileBytes := make([]int64, len(t.torrent.info.Files))
+				t.torrent.mPerFile.RLock()
+				for i, f := range t.torrent.info.Files {
+					fileBytes[i] = t.torrent.perFileBytesDownloaded[f.Path].Count()
+				}
+				t.torrent.mPerFile.RUnlock()
+				fb, _ := json.Marshal(fileBytes)
+				_ = b.Put(boltdbresumer.Keys.PerFileBytesDownloaded, fb)
+			}
 
 			t.torrent.mBitfield.RLock()
 			if t.torrent.bitfield != nil {

@@ -10,6 +10,7 @@ import (
 	"github.com/cenkalti/rain/internal/peer"
 	"github.com/cenkalti/rain/internal/peerprotocol"
 	"github.com/cenkalti/rain/internal/resumer/boltdbresumer"
+	"github.com/rcrowley/go-metrics"
 )
 
 func (t *torrent) handleMetadataMessage(pe *peer.Peer, msg peerprotocol.ExtensionMetadataMessage) {
@@ -92,6 +93,11 @@ func (t *torrent) handleMetadataMessage(pe *peer.Peer, msg peerprotocol.Extensio
 			break
 		}
 		t.info = info
+		t.mPerFile.Lock()
+		for _, f := range t.info.Files {
+			t.perFileBytesDownloaded[f.Path] = metrics.NewCounter()
+		}
+		t.mPerFile.Unlock()
 		t.piecePool = bufferpool.New(int(info.PieceLength))
 		err = t.session.resumer.WriteInfo(t.id, t.info.Bytes)
 		if err != nil {

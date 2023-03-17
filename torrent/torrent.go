@@ -73,6 +73,8 @@ type torrent struct {
 
 	// Protects bitfield writing from torrent loop and reading from announcer loop.
 	mBitfield sync.RWMutex
+	// Protects the per-file stat counter map
+	mPerFile sync.RWMutex
 
 	// Unique peer ID is generated per downloader.
 	peerID [20]byte
@@ -212,12 +214,13 @@ type torrent struct {
 	checkedPieces     uint32
 
 	// Metrics
-	downloadSpeed   metrics.Meter
-	uploadSpeed     metrics.Meter
-	bytesDownloaded metrics.Counter
-	bytesUploaded   metrics.Counter
-	bytesWasted     metrics.Counter
-	seededFor       metrics.Counter
+	downloadSpeed          metrics.Meter
+	uploadSpeed            metrics.Meter
+	bytesDownloaded        metrics.Counter
+	bytesUploaded          metrics.Counter
+	bytesWasted            metrics.Counter
+	seededFor              metrics.Counter
+	perFileBytesDownloaded map[string]metrics.Counter // path->num bytes
 
 	seedDurationUpdatedAt time.Time
 	seedDurationTicker    *time.Ticker
@@ -353,6 +356,7 @@ func newTorrent2(
 		bytesDownloaded:           metrics.NewCounter(),
 		bytesUploaded:             metrics.NewCounter(),
 		bytesWasted:               metrics.NewCounter(),
+		perFileBytesDownloaded:    make(map[string]metrics.Counter),
 		seededFor:                 metrics.NewCounter(),
 		ramNotifyC:                make(chan *peer.Peer),
 		webseedClient:             &s.webseedClient,
@@ -371,6 +375,16 @@ func newTorrent2(
 	t.bytesUploaded.Inc(stats.BytesUploaded)
 	t.bytesWasted.Inc(stats.BytesWasted)
 	t.seededFor.Inc(stats.SeededFor)
+
+	if t.info != nil {
+		t.mPerFile.Lock()
+		for i, f := range t.info.Files {
+			t.perFileBytesDownloaded[f.Path] = metrics.NewCounter()
+			t.perFileBytesDownloaded[f.Path].Inc(stats.PerFileBytesDownloaded[i])
+		}
+		t.mPerFile.Unlock()
+	}
+
 	var blocklistForOutgoingConns *blocklist.Blocklist
 	if cfg.BlocklistEnabledForOutgoingConnections {
 		blocklistForOutgoingConns = s.blocklist

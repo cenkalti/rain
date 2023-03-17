@@ -16,45 +16,47 @@ const LatestVersion = 3
 
 // Keys for the persisten storage.
 var Keys = struct {
-	InfoHash          []byte
-	Port              []byte
-	Name              []byte
-	Trackers          []byte
-	URLList           []byte
-	FixedPeers        []byte
-	Dest              []byte
-	Info              []byte
-	Bitfield          []byte
-	AddedAt           []byte
-	BytesDownloaded   []byte
-	BytesUploaded     []byte
-	BytesWasted       []byte
-	SeededFor         []byte
-	Started           []byte
-	StopAfterDownload []byte
-	StopAfterMetadata []byte
-	CompleteCmdRun    []byte
-	Version           []byte
+	InfoHash               []byte
+	Port                   []byte
+	Name                   []byte
+	Trackers               []byte
+	URLList                []byte
+	FixedPeers             []byte
+	Dest                   []byte
+	Info                   []byte
+	Bitfield               []byte
+	AddedAt                []byte
+	BytesDownloaded        []byte
+	BytesUploaded          []byte
+	BytesWasted            []byte
+	PerFileBytesDownloaded []byte
+	SeededFor              []byte
+	Started                []byte
+	StopAfterDownload      []byte
+	StopAfterMetadata      []byte
+	CompleteCmdRun         []byte
+	Version                []byte
 }{
-	InfoHash:          []byte("info_hash"),
-	Port:              []byte("port"),
-	Name:              []byte("name"),
-	Trackers:          []byte("trackers"),
-	URLList:           []byte("url_list"),
-	FixedPeers:        []byte("fixed_peers"),
-	Dest:              []byte("dest"),
-	Info:              []byte("info"),
-	Bitfield:          []byte("bitfield"),
-	AddedAt:           []byte("added_at"),
-	BytesDownloaded:   []byte("bytes_downloaded"),
-	BytesUploaded:     []byte("bytes_uploaded"),
-	BytesWasted:       []byte("bytes_wasted"),
-	SeededFor:         []byte("seeded_for"),
-	Started:           []byte("started"),
-	StopAfterDownload: []byte("stop_after_download"),
-	StopAfterMetadata: []byte("stop_after_metadata"),
-	CompleteCmdRun:    []byte("complete_cmd_run"),
-	Version:           []byte("version"),
+	InfoHash:               []byte("info_hash"),
+	Port:                   []byte("port"),
+	Name:                   []byte("name"),
+	Trackers:               []byte("trackers"),
+	URLList:                []byte("url_list"),
+	FixedPeers:             []byte("fixed_peers"),
+	Dest:                   []byte("dest"),
+	Info:                   []byte("info"),
+	Bitfield:               []byte("bitfield"),
+	AddedAt:                []byte("added_at"),
+	BytesDownloaded:        []byte("bytes_downloaded"),
+	BytesUploaded:          []byte("bytes_uploaded"),
+	BytesWasted:            []byte("bytes_wasted"),
+	PerFileBytesDownloaded: []byte("per_file_bytes_downloaded"),
+	SeededFor:              []byte("seeded_for"),
+	Started:                []byte("started"),
+	StopAfterDownload:      []byte("stop_after_download"),
+	StopAfterMetadata:      []byte("stop_after_metadata"),
+	CompleteCmdRun:         []byte("complete_cmd_run"),
+	Version:                []byte("version"),
 }
 
 // Resumer contains methods for saving/loading resume information of a torrent to a BoltDB database.
@@ -93,6 +95,10 @@ func (r *Resumer) Write(torrentID string, spec *Spec) error {
 	if err != nil {
 		return err
 	}
+	fileBytes, err := json.Marshal(spec.PerFileBytesDownloaded)
+	if err != nil {
+		return err
+	}
 	version := LatestVersion
 	if spec.Version != 0 {
 		version = spec.Version
@@ -114,6 +120,7 @@ func (r *Resumer) Write(torrentID string, spec *Spec) error {
 		_ = b.Put(Keys.BytesDownloaded, []byte(strconv.FormatInt(spec.BytesDownloaded, 10)))
 		_ = b.Put(Keys.BytesUploaded, []byte(strconv.FormatInt(spec.BytesUploaded, 10)))
 		_ = b.Put(Keys.BytesWasted, []byte(strconv.FormatInt(spec.BytesWasted, 10)))
+		_ = b.Put(Keys.PerFileBytesDownloaded, fileBytes)
 		_ = b.Put(Keys.SeededFor, []byte(spec.SeededFor.String()))
 		_ = b.Put(Keys.Started, []byte(strconv.FormatBool(spec.Started)))
 		_ = b.Put(Keys.StopAfterDownload, []byte(strconv.FormatBool(spec.StopAfterDownload)))
@@ -317,6 +324,16 @@ func (r *Resumer) Read(torrentID string) (spec *Spec, err error) {
 			if err != nil {
 				return err
 			}
+		}
+
+		value = b.Get(Keys.PerFileBytesDownloaded)
+		if value != nil {
+			err = json.Unmarshal(value, &spec.PerFileBytesDownloaded)
+			if err != nil {
+				return err
+			}
+		} else {
+			spec.PerFileBytesDownloaded = make([]int64, 0)
 		}
 
 		value = b.Get(Keys.SeededFor)

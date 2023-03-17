@@ -86,6 +86,11 @@ func (s *Session) loadExistingTorrent(id string) (tt *Torrent, hasStarted bool, 
 			bf = bf3
 		}
 	}
+	// Cover transition from when this data wasn't tracked
+	if len(spec.PerFileBytesDownloaded) == 0 {
+		spec.PerFileBytesDownloaded = make([]int64, len(info.Files))
+	}
+
 	sto, err := filestorage.New(s.getDataDir(id), s.config.FilePermissions)
 	if err != nil {
 		return
@@ -103,10 +108,11 @@ func (s *Session) loadExistingTorrent(id string) (tt *Torrent, hasStarted bool, 
 		info,
 		bf,
 		resumer.Stats{
-			BytesDownloaded: spec.BytesDownloaded,
-			BytesUploaded:   spec.BytesUploaded,
-			BytesWasted:     spec.BytesWasted,
-			SeededFor:       int64(spec.SeededFor),
+			BytesDownloaded:        spec.BytesDownloaded,
+			BytesUploaded:          spec.BytesUploaded,
+			BytesWasted:            spec.BytesWasted,
+			SeededFor:              int64(spec.SeededFor),
+			PerFileBytesDownloaded: spec.PerFileBytesDownloaded,
 		},
 		webseedsource.NewList(spec.URLList),
 		spec.StopAfterDownload,

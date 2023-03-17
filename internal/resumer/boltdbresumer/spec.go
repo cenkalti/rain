@@ -8,41 +8,43 @@ import (
 
 // Spec contains fields for resuming an existing torrent.
 type Spec struct {
-	InfoHash          []byte
-	Port              int
-	Name              string
-	Trackers          [][]string
-	URLList           []string
-	FixedPeers        []string
-	Info              []byte
-	Bitfield          []byte
-	AddedAt           time.Time
-	BytesDownloaded   int64
-	BytesUploaded     int64
-	BytesWasted       int64
-	SeededFor         time.Duration
-	Started           bool
-	StopAfterDownload bool
-	StopAfterMetadata bool
-	CompleteCmdRun    bool
-	Version           int
+	InfoHash               []byte
+	Port                   int
+	Name                   string
+	Trackers               [][]string
+	URLList                []string
+	FixedPeers             []string
+	Info                   []byte
+	Bitfield               []byte
+	AddedAt                time.Time
+	BytesDownloaded        int64
+	BytesUploaded          int64
+	BytesWasted            int64
+	PerFileBytesDownloaded []int64 // Indexed by metadata Files index id
+	SeededFor              time.Duration
+	Started                bool
+	StopAfterDownload      bool
+	StopAfterMetadata      bool
+	CompleteCmdRun         bool
+	Version                int
 }
 
 type jsonSpec struct {
-	Port              int
-	Name              string
-	Trackers          [][]string
-	URLList           []string
-	FixedPeers        []string
-	AddedAt           time.Time
-	BytesDownloaded   int64
-	BytesUploaded     int64
-	BytesWasted       int64
-	Started           bool
-	StopAfterDownload bool
-	StopAfterMetadata bool
-	CompleteCmdRun    bool
-	Version           int
+	Port                   int
+	Name                   string
+	Trackers               [][]string
+	URLList                []string
+	FixedPeers             []string
+	AddedAt                time.Time
+	BytesDownloaded        int64
+	BytesUploaded          int64
+	BytesWasted            int64
+	PerFileBytesDownloaded []int64 // Indexed by metadata Files index id
+	Started                bool
+	StopAfterDownload      bool
+	StopAfterMetadata      bool
+	CompleteCmdRun         bool
+	Version                int
 
 	// JSON unsafe types
 	InfoHash  string
@@ -54,20 +56,21 @@ type jsonSpec struct {
 // MarshalJSON converts the Spec to a JSON string.
 func (s Spec) MarshalJSON() ([]byte, error) {
 	j := jsonSpec{
-		Port:              s.Port,
-		Name:              s.Name,
-		Trackers:          s.Trackers,
-		URLList:           s.URLList,
-		FixedPeers:        s.FixedPeers,
-		AddedAt:           s.AddedAt,
-		BytesDownloaded:   s.BytesDownloaded,
-		BytesUploaded:     s.BytesUploaded,
-		BytesWasted:       s.BytesWasted,
-		Started:           s.Started,
-		StopAfterDownload: s.StopAfterDownload,
-		StopAfterMetadata: s.StopAfterMetadata,
-		CompleteCmdRun:    s.CompleteCmdRun,
-		Version:           s.Version,
+		Port:                   s.Port,
+		Name:                   s.Name,
+		Trackers:               s.Trackers,
+		URLList:                s.URLList,
+		FixedPeers:             s.FixedPeers,
+		AddedAt:                s.AddedAt,
+		BytesDownloaded:        s.BytesDownloaded,
+		BytesUploaded:          s.BytesUploaded,
+		BytesWasted:            s.BytesWasted,
+		PerFileBytesDownloaded: s.PerFileBytesDownloaded,
+		Started:                s.Started,
+		StopAfterDownload:      s.StopAfterDownload,
+		StopAfterMetadata:      s.StopAfterMetadata,
+		CompleteCmdRun:         s.CompleteCmdRun,
+		Version:                s.Version,
 
 		InfoHash:  base64.StdEncoding.EncodeToString(s.InfoHash),
 		Info:      base64.StdEncoding.EncodeToString(s.Info),
@@ -106,6 +109,7 @@ func (s *Spec) UnmarshalJSON(b []byte) error {
 	s.BytesDownloaded = j.BytesDownloaded
 	s.BytesUploaded = j.BytesUploaded
 	s.BytesWasted = j.BytesWasted
+	s.PerFileBytesDownloaded = j.PerFileBytesDownloaded
 	s.Started = j.Started
 	s.StopAfterDownload = j.StopAfterDownload
 	s.StopAfterMetadata = j.StopAfterMetadata

@@ -3,8 +3,9 @@ package resumer
 
 // Stats of a torrent.
 type Stats struct {
-	BytesDownloaded int64
-	BytesUploaded   int64
-	BytesWasted     int64
-	SeededFor       int64 // time.Duration
+	BytesDownloaded        int64
+	BytesUploaded          int64
+	BytesWasted            int64
+	SeededFor              int64   // time.Duration
+	PerFileBytesDownloaded []int64 // Indexed by metadata.Info Files index id
 }

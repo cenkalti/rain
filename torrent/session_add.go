@@ -87,7 +87,7 @@ func (s *Session) addTorrentStopped(r io.Reader, opt *AddTorrentOptions) (*Torre
 		nil, // fixedPeers
 		&mi.Info,
 		nil, // bitfield
-		resumer.Stats{},
+		resumer.Stats{PerFileBytesDownloaded: make([]int64, len(mi.Info.Files))},
 		webseedsource.NewList(mi.URLList),
 		opt.StopAfterDownload,
 		opt.StopAfterMetadata,
