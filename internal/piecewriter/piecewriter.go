@@ -17,14 +17,17 @@ type PieceWriter struct {
 
 	HashOK bool
 	Error  error
+
+	PerFileBytes map[string]int64
 }
 
 // New returns new PieceWriter for a given piece.
 func New(p *piece.Piece, source any, buf bufferpool.Buffer) *PieceWriter {
 	return &PieceWriter{
-		Piece:  p,
-		Source: source,
-		Buffer: buf,
+		Piece:        p,
+		Source:       source,
+		Buffer:       buf,
+		PerFileBytes: make(map[string]int64),
 	}
 }
 
@@ -37,6 +40,12 @@ func (w *PieceWriter) Run(resultC chan *PieceWriter, closeC chan struct{}, write
 		sem.Wait()
 		_, w.Error = w.Piece.Data.Write(w.Buffer.Data)
 		sem.Signal()
+
+		for _, sec := range w.Piece.Data {
+			if !sec.Padding {
+				w.PerFileBytes[sec.Name] += sec.Length
+			}
+		}
 	}
 	select {
 	case resultC <- w:

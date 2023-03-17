@@ -77,6 +77,12 @@ func (t *torrent) handlePieceWriteDone(pw *piecewriter.PieceWriter) {
 		pe.SendMessage(msg)
 	}
 
+	t.mPerFile.Lock()
+	for fp, b := range pw.PerFileBytes {
+		t.perFileBytesDownloaded[fp].Inc(b)
+	}
+	t.mPerFile.Unlock()
+
 	completed := t.checkCompletion()
 	if completed {
 		t.log.Info("download completed")
