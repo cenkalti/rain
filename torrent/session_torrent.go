@@ -54,6 +54,12 @@ func (t *Torrent) FilePaths() ([]string, error) {
 	return t.torrent.FilePaths()
 }
 
+// The files in the torrent with completion info. An error is returned
+// when metainfo isn't ready.
+func (t *Torrent) Files() ([]File, error) {
+	return t.torrent.Files()
+}
+
 // InfoHash returns the hash of the info dictionary of torrent file.
 // Two different torrents may have the same info hash.
 func (t *Torrent) InfoHash() InfoHash {
