@@ -432,6 +432,57 @@ func (t *torrent) FilePaths() ([]string, error) {
 	return filePaths, nil
 }
 
+func (t *torrent) Files() ([]File, error) {
+	if t.info == nil || len(t.pieces) == 0 {
+		return nil, errors.New("torrent not running so file stats unavailable")
+	}
+
+	fileComp := make(map[string]int64)
+	for _, p := range t.pieces {
+		if p.Done {
+			for _, d := range p.Data {
+				if !d.Padding {
+					fileComp[d.Name] += d.Length
+				}
+			}
+		}
+	}
+
+	var files []File
+	for _, f := range t.info.Files {
+		if !f.Padding {
+			files = append(files,
+				File{
+					path: f.Path,
+					stats: FileStats{
+						BytesTotal:     f.Length,
+						BytesCompleted: fileComp[f.Path],
+					},
+				})
+		}
+	}
+
+	return files, nil
+}
+
+type FileStats struct {
+	BytesTotal     int64
+	BytesCompleted int64
+}
+
+type File struct {
+	path  string
+	stats FileStats
+}
+
+func (f File) Path() string {
+	return f.path
+}
+
+func (f File) Stats() FileStats {
+	return f.stats
+}
+
 func (t *torrent) announceDHT() {
 	t.session.mPeerRequests.Lock()
 	t.session.dhtPeerRequests[t] = struct{}{}

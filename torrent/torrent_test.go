@@ -179,11 +179,25 @@ func TestTorrentFiles(t *testing.T) {
 	}
 	_, err = tor.FilePaths()
 	assert.EqualError(t, err, "torrent metadata not ready")
+	_, err = tor.Files()
+	assert.EqualError(t, err, "torrent not running so file stats unavailable")
 	waitForMetadata(t, tor)
 	files, err := tor.FilePaths()
 	assert.NoError(t, err)
 	assert.Equal(t, 6, len(files))
 	assert.Equal(t, "sample_torrent/data/file1.bin", files[0])
+	assertCompleted(t, tor)
+	// So that we're in running state again, which should allow
+	// Files() to return data.
+	tor.Start()
+	waitForStart(t, tor)
+	fileStats, err := tor.Files()
+	assert.NoError(t, err)
+	assert.Equal(t, 6, len(fileStats))
+	assert.Equal(t, "sample_torrent/data/file1.bin", fileStats[0].Path())
+	assert.Equal(t, int64(10240), fileStats[0].Stats().BytesTotal)
+	assert.Equal(t, int64(10240), fileStats[0].Stats().BytesCompleted)
+	assert.Equal(t, int64(10485760), fileStats[2].Stats().BytesCompleted)
 	assertCompleted(t, tor)
 }
 
@@ -291,5 +305,16 @@ func waitForMetadata(t *testing.T, tor *Torrent) {
 		t.Fatal(err)
 	case <-time.After(timeout):
 		t.Fatal("metadata did not finish downloading")
+	}
+}
+
+func waitForStart(t *testing.T, tor *Torrent) {
+	t2 := tor.torrent
+	select {
+	case <-t2.NotifyListen():
+	case err := <-t2.NotifyError():
+		t.Fatal(err)
+	case <-time.After(timeout):
+		t.Fatal("start dit not finish")
 	}
 }
