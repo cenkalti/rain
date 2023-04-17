@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"strconv"
 	"testing"
@@ -18,6 +17,7 @@ import (
 	"github.com/chihaya/chihaya/storage"
 	_ "github.com/chihaya/chihaya/storage/memory"
 	"github.com/fortytw2/leaktest"
+	cp "github.com/otiai10/copy"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -79,7 +79,7 @@ func seeder(t *testing.T, clearTrackers bool) (addr string, c func()) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = CopyDir(src, dst)
+	err = cp.Copy(src, dst)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,7 +162,7 @@ func TestTorrentRootDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, path.Join(s.config.DataDir, tor.ID()), tor.RootDirectory())
+	assert.Equal(t, filepath.Join(s.config.DataDir, tor.ID()), tor.RootDirectory())
 	assertCompleted(t, tor)
 }
 

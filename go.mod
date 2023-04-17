@@ -53,6 +53,7 @@ require (
 	github.com/multiformats/go-varint v0.0.6 // indirect
 	github.com/nictuku/nettools v0.0.0-20150117095333-8867a2107ad3 // indirect
 	github.com/nsf/termbox-go v1.1.1 // indirect
+	github.com/otiai10/copy v1.10.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
