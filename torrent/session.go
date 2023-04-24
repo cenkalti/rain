@@ -86,6 +86,14 @@ func NewSession(cfg Config) (*Session, error) {
 			return nil, errors.New("cannot change max open files limit: " + err.Error())
 		}
 	}
+
+	if cfg.CustomLogHandler != nil {
+		logger.SetHandler(cfg.CustomLogHandler)
+	}
+	if cfg.Debug {
+		logger.SetDebug()
+	}
+
 	var err error
 	cfg.Database, err = homedir.Expand(cfg.Database)
 	if err != nil {
