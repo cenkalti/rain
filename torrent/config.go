@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"time"
 
+	"github.com/cenkalti/log"
 	"github.com/cenkalti/rain/internal/metainfo"
 )
 
@@ -193,6 +194,11 @@ type Config struct {
 
 	// Shell command to execute on torrent completion.
 	OnCompleteCmd []string
+
+	// Replace default log handler
+	CustomLogHandler log.Handler
+	// Enable debugging
+	Debug bool
 }
 
 // DefaultConfig for Session. Do not pass zero value Config to NewSession. Copy this struct and modify instead.
