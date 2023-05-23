@@ -2,49 +2,32 @@ package resourcemanager
 
 import (
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestResourceManager(t *testing.T) {
 	m := New[string](2)
-	if m.Stats().AllocatedObjects != 0 {
-		t.FailNow()
-	}
+	require.Zero(t, m.Stats().AllocatedObjects)
 	ok := m.Request("foo", "", 1, nil, nil)
-	if !ok {
-		t.FailNow()
-	}
-	if m.Stats().AllocatedObjects != 1 {
-		t.FailNow()
-	}
+	require.True(t, ok)
+	require.Equal(t, 1, m.Stats().AllocatedObjects)
 	ok = m.Request("foo", "", 1, nil, nil)
-	if !ok {
-		t.FailNow()
-	}
-	if m.Stats().AllocatedObjects != 2 {
-		t.FailNow()
-	}
+	require.True(t, ok)
+	require.Equal(t, 2, m.Stats().AllocatedObjects)
 	notifyC := make(chan string)
 	ok = m.Request("foo", "bar", 1, notifyC, nil)
-	if ok {
-		t.FailNow()
-	}
-	if m.Stats().AllocatedObjects != 2 {
-		t.FailNow()
-	}
+	require.False(t, ok)
+	require.Equal(t, 2, m.Stats().AllocatedObjects)
 	m.Release(1)
-	if m.Stats().AllocatedObjects != 1 {
-		t.FailNow()
-	}
-	var data any
+	require.Equal(t, 1, m.Stats().AllocatedObjects)
+	var data string
 	select {
 	case data = <-notifyC:
-	default:
-		t.FailNow()
+	case <-time.After(time.Second):
+		t.Fatal("notify channel did not get the message")
 	}
-	if data.(string) != "bar" {
-		t.FailNow()
-	}
-	if m.Stats().AllocatedObjects != 2 {
-		t.FailNow()
-	}
+	require.Equal(t, "bar", data)
+	require.Equal(t, 2, m.Stats().AllocatedObjects)
 }
