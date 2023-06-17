@@ -21,7 +21,7 @@ require (
 	github.com/otiai10/copy v1.11.0
 	github.com/powerman/rpc-codec v1.2.2
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475
-	github.com/stretchr/testify v1.8.3
+	github.com/stretchr/testify v1.8.4
 	github.com/urfave/cli v1.22.13
 	github.com/zeebo/bencode v1.0.0
 	go.etcd.io/bbolt v1.3.7
