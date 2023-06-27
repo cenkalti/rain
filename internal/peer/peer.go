@@ -130,7 +130,6 @@ func (p *Peer) Close() {
 	p.downloadSpeed.Stop()
 	p.uploadSpeed.Stop()
 	<-p.doneC
-	p.Closed = true
 }
 
 // Done returns a channel that is closed when a peers run loop is ended.

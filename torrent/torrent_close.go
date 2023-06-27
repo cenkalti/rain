@@ -25,7 +25,11 @@ func (t *torrent) close() {
 }
 
 func (t *torrent) closePeer(pe *peer.Peer) {
+	if pe.Closed {
+		return
+	}
 	pe.Close()
+	pe.Closed = true
 	if pd, ok := t.pieceDownloaders[pe]; ok {
 		t.closePieceDownloader(pd)
 	}
