@@ -5,8 +5,8 @@ import (
 	"sort"
 
 	"github.com/cenkalti/rain/internal/peer"
-	"github.com/cenkalti/rain/internal/sliceset"
 	"github.com/cenkalti/rain/internal/piece"
+	"github.com/cenkalti/rain/internal/sliceset"
 	"github.com/cenkalti/rain/internal/webseedsource"
 	"github.com/rcrowley/go-metrics"
 )
