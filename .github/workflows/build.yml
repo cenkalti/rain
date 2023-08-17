@@ -49,7 +49,6 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         with:
           version: v1.53.3
-          skip-go-installation: true
 
   goreleaser:
     name: Release

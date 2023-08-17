@@ -40,10 +40,7 @@ func newBuffer(buf *[]byte, length int, pool *Pool) Buffer {
 		buf:  buf,
 		pool: pool,
 	}
-	// Clear contents before returning to the caller.
-	for i := range b.Data {
-		b.Data[i] = 0
-	}
+	clear(b.Data)
 	return b
 }
 
