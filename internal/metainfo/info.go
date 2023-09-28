@@ -148,14 +148,21 @@ func NewInfo(b []byte, utf8 bool, pad bool) (*Info, error) {
 	// construct files
 	if multiFile {
 		i.Files = make([]File, len(ib.Files))
+		uniquePaths := make(map[string]interface{}, len(ib.Files))
 		for j, f := range ib.Files {
 			parts := make([]string, 0, len(f.Path)+1)
 			parts = append(parts, cleanName(i.Name))
 			for _, p := range f.Path {
 				parts = append(parts, cleanName(p))
 			}
+			joinedPath := filepath.Join(parts...)
+			if _, ok := uniquePaths[joinedPath]; ok {
+				return nil, fmt.Errorf("duplicate file name: %q", joinedPath)
+			} else {
+				uniquePaths[joinedPath] = nil
+			}
 			i.Files[j] = File{
-				Path:   filepath.Join(parts...),
+				Path:   joinedPath,
 				Length: f.Length,
 			}
 			if pad {
