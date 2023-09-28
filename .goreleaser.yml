@@ -16,9 +16,9 @@ builds:
     - amd64
 archives:
   - format: tar.gz
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}"
-    replacements:
-      darwin: macos
+    name_template: >-
+      {{- .ProjectName }}_{{ .Version }}_
+      {{- if eq .Os "darwin" }}macos{{ else }}{{ .Os }}{{ end }}
     format_overrides:
       - goos: windows
         format: zip
