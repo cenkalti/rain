@@ -187,7 +187,7 @@ func (t *Transport) Run() {
 				req.ConnectionID = conn.id
 				trx, err := beginTransaction(req)
 				if err != nil {
-					trx.request.SetResponse(nil, err)
+					req.SetResponse(nil, err)
 				} else {
 					go retryTransaction(trx, udpConn, conn.addr)
 				}
