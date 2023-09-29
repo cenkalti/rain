@@ -183,7 +183,7 @@ func (t *torrent) startWebseedDownloader(sp *piecepicker.WebseedDownloadSpec) {
 			continue
 		}
 		if src.Downloader != nil {
-			panic("already downloading from same url source")
+			return
 		}
 		src.Downloader = ud
 		src.Disabled = false
