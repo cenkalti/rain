@@ -130,7 +130,7 @@ func (t *Transport) Run() {
 				connections[req.dest] = conn
 				trx, err := beginTransaction(conn)
 				if err != nil {
-					trx.request.SetResponse(nil, err)
+					conn.SetResponse(nil, err)
 				} else {
 					go resolveDestinationAndConnect(trx, req.dest, udpConn, t.dnsTimeout, t.blocklist, connectDone, t.closeC)
 				}
@@ -139,7 +139,7 @@ func (t *Transport) Run() {
 					req.ConnectionID = conn.id
 					trx, err := beginTransaction(req)
 					if err != nil {
-						trx.request.SetResponse(nil, err)
+						req.SetResponse(nil, err)
 					} else {
 						go retryTransaction(trx, udpConn, conn.addr)
 					}
