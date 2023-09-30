@@ -38,11 +38,11 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: 1.21
+          cache: false
 
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3
+      - uses: golangci/golangci-lint-action@v3
         with:
-          version: v1.53.3
+          version: v1.54
 
   goreleaser:
     name: Release
