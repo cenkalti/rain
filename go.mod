@@ -18,7 +18,7 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-multihash v0.2.3
 	github.com/nictuku/dht v0.0.0-20201226073453-fd1c1dd3d66a
-	github.com/otiai10/copy v1.12.0
+	github.com/otiai10/copy v1.14.0
 	github.com/powerman/rpc-codec v1.2.2
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475
 	github.com/stretchr/testify v1.8.4
@@ -65,6 +65,7 @@ require (
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/youtube/vitess v3.0.0-rc.3+incompatible // indirect
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e // indirect
+	golang.org/x/sync v0.3.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.1.6 // indirect
