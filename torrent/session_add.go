@@ -55,7 +55,7 @@ func (s *Session) parseMetaInfo(r io.Reader) (*metainfo.MetaInfo, error) {
 		return nil, err
 	}
 	if mi.Info.NumPieces > s.config.MaxPieces {
-		return nil, fmt.Errorf("too many pieces:(%d)", mi.Info.NumPieces)
+		return nil, fmt.Errorf("too many pieces: %d", mi.Info.NumPieces)
 	}
 	return mi, nil
 }
