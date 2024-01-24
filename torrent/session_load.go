@@ -1,7 +1,6 @@
 package torrent
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/cenkalti/rain/internal/bitfield"
@@ -12,8 +11,6 @@ import (
 	"github.com/cenkalti/rain/internal/webseedsource"
 	"go.etcd.io/bbolt"
 )
-
-var errTooManyPieces = errors.New("too many pieces")
 
 func (s *Session) loadExistingTorrents(ids []string) {
 	var loaded int
@@ -57,7 +54,7 @@ func (s *Session) parseInfo(b []byte, version int) (*metainfo.Info, error) {
 		return nil, err
 	}
 	if i.NumPieces > s.config.MaxPieces {
-		return nil, errTooManyPieces
+		return nil, fmt.Errorf("too many pieces: %d", i.NumPieces)
 	}
 	return i, nil
 }
