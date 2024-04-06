@@ -4,7 +4,7 @@ import "fmt"
 
 const blockSize = 16 * 1024
 
-// InfoDownloader downloads all blocks of a piece from a peer.
+// InfoDownloader downloads metadata of a torrent from a single peer.
 type InfoDownloader struct {
 	Peer  Peer
 	Bytes []byte
