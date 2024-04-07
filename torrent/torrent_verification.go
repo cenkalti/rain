@@ -20,7 +20,7 @@ func (t *torrent) handleVerifyCommand() {
 
 func (t *torrent) handleVerificationDone(ve *verifier.Verifier) {
 	if t.verifier != ve {
-		panic("invalid verifier")
+		t.crash("invalid verifier")
 	}
 	t.verifier = nil
 

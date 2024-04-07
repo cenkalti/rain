@@ -42,3 +42,7 @@ func crash(torrentID string, msg string) {
 	}
 	panic(msg)
 }
+
+func (t *torrent) crash(msg string) {
+	crash(t.id, msg)
+}

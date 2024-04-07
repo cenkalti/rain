@@ -11,7 +11,7 @@ import (
 
 func (t *torrent) handleAllocationDone(al *allocator.Allocator) {
 	if t.allocator != al {
-		panic("invalid allocator")
+		t.crash("invalid allocator")
 	}
 	t.allocator = nil
 
@@ -21,12 +21,12 @@ func (t *torrent) handleAllocationDone(al *allocator.Allocator) {
 	}
 
 	if t.files != nil {
-		panic("files exist")
+		t.crash("files exist")
 	}
 	t.files = al.Files
 
 	if t.pieces != nil {
-		panic("pieces exists")
+		t.crash("pieces exists")
 	}
 	pieces := piece.NewPieces(t.info, t.files)
 	if len(pieces) == 0 {
@@ -40,7 +40,7 @@ func (t *torrent) handleAllocationDone(al *allocator.Allocator) {
 	}
 
 	if t.piecePicker != nil {
-		panic("piece picker exists")
+		t.crash("piece picker exists")
 	}
 	t.piecePicker = piecepicker.New(t.pieces, t.session.config.EndgameMaxDuplicateDownloads, t.webseedSources)
 

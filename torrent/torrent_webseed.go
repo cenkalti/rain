@@ -35,7 +35,7 @@ func (t *torrent) handleWebseedPieceResult(msg *urldownloader.PieceResult) {
 	}
 
 	if piece.Writing {
-		panic("piece is already writing")
+		t.crash("piece is already writing")
 	}
 	piece.Writing = true
 

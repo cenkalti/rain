@@ -250,7 +250,7 @@ func (t *torrent) getPeers() []Peer {
 		case peersource.Manual:
 			source = SourceManual
 		default:
-			panic("unhandled peer source")
+			t.crash("unhandled peer source")
 		}
 		p := Peer{
 			ID:                 pe.ID,

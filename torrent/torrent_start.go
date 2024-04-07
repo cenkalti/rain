@@ -58,10 +58,10 @@ func (t *torrent) start() {
 
 func (t *torrent) startVerifier() {
 	if t.verifier != nil {
-		panic("verifier exists")
+		t.crash("verifier exists")
 	}
 	if len(t.pieces) == 0 {
-		panic("zero length pieces")
+		t.crash("zero length pieces")
 	}
 	t.verifier = verifier.New()
 	go t.verifier.Run(t.pieces, t.verifierProgressC, t.verifierResultC)
@@ -69,7 +69,7 @@ func (t *torrent) startVerifier() {
 
 func (t *torrent) startAllocator() {
 	if t.allocator != nil {
-		panic("allocator exists")
+		t.crash("allocator exists")
 	}
 	t.allocator = allocator.New()
 	go t.allocator.Run(t.info, t.storage, t.allocatorProgressC, t.allocatorResultC)
@@ -224,7 +224,7 @@ func (t *torrent) startSinglePieceDownloader(pe *peer.Peer) {
 	}
 	pd := piecedownloader.New(pi, pe, allowedFast, t.piecePool.Get(int(pi.Length)))
 	if _, ok := t.pieceDownloaders[pe]; ok {
-		panic("peer already has a piece downloader")
+		t.crash("peer already has a piece downloader")
 	}
 	t.log.Debugf("requesting piece #%d from peer %s", pi.Index, pe.IP())
 	t.pieceDownloaders[pe] = pd

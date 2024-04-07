@@ -29,7 +29,7 @@ func (t *torrent) handlePieceWriteDone(pw *piecewriter.PieceWriter) {
 			t.log.Debugln("received corrupt piece from webseed", src.URL)
 			t.disableSource(src.URL, errors.New("corrupt piece"), false)
 		default:
-			panic("unhandled piece source")
+			t.crash("unhandled piece source")
 		}
 		t.startPieceDownloaders()
 		return
@@ -41,7 +41,7 @@ func (t *torrent) handlePieceWriteDone(pw *piecewriter.PieceWriter) {
 
 	pw.Piece.Done = true
 	if t.bitfield.Test(pw.Piece.Index) {
-		panic(fmt.Sprintf("already have the piece #%d", pw.Piece.Index))
+		t.crash(fmt.Sprintf("already have the piece #%d", pw.Piece.Index))
 	}
 	t.mBitfield.Lock()
 	t.bitfield.Set(pw.Piece.Index)

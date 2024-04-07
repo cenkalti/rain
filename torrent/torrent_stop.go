@@ -88,7 +88,7 @@ func (t *torrent) stop(err error) {
 		}
 	}
 	if t.stoppedEventAnnouncer != nil {
-		panic("stopped event announcer exists")
+		t.crash("stopped event announcer exists")
 	}
 	t.stoppedEventAnnouncer = announcer.NewStopAnnouncer(trackers, t.announcerFields(), t.session.config.TrackerStopTimeout, t.announcersStoppedC, t.log)
 

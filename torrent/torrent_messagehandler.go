@@ -102,7 +102,7 @@ func (t *torrent) handlePieceMessage(pm peer.PieceMessage) {
 	pe.StopSnubTimer()
 
 	if piece.Writing {
-		panic("piece is already writing")
+		t.crash("piece is already writing")
 	}
 	piece.Writing = true
 
@@ -355,7 +355,7 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 		}
 		t.handleNewPeers(addrs, peersource.PEX)
 	default:
-		panic(fmt.Sprintf("unhandled peer message type: %T", msg))
+		t.crash(fmt.Sprintf("unhandled peer message type: %T", msg))
 	}
 }
 
