@@ -1,6 +1,10 @@
 rain
 ====
 
+<img src="https://github.com/cenkalti/rain/raw/master/logo.png" width="100">
+
+---
+
 BitTorrent client and library in Go. Running in production at [put.io](https://put.io) since 2019.
 
 [![GoDoc](https://godoc.org/github.com/cenkalti/rain?status.svg)](https://pkg.go.dev/github.com/cenkalti/rain/torrent?tab=doc)
