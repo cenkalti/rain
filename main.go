@@ -451,6 +451,13 @@ func main() {
 			Name:   "compact-database",
 			Usage:  "rewrite database to save up space",
 			Action: handleCompactDatabase,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "config,c",
+					Usage: "read config from `FILE`",
+					Value: "~/rain/config.yaml",
+				},
+			},
 		},
 		{
 			Name:  "torrent",
@@ -547,6 +554,8 @@ func handleCompactDatabase(c *cli.Context) error {
 		return err
 	}
 	cfg.ResumeOnStartup = false
+	cfg.RPCEnabled = false
+	cfg.DHTEnabled = false
 	ses, err := torrent.NewSession(cfg)
 	if err != nil {
 		return err

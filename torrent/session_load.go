@@ -162,6 +162,10 @@ func (s *Session) CompactDatabase(output string) error {
 		return err
 	}
 	for _, t := range s.torrents {
+		if t.torrent.info == nil {
+			s.log.Warningf("skipping torrent %s: info is nil", t.torrent.id)
+			continue
+		}
 		spec := &boltdbresumer.Spec{
 			InfoHash:          t.torrent.InfoHash(),
 			Port:              t.torrent.port,
