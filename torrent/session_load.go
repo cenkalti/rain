@@ -2,6 +2,7 @@ package torrent
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/cenkalti/rain/internal/bitfield"
 	"github.com/cenkalti/rain/internal/metainfo"
@@ -174,9 +175,16 @@ func (s *Session) CompactDatabase(output string) error {
 			URLList:           t.torrent.rawWebseedSources,
 			FixedPeers:        t.torrent.fixedPeers,
 			Info:              t.torrent.info.Bytes,
+			Bitfield:          t.torrent.bitfield.Bytes(),
 			AddedAt:           t.torrent.addedAt,
+			BytesDownloaded:   t.torrent.bytesDownloaded.Count(),
+			BytesUploaded:     t.torrent.bytesUploaded.Count(),
+			BytesWasted:       t.torrent.bytesWasted.Count(),
+			SeededFor:         time.Duration(t.torrent.seededFor.Count()),
+			Started:           t.torrent.status() != Stopped,
 			StopAfterDownload: t.torrent.stopAfterDownload,
 			StopAfterMetadata: t.torrent.stopAfterMetadata,
+			CompleteCmdRun:    t.torrent.completeCmdRun,
 		}
 		err = res.Write(t.torrent.id, spec)
 		if err != nil {
