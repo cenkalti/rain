@@ -110,21 +110,21 @@ func (p *PiecePicker) findGaps() []Range {
 
 func (p *PiecePicker) findGapsWithDuplicate(duplicate bool) []Range {
 	a := make([]Range, 0, len(p.pieces)/2)
-	var inGap bool
+	var inGap bool // See BEP19 for definition of "gap".
 	var begin uint32
 	for _, pi := range p.pieces {
 		if !inGap {
 			if pi.AvailableForWebseed(duplicate) {
 				begin = pi.Index
 				inGap = true
-			} else {
-				continue
 			}
 		} else {
-			if pi.AvailableForWebseed(duplicate) {
-				continue
-			} else {
-				a = append(a, Range{Begin: begin, End: pi.Index})
+			r := Range{Begin: begin, End: pi.Index}
+			if r.Len() == p.maxWebseedPieces {
+				a = append(a, r)
+				begin = pi.Index
+			} else if !pi.AvailableForWebseed(duplicate) {
+				a = append(a, r)
 				inGap = false
 			}
 		}
@@ -164,6 +164,6 @@ type Range struct {
 }
 
 // Len returns the number of pieces in the range.
-func (r Range) Len() uint32 {
-	return r.End - r.Begin
+func (r Range) Len() int {
+	return int(r.End) - int(r.Begin)
 }

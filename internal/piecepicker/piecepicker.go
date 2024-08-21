@@ -37,6 +37,7 @@ type PiecePicker struct {
 	piecesByAvailability []*myPiece
 	piecesByStalled      []*myPiece
 	maxDuplicateDownload int
+	maxWebseedPieces     int
 	available            uint32
 	endgame              bool
 }
@@ -87,11 +88,16 @@ func New(pieces []piece.Piece, maxDuplicateDownload int, webseedSources []*webse
 		sps[i] = &ps[i]
 		sps2[i] = &ps[i]
 	}
+	maxWebseedPieces := len(pieces) / 20 // Download 5% of pieces in a single HTTP request (see BEP19)
+	if maxWebseedPieces == 0 {
+		maxWebseedPieces = 1
+	}
 	return &PiecePicker{
 		pieces:               ps,
 		piecesByAvailability: sps,
 		piecesByStalled:      sps2,
 		maxDuplicateDownload: maxDuplicateDownload,
+		maxWebseedPieces:     maxWebseedPieces,
 		webseedSources:       webseedSources,
 	}
 }
