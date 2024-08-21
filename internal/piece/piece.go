@@ -7,7 +7,6 @@ import (
 	"github.com/cenkalti/rain/internal/allocator"
 	"github.com/cenkalti/rain/internal/filesection"
 	"github.com/cenkalti/rain/internal/metainfo"
-	"golang.org/x/exp/constraints"
 )
 
 // BlockSize is the size of smallest piece data that we are going to request from peers.
@@ -176,11 +175,11 @@ func (p *Piece) VerifyHash(buf []byte, h hash.Hash) bool {
 	return bytes.Equal(sum, p.Hash)
 }
 
-func min[T constraints.Ordered](a, b T) T {
+func min[T int64 | uint32](a, b T) T {
 	if a < b {
 		return a
 	}
 	return b
 }
 
-func divmod[T constraints.Unsigned](a, b T) (T, T) { return a / b, a % b }
+func divmod(a, b uint32) (uint32, uint32) { return a / b, a % b }
