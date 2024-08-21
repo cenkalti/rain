@@ -100,3 +100,8 @@ Missing features
 - uPnP port forwarding
 - Selective downloading
 - Sequential downloading
+
+Star History
+------------
+
+[![Star History Chart](https://api.star-history.com/svg?repos=cenkalti/rain&type=Date)](https://star-history.com/#cenkalti/rain&Date)
