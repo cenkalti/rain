@@ -101,14 +101,14 @@ func (p *PiecePicker) peerStealsFromWebseed(pe *peer.Peer) *myPiece {
 }
 
 func (p *PiecePicker) findGaps() []Range {
-	gaps := p.findGaps2(false)
+	gaps := p.findGapsWithDuplicate(false)
 	if len(gaps) == 0 {
-		gaps = p.findGaps2(true)
+		gaps = p.findGapsWithDuplicate(true)
 	}
 	return gaps
 }
 
-func (p *PiecePicker) findGaps2(duplicate bool) []Range {
+func (p *PiecePicker) findGapsWithDuplicate(duplicate bool) []Range {
 	a := make([]Range, 0, len(p.pieces)/2)
 	var inGap bool
 	var begin uint32
