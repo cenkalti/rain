@@ -64,16 +64,12 @@ func (p *myPiece) StalledDownloads() int {
 	return p.Snubbed.Len() + p.Choked.Len()
 }
 
-// AvailableForWebseed returns true if the piece can be downloaded from a webseed source.
-// If the piece is already requested from a peer, it does not become eligible for downloading from webseed until entering the endgame mode.
-func (p *myPiece) AvailableForWebseed(duplicate bool) bool {
-	if p.Done || p.Writing || p.RequestedWebseed != nil {
+// AvailableForWebseed returns true if the piece is allowed to be downloaded from a webseed source.
+func (p *myPiece) AvailableForWebseed() bool {
+	if p.Done || p.Writing {
 		return false
 	}
-	if !duplicate {
-		return p.RequestedWebseed != nil
-	}
-	return true
+	return p.RequestedWebseed == nil
 }
 
 // New returns a new PiecePicker.

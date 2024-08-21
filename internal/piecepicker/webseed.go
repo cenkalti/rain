@@ -1,6 +1,7 @@
 package piecepicker
 
 import (
+	"math/rand"
 	"sort"
 
 	"github.com/cenkalti/rain/internal/peer"
@@ -16,12 +17,12 @@ type WebseedDownloadSpec struct {
 
 // PickWebseed returns the next spec for downloading files from webseed sources.
 func (p *PiecePicker) PickWebseed(src *webseedsource.WebseedSource) *WebseedDownloadSpec {
-	begin, end := p.findPieceRangeForWebseed()
-	if begin == end {
+	r := p.findPieceRangeForWebseed()
+	if r == nil {
 		return nil
 	}
 	// Mark selected range as being downloaded so we won't select it again.
-	for i := begin; i < end; i++ {
+	for i := r.Begin; i < r.End; i++ {
 		if p.pieces[i].RequestedWebseed != nil {
 			panic("already downloading from webseed url")
 		}
@@ -29,8 +30,8 @@ func (p *PiecePicker) PickWebseed(src *webseedsource.WebseedSource) *WebseedDown
 	}
 	return &WebseedDownloadSpec{
 		Source: src,
-		Begin:  begin,
-		End:    end,
+		Begin:  r.Begin,
+		End:    r.End,
 	}
 }
 
@@ -43,14 +44,24 @@ func (p *PiecePicker) downloadingWebseed() bool {
 	return false
 }
 
-func (p *PiecePicker) findPieceRangeForWebseed() (begin, end uint32) {
+func (p *PiecePicker) findPieceRangeForWebseed() *Range {
 	gaps := p.findGaps()
 	if len(gaps) == 0 {
-		gap := p.webseedStealsFromAnotherWebseed()
-		return gap.Begin, gap.End
+		return p.webseedStealsFromAnotherWebseed()
 	}
+	gap := selectRandomLargestGap(gaps)
+	return &gap
+}
+
+func selectRandomLargestGap(gaps []Range) Range {
 	sort.Slice(gaps, func(i, j int) bool { return gaps[i].Len() > gaps[j].Len() })
-	return gaps[0].Begin, gaps[0].End
+	length := gaps[0].Len()
+	for i := range gaps {
+		if gaps[i].Len() != length {
+			return gaps[rand.Intn(i)]
+		}
+	}
+	return gaps[rand.Intn(len(gaps))]
 }
 
 func (p *PiecePicker) getDownloadingSources() []*webseedsource.WebseedSource {
@@ -63,17 +74,22 @@ func (p *PiecePicker) getDownloadingSources() []*webseedsource.WebseedSource {
 	return ret
 }
 
-func (p *PiecePicker) webseedStealsFromAnotherWebseed() (r Range) {
+func (p *PiecePicker) webseedStealsFromAnotherWebseed() *Range {
 	downloading := p.getDownloadingSources()
 	if len(downloading) == 0 {
-		return
+		return nil
 	}
 	sort.Slice(downloading, func(i, j int) bool { return downloading[i].Remaining() > downloading[j].Remaining() })
 	src := downloading[0]
-	r.End = src.Downloader.End
-	r.Begin = (src.Downloader.ReadCurrent() + src.Downloader.End + 1) / 2
+	r := &Range{
+		Begin: (src.Downloader.ReadCurrent() + src.Downloader.End + 1) / 2,
+		End:   src.Downloader.End,
+	}
+	if r.Begin >= r.End {
+		return nil
+	}
 	p.WebseedStopAt(src, r.Begin)
-	return
+	return r
 }
 
 func (p *PiecePicker) peerStealsFromWebseed(pe *peer.Peer) *myPiece {
@@ -101,31 +117,23 @@ func (p *PiecePicker) peerStealsFromWebseed(pe *peer.Peer) *myPiece {
 }
 
 func (p *PiecePicker) findGaps() []Range {
-	gaps := p.findGapsWithDuplicate(false)
-	if len(gaps) == 0 {
-		gaps = p.findGapsWithDuplicate(true)
-	}
-	return gaps
-}
-
-func (p *PiecePicker) findGapsWithDuplicate(duplicate bool) []Range {
 	a := make([]Range, 0, len(p.pieces)/2)
 	var inGap bool // See BEP19 for definition of "gap".
 	var begin uint32
 	for _, pi := range p.pieces {
 		if !inGap {
-			if pi.AvailableForWebseed(duplicate) {
+			if pi.AvailableForWebseed() {
 				begin = pi.Index
 				inGap = true
 			}
 		} else {
 			r := Range{Begin: begin, End: pi.Index}
-			if r.Len() == p.maxWebseedPieces {
-				a = append(a, r)
-				begin = pi.Index
-			} else if !pi.AvailableForWebseed(duplicate) {
+			if !pi.AvailableForWebseed() {
 				a = append(a, r)
 				inGap = false
+			} else if r.Len() == p.maxWebseedPieces {
+				a = append(a, r)
+				begin = pi.Index
 			}
 		}
 	}
