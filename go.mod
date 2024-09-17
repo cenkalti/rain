@@ -1,6 +1,8 @@
 module github.com/cenkalti/rain
 
-go 1.21
+go 1.22
+
+toolchain go1.23.1
 
 require (
 	github.com/boltdb/bolt v1.3.1
@@ -24,7 +26,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/urfave/cli v1.22.15
 	github.com/zeebo/bencode v1.0.0
-	go.etcd.io/bbolt v1.3.10
+	go.etcd.io/bbolt v1.3.11
 	golang.org/x/sys v0.25.0
 	gopkg.in/yaml.v2 v2.4.0
 )
