@@ -177,27 +177,29 @@ func TestTorrentFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = tor.FilePaths()
-	assert.EqualError(t, err, "torrent metadata not ready")
 	_, err = tor.Files()
+	assert.EqualError(t, err, "torrent metadata not ready")
+	_, err = tor.FileStats()
 	assert.EqualError(t, err, "torrent not running so file stats unavailable")
+
 	waitForMetadata(t, tor)
-	files, err := tor.FilePaths()
+	files, err := tor.Files()
 	assert.NoError(t, err)
 	assert.Equal(t, 6, len(files))
-	assert.Equal(t, "sample_torrent/data/file1.bin", files[0])
+	assert.Equal(t, "sample_torrent/data/file1.bin", files[0].Path())
 	assertCompleted(t, tor)
+
 	// So that we're in running state again, which should allow
 	// Files() to return data.
 	tor.Start()
 	waitForStart(t, tor)
-	fileStats, err := tor.Files()
+	fileStats, err := tor.FileStats()
 	assert.NoError(t, err)
 	assert.Equal(t, 6, len(fileStats))
 	assert.Equal(t, "sample_torrent/data/file1.bin", fileStats[0].Path())
-	assert.Equal(t, int64(10240), fileStats[0].Stats().BytesTotal)
-	assert.Equal(t, int64(10240), fileStats[0].Stats().BytesCompleted)
-	assert.Equal(t, int64(10485760), fileStats[2].Stats().BytesCompleted)
+	assert.Equal(t, int64(10240), fileStats[0].File.Length())
+	assert.Equal(t, int64(10240), fileStats[0].BytesCompleted)
+	assert.Equal(t, int64(10485760), fileStats[2].BytesCompleted)
 	assertCompleted(t, tor)
 }
 
