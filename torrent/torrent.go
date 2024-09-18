@@ -418,25 +418,33 @@ func (t *torrent) RootDirectory() string {
 	return t.storage.RootDir()
 }
 
-func (t *torrent) FilePaths() ([]string, error) {
+func (t *torrent) Files() ([]File, error) {
 	if t.info == nil {
 		return nil, errors.New("torrent metadata not ready")
 	}
-
-	var filePaths []string
+	files := make([]File, 0, len(t.info.Files))
 	for _, f := range t.info.Files {
 		if !f.Padding {
-			filePaths = append(filePaths, f.Path)
+			files = append(files, File{
+				path:   f.Path,
+				length: f.Length,
+			})
 		}
 	}
-	return filePaths, nil
+	return files, nil
 }
 
-func (t *torrent) Files() ([]File, error) {
-	if t.info == nil || len(t.pieces) == 0 {
+func (t *torrent) FileStats() ([]FileStats, error) {
+	if len(t.pieces) == 0 {
 		return nil, errors.New("torrent not running so file stats unavailable")
 	}
 
+	files, err := t.Files()
+	if err != nil {
+		return nil, err
+	}
+
+	// calculate bytes completed for each file
 	fileComp := make(map[string]int64)
 	for _, p := range t.pieces {
 		if p.Done {
@@ -448,39 +456,34 @@ func (t *torrent) Files() ([]File, error) {
 		}
 	}
 
-	var files []File
-	for _, f := range t.info.Files {
-		if !f.Padding {
-			files = append(files,
-				File{
-					path: f.Path,
-					stats: FileStats{
-						BytesTotal:     f.Length,
-						BytesCompleted: fileComp[f.Path],
-					},
-				})
-		}
+	stats := make([]FileStats, 0, len(files))
+	for _, f := range files {
+		stats = append(stats,
+			FileStats{
+				File:           f,
+				BytesCompleted: fileComp[f.path],
+			})
 	}
 
-	return files, nil
+	return stats, nil
 }
 
 type FileStats struct {
-	BytesTotal     int64
+	File
 	BytesCompleted int64
 }
 
 type File struct {
-	path  string
-	stats FileStats
+	path   string
+	length int64
 }
 
 func (f File) Path() string {
 	return f.path
 }
 
-func (f File) Stats() FileStats {
-	return f.stats
+func (f File) Length() int64 {
+	return f.length
 }
 
 func (t *torrent) announceDHT() {

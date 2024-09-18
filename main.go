@@ -271,6 +271,30 @@ func main() {
 					},
 				},
 				{
+					Name:     "files",
+					Usage:    "get file list of torrent",
+					Category: "Getters",
+					Action:   handleFiles,
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:     "id",
+							Required: true,
+						},
+					},
+				},
+				{
+					Name:     "file-stats",
+					Usage:    "get stats of files in torrent",
+					Category: "Getters",
+					Action:   handleFileStats,
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:     "id",
+							Required: true,
+						},
+					},
+				},
+				{
 					Name:     "peers",
 					Usage:    "get peers of torrent",
 					Category: "Getters",
@@ -995,6 +1019,34 @@ func handleTrackers(c *cli.Context) error {
 
 func handleWebseeds(c *cli.Context) error {
 	resp, err := clt.GetTorrentWebseeds(c.String("id"))
+	if err != nil {
+		return err
+	}
+	b, err := prettyjson.Marshal(resp)
+	if err != nil {
+		return err
+	}
+	_, _ = os.Stdout.Write(b)
+	_, _ = os.Stdout.WriteString("\n")
+	return nil
+}
+
+func handleFiles(c *cli.Context) error {
+	resp, err := clt.GetTorrentFiles(c.String("id"))
+	if err != nil {
+		return err
+	}
+	b, err := prettyjson.Marshal(resp)
+	if err != nil {
+		return err
+	}
+	_, _ = os.Stdout.Write(b)
+	_, _ = os.Stdout.WriteString("\n")
+	return nil
+}
+
+func handleFileStats(c *cli.Context) error {
+	resp, err := clt.GetTorrentFileStats(c.String("id"))
 	if err != nil {
 		return err
 	}

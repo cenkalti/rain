@@ -50,6 +50,18 @@ type Tracker struct {
 	NextAnnounce  Time
 }
 
+// File inside a Torrent.
+type File struct {
+	Path   string
+	Length int64
+}
+
+// FileStats contains statistics about a File in a Torrent.
+type FileStats struct {
+	File           File
+	BytesCompleted int64
+}
+
 // SessionStats contains statistics about a Session.
 type SessionStats struct {
 	Uptime         int
@@ -271,6 +283,26 @@ type GetTorrentWebseedsRequest struct {
 // GetTorrentWebseedsResponse contains response arguments for Session.GetTorrentWebseeds method.
 type GetTorrentWebseedsResponse struct {
 	Webseeds []Webseed
+}
+
+// GetTorrentFilesRequest contains request arguments for Session.GetTorrentFiles method.
+type GetTorrentFilesRequest struct {
+	ID string
+}
+
+// GetTorrentFilesResponse contains response arguments for Session.GetTorrentFiles method.
+type GetTorrentFilesResponse struct {
+	Files []File
+}
+
+// GetTorrentFileStatsRequest contains request arguments for Session.GetTorrentFileStats method.
+type GetTorrentFileStatsRequest struct {
+	ID string
+}
+
+// GetTorrentFileStatsResponse contains response arguments for Session.GetTorrentFileStats method.
+type GetTorrentFileStatsResponse struct {
+	FileStats []FileStats
 }
 
 // StartTorrentRequest contains request arguments for Session.StartTorrent method.

@@ -366,6 +366,47 @@ func (h *rpcHandler) GetTorrentWebseeds(args *rpctypes.GetTorrentWebseedsRequest
 	return nil
 }
 
+func (h *rpcHandler) GetTorrentFiles(args *rpctypes.GetTorrentFilesRequest, reply *rpctypes.GetTorrentFilesResponse) error {
+	t := h.session.GetTorrent(args.ID)
+	if t == nil {
+		return errTorrentNotFound
+	}
+	files, err := t.Files()
+	if err != nil {
+		return err
+	}
+	reply.Files = make([]rpctypes.File, len(files))
+	for i, f := range files {
+		reply.Files[i] = rpctypes.File{
+			Path:   f.Path(),
+			Length: f.Length(),
+		}
+	}
+	return nil
+}
+
+func (h *rpcHandler) GetTorrentFileStats(args *rpctypes.GetTorrentFileStatsRequest, reply *rpctypes.GetTorrentFileStatsResponse) error {
+	t := h.session.GetTorrent(args.ID)
+	if t == nil {
+		return errTorrentNotFound
+	}
+	stats, err := t.FileStats()
+	if err != nil {
+		return err
+	}
+	reply.FileStats = make([]rpctypes.FileStats, len(stats))
+	for i, s := range stats {
+		reply.FileStats[i] = rpctypes.FileStats{
+			File: rpctypes.File{
+				Path:   s.File.Path(),
+				Length: s.File.Length(),
+			},
+			BytesCompleted: s.BytesCompleted,
+		}
+	}
+	return nil
+}
+
 func (h *rpcHandler) StartTorrent(args *rpctypes.StartTorrentRequest, reply *rpctypes.StartTorrentResponse) error {
 	t := h.session.GetTorrent(args.ID)
 	if t == nil {
