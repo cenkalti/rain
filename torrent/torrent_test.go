@@ -151,7 +151,7 @@ func TestDownloadTorrent(t *testing.T) {
 	assertCompleted(t, tor)
 }
 
-func TestTorrentRootDirectory(t *testing.T) {
+func TestTorrentDir(t *testing.T) {
 	defer leaktest.Check(t)()
 	addr, cl := seeder(t, true)
 	defer cl()
@@ -162,7 +162,7 @@ func TestTorrentRootDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, filepath.Join(s.config.DataDir, tor.ID()), tor.RootDirectory())
+	assert.Equal(t, filepath.Join(s.config.DataDir, tor.ID()), tor.Dir())
 	assertCompleted(t, tor)
 }
 

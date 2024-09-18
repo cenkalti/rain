@@ -414,7 +414,7 @@ func (t *torrent) InfoHash() []byte {
 	return b
 }
 
-func (t *torrent) RootDirectory() string {
+func (t *torrent) Dir() string {
 	return t.storage.RootDir()
 }
 

@@ -21,7 +21,7 @@ func (s *Session) runOnCompleteCmd(torrent *torrent) {
 
 	cmd.Env = append(os.Environ(),
 		"RAIN_TORRENT_ADDED="+fmt.Sprint(torrent.addedAt.Unix()),
-		"RAIN_TORRENT_DIR="+torrent.storage.RootDir(),
+		"RAIN_TORRENT_DIR="+torrent.Dir(),
 		"RAIN_TORRENT_HASH="+hex.EncodeToString(torrent.infoHash[:]),
 		"RAIN_TORRENT_ID="+torrent.id,
 		"RAIN_TORRENT_NAME="+torrent.name)
