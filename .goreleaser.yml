@@ -37,7 +37,7 @@ brews:
   - repository:
       owner: cenkalti
       name: homebrew-rain
-    folder: Formula
+    directory: Formula
     homepage:  https://github.com/cenkalti/rain
     description: BitTorrent client
     install: |
