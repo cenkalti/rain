@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/cenkalti/backoff/v3"
+	"github.com/cenkalti/backoff/v5"
 	"go.etcd.io/bbolt"
 )
 
@@ -80,7 +80,6 @@ func (s *Session) getBlocklistTimestamp() (time.Time, error) {
 
 func (s *Session) retryReloadBlocklist() {
 	bo := backoff.NewExponentialBackOff()
-	bo.MaxElapsedTime = 0
 
 	ticker := backoff.NewTicker(bo)
 	defer ticker.Stop()

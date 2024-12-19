@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cenkalti/backoff/v3"
+	"github.com/cenkalti/backoff/v5"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/resolver"
 	"github.com/cenkalti/rain/internal/tracker"
@@ -84,8 +84,6 @@ func NewPeriodicalAnnouncer(trk tracker.Tracker, numWant int, minInterval time.D
 			RandomizationFactor: 0.5,
 			Multiplier:          2,
 			MaxInterval:         30 * time.Minute,
-			MaxElapsedTime:      0, // never stop
-			Clock:               backoff.SystemClock,
 		},
 	}
 }

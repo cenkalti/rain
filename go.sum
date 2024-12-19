@@ -74,8 +74,8 @@ github.com/br0xen/termbox-util v0.0.0-20170904143325-de1d4c83380e/go.mod h1:x9wJ
 github.com/br0xen/termbox-util v0.0.0-20200220160819-dc6d6950ba00 h1:9AXfX20nYtpadSCppvKkZfFgU/htFHVhYqYdPNa4bm4=
 github.com/br0xen/termbox-util v0.0.0-20200220160819-dc6d6950ba00/go.mod h1:x9wJlgOj74OFTOBwXOuO8pBguW37EgYNx51Dbjkfzo4=
 github.com/bradfitz/iter v0.0.0-20140124041915-454541ec3da2/go.mod h1:PyRFw1Lt2wKX4ZVSQ2mk+PeDa1rxyObEDlApuIsUKuo=
-github.com/cenkalti/backoff/v3 v3.2.2 h1:cfUAAO3yvKMYKPrvhDuHSwQnhZNk/RMHKdZqKTxfm6M=
-github.com/cenkalti/backoff/v3 v3.2.2/go.mod h1:cIeZDE3IrqwwJl6VUwCN6trj1oXrTS4rc0ij+ULvLYs=
+github.com/cenkalti/backoff/v5 v5.0.0 h1:4ziwFuaVJicDO1ah1Nz1aXXV1caM28PFgf1V5TTFXew=
+github.com/cenkalti/backoff/v5 v5.0.0/go.mod h1:rkhZdG3JZukswDf7f0cwqPNk4K0sa+F97BxZthm/crw=
 github.com/cenkalti/boltbrowser v0.0.0-20190327195521-ebed13c76690 h1:cUjJIucCXCb0CWVYLvuYbUn4TID1NL+cqNboGRMekKk=
 github.com/cenkalti/boltbrowser v0.0.0-20190327195521-ebed13c76690/go.mod h1:TRC4W+aL8EZntkBiCvi7AGR0MH3JdBZUEx29Xm8cVoU=
 github.com/cenkalti/log v1.0.0 h1:0SITaDyovlmHFLaV+qenYmDxh8TNgxbJscMyn4W8XWk=

@@ -1,12 +1,12 @@
 module github.com/cenkalti/rain
 
-go 1.22
+go 1.23
 
-toolchain go1.23.1
+toolchain go1.23.2
 
 require (
 	github.com/boltdb/bolt v1.3.1
-	github.com/cenkalti/backoff/v3 v3.2.2
+	github.com/cenkalti/backoff/v5 v5.0.0
 	github.com/cenkalti/boltbrowser v0.0.0-20190327195521-ebed13c76690
 	github.com/cenkalti/log v1.0.0
 	github.com/chihaya/chihaya v1.0.1-0.20191017040149-0a420fe05344

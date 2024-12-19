@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/cenkalti/backoff/v3"
+	"github.com/cenkalti/backoff/v5"
 	"github.com/cenkalti/rain/internal/blocklist"
 	"github.com/cenkalti/rain/internal/logger"
 	"github.com/cenkalti/rain/internal/resolver"
