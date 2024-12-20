@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 
-	// nolint: gosec
 	"io"
 	_ "net/http/pprof"
 	"os"
