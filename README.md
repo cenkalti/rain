@@ -57,6 +57,8 @@ Usage as library
 ----------------
 
 ```go
+import "github.com/cenkalti/rain/torrent"
+
 // Create a session
 ses, _ := torrent.NewSession(torrent.DefaultConfig)
 
