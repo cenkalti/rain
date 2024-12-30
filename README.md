@@ -91,6 +91,9 @@ This allows Rain to download same torrent for multiple accounts in same private 
 
 Missing features
 ----------------
+
+The following features are not implemented in Rain, and this list should not be considered as a roadmap. These features are intentionally omitted either because they don't provide sufficient value for our use case at [put.io](putio-link), or because implementing them would add unnecessary complexity to the codebase. We prefer to maintain a focused and efficient implementation that serves our specific needs.
+
 - [IPv6 tracker extension](http://bittorrent.org/beps/bep_0007.html)
 - [IPv6 extension for DHT](http://bittorrent.org/beps/bep_0032.html)
 - [uTorrent transport protocol](http://bittorrent.org/beps/bep_0029.html)
@@ -105,3 +108,5 @@ Star History
 ------------
 
 [![Star History Chart](https://api.star-history.com/svg?repos=cenkalti/rain&type=Date)](https://star-history.com/#cenkalti/rain&Date)
+
+[putio-link]: https://put.io
