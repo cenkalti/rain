@@ -22,6 +22,8 @@ import (
 	"github.com/cenkalti/rain/internal/resourcemanager"
 	"github.com/cenkalti/rain/internal/resumer/boltdbresumer"
 	"github.com/cenkalti/rain/internal/semaphore"
+	"github.com/cenkalti/rain/internal/storage"
+	"github.com/cenkalti/rain/internal/storage/filestorage"
 	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/internal/trackermanager"
 	"github.com/juju/ratelimit"
@@ -441,6 +443,10 @@ func (s *Session) StopAll() error {
 		t.torrent.Stop()
 	}
 	return nil
+}
+
+func (s *Session) newStorage(id string) (storage.Storage, error) {
+	return filestorage.New(s.getDataDir(id), s.config.FilePermissions)
 }
 
 func (s *Session) getDataDir(torrentID string) string {

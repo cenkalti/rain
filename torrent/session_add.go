@@ -14,7 +14,7 @@ import (
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/resumer"
 	"github.com/cenkalti/rain/internal/resumer/boltdbresumer"
-	"github.com/cenkalti/rain/internal/storage/filestorage"
+	"github.com/cenkalti/rain/internal/storage"
 	"github.com/cenkalti/rain/internal/webseedsource"
 	"github.com/gofrs/uuid"
 	"github.com/nictuku/dht"
@@ -236,7 +236,7 @@ func (s *Session) addMagnet(link string, opt *AddTorrentOptions) (*Torrent, erro
 	return t2, err
 }
 
-func (s *Session) add(opt *AddTorrentOptions) (id string, port int, sto *filestorage.FileStorage, err error) {
+func (s *Session) add(opt *AddTorrentOptions) (id string, port int, sto storage.Storage, err error) {
 	port, err = s.getPort()
 	if err != nil {
 		return
@@ -266,7 +266,7 @@ func (s *Session) add(opt *AddTorrentOptions) (id string, port int, sto *filesto
 		}
 		id = base64.RawURLEncoding.EncodeToString(u1[:])
 	}
-	sto, err = filestorage.New(s.getDataDir(id), s.config.FilePermissions)
+	sto, err = s.newStorage(id)
 	if err != nil {
 		return
 	}

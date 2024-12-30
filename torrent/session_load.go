@@ -8,7 +8,6 @@ import (
 	"github.com/cenkalti/rain/internal/metainfo"
 	"github.com/cenkalti/rain/internal/resumer"
 	"github.com/cenkalti/rain/internal/resumer/boltdbresumer"
-	"github.com/cenkalti/rain/internal/storage/filestorage"
 	"github.com/cenkalti/rain/internal/webseedsource"
 	"go.etcd.io/bbolt"
 )
@@ -84,7 +83,7 @@ func (s *Session) loadExistingTorrent(id string) (tt *Torrent, hasStarted bool, 
 			bf = bf3
 		}
 	}
-	sto, err := filestorage.New(s.getDataDir(id), s.config.FilePermissions)
+	sto, err := s.newStorage(id)
 	if err != nil {
 		return
 	}
