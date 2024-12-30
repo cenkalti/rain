@@ -5,7 +5,7 @@ rain
 
 ---
 
-BitTorrent client and library in Go. Running in production at [put.io](https://put.io) since 2019.
+BitTorrent client and library in Go. Running in production at [put.io](putio-link) since 2019.
 
 [![GoDoc](https://godoc.org/github.com/cenkalti/rain?status.svg)](https://pkg.go.dev/github.com/cenkalti/rain/torrent?tab=doc)
 [![GitHub Release](https://img.shields.io/github/release/cenkalti/rain.svg)](https://github.com/cenkalti/rain/releases)
@@ -84,7 +84,7 @@ See the description of values in here: [config.go](https://github.com/cenkalti/r
 Difference from other clients
 -----------------------------
 
-Rain is the main BitTorrent client used at [put.io](https://put.io).
+Rain is the main BitTorrent client used at [put.io](putio-link).
 It is designed to handle hundreds of torrents while using low system resources.
 The main difference from other clients is that Rain uses a separate peer port for each torrent.
 This allows Rain to download same torrent for multiple accounts in same private tracker and keep reporting their ratio correctly.
@@ -103,6 +103,11 @@ The following features are not implemented in Rain, and this list should not be 
 - uPnP port forwarding
 - Selective downloading
 - Sequential downloading
+
+Contributing
+------------
+
+Rain is primarily developed to serve the specific requirements of [put.io](putio-link). Due to this focused purpose, feature requests that do not align with put.io's needs are likely to be rejected. Additionally, we maintain a strong preference for simplicity in implementation - complex solutions, even if technically superior, will generally not be accepted. Please keep these guidelines in mind when submitting issues or pull requests.
 
 Star History
 ------------
