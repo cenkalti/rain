@@ -240,7 +240,7 @@ func (t *Torrent) Move(target string) error {
 		return fmt.Errorf("http error: %d", resp.StatusCode)
 	}
 	defer resp.Body.Close()
-	return t.torrent.session.RemoveTorrent(t.torrent.id)
+	return t.torrent.session.RemoveTorrent(t.torrent.id, true)
 }
 
 func (t *Torrent) prepareBody(pw *io.PipeWriter, mw *multipart.Writer, spec *boltdbresumer.Spec) {

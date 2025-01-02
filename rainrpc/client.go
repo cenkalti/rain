@@ -96,8 +96,8 @@ func (c *Client) AddURI(uri string, options *AddTorrentOptions) (*rpctypes.Torre
 }
 
 // RemoveTorrent removes a torrent from remote Session and deletes its data.
-func (c *Client) RemoveTorrent(id string) error {
-	args := rpctypes.RemoveTorrentRequest{ID: id}
+func (c *Client) RemoveTorrent(id string, keepData bool) error {
+	args := rpctypes.RemoveTorrentRequest{ID: id, KeepData: keepData}
 	var reply rpctypes.RemoveTorrentResponse
 	return c.client.Call("Session.RemoveTorrent", args, &reply)
 }

@@ -221,7 +221,8 @@ type AddURIResponse struct {
 
 // RemoveTorrentRequest contains request arguments for Session.RemoveTorrent method.
 type RemoveTorrentRequest struct {
-	ID string
+	ID       string
+	KeepData bool
 }
 
 // RemoveTorrentResponse contains response arguments for Session.RemoveTorrent method.

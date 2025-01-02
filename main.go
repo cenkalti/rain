@@ -209,6 +209,9 @@ func main() {
 							Name:     "id",
 							Required: true,
 						},
+						cli.BoolFlag{
+							Name: "keep-data",
+						},
 					},
 				},
 				{
@@ -959,7 +962,7 @@ func handleAdd(c *cli.Context) error {
 }
 
 func handleRemove(c *cli.Context) error {
-	return clt.RemoveTorrent(c.String("id"))
+	return clt.RemoveTorrent(c.String("id"), c.Bool("keep-data"))
 }
 
 func handleCleanDatabase(c *cli.Context) error {

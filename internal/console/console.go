@@ -934,7 +934,7 @@ func (c *Console) removeTorrent(g *gocui.Gui, v *gocui.View) error {
 	id := c.selectedID
 	c.m.Unlock()
 
-	err := c.client.RemoveTorrent(id)
+	err := c.client.RemoveTorrent(id, false)
 	if err != nil {
 		return err
 	}

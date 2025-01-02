@@ -89,7 +89,7 @@ func newTorrent(t *Torrent) rpctypes.Torrent {
 }
 
 func (h *rpcHandler) RemoveTorrent(args *rpctypes.RemoveTorrentRequest, reply *rpctypes.RemoveTorrentResponse) error {
-	return h.session.RemoveTorrent(args.ID)
+	return h.session.RemoveTorrent(args.ID, args.KeepData)
 }
 
 func (h *rpcHandler) GetMagnet(args *rpctypes.GetMagnetRequest, reply *rpctypes.GetMagnetResponse) error {
@@ -523,7 +523,7 @@ func (h *rpcHandler) handleMoveTorrent(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		err = h.session.stopAndRemoveData(t)
+		err = h.session.stopAndRemoveData(t, false)
 		if err != nil {
 			h.session.log.Error(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)

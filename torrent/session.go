@@ -341,10 +341,10 @@ func (s *Session) GetTorrent(id string) *Torrent {
 }
 
 // RemoveTorrent removes the torrent from the session and delete its files.
-func (s *Session) RemoveTorrent(id string) error {
+func (s *Session) RemoveTorrent(id string, keepData bool) error {
 	t, err := s.removeTorrentFromClient(id)
 	if t != nil {
-		err = s.stopAndRemoveData(t)
+		err = s.stopAndRemoveData(t, keepData)
 	}
 	return err
 }
@@ -384,9 +384,12 @@ func (s *Session) removeTorrentFromClient(id string) (*Torrent, error) {
 	})
 }
 
-func (s *Session) stopAndRemoveData(t *Torrent) error {
+func (s *Session) stopAndRemoveData(t *Torrent, keepData bool) error {
 	t.torrent.Close()
 	s.releasePort(t.torrent.port)
+	if keepData {
+		return nil
+	}
 	var err error
 	var dest string
 	if s.config.DataDirIncludesTorrentID {
