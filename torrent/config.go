@@ -197,7 +197,7 @@ type Config struct {
 	OnCompleteCmd []string `yaml:"on-complete-cmd"`
 
 	// Replace default log handler
-	CustomLogHandler log.Handler `yaml:"custom-log-handler"`
+	CustomLogHandler log.Handler `yaml:"-"`
 	// Enable debugging
 	Debug bool `yaml:"debug"`
 }
