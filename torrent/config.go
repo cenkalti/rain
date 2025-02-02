@@ -6,6 +6,7 @@ import (
 
 	"github.com/cenkalti/log"
 	"github.com/cenkalti/rain/internal/metainfo"
+	"github.com/cenkalti/rain/internal/storage"
 )
 
 var (
@@ -23,9 +24,11 @@ type Config struct {
 	// Database file to save resume data.
 	Database string `yaml:"database"`
 	// DataDir is where files are downloaded.
+	// Effective only when default storage provider is used.
 	DataDir string `yaml:"data-dir"`
 	// If true, torrent files are saved into <data_dir>/<torrent_id>/<torrent_name>.
 	// Useful if downloading the same torrent from multiple sources.
+	// Effective only when default storage provider is used.
 	DataDirIncludesTorrentID bool `yaml:"data-dir-includes-torrent-id"`
 	// Host to listen for TCP Acceptor. Port is computed automatically
 	Host string `yaml:"host"`
@@ -78,7 +81,8 @@ type Config struct {
 	HealthCheckInterval time.Duration `yaml:"health-check-interval"`
 	// If torrent loop is stuck for more than this duration. Program crashes with stacktrace.
 	HealthCheckTimeout time.Duration `yaml:"health-check-timeout"`
-	// The unix permission of created files, execute bit is removed for files
+	// The unix permission of created files, execute bit is removed for files.
+	// Effective only when default storage provider is used.
 	FilePermissions fs.FileMode `yaml:"file-permissions"`
 
 	// Enable RPC server
@@ -198,6 +202,9 @@ type Config struct {
 
 	// Replace default log handler
 	CustomLogHandler log.Handler `yaml:"-"`
+	// Replace default storage provider
+	CustomStorage storage.Provider `yaml:"-"`
+
 	// Enable debugging
 	Debug bool `yaml:"debug"`
 }

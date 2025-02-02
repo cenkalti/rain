@@ -473,6 +473,15 @@ func (h *rpcHandler) MoveTorrent(args *rpctypes.MoveTorrentRequest, reply *rpcty
 }
 
 func (h *rpcHandler) handleMoveTorrent(w http.ResponseWriter, r *http.Request) {
+	var provider *fileStorageProvider
+	var ok bool
+	if provider, ok = h.session.storage.(*fileStorageProvider); !ok {
+		err := errors.New("session is not using file storage")
+		h.session.log.Error(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	port, err := h.session.getPort()
 	if err != nil {
 		h.session.log.Error(err)
@@ -561,7 +570,7 @@ func (h *rpcHandler) handleMoveTorrent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "data expected in multipart form", http.StatusBadRequest)
 		return
 	}
-	err = readData(p, h.session.getDataDir(id), h.session.config.FilePermissions)
+	err = readData(p, provider.getDataDir(id), h.session.config.FilePermissions)
 	if err != nil {
 		h.session.log.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

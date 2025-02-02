@@ -17,3 +17,9 @@ type File interface {
 	io.WriterAt
 	io.Closer
 }
+
+// Provider is a torrent storage provider.
+type Provider interface {
+	// GetStorage returns a storage for a torrent.
+	GetStorage(torrentID string) (Storage, error)
+}

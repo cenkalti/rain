@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -290,8 +291,15 @@ func (t *Torrent) generateTar(pw *io.PipeWriter) {
 	var err error
 	defer func() { _ = pw.CloseWithError(err) }()
 
+	var root string
+	if provider, ok := t.torrent.session.storage.(*fileStorageProvider); !ok {
+		err = errors.New("session is not using file storage")
+		return
+	} else {
+		root = provider.getDataDir(t.torrent.id)
+	}
+
 	tw := tar.NewWriter(pw)
-	root := t.torrent.session.getDataDir(t.torrent.id)
 	walkFunc := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err

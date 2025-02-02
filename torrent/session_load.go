@@ -83,7 +83,7 @@ func (s *Session) loadExistingTorrent(id string) (tt *Torrent, hasStarted bool, 
 			bf = bf3
 		}
 	}
-	sto, err := s.newStorage(id)
+	sto, err := s.storage.GetStorage(id)
 	if err != nil {
 		return
 	}

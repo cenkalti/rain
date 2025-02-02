@@ -23,7 +23,6 @@ import (
 	"github.com/cenkalti/rain/internal/resumer/boltdbresumer"
 	"github.com/cenkalti/rain/internal/semaphore"
 	"github.com/cenkalti/rain/internal/storage"
-	"github.com/cenkalti/rain/internal/storage/filestorage"
 	"github.com/cenkalti/rain/internal/tracker"
 	"github.com/cenkalti/rain/internal/trackermanager"
 	"github.com/juju/ratelimit"
@@ -44,6 +43,7 @@ var (
 type Session struct {
 	config         Config
 	db             *bbolt.DB
+	storage        storage.Provider
 	resumer        *boltdbresumer.Resumer
 	log            logger.Logger
 	extensions     [8]byte
@@ -203,6 +203,11 @@ func NewSession(cfg Config) (*Session, error) {
 				ResponseHeaderTimeout: cfg.WebseedResponseHeaderTimeout,
 			},
 		},
+	}
+	if cfg.CustomStorage != nil {
+		c.storage = cfg.CustomStorage
+	} else {
+		c.storage = newFileStorageProvider(&cfg)
 	}
 	dlSpeed := cfg.SpeedLimitDownload * 1024
 	if cfg.SpeedLimitDownload > 0 {
@@ -446,15 +451,4 @@ func (s *Session) StopAll() error {
 		t.torrent.Stop()
 	}
 	return nil
-}
-
-func (s *Session) newStorage(id string) (storage.Storage, error) {
-	return filestorage.New(s.getDataDir(id), s.config.FilePermissions)
-}
-
-func (s *Session) getDataDir(torrentID string) string {
-	if s.config.DataDirIncludesTorrentID {
-		return filepath.Join(s.config.DataDir, torrentID)
-	}
-	return s.config.DataDir
 }
