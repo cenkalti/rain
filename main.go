@@ -92,8 +92,7 @@ func main() {
 					Required: true,
 				},
 				cli.BoolFlag{
-					// TODO fix flag letter
-					Name:  "seed,d",
+					Name:  "seed,s",
 					Usage: "continue seeding after download is finished",
 				},
 				cli.StringFlag{
