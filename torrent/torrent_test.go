@@ -18,6 +18,7 @@ import (
 	_ "github.com/chihaya/chihaya/storage/memory"
 	"github.com/fortytw2/leaktest"
 	cp "github.com/otiai10/copy"
+	"github.com/rcrowley/go-metrics"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -128,7 +129,13 @@ func TestDownloadMagnet(t *testing.T) {
 }
 
 func TestDownloadTorrent(t *testing.T) {
-	// TODO defer leaktest.Check(t)()
+	// Prevents goroutine leak in metrics library.
+	// Issue: https://github.com/rcrowley/go-metrics/issues/300
+	// Workaround: https://github.com/IBM/sarama/issues/2861
+	metrics.UseNilMetrics = true
+	defer func() { metrics.UseNilMetrics = false }()
+
+	defer leaktest.Check(t)()
 	defer startHTTPTracker(t)()
 
 	_, cl := seeder(t, false)
@@ -213,16 +220,21 @@ func startHTTPTracker(t *testing.T) (stop func()) {
 	}
 	lgc := middleware.NewLogic(responseConfig, ps, nil, nil)
 	fe, err := fhttp.NewFrontend(lgc, fhttp.Config{
-		Addr:         "127.0.0.1:5000",
-		ReadTimeout:  time.Second,
-		WriteTimeout: time.Second,
+		Addr:           "127.0.0.1:5000",
+		ReadTimeout:    time.Second,
+		WriteTimeout:   time.Second,
+		AnnounceRoutes: []string{"/announce"},
+		ScrapeRoutes:   []string{"/scrape"},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return func() {
-		errC := fe.Stop()
-		err := <-errC
+		err := <-fe.Stop()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = <-ps.Stop()
 		if err != nil {
 			t.Fatal(err)
 		}

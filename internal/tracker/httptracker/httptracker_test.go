@@ -31,9 +31,11 @@ func trackerLogic(t *testing.T) *middleware.Logic {
 func startHTTPTracker(t *testing.T) (stop func()) {
 	lgc := trackerLogic(t)
 	fe, err := fhttp.NewFrontend(lgc, fhttp.Config{
-		Addr:         "127.0.0.1:5000",
-		ReadTimeout:  time.Second,
-		WriteTimeout: time.Second,
+		Addr:           "127.0.0.1:5000",
+		ReadTimeout:    time.Second,
+		WriteTimeout:   time.Second,
+		AnnounceRoutes: []string{"/announce"},
+		ScrapeRoutes:   []string{"/scrape"},
 	})
 	if err != nil {
 		t.Fatal(err)

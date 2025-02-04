@@ -9,7 +9,7 @@ require (
 	github.com/cenkalti/backoff/v5 v5.0.1
 	github.com/cenkalti/boltbrowser v0.0.0-20190327195521-ebed13c76690
 	github.com/cenkalti/log v1.0.0
-	github.com/chihaya/chihaya v1.0.1-0.20191017040149-0a420fe05344
+	github.com/chihaya/chihaya v1.0.1-0.20230615203145-2f794401e44a
 	github.com/fatih/structs v1.1.0
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/gofrs/uuid v4.4.0+incompatible
@@ -45,7 +45,6 @@ require (
 	github.com/jackpal/bencode-go v1.0.0 // indirect
 	github.com/julienschmidt/httprouter v1.3.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
-	github.com/konsorten/go-windows-terminal-sequences v1.0.3 // indirect
 	github.com/mattn/go-colorable v0.1.8 // indirect
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/mattn/go-runewidth v0.0.10 // indirect
@@ -63,7 +62,7 @@ require (
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/sirupsen/logrus v1.6.0 // indirect
+	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/youtube/vitess v3.0.0-rc.3+incompatible // indirect
 	golang.org/x/crypto v0.31.0 // indirect
