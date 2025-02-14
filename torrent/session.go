@@ -29,6 +29,7 @@ import (
 	"github.com/mitchellh/go-homedir"
 	"github.com/nictuku/dht"
 	"go.etcd.io/bbolt"
+	berrors "go.etcd.io/bbolt/errors"
 )
 
 var (
@@ -111,7 +112,7 @@ func NewSession(cfg Config) (*Session, error) {
 	}
 	l := logger.New("session")
 	db, err := bbolt.Open(cfg.Database, cfg.FilePermissions&^0111, &bbolt.Options{Timeout: time.Second})
-	if err == bbolt.ErrTimeout {
+	if err == berrors.ErrTimeout {
 		return nil, errors.New("resume database is locked by another process")
 	} else if err != nil {
 		return nil, err
