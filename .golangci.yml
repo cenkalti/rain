@@ -1,15 +1,19 @@
-issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - goconst
-        - errcheck
-    - text: "G401:" # Use of weak cryptographic primitive
-      linters:
-        - gosec
-    - text: "G505:" # weak cryptographic primitive
-      linters:
-        - gosec
-    - path: internal/mse/
-      linters:
-        - gosec
+version: "2"
+linters:
+  exclusions:
+    presets:
+      - std-error-handling
+    rules:
+      - linters:
+          - errcheck
+          - goconst
+        path: _test\.go
+      - linters:
+          - gosec
+        text: 'G401:'
+      - linters:
+          - gosec
+        text: 'G505:'
+      - linters:
+          - gosec
+        path: internal/mse/

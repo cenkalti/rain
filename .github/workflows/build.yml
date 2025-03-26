@@ -40,9 +40,9 @@ jobs:
           go-version: 1.22
           cache: false
 
-      - uses: golangci/golangci-lint-action@v6
+      - uses: golangci/golangci-lint-action@v7
         with:
-          version: v1.61
+          version: v2.0
 
   goreleaser:
     name: Release
