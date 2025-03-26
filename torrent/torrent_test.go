@@ -204,7 +204,7 @@ func TestTorrentFiles(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 6, len(fileStats))
 	assert.Equal(t, "sample_torrent/data/file1.bin", fileStats[0].Path())
-	assert.Equal(t, int64(10240), fileStats[0].File.Length())
+	assert.Equal(t, int64(10240), fileStats[0].Length())
 	assert.Equal(t, int64(10240), fileStats[0].BytesCompleted)
 	assert.Equal(t, int64(10485760), fileStats[2].BytesCompleted)
 	assertCompleted(t, tor)

@@ -42,8 +42,8 @@ func (h *rpcHandler) ListTorrents(args *rpctypes.ListTorrentsRequest, reply *rpc
 func (h *rpcHandler) AddTorrent(args *rpctypes.AddTorrentRequest, reply *rpctypes.AddTorrentResponse) error {
 	r := base64.NewDecoder(base64.StdEncoding, strings.NewReader(args.Torrent))
 	opt := &AddTorrentOptions{
-		Stopped:           args.AddTorrentOptions.Stopped,
-		ID:                args.AddTorrentOptions.ID,
+		Stopped:           args.Stopped,
+		ID:                args.ID,
 		StopAfterDownload: args.StopAfterDownload,
 		StopAfterMetadata: args.StopAfterMetadata,
 	}
@@ -61,8 +61,8 @@ func (h *rpcHandler) AddTorrent(args *rpctypes.AddTorrentRequest, reply *rpctype
 
 func (h *rpcHandler) AddURI(args *rpctypes.AddURIRequest, reply *rpctypes.AddURIResponse) error {
 	opt := &AddTorrentOptions{
-		Stopped:           args.AddTorrentOptions.Stopped,
-		ID:                args.AddTorrentOptions.ID,
+		Stopped:           args.Stopped,
+		ID:                args.ID,
 		StopAfterDownload: args.StopAfterDownload,
 		StopAfterMetadata: args.StopAfterMetadata,
 	}
@@ -398,8 +398,8 @@ func (h *rpcHandler) GetTorrentFileStats(args *rpctypes.GetTorrentFileStatsReque
 	for i, s := range stats {
 		reply.FileStats[i] = rpctypes.FileStats{
 			File: rpctypes.File{
-				Path:   s.File.Path(),
-				Length: s.File.Length(),
+				Path:   s.Path(),
+				Length: s.Length(),
 			},
 			BytesCompleted: s.BytesCompleted,
 		}

@@ -73,10 +73,10 @@ func (c *Client) AddTorrent(f io.Reader, options *AddTorrentOptions) (*rpctypes.
 	}
 	args := rpctypes.AddTorrentRequest{Torrent: base64.StdEncoding.EncodeToString(b)}
 	if options != nil {
-		args.AddTorrentOptions.ID = options.ID
-		args.AddTorrentOptions.Stopped = options.Stopped
-		args.AddTorrentOptions.StopAfterDownload = options.StopAfterDownload
-		args.AddTorrentOptions.StopAfterMetadata = options.StopAfterMetadata
+		args.ID = options.ID
+		args.Stopped = options.Stopped
+		args.StopAfterDownload = options.StopAfterDownload
+		args.StopAfterMetadata = options.StopAfterMetadata
 	}
 	var reply rpctypes.AddTorrentResponse
 	return &reply.Torrent, c.client.Call("Session.AddTorrent", args, &reply)
@@ -86,10 +86,10 @@ func (c *Client) AddTorrent(f io.Reader, options *AddTorrentOptions) (*rpctypes.
 func (c *Client) AddURI(uri string, options *AddTorrentOptions) (*rpctypes.Torrent, error) {
 	args := rpctypes.AddURIRequest{URI: uri}
 	if options != nil {
-		args.AddTorrentOptions.ID = options.ID
-		args.AddTorrentOptions.Stopped = options.Stopped
-		args.AddTorrentOptions.StopAfterDownload = options.StopAfterDownload
-		args.AddTorrentOptions.StopAfterMetadata = options.StopAfterMetadata
+		args.ID = options.ID
+		args.Stopped = options.Stopped
+		args.StopAfterDownload = options.StopAfterDownload
+		args.StopAfterMetadata = options.StopAfterMetadata
 	}
 	var reply rpctypes.AddURIResponse
 	return &reply.Torrent, c.client.Call("Session.AddURI", args, &reply)

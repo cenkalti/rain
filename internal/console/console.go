@@ -582,9 +582,9 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 				if t.NextAnnounce.IsZero() {
 					nextAnnounce = "Unknown"
 				} else {
-					nextAnnounce = t.NextAnnounce.Time.Format(time.RFC3339)
+					nextAnnounce = t.NextAnnounce.Format(time.RFC3339)
 				}
-				fmt.Fprintf(v, "    Last announce: %s, Next announce: %s\n", t.LastAnnounce.Time.Format(time.RFC3339), nextAnnounce)
+				fmt.Fprintf(v, "    Last announce: %s, Next announce: %s\n", t.LastAnnounce.Format(time.RFC3339), nextAnnounce)
 			}
 		case peers:
 			format := "%2s %21s %7s %8s %6s %s\n"
@@ -664,7 +664,7 @@ func (c *Console) updateTorrents(g *gocui.Gui) {
 		if a.AddedAt.Equal(b.AddedAt.Time) {
 			return a.ID < b.ID
 		}
-		return a.AddedAt.Time.Before(b.AddedAt.Time)
+		return a.AddedAt.Before(b.AddedAt.Time)
 	})
 
 	torrents := make([]Torrent, 0, len(rpcTorrents))
@@ -753,7 +753,7 @@ func (c *Console) updateDetails(g *gocui.Gui) {
 			if a.ConnectedAt.Equal(b.ConnectedAt.Time) {
 				return a.Addr < b.Addr
 			}
-			return a.ConnectedAt.Time.Before(b.ConnectedAt.Time)
+			return a.ConnectedAt.Before(b.ConnectedAt.Time)
 		})
 		c.m.Lock()
 		c.peers = peers

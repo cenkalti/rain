@@ -221,7 +221,7 @@ func parsePrivateField(s bencode.RawMessage) bool {
 	if err != nil {
 		return true
 	}
-	return !(stringVal == "" || stringVal == "0")
+	return stringVal != "" && stringVal != "0"
 }
 
 // NewInfoBytes creates a new Info dictionary by reading and hashing the files on the disk.
