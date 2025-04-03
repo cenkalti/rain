@@ -3,9 +3,9 @@ package torrent
 import (
 	"time"
 
-	"github.com/cenkalti/rain/internal/mse"
-	"github.com/cenkalti/rain/internal/peersource"
-	"github.com/cenkalti/rain/internal/stringutil"
+	"github.com/cenkalti/rain/v2/internal/mse"
+	"github.com/cenkalti/rain/v2/internal/peersource"
+	"github.com/cenkalti/rain/v2/internal/stringutil"
 )
 
 // Stats contains statistics about Torrent.

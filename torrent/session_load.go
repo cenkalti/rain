@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cenkalti/rain/internal/bitfield"
-	"github.com/cenkalti/rain/internal/metainfo"
-	"github.com/cenkalti/rain/internal/resumer"
-	"github.com/cenkalti/rain/internal/resumer/boltdbresumer"
-	"github.com/cenkalti/rain/internal/webseedsource"
+	"github.com/cenkalti/rain/v2/internal/bitfield"
+	"github.com/cenkalti/rain/v2/internal/metainfo"
+	"github.com/cenkalti/rain/v2/internal/resumer"
+	"github.com/cenkalti/rain/v2/internal/resumer/boltdbresumer"
+	"github.com/cenkalti/rain/v2/internal/webseedsource"
 	"go.etcd.io/bbolt"
 )
 

@@ -5,8 +5,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/cenkalti/rain/internal/peerpriority"
-	"github.com/cenkalti/rain/internal/peersource"
+	"github.com/cenkalti/rain/v2/internal/peerpriority"
+	"github.com/cenkalti/rain/v2/internal/peersource"
 	"github.com/google/btree"
 )
 

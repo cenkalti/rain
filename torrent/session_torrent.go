@@ -13,8 +13,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/cenkalti/rain/internal/resumer/boltdbresumer"
-	"github.com/cenkalti/rain/internal/tracker"
+	"github.com/cenkalti/rain/v2/internal/resumer/boltdbresumer"
+	"github.com/cenkalti/rain/v2/internal/tracker"
 	"go.etcd.io/bbolt"
 )
 

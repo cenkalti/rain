@@ -1,10 +1,10 @@
 package torrent
 
 import (
-	"github.com/cenkalti/rain/internal/announcer"
-	"github.com/cenkalti/rain/internal/handshaker/incominghandshaker"
-	"github.com/cenkalti/rain/internal/handshaker/outgoinghandshaker"
-	"github.com/cenkalti/rain/internal/tracker"
+	"github.com/cenkalti/rain/v2/internal/announcer"
+	"github.com/cenkalti/rain/v2/internal/handshaker/incominghandshaker"
+	"github.com/cenkalti/rain/v2/internal/handshaker/outgoinghandshaker"
+	"github.com/cenkalti/rain/v2/internal/tracker"
 	"github.com/rcrowley/go-metrics"
 )
 
@@ -62,7 +62,7 @@ func (t *torrent) stop(err error) {
 	// Stop periodical announcers first. We'll create another announcer for announcing Stopped event.
 	// This must be done before closing data files because announcer accesses to t.pieces.
 	// If the announcer goroutine is active during close it is a data race.
-	// Bug details: https://github.com/cenkalti/rain/issues/33
+	// Bug details: https://github.com/cenkalti/rain/v2/issues/33
 	announcers := t.announcers // keep a reference to the list before nilling in order to start StopAnnouncer
 	t.stopPeriodicalAnnouncers()
 

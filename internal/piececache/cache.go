@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cenkalti/rain/internal/semaphore"
+	"github.com/cenkalti/rain/v2/internal/semaphore"
 	"github.com/rcrowley/go-metrics"
 )
 

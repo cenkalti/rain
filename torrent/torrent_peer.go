@@ -5,13 +5,13 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/cenkalti/rain/internal/bitfield"
-	"github.com/cenkalti/rain/internal/handshaker/outgoinghandshaker"
-	"github.com/cenkalti/rain/internal/mse"
-	"github.com/cenkalti/rain/internal/peer"
-	"github.com/cenkalti/rain/internal/peerprotocol"
-	"github.com/cenkalti/rain/internal/peersource"
-	"github.com/cenkalti/rain/internal/resolver"
+	"github.com/cenkalti/rain/v2/internal/bitfield"
+	"github.com/cenkalti/rain/v2/internal/handshaker/outgoinghandshaker"
+	"github.com/cenkalti/rain/v2/internal/mse"
+	"github.com/cenkalti/rain/v2/internal/peer"
+	"github.com/cenkalti/rain/v2/internal/peerprotocol"
+	"github.com/cenkalti/rain/v2/internal/peersource"
+	"github.com/cenkalti/rain/v2/internal/resolver"
 )
 
 func (t *torrent) setNeedMorePeers(val bool) {

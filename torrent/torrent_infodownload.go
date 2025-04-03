@@ -1,8 +1,8 @@
 package torrent
 
 import (
-	"github.com/cenkalti/rain/internal/infodownloader"
-	"github.com/cenkalti/rain/internal/peerprotocol"
+	"github.com/cenkalti/rain/v2/internal/infodownloader"
+	"github.com/cenkalti/rain/v2/internal/peerprotocol"
 )
 
 func (t *torrent) nextInfoDownload() *infodownloader.InfoDownloader {

@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/cenkalti/log"
-	"github.com/cenkalti/rain/internal/metainfo"
-	"github.com/cenkalti/rain/internal/storage"
+	"github.com/cenkalti/rain/v2/internal/metainfo"
+	"github.com/cenkalti/rain/v2/internal/storage"
 )
 
 var (

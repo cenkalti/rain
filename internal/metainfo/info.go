@@ -12,7 +12,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/cenkalti/rain/internal/logger"
+	"github.com/cenkalti/rain/v2/internal/logger"
 	"github.com/zeebo/bencode"
 )
 

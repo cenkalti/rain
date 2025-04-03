@@ -12,10 +12,10 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v5"
-	"github.com/cenkalti/rain/internal/logger"
-	"github.com/cenkalti/rain/internal/resolver"
-	"github.com/cenkalti/rain/internal/tracker"
-	"github.com/cenkalti/rain/internal/tracker/httptracker"
+	"github.com/cenkalti/rain/v2/internal/logger"
+	"github.com/cenkalti/rain/v2/internal/resolver"
+	"github.com/cenkalti/rain/v2/internal/tracker"
+	"github.com/cenkalti/rain/v2/internal/tracker/httptracker"
 )
 
 // Status of the announcer.

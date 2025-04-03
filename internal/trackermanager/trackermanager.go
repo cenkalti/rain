@@ -9,11 +9,11 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/cenkalti/rain/internal/blocklist"
-	"github.com/cenkalti/rain/internal/resolver"
-	"github.com/cenkalti/rain/internal/tracker"
-	"github.com/cenkalti/rain/internal/tracker/httptracker"
-	"github.com/cenkalti/rain/internal/tracker/udptracker"
+	"github.com/cenkalti/rain/v2/internal/blocklist"
+	"github.com/cenkalti/rain/v2/internal/resolver"
+	"github.com/cenkalti/rain/v2/internal/tracker"
+	"github.com/cenkalti/rain/v2/internal/tracker/httptracker"
+	"github.com/cenkalti/rain/v2/internal/tracker/udptracker"
 )
 
 // TrackerManager is a manager for using the same transport for same domains/IPs.

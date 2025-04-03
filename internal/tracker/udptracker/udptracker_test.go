@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cenkalti/rain/internal/tracker"
-	"github.com/cenkalti/rain/internal/tracker/udptracker"
+	"github.com/cenkalti/rain/v2/internal/tracker"
+	"github.com/cenkalti/rain/v2/internal/tracker/udptracker"
 	"github.com/chihaya/chihaya/frontend/udp"
 	"github.com/chihaya/chihaya/middleware"
 	"github.com/chihaya/chihaya/storage"

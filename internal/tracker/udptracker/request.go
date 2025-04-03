@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 
-	"github.com/cenkalti/rain/internal/tracker"
+	"github.com/cenkalti/rain/v2/internal/tracker"
 )
 
 type transportRequest struct {

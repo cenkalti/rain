@@ -3,8 +3,8 @@ package urldownloader
 import (
 	"testing"
 
-	"github.com/cenkalti/rain/internal/filesection"
-	"github.com/cenkalti/rain/internal/piece"
+	"github.com/cenkalti/rain/v2/internal/filesection"
+	"github.com/cenkalti/rain/v2/internal/piece"
 	"github.com/stretchr/testify/assert"
 )
 

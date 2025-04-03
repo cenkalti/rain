@@ -1,4 +1,4 @@
-module github.com/cenkalti/rain
+module github.com/cenkalti/rain/v2
 
 go 1.23
 

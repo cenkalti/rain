@@ -3,7 +3,7 @@ package pexlist
 import (
 	"net"
 
-	"github.com/cenkalti/rain/internal/tracker"
+	"github.com/cenkalti/rain/v2/internal/tracker"
 )
 
 // MaxLength is the maximum number of items to keep in the RecentlySeen list.

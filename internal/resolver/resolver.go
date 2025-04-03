@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/cenkalti/rain/internal/blocklist"
+	"github.com/cenkalti/rain/v2/internal/blocklist"
 )
 
 var (

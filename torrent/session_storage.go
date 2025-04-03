@@ -4,8 +4,8 @@ import (
 	"io/fs"
 	"path/filepath"
 
-	"github.com/cenkalti/rain/internal/storage"
-	"github.com/cenkalti/rain/internal/storage/filestorage"
+	"github.com/cenkalti/rain/v2/internal/storage"
+	"github.com/cenkalti/rain/v2/internal/storage/filestorage"
 )
 
 type fileStorageProvider struct {
