@@ -15,6 +15,10 @@ type Tracker interface {
 	// Announce should also be called on specific events.
 	Announce(ctx context.Context, req AnnounceRequest) (*AnnounceResponse, error)
 
+	// Scrape gets statistics about the torrent from the tracker.
+	// Scrape can be called without starting the torrent.
+	Scrape(ctx context.Context, infoHash [20]byte) (*ScrapeResponse, error)
+
 	// URL of the tracker.
 	URL() string
 }
@@ -46,3 +50,13 @@ type Error struct {
 }
 
 func (e *Error) Error() string { return e.FailureReason }
+
+// ScrapeResponse contains fields from a response to scrape request.
+type ScrapeResponse struct {
+	// Complete is the number of active peers that have completed downloading (seeders).
+	Complete int32
+	// Incomplete is the number of active peers that have not completed downloading (leechers).
+	Incomplete int32
+	// Downloaded is the number of peers that have ever completed downloading.
+	Downloaded int32
+}

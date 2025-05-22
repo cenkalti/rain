@@ -57,12 +57,49 @@ func (t *UDPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest) 
 		return nil, tracker.ErrDecode
 	}
 	t.log.Debugf("Announce response: %#v", response)
-
+	
 	return &tracker.AnnounceResponse{
 		Interval: time.Duration(response.Interval) * time.Second,
 		Leechers: response.Leechers,
 		Seeders:  response.Seeders,
 		Peers:    peers,
+	}, nil
+}
+
+// Scrape gets statistics about the torrent from the tracker.
+func (t *UDPTracker) Scrape(ctx context.Context, infoHash [20]byte) (*tracker.ScrapeResponse, error) {
+	// Create a scrape request
+	req := &udpScrapeRequest{
+		InfoHash: infoHash,
+	}
+	
+	// Create a transport request
+	scrapeReq := &transportRequest{
+		ctx:       ctx,
+		dest:      t.dest,
+		urlData:   t.urlData,
+		action:    actionScrape,
+		body:      req,
+		parseBody: req.UnmarshalBinary,
+	}
+	
+	// Send the request
+	reply, err := t.transport.Do(scrapeReq)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Parse the response
+	response, err := t.parseScrapeResponse(reply)
+	if err != nil {
+		return nil, tracker.ErrDecode
+	}
+	t.log.Debugf("Scrape response: %#v", response)
+	
+	return &tracker.ScrapeResponse{
+		Complete:   response.Complete,
+		Incomplete: response.Incomplete,
+		Downloaded: response.Downloaded,
 	}, nil
 }
 

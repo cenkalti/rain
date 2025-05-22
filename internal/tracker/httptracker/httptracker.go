@@ -221,3 +221,107 @@ func parsePeersDictionary(b bencode.RawMessage) ([]*net.TCPAddr, error) {
 	}
 	return addrs, err
 }
+
+// Scrape gets statistics about the torrent from the tracker.
+func (t *HTTPTracker) Scrape(ctx context.Context, infoHash [20]byte) (*tracker.ScrapeResponse, error) {
+	// Convert announce URL to scrape URL
+	scrapeURL, err := announceToScrape(t.rawURL)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build scrape URL with info_hash parameter
+	var sb strings.Builder
+	sb.WriteString(scrapeURL)
+	if strings.ContainsRune(scrapeURL, '?') {
+		sb.WriteString("&info_hash=")
+	} else {
+		sb.WriteString("?info_hash=")
+	}
+	sb.WriteString(percentEscape(infoHash))
+
+	t.log.Debugf("making scrape request to: %q", sb.String())
+
+	httpReq, err := http.NewRequest(http.MethodGet, sb.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	httpReq = httpReq.WithContext(ctx)
+
+	httpReq.Header.Set("User-Agent", t.userAgent)
+
+	resp, err := t.http.Do(httpReq)
+	if uerr, ok := err.(*url.Error); ok && uerr.Err == context.Canceled {
+		return nil, context.Canceled
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, t.maxResponseLength))
+		return nil, &StatusError{
+			Code:   resp.StatusCode,
+			Header: resp.Header,
+			Body:   string(body),
+		}
+	}
+
+	if resp.ContentLength > t.maxResponseLength {
+		return nil, fmt.Errorf("tracker response too large: %d", resp.ContentLength)
+	}
+
+	r := io.LimitReader(resp.Body, t.maxResponseLength)
+	body, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+
+	t.log.Debugf("read %d bytes from scrape response", len(body))
+
+	var response scrapeResponse
+	err = bencode.DecodeBytes(body, &response)
+	if err != nil {
+		return nil, tracker.ErrDecode
+	}
+
+	if response.FailureReason != "" {
+		retryIn, _ := strconv.Atoi(response.RetryIn)
+		return nil, &tracker.Error{
+			FailureReason: response.FailureReason,
+			RetryIn:       time.Duration(retryIn) * time.Minute,
+		}
+	}
+
+	files, ok := response.Files[string(infoHash[:])]
+	if !ok {
+		return &tracker.ScrapeResponse{}, nil
+	}
+
+	return &tracker.ScrapeResponse{
+		Complete:   files.Complete,
+		Incomplete: files.Incomplete,
+		Downloaded: files.Downloaded,
+	}, nil
+}
+
+// announceToScrape converts an announce URL to a scrape URL.
+// According to BEP 48, if the announce URL is /announce, then the scrape URL is /scrape.
+// If the announce URL is /x/announce, then the scrape URL is /x/scrape.
+func announceToScrape(announceURL string) (string, error) {
+	u, err := url.Parse(announceURL)
+	if err != nil {
+		return "", err
+	}
+
+	// Check if the URL path ends with "announce"
+	path := u.Path
+	if !strings.HasSuffix(path, "/announce") {
+		return "", fmt.Errorf("announce URL does not end with /announce: %s", announceURL)
+	}
+
+	// Replace "announce" with "scrape"
+	u.Path = path[:len(path)-len("announce")] + "scrape"
+	return u.String(), nil
+}

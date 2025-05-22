@@ -6,5 +6,6 @@ type action int32
 const (
 	actionConnect  action = 0
 	actionAnnounce action = 1
+	actionScrape   action = 2
 	actionError    action = 3
 )
