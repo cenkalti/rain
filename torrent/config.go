@@ -200,6 +200,11 @@ type Config struct {
 	// Shell command to execute on torrent completion.
 	OnCompleteCmd []string `yaml:"on-complete-cmd"`
 
+	// Seed only when the client is the only seeder.
+	// If enabled, the client will periodically check if it's the only seeder
+	// and stop seeding if there are other seeders.
+	SeedOnlyAsLastSeeder bool `yaml:"seed-only-as-last-seeder"`
+
 	// Replace default log handler
 	CustomLogHandler log.Handler `yaml:"-"`
 	// Replace default storage provider
@@ -302,4 +307,7 @@ var DefaultConfig = Config{
 	WebseedVerifyTLS:               true,
 	WebseedMaxSources:              10,
 	WebseedMaxDownloads:            4,
+	
+	// Seeding settings
+	SeedOnlyAsLastSeeder:           false,
 }

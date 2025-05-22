@@ -13,6 +13,10 @@ func (t *torrent) run() {
 
 	t.unchokeTicker = time.NewTicker(10 * time.Second)
 	defer t.unchokeTicker.Stop()
+	
+	// Ticker to check if we're the only seeder
+	seederCheckTicker := time.NewTicker(5 * time.Minute)
+	defer seederCheckTicker.Stop()
 
 	for {
 		select {
@@ -74,6 +78,8 @@ func (t *torrent) run() {
 			t.handlePeerSnubbed(pe)
 		case <-t.unchokeTicker.C:
 			t.unchoker.TickUnchoke(t.getPeersForUnchoker(), t.completed)
+			case <-seederCheckTicker.C:
+			t.handleSeedingMode()
 		case ih := <-t.incomingHandshakerResultC:
 			t.handleIncomingHandshakeDone(ih)
 		case oh := <-t.outgoingHandshakerResultC:

@@ -28,6 +28,7 @@ Features
 - RPC server & client
 - Console UI
 - Tool for creating & reading .torrent files
+- Seed only when you're the only seeder
 
 Screenshot
 ----------
