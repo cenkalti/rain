@@ -6,7 +6,7 @@ toolchain go1.23.2
 
 require (
 	github.com/boltdb/bolt v1.3.1
-	github.com/cenkalti/backoff/v5 v5.0.2
+	github.com/cenkalti/backoff/v5 v5.0.3
 	github.com/cenkalti/boltbrowser v0.0.0-20190327195521-ebed13c76690
 	github.com/cenkalti/log v1.0.0
 	github.com/chihaya/chihaya v1.0.1-0.20230615203145-2f794401e44a
