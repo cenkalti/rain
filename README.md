@@ -31,7 +31,7 @@ Features
 
 Screenshot
 ----------
-![Rain Screenshot](https://cl.ly/b03c639da66c/Screen%20Shot%202019-09-30%20at%2019.04.00.png)
+![Rain Screenshot](screenshot.png)
 
 Installing
 ----------
