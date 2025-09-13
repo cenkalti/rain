@@ -226,4 +226,4 @@ Star History
 [![Star History Chart](https://api.star-history.com/svg?repos=cenkalti/rain&type=Date)](https://star-history.com/#cenkalti/rain&Date)
 
 [putio-link]: https://put.io
-[docs-link]: https://pkg.go.dev/github.com/cenkalti/rain/torrent
+[docs-link]: https://pkg.go.dev/github.com/cenkalti/rain/v2/torrent
