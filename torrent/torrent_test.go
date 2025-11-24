@@ -217,6 +217,9 @@ func startHTTPTracker(t *testing.T) {
 		if len(errs) > 0 {
 			t.Fatal(errs[0])
 		}
+		// Wait for HTTP handler goroutines to finish before peer store cleanup
+		// to prevent race condition in tests between frontend handlers and peer store shutdown
+		time.Sleep(100 * time.Millisecond)
 	})
 }
 
