@@ -136,7 +136,9 @@ func TestDownloadTorrent(t *testing.T) {
 	defer func() { metrics.UseNilMetrics = false }()
 
 	defer leaktest.Check(t)()
-	defer startHTTPTracker(t)()
+
+	stopTracker := startHTTPTracker(t)
+	defer stopTracker()
 
 	_, cl := seeder(t, false)
 	defer cl()
