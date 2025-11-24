@@ -9,7 +9,6 @@ require (
 	github.com/cenkalti/log v1.0.0
 	github.com/chihaya/chihaya v1.0.1-0.20230615203145-2f794401e44a
 	github.com/fatih/structs v1.1.0
-	github.com/fortytw2/leaktest v1.3.0
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/google/btree v1.1.3
 	github.com/hokaccha/go-prettyjson v0.0.0-20210113012101-fb4e108d2519
@@ -25,6 +24,7 @@ require (
 	github.com/urfave/cli v1.22.17
 	github.com/zeebo/bencode v1.0.0
 	go.etcd.io/bbolt v1.4.3
+	go.uber.org/goleak v1.3.0
 	golang.org/x/sys v0.38.0
 	gopkg.in/yaml.v2 v2.4.0
 )

@@ -10,8 +10,7 @@ import (
 // TestInvalidTorrentData is test case for reproducing bug:
 // https://github.com/cenkalti/rain/v2/issues/23
 func TestInvalidTorrentData(t *testing.T) {
-	s, closeSession := newTestSession(t)
-	defer closeSession()
+	s := newTestSession(t)
 
 	body := "some garbage data"
 	r := strings.NewReader(body)

@@ -16,10 +16,10 @@ import (
 	"github.com/chihaya/chihaya/middleware"
 	"github.com/chihaya/chihaya/storage"
 	_ "github.com/chihaya/chihaya/storage/memory"
-	"github.com/fortytw2/leaktest"
 	cp "github.com/otiai10/copy"
 	"github.com/rcrowley/go-metrics"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/goleak"
 )
 
 var (
@@ -35,8 +35,16 @@ func init() {
 	logger.SetDebug()
 }
 
-func newTestSession(t *testing.T) (*Session, func()) {
-	tmp, closeTmp := tempdir(t)
+func TestMain(m *testing.M) {
+	goleak.VerifyTestMain(m,
+		goleak.IgnoreTopFunction("github.com/chihaya/chihaya/pkg/timecache.(*TimeCache).Run"),
+		goleak.IgnoreTopFunction("github.com/rcrowley/go-metrics.(*meterArbiter).tick"),
+	)
+}
+
+func newTestSession(t *testing.T) *Session {
+	t.Helper()
+	tmp := t.TempDir()
 	cfg := DefaultConfig
 	cfg.Database = filepath.Join(tmp, "session.db")
 	cfg.DataDir = tmp
@@ -48,13 +56,13 @@ func newTestSession(t *testing.T) (*Session, func()) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return s, func() {
+	t.Cleanup(func() {
 		err := s.Close()
 		if err != nil {
 			t.Fatal(err)
 		}
-		closeTmp()
-	}
+	})
+	return s
 }
 
 func CopyDir(src, dst string) error {
@@ -62,13 +70,14 @@ func CopyDir(src, dst string) error {
 	return cmd.Run()
 }
 
-func seeder(t *testing.T, clearTrackers bool) (addr string, c func()) {
+func seeder(t *testing.T, clearTrackers bool) (addr string) {
+	t.Helper()
 	f, err := os.Open(torrentFile)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer f.Close()
-	s, closeSession := newTestSession(t)
+	s := newTestSession(t)
 	opt := &AddTorrentOptions{Stopped: true}
 	tor, err := s.AddTorrent(f, opt)
 	if err != nil {
@@ -96,30 +105,12 @@ func seeder(t *testing.T, clearTrackers bool) (addr string, c func()) {
 	case <-time.After(timeout):
 		t.Fatal("seeder is not ready")
 	}
-	return "127.0.0.1:" + strconv.Itoa(port), func() {
-		closeSession()
-	}
-}
-
-func tempdir(t *testing.T) (string, func()) {
-	where, err := os.MkdirTemp("", "rain-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	return where, func() {
-		err = os.RemoveAll(where)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
+	return "127.0.0.1:" + strconv.Itoa(port)
 }
 
 func TestDownloadMagnet(t *testing.T) {
-	defer leaktest.Check(t)()
-	addr, cl := seeder(t, true)
-	defer cl()
-	s, closeSession := newTestSession(t)
-	defer closeSession()
+	addr := seeder(t, true)
+	s := newTestSession(t)
 
 	tor, err := s.AddURI(torrentMagnetLink+"&x.pe="+addr, nil)
 	if err != nil {
@@ -129,22 +120,11 @@ func TestDownloadMagnet(t *testing.T) {
 }
 
 func TestDownloadTorrent(t *testing.T) {
-	// Prevents goroutine leak in metrics library.
-	// Issue: https://github.com/rcrowley/go-metrics/issues/300
-	// Workaround: https://github.com/IBM/sarama/issues/2861
-	metrics.UseNilMetrics = true
-	defer func() { metrics.UseNilMetrics = false }()
+	startHTTPTracker(t)
 
-	defer leaktest.Check(t)()
+	_ = seeder(t, false)
 
-	stopTracker := startHTTPTracker(t)
-	defer stopTracker()
-
-	_, cl := seeder(t, false)
-	defer cl()
-
-	s, closeSession := newTestSession(t)
-	defer closeSession()
+	s := newTestSession(t)
 
 	f, err := os.Open(torrentFile)
 	if err != nil {
@@ -161,11 +141,8 @@ func TestDownloadTorrent(t *testing.T) {
 }
 
 func TestTorrentDir(t *testing.T) {
-	defer leaktest.Check(t)()
-	addr, cl := seeder(t, true)
-	defer cl()
-	s, closeSession := newTestSession(t)
-	defer closeSession()
+	addr := seeder(t, true)
+	s := newTestSession(t)
 
 	tor, err := s.AddURI(torrentMagnetLink+"&x.pe="+addr, nil)
 	if err != nil {
@@ -176,11 +153,8 @@ func TestTorrentDir(t *testing.T) {
 }
 
 func TestTorrentFiles(t *testing.T) {
-	defer leaktest.Check(t)()
-	addr, cl := seeder(t, true)
-	defer cl()
-	s, closeSession := newTestSession(t)
-	defer closeSession()
+	addr := seeder(t, true)
+	s := newTestSession(t)
 
 	tor, err := s.AddURI(torrentMagnetLink+"&x.pe="+addr, nil)
 	if err != nil {
@@ -212,7 +186,8 @@ func TestTorrentFiles(t *testing.T) {
 	assertCompleted(t, tor)
 }
 
-func startHTTPTracker(t *testing.T) (stop func()) {
+func startHTTPTracker(t *testing.T) {
+	t.Helper()
 	responseConfig := middleware.ResponseConfig{
 		AnnounceInterval: time.Minute,
 	}
@@ -220,6 +195,12 @@ func startHTTPTracker(t *testing.T) (stop func()) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() {
+		errs := ps.Stop().Wait()
+		if len(errs) > 0 {
+			t.Fatal(errs[0])
+		}
+	})
 	lgc := middleware.NewLogic(responseConfig, ps, nil, nil)
 	fe, err := fhttp.NewFrontend(lgc, fhttp.Config{
 		Addr:           "127.0.0.1:5000",
@@ -231,19 +212,16 @@ func startHTTPTracker(t *testing.T) (stop func()) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return func() {
-		err := <-fe.Stop()
-		if err != nil {
-			t.Fatal(err)
+	t.Cleanup(func() {
+		errs := fe.Stop().Wait()
+		if len(errs) > 0 {
+			t.Fatal(errs[0])
 		}
-		err = <-ps.Stop()
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
+	})
 }
 
-func webseed(t *testing.T) (port int, c func()) {
+func webseed(t *testing.T) (port int) {
+	t.Helper()
 	l, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -255,23 +233,22 @@ func webseed(t *testing.T) (port int, c func()) {
 		srv.Serve(l)
 		close(servingDone)
 	}()
-	return port, func() {
+	t.Cleanup(func() {
 		srv.Close()
 		l.Close()
 		<-servingDone
-	}
+	})
+	return port
 }
 
 func TestDownloadWebseed(t *testing.T) {
-	defer leaktest.Check(t)()
-	port1, close1 := webseed(t)
-	defer close1()
-	port2, close2 := webseed(t)
-	defer close2()
-	addr, cl := seeder(t, true)
-	defer cl()
-	s, closeSession := newTestSession(t)
-	defer closeSession()
+	metrics.UseNilMetrics = true
+	defer func() { metrics.UseNilMetrics = false }()
+
+	port1 := webseed(t)
+	port2 := webseed(t)
+	addr := seeder(t, true)
+	s := newTestSession(t)
 
 	f, err := os.Open(torrentFile)
 	if err != nil {
@@ -296,6 +273,7 @@ func TestDownloadWebseed(t *testing.T) {
 }
 
 func assertCompleted(t *testing.T, tor *Torrent) {
+	t.Helper()
 	t2 := tor.torrent
 	select {
 	case <-t2.NotifyComplete():
@@ -314,6 +292,7 @@ func assertCompleted(t *testing.T, tor *Torrent) {
 }
 
 func waitForMetadata(t *testing.T, tor *Torrent) {
+	t.Helper()
 	t2 := tor.torrent
 	select {
 	case <-t2.NotifyMetadata():
@@ -325,6 +304,7 @@ func waitForMetadata(t *testing.T, tor *Torrent) {
 }
 
 func waitForStart(t *testing.T, tor *Torrent) {
+	t.Helper()
 	t2 := tor.torrent
 	select {
 	case <-t2.NotifyListen():
