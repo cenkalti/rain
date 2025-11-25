@@ -26,7 +26,6 @@ import (
 	"github.com/cenkalti/rain/v2/rainrpc"
 	"github.com/cenkalti/rain/v2/torrent"
 	"github.com/hokaccha/go-prettyjson"
-	"github.com/mitchellh/go-homedir"
 	"github.com/urfave/cli"
 	"github.com/zeebo/bencode"
 	"gopkg.in/yaml.v2"
@@ -84,7 +83,7 @@ func main() {
 				cli.StringFlag{
 					Name:  "config,c",
 					Usage: "read config from `FILE`",
-					Value: "~/rain/config.yaml",
+					Value: "$HOME/rain/config.yaml",
 				},
 				cli.StringFlag{
 					Name:     "torrent,t",
@@ -109,7 +108,7 @@ func main() {
 				cli.StringFlag{
 					Name:  "config,c",
 					Usage: "read config from `FILE`",
-					Value: "~/rain/config.yaml",
+					Value: "$HOME/rain/config.yaml",
 				},
 				cli.StringFlag{
 					Name:     "magnet,m",
@@ -135,7 +134,7 @@ func main() {
 				cli.StringFlag{
 					Name:  "config,c",
 					Usage: "read config from `FILE`",
-					Value: "~/rain/config.yaml",
+					Value: "$HOME/rain/config.yaml",
 				},
 			},
 			Action: handleServer,
@@ -480,7 +479,7 @@ func main() {
 				cli.StringFlag{
 					Name:  "config,c",
 					Usage: "read config from `FILE`",
-					Value: "~/rain/config.yaml",
+					Value: "$HOME/rain/config.yaml",
 				},
 			},
 		},
@@ -597,10 +596,7 @@ func handleCompactDatabase(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	dbPath, err := homedir.Expand(cfg.Database)
-	if err != nil {
-		return err
-	}
+	dbPath := os.ExpandEnv(cfg.Database)
 	err = os.Rename(dbPath, dbPath+".bak")
 	if err != nil {
 		return err
@@ -662,10 +658,7 @@ func prepareConfig(c *cli.Context) (torrent.Config, error) {
 
 	configPath := c.String("config")
 	if configPath != "" {
-		cp, err := homedir.Expand(configPath)
-		if err != nil {
-			return cfg, err
-		}
+		cp := os.ExpandEnv(configPath)
 		b, err := os.ReadFile(cp)
 		switch {
 		case os.IsNotExist(err):
@@ -1173,16 +1166,9 @@ func handleTorrentCreate(c *cli.Context) error {
 	trackers := c.StringSlice("tracker")
 	webseeds := c.StringSlice("webseed")
 
-	var err error
-	out, err = homedir.Expand(out)
-	if err != nil {
-		return err
-	}
+	out = os.ExpandEnv(out)
 	for i, path := range paths {
-		paths[i], err = homedir.Expand(path)
-		if err != nil {
-			return err
-		}
+		paths[i] = os.ExpandEnv(path)
 	}
 
 	tiers := make([][]string, len(trackers))

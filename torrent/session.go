@@ -26,7 +26,6 @@ import (
 	"github.com/cenkalti/rain/v2/internal/tracker"
 	"github.com/cenkalti/rain/v2/internal/trackermanager"
 	"github.com/juju/ratelimit"
-	"github.com/mitchellh/go-homedir"
 	"github.com/nictuku/dht"
 	"go.etcd.io/bbolt"
 	berrors "go.etcd.io/bbolt/errors"
@@ -97,16 +96,9 @@ func NewSession(cfg Config) (*Session, error) {
 		logger.SetDebug()
 	}
 
-	var err error
-	cfg.Database, err = homedir.Expand(cfg.Database)
-	if err != nil {
-		return nil, err
-	}
-	cfg.DataDir, err = homedir.Expand(cfg.DataDir)
-	if err != nil {
-		return nil, err
-	}
-	err = os.MkdirAll(filepath.Dir(cfg.Database), os.ModeDir|cfg.FilePermissions)
+	cfg.Database = os.ExpandEnv(cfg.Database)
+	cfg.DataDir = os.ExpandEnv(cfg.DataDir)
+	err := os.MkdirAll(filepath.Dir(cfg.Database), os.ModeDir|cfg.FilePermissions)
 	if err != nil {
 		return nil, err
 	}

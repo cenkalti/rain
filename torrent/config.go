@@ -212,8 +212,8 @@ type Config struct {
 // DefaultConfig for Session. Do not pass zero value Config to NewSession. Copy this struct and modify instead.
 var DefaultConfig = Config{
 	// Session
-	Database:                               "~/rain/session.db",
-	DataDir:                                "~/rain/data",
+	Database:                               "$HOME/rain/session.db",
+	DataDir:                                "$HOME/rain/data",
 	DataDirIncludesTorrentID:               true,
 	Host:                                   "0.0.0.0",
 	PortBegin:                              20000,
