@@ -148,7 +148,7 @@ func NewInfo(b []byte, utf8 bool, pad bool) (*Info, error) {
 	// construct files
 	if multiFile {
 		i.Files = make([]File, len(ib.Files))
-		uniquePaths := make(map[string]interface{}, len(ib.Files))
+		uniquePaths := make(map[string]any, len(ib.Files))
 		for j, f := range ib.Files {
 			parts := make([]string, 0, len(f.Path)+1)
 			parts = append(parts, cleanName(i.Name))

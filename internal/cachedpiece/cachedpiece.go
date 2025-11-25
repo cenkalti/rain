@@ -29,10 +29,7 @@ func New(pi *piece.Piece, cache *piececache.Cache, readSize int64, peerID [20]by
 func (c *CachedPiece) ReadAt(p []byte, off int64) (n int, err error) {
 	blk := uint32(off / c.readSize)
 	blkBegin := uint32(int64(blk) * c.readSize)
-	blkEnd := uint32(int64(blkBegin) + c.readSize)
-	if blkEnd > c.pi.Length {
-		blkEnd = c.pi.Length
-	}
+	blkEnd := min(uint32(int64(blkBegin)+c.readSize), c.pi.Length)
 
 	key := make([]byte, 20+4+4)
 	copy(key, c.peerID)

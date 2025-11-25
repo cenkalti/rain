@@ -279,7 +279,7 @@ func (s *Stream) HandshakeIncoming(
 		return
 	}
 	req3 := hashInt("req3", S)
-	for i := 0; i < sha1.Size; i++ {
+	for i := range sha1.Size {
 		hashRead[i] ^= req3[i]
 	}
 	sKey := getSKey(hashRead)
@@ -461,7 +461,7 @@ func hashes(S *big.Int, sKey []byte) (hashS, hashSKey []byte) { // nolint:gocrit
 	req1 := hashInt("req1", S)
 	req2 := HashSKey(sKey)
 	req3 := hashInt("req3", S)
-	for i := 0; i < sha1.Size; i++ {
+	for i := range sha1.Size {
 		req3[i] ^= req2[i]
 	}
 	return req1, req3

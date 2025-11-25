@@ -5,7 +5,7 @@
 // Package stree implements a segment tree and serial algorithm to query intervals
 package stree
 
-import "sort"
+import "slices"
 
 // ValueType is the type of a single value in the segment tree.
 type ValueType uint32
@@ -56,7 +56,7 @@ func (t *Stree) Build() {
 // Output: [{p1 : p1}, {p1 : p2}, {p2 : p2},... , {pn : pn}]
 func elementaryIntervals(endpoints []ValueType) []segment {
 	intervals := make([]segment, len(endpoints)*2-1)
-	for i := 0; i < len(endpoints); i++ {
+	for i := range len(endpoints) {
 		intervals[i*2] = segment{endpoints[i], endpoints[i]}
 		if i < len(endpoints)-1 { // don't store {pn, pn+1}
 			intervals[i*2+1] = segment{endpoints[i], endpoints[i+1]}
@@ -81,7 +81,7 @@ func endpoints(base []interval) (result []ValueType, min, max ValueType) {
 
 // dedup removes duplicates from a given slice
 func dedup(sl []ValueType) []ValueType {
-	sort.Slice(sl, func(i, j int) bool { return sl[i] < sl[j] })
+	slices.Sort(sl)
 	prev := sl[0] + 1
 	j := 0
 	for i := range sl {

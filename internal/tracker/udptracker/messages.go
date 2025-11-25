@@ -74,12 +74,7 @@ func (r *transferAnnounceRequest) WriteTo(w io.Writer) (int64, error) {
 		pos := 0
 		for pos < len(r.urlData) {
 			remaining := len(r.urlData) - pos
-			var size int
-			if remaining > 255 {
-				size = 255
-			} else {
-				size = remaining
-			}
+			size := min(remaining, 255)
 			_, err = buf.Write([]byte{0x2, byte(size)})
 			if err != nil {
 				return 0, err

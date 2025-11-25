@@ -196,7 +196,7 @@ func percentEscape(b [20]byte) string {
 	var sb strings.Builder
 	sb.Grow(60)
 	s := hex.EncodeToString(b[:])
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		sb.WriteRune('%')
 		sb.WriteByte(s[i*2])
 		sb.WriteByte(s[i*2+1])

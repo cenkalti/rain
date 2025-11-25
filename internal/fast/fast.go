@@ -6,6 +6,7 @@ import (
 	"crypto/sha1"
 	"encoding/binary"
 	"net"
+	"slices"
 )
 
 // GenerateFastSet returns a slice of k items that contains the piece indexes of the torrent with infoHash.
@@ -21,12 +22,7 @@ func GenerateFastSet(k int, numPieces uint32, infoHash [20]byte, ip net.IP) []ui
 
 	a := make([]uint32, 0, k)
 	inA := func(index uint32) bool {
-		for _, val := range a {
-			if index == val {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(a, index)
 	}
 	h := sha1.New()
 	for j := 0; j < k && len(a) < k; j++ {

@@ -133,7 +133,7 @@ func (d *AddrList) filterNils() {
 }
 
 func (d *AddrList) removeExcessItems(delta int) {
-	for i := 0; i < delta; i++ {
+	for i := range delta {
 		d.peerByPriority.Delete(d.peerByTime[i])
 		d.peerByTime[i] = nil
 	}

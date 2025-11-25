@@ -2,6 +2,7 @@ package externalip
 
 import (
 	"net"
+	"slices"
 
 	"github.com/cenkalti/log"
 )
@@ -48,12 +49,9 @@ func isPublicIP(ip4 net.IP) bool {
 
 // IsExternal returns true if the given IP matches one of the IP address of the external network interfaces on the server.
 func IsExternal(ip net.IP) bool {
-	for i := range ips {
-		if ip.Equal(ips[i]) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(ips, func(i net.IP) bool {
+		return ip.Equal(i)
+	})
 }
 
 // FirstExternalIP returns the first external IP of the network interfaces on the server.

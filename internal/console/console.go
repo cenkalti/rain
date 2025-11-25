@@ -348,108 +348,109 @@ func (c *Console) drawSessionStats(g *gocui.Gui) error {
 }
 
 func getHeader(columns []string) string {
-	header := ""
+	var header strings.Builder
 	for i, column := range columns {
 		if i != 0 {
-			header += " "
+			header.WriteString(" ")
 		}
 
 		switch column {
 		case "#":
-			header += fmt.Sprintf("%3s", column)
+			fmt.Fprintf(&header, "%3s", column)
 		case "ID":
-			header += fmt.Sprintf("%-22s", column)
+			fmt.Fprintf(&header, "%-22s", column)
 		case "Name":
-			header += column
+			header.WriteString(column)
 		case "InfoHash":
-			header += fmt.Sprintf("%-40s", column)
+			fmt.Fprintf(&header, "%-40s", column)
 		case "Port":
-			header += fmt.Sprintf("%5s", column)
+			fmt.Fprintf(&header, "%5s", column)
 		case "Status":
-			header += fmt.Sprintf("%-11s", column)
+			fmt.Fprintf(&header, "%-11s", column)
 		case "Speed":
-			header += fmt.Sprintf("%8s", column)
+			fmt.Fprintf(&header, "%8s", column)
 		case "ETA":
-			header += fmt.Sprintf("%8s", column)
+			fmt.Fprintf(&header, "%8s", column)
 		case "Progress":
-			header += fmt.Sprintf("%8s", column)
+			fmt.Fprintf(&header, "%8s", column)
 		case "Ratio":
-			header += fmt.Sprintf("%5s", column)
+			fmt.Fprintf(&header, "%5s", column)
 		case "Size":
-			header += fmt.Sprintf("%8s", column)
+			fmt.Fprintf(&header, "%8s", column)
 		default:
 			panic(fmt.Sprintf("unsupported column %s", column))
 		}
 	}
-	return header
+	return header.String()
 }
 
 func getRow(columns []string, t Torrent, index int) string {
-	row := ""
+	var row strings.Builder
 	for i, column := range columns {
 		if i != 0 {
-			row += " "
+			row.WriteString(" ")
 		}
 		stats := t.Stats
 		switch column {
 		case "#":
-			row += fmt.Sprintf("%3d", index+1)
+			fmt.Fprintf(&row, "%3d", index+1)
 		case "ID":
-			row += t.ID
+			row.WriteString(t.ID)
 		case "Name":
-			row += t.Name
+			row.WriteString(t.Name)
 		case "InfoHash":
-			row += t.InfoHash
+			row.WriteString(t.InfoHash)
 		case "Port":
-			row += fmt.Sprintf("%5d", t.Port)
+			fmt.Fprintf(&row, "%5d", t.Port)
 		case "Status":
 			if stats == nil {
-				row += fmt.Sprintf("%-11s", "")
+				fmt.Fprintf(&row, "%-11s", "")
 			} else {
 				status := stats.Status
 				if status == "Downloading Metadata" {
 					status = "Downloading"
 				}
-				row += fmt.Sprintf("%-11s", status)
+				fmt.Fprintf(&row, "%-11s", status)
 			}
 		case "Speed":
 			switch {
 			case stats == nil:
-				row += fmt.Sprintf("%8s", "")
+				fmt.Fprintf(&row, "%8s", "")
 			case stats.Status == "Seeding":
-				row += fmt.Sprintf("%6d K", stats.Speed.Upload/1024)
+				fmt.Fprintf(&row, "%6d K", stats.Speed.Upload/1024)
 			default:
-				row += fmt.Sprintf("%6d K", stats.Speed.Download/1024)
+				fmt.Fprintf(&row, "%6d K", stats.Speed.Download/1024)
 			}
 		case "ETA":
 			if stats == nil {
-				row += fmt.Sprintf("%8s", "")
+				fmt.Fprintf(&row, "%8s", "")
 			} else {
-				row += fmt.Sprintf("%8s", getETA(stats))
+				fmt.Fprintf(&row, "%8s", getETA(stats))
 			}
 		case "Progress":
 			if stats == nil {
-				row += fmt.Sprintf("%8s", "")
+				fmt.Fprintf(&row, "%8s", "")
 			} else {
-				row += fmt.Sprintf("%8d", getProgress(stats))
+				fmt.Fprintf(&row, "%8d", getProgress(stats))
 			}
 		case "Ratio":
 			if stats == nil {
-				row += fmt.Sprintf("%5s", "")
+				fmt.Fprintf(&row, "%5s", "")
 			} else {
-				row += fmt.Sprintf("%5.2f", getRatio(stats))
+				fmt.Fprintf(&row, "%5.2f", getRatio(stats))
 			}
 		case "Size":
 			if stats == nil {
-				row += fmt.Sprintf("%8s", "")
+				fmt.Fprintf(&row, "%8s", "")
 			} else {
-				row += fmt.Sprintf("%6d M", stats.Bytes.Total/(1<<20))
+				fmt.Fprintf(&row, "%6d M", stats.Bytes.Total/(1<<20))
 			}
 		default:
 			panic(fmt.Sprintf("unsupported column %s", column))
 		}
 	}
-	return row + "\n"
+	row.WriteString("\n")
+	return row.String()
 }
 
 func (c *Console) drawTorrents(g *gocui.Gui) error {

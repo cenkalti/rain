@@ -1,5 +1,7 @@
 package sliceset
 
+import "slices"
+
 // SliceSet is a set implementation that uses slice internally.
 type SliceSet[T any] struct {
 	Items []*T
@@ -7,10 +9,8 @@ type SliceSet[T any] struct {
 
 // Add the piece to the set.
 func (l *SliceSet[T]) Add(pe *T) bool {
-	for _, p := range l.Items {
-		if p == pe {
-			return false
-		}
+	if slices.Contains(l.Items, pe) {
+		return false
 	}
 	l.Items = append(l.Items, pe)
 	return true
@@ -30,12 +30,7 @@ func (l *SliceSet[T]) Remove(pe *T) bool {
 
 // Has returns true if the set contains the piece.
 func (l *SliceSet[T]) Has(pe *T) bool {
-	for _, p := range l.Items {
-		if p == pe {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(l.Items, pe)
 }
 
 // Len returns the number of pieces in the set.

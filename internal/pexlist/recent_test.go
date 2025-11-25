@@ -15,7 +15,7 @@ func TestRecentlySeen(t *testing.T) {
 	assert.Equal(t, 1, l.Len())
 	l.Add(newAddr("1.1.1.1"))
 	assert.Equal(t, 1, l.Len())
-	for i := 0; i < 24; i++ {
+	for i := range 24 {
 		l.Add(newAddr("2.2.2." + strconv.Itoa(i)))
 	}
 	assert.Equal(t, 25, l.Len())
