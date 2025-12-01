@@ -24,7 +24,7 @@ require (
 	github.com/zeebo/bencode v1.0.0
 	go.etcd.io/bbolt v1.4.3
 	go.uber.org/goleak v1.3.0
-	golang.org/x/sync v0.10.0
+	golang.org/x/sync v0.18.0
 	golang.org/x/sys v0.38.0
 	gopkg.in/yaml.v2 v2.4.0
 )
