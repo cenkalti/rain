@@ -35,15 +35,11 @@ func (s *Semaphore) Len() int {
 
 // Wait for the semaphore. Blocks until the resource is available.
 // Returns an error if the context is cancelled before acquiring the semaphore.
-func (s *Semaphore) Wait() error {
+func (s *Semaphore) Wait() {
 	atomic.AddInt32(&s.waiting, 1)
-	err := s.sem.Acquire(context.TODO(), 1)
+	_ = s.sem.Acquire(context.TODO(), 1)
 	atomic.AddInt32(&s.waiting, -1)
-	if err != nil {
-		return err
-	}
 	atomic.AddInt32(&s.active, 1)
-	return nil
 }
 
 // Signal the semaphore. A random waiting goroutine will be waken up.
