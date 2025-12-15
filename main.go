@@ -17,8 +17,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/boltdb/bolt"
-	"github.com/cenkalti/boltbrowser/boltbrowser"
+	"github.com/br0xen/boltbrowser/pkg/boltbrowser"
 	"github.com/cenkalti/rain/v2/internal/console"
 	"github.com/cenkalti/rain/v2/internal/logger"
 	"github.com/cenkalti/rain/v2/internal/magnet"
@@ -564,12 +563,9 @@ func main() {
 }
 
 func handleBoltBrowser(c *cli.Context) error {
-	db, err := bolt.Open(c.String("file"), 0600, nil)
-	if err != nil {
-		return err
-	}
-	boltbrowser.Browse(db, false)
-	return db.Close()
+	args := boltbrowser.DefaultArgs()
+	files := []string{c.String("file")}
+	return boltbrowser.Main(args, files)
 }
 
 func handleCompactDatabase(c *cli.Context) error {
