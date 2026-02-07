@@ -114,6 +114,7 @@ type Stats struct {
 	}
 	Bytes struct {
 		Total      int64
+		Padding    int64
 		Allocated  int64
 		Completed  int64
 		Incomplete int64
