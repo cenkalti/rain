@@ -29,6 +29,7 @@ type Info struct {
 	Name        string
 	Hash        [20]byte
 	Length      int64
+	Padding     int64
 	NumPieces   uint32
 	Bytes       []byte
 	Private     bool
@@ -122,6 +123,9 @@ func NewInfo(b []byte, utf8 bool, pad bool) (*Info, error) {
 	if multiFile {
 		for _, f := range ib.Files {
 			i.Length += f.Length
+			if f.isPadding() {
+				i.Padding += f.Length
+			}
 		}
 	} else {
 		i.Length = ib.Length

@@ -39,6 +39,8 @@ type Stats struct {
 		Incomplete int64
 		// The number of total bytes of files in torrent.  Total = Completed + Incomplete
 		Total int64
+		// The number of total bytes of padding files in torrent.  Disk Size = Total - Padding
+		Padding int64
 		// Downloaded is the number of bytes downloaded from swarm.
 		// Because some pieces may be downloaded more than once, this number may be greater than completed bytes.
 		Downloaded int64
@@ -151,6 +153,7 @@ func (t *torrent) stats() Stats {
 
 	if t.info != nil {
 		s.Bytes.Total = t.info.Length
+		s.Bytes.Padding = t.info.Padding
 		s.Bytes.Completed = t.bytesComplete()
 		s.Bytes.Incomplete = s.Bytes.Total - s.Bytes.Completed
 
