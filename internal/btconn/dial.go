@@ -10,6 +10,9 @@ import (
 	"github.com/cenkalti/rain/v2/internal/mse"
 )
 
+// DialFunc is a function that dials a network connection, matching net.Dialer.DialContext signature.
+type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
+
 // Dial new connection to the address. Does the BitTorrent protocol handshake.
 // Handles encryption. May try to connect again if encryption does not match with given setting.
 // Returns a net.Conn that is ready for sending/receiving BitTorrent peer protocol messages.
@@ -21,7 +24,8 @@ func Dial(
 	ourExtensions [8]byte,
 	ih [20]byte,
 	ourID [20]byte,
-	stopC chan struct{}) (
+	stopC chan struct{},
+	customDial DialFunc) (
 	conn net.Conn, cipher mse.CryptoMethod, peerExtensions [8]byte, peerID [20]byte, err error) {
 	log := logger.New("conn -> " + addr.String())
 	done := make(chan struct{})
@@ -36,10 +40,17 @@ func Dial(
 		}
 	}()
 
+	dialFn := func(dctx context.Context, network, address string) (net.Conn, error) {
+		if customDial != nil {
+			return customDial(dctx, network, address)
+		}
+		dialer := net.Dialer{Timeout: dialTimeout}
+		return dialer.DialContext(dctx, network, address)
+	}
+
 	// First connection
 	log.Debug("Connecting to peer...")
-	dialer := net.Dialer{Timeout: dialTimeout}
-	conn, err = dialer.DialContext(ctx, addr.Network(), addr.String())
+	conn, err = dialFn(ctx, addr.Network(), addr.String())
 	if err != nil {
 		return
 	}
@@ -97,7 +108,7 @@ func Dial(
 			// Close current connection and try again without encryption
 			conn.Close()
 			log.Debug("Connecting again without encryption...")
-			conn, err = dialer.DialContext(ctx, addr.Network(), addr.String())
+			conn, err = dialFn(ctx, addr.Network(), addr.String())
 			if err != nil {
 				return
 			}

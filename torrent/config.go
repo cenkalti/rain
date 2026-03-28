@@ -1,7 +1,9 @@
 package torrent
 
 import (
+	"context"
 	"io/fs"
+	"net"
 	"time"
 
 	"github.com/cenkalti/log"
@@ -204,6 +206,12 @@ type Config struct {
 	CustomLogHandler log.Handler `yaml:"-"`
 	// Replace default storage provider
 	CustomStorage storage.Provider `yaml:"-"`
+
+	// CustomDialFunc, if set, is used for all outbound TCP connections
+	// (peer connections, tracker HTTP connections, webseed connections).
+	// This allows routing traffic through a custom network transport.
+	// The function signature matches net.Dialer.DialContext.
+	CustomDialFunc func(ctx context.Context, network, addr string) (net.Conn, error) `yaml:"-"`
 
 	// Enable debugging
 	Debug bool `yaml:"debug"`

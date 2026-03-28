@@ -16,6 +16,9 @@ import (
 	"github.com/cenkalti/rain/v2/internal/tracker/udptracker"
 )
 
+// DialFunc is a function that dials a network connection, matching net.Dialer.DialContext signature.
+type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
+
 // TrackerManager is a manager for using the same transport for same domains/IPs.
 // Manages both HTTP and UDP trackers.
 type TrackerManager struct {
@@ -24,7 +27,7 @@ type TrackerManager struct {
 }
 
 // New returns a new TrackerManager.
-func New(bl *blocklist.Blocklist, dnsTimeout time.Duration, tlsSkipVerify bool) *TrackerManager {
+func New(bl *blocklist.Blocklist, dnsTimeout time.Duration, tlsSkipVerify bool, customDial DialFunc) *TrackerManager {
 	m := &TrackerManager{
 		httpTransport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: tlsSkipVerify}, // nolint: gosec
@@ -37,8 +40,11 @@ func New(bl *blocklist.Blocklist, dnsTimeout time.Duration, tlsSkipVerify bool) 
 		if err != nil {
 			return nil, err
 		}
-		var d net.Dialer
 		taddr := &net.TCPAddr{IP: ip, Port: port}
+		if customDial != nil {
+			return customDial(ctx, network, taddr.String())
+		}
+		var d net.Dialer
 		return d.DialContext(ctx, network, taddr.String())
 	}
 	return m

@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/cenkalti/rain/v2/internal/bitfield"
+	"github.com/cenkalti/rain/v2/internal/btconn"
 	"github.com/cenkalti/rain/v2/internal/handshaker/outgoinghandshaker"
 	"github.com/cenkalti/rain/v2/internal/mse"
 	"github.com/cenkalti/rain/v2/internal/peer"
@@ -107,6 +108,10 @@ func (t *torrent) dialAddresses() {
 		h := outgoinghandshaker.New(addr, src)
 		t.outgoingHandshakers[h] = struct{}{}
 		t.connectedPeerIPs[ip] = struct{}{}
+		var customDial btconn.DialFunc
+		if t.session.config.CustomDialFunc != nil {
+			customDial = btconn.DialFunc(t.session.config.CustomDialFunc)
+		}
 		go h.Run(
 			t.session.config.PeerConnectTimeout,
 			t.session.config.PeerHandshakeTimeout,
@@ -116,6 +121,7 @@ func (t *torrent) dialAddresses() {
 			t.session.extensions,
 			t.session.config.DisableOutgoingEncryption,
 			t.session.config.ForceOutgoingEncryption,
+			customDial,
 		)
 	}
 }

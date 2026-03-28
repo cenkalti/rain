@@ -42,11 +42,11 @@ func (h *OutgoingHandshaker) Close() {
 }
 
 // Run the handshaker.
-func (h *OutgoingHandshaker) Run(dialTimeout, handshakeTimeout time.Duration, peerID, infoHash [20]byte, resultC chan *OutgoingHandshaker, ourExtensions [8]byte, disableOutgoingEncryption, forceOutgoingEncryption bool) {
+func (h *OutgoingHandshaker) Run(dialTimeout, handshakeTimeout time.Duration, peerID, infoHash [20]byte, resultC chan *OutgoingHandshaker, ourExtensions [8]byte, disableOutgoingEncryption, forceOutgoingEncryption bool, customDial btconn.DialFunc) {
 	defer close(h.doneC)
 	log := logger.New("peer -> " + h.Addr.String())
 
-	conn, cipher, peerExtensions, peerID, err := btconn.Dial(h.Addr, dialTimeout, handshakeTimeout, !disableOutgoingEncryption, forceOutgoingEncryption, ourExtensions, infoHash, peerID, h.closeC)
+	conn, cipher, peerExtensions, peerID, err := btconn.Dial(h.Addr, dialTimeout, handshakeTimeout, !disableOutgoingEncryption, forceOutgoingEncryption, ourExtensions, infoHash, peerID, h.closeC, customDial)
 	if err != nil {
 		if err == io.EOF {
 			log.Debug("peer has closed the connection: EOF")
