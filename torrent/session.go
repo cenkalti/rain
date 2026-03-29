@@ -167,7 +167,7 @@ func NewSession(cfg Config) (*Session, error) {
 		db:                 db,
 		resumer:            res,
 		blocklist:          bl,
-		trackerManager:     trackermanager.New(blTracker, cfg.DNSResolveTimeout, !cfg.TrackerHTTPVerifyTLS, trackermanager.DialFunc(cfg.CustomDialFunc)),
+		trackerManager:     trackermanager.New(blTracker, cfg.DNSResolveTimeout, !cfg.TrackerHTTPVerifyTLS, trackermanager.DialFunc(cfg.CustomDialFunc), cfg.DisableUDPTrackers),
 		log:                l,
 		torrents:           make(map[string]*Torrent),
 		torrentsByInfoHash: make(map[dht.InfoHash][]*Torrent),
@@ -186,14 +186,12 @@ func NewSession(cfg Config) (*Session, error) {
 						return nil, err
 					}
 					taddr := &net.TCPAddr{IP: ip, Port: port}
+					dctx, cancel := context.WithTimeout(ctx, cfg.WebseedDialTimeout)
+					defer cancel()
 					if cfg.CustomDialFunc != nil {
-						dctx, cancel := context.WithTimeout(ctx, cfg.WebseedDialTimeout)
-						defer cancel()
 						return cfg.CustomDialFunc(dctx, network, taddr.String())
 					}
 					var d net.Dialer
-					dctx, cancel := context.WithTimeout(ctx, cfg.WebseedDialTimeout)
-					defer cancel()
 					return d.DialContext(dctx, network, taddr.String())
 				},
 				TLSHandshakeTimeout:   cfg.WebseedTLSHandshakeTimeout,

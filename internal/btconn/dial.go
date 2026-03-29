@@ -40,12 +40,12 @@ func Dial(
 		}
 	}()
 
-	dialFn := func(dctx context.Context, network, address string) (net.Conn, error) {
-		if customDial != nil {
-			return customDial(dctx, network, address)
-		}
-		dialer := net.Dialer{Timeout: dialTimeout}
-		return dialer.DialContext(dctx, network, address)
+	var dialFn DialFunc
+	if customDial != nil {
+		dialFn = customDial
+	} else {
+		d := net.Dialer{Timeout: dialTimeout}
+		dialFn = d.DialContext
 	}
 
 	// First connection

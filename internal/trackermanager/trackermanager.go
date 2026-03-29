@@ -22,17 +22,19 @@ type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 // TrackerManager is a manager for using the same transport for same domains/IPs.
 // Manages both HTTP and UDP trackers.
 type TrackerManager struct {
-	httpTransport *http.Transport
-	udpTransport  *udptracker.Transport
+	httpTransport   *http.Transport
+	udpTransport    *udptracker.Transport
+	disableUDPTrackers bool
 }
 
 // New returns a new TrackerManager.
-func New(bl *blocklist.Blocklist, dnsTimeout time.Duration, tlsSkipVerify bool, customDial DialFunc) *TrackerManager {
+func New(bl *blocklist.Blocklist, dnsTimeout time.Duration, tlsSkipVerify bool, customDial DialFunc, disableUDPTrackers bool) *TrackerManager {
 	m := &TrackerManager{
 		httpTransport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: tlsSkipVerify}, // nolint: gosec
 		},
-		udpTransport: udptracker.NewTransport(bl, dnsTimeout),
+		udpTransport:       udptracker.NewTransport(bl, dnsTimeout),
+		disableUDPTrackers: disableUDPTrackers,
 	}
 	go m.udpTransport.Run()
 	m.httpTransport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -66,9 +68,24 @@ func (m *TrackerManager) Get(s string, httpTimeout time.Duration, httpUserAgent 
 		tr := httptracker.New(s, u, httpTimeout, m.httpTransport, httpUserAgent, httpMaxResponseLength)
 		return tr, nil
 	case "udp":
+		if m.disableUDPTrackers {
+			return disabledTracker{url: s}, nil
+		}
 		tr := udptracker.New(s, u, m.udpTransport)
 		return tr, nil
 	default:
 		return nil, fmt.Errorf("unsupported tracker scheme: %s", u.Scheme)
 	}
+}
+
+type disabledTracker struct {
+	url string
+}
+
+func (t disabledTracker) Announce(_ context.Context, _ tracker.AnnounceRequest) (*tracker.AnnounceResponse, error) {
+	return nil, fmt.Errorf("udp trackers are disabled")
+}
+
+func (t disabledTracker) URL() string {
+	return t.url
 }

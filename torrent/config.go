@@ -127,6 +127,8 @@ type Config struct {
 	TrackerHTTPMaxResponseSize uint `yaml:"tracker-http-max-response-size"`
 	// Check and validate TLS ceritificates.
 	TrackerHTTPVerifyTLS bool `yaml:"tracker-http-verify-tls"`
+	// Disable sending announces to UDP trackers.
+	DisableUDPTrackers bool `yaml:"disable-udp-trackers"`
 
 	// Number of unchoked peers.
 	UnchokedPeers int `yaml:"unchoked-peers"`
@@ -208,9 +210,13 @@ type Config struct {
 	CustomStorage storage.Provider `yaml:"-"`
 
 	// CustomDialFunc, if set, is used for all outbound TCP connections
-	// (peer connections, tracker HTTP connections, webseed connections).
-	// This allows routing traffic through a custom network transport.
+	// (peer connections, HTTP tracker connections, webseed connections,
+	// torrent URL fetching, and blocklist downloads).
+	// This allows routing traffic through a custom network transport (e.g. an embedded VPN).
 	// The function signature matches net.Dialer.DialContext.
+	// Note: DHT and UDP tracker traffic use UDP sockets and cannot be routed through this function.
+	// To prevent any traffic from leaking outside the custom network, also set
+	// DHTEnabled=false and DisableUDPTrackers=true.
 	CustomDialFunc func(ctx context.Context, network, addr string) (net.Conn, error) `yaml:"-"`
 
 	// Enable debugging
