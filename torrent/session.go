@@ -167,7 +167,7 @@ func NewSession(cfg Config) (*Session, error) {
 		db:                 db,
 		resumer:            res,
 		blocklist:          bl,
-		trackerManager:     trackermanager.New(blTracker, cfg.DNSResolveTimeout, !cfg.TrackerHTTPVerifyTLS, trackermanager.DialFunc(cfg.CustomDialFunc)),
+		trackerManager:     trackermanager.New(blTracker, cfg.DNSResolveTimeout, !cfg.TrackerHTTPVerifyTLS, trackermanager.DialFunc(cfg.CustomDialFunc), cfg.DisableUDPTrackers),
 		log:                l,
 		torrents:           make(map[string]*Torrent),
 		torrentsByInfoHash: make(map[dht.InfoHash][]*Torrent),
