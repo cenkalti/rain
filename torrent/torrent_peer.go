@@ -108,10 +108,7 @@ func (t *torrent) dialAddresses() {
 		h := outgoinghandshaker.New(addr, src)
 		t.outgoingHandshakers[h] = struct{}{}
 		t.connectedPeerIPs[ip] = struct{}{}
-		var customDial btconn.DialFunc
-		if t.session.config.CustomDialFunc != nil {
-			customDial = btconn.DialFunc(t.session.config.CustomDialFunc)
-		}
+		customDial := btconn.DialFunc(t.session.config.CustomDialFunc)
 		go h.Run(
 			t.session.config.PeerConnectTimeout,
 			t.session.config.PeerHandshakeTimeout,

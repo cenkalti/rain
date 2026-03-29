@@ -208,9 +208,11 @@ type Config struct {
 	CustomStorage storage.Provider `yaml:"-"`
 
 	// CustomDialFunc, if set, is used for all outbound TCP connections
-	// (peer connections, tracker HTTP connections, webseed connections).
-	// This allows routing traffic through a custom network transport.
+	// (peer connections, HTTP tracker connections, webseed connections,
+	// torrent URL fetching, and blocklist downloads).
+	// This allows routing traffic through a custom network transport (e.g. an embedded VPN).
 	// The function signature matches net.Dialer.DialContext.
+	// Note: DHT and UDP tracker traffic use UDP sockets and are not affected by this setting.
 	CustomDialFunc func(ctx context.Context, network, addr string) (net.Conn, error) `yaml:"-"`
 
 	// Enable debugging

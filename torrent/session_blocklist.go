@@ -119,6 +119,9 @@ func (s *Session) reloadBlocklist() error {
 	client := http.Client{
 		Timeout: s.config.BlocklistUpdateTimeout,
 	}
+	if s.config.CustomDialFunc != nil {
+		client.Transport = &http.Transport{DialContext: s.config.CustomDialFunc}
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {
