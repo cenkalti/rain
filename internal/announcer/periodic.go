@@ -2,6 +2,7 @@ package announcer
 
 import (
 	"context"
+	"errors"
 	"math"
 	"net"
 	"net/url"
@@ -30,6 +31,8 @@ const (
 	Working
 	// NotWorking as expected.
 	NotWorking
+	// Stopped permanently, no further announces will be made.
+	Stopped
 )
 
 // PeriodicalAnnouncer announces the Torrent to the Tracker periodically.
@@ -191,6 +194,11 @@ func (a *PeriodicalAnnouncer) Run() {
 			} else {
 				a.log.Debugln("announce error:", a.lastError.Err.Error())
 			}
+			if errors.Is(err, tracker.ErrUDPDisabled) {
+				a.status = Stopped
+				cancel()
+				return
+			}
 			interval := a.getNextIntervalFromError(a.lastError)
 			resetTimer(interval)
 		case <-a.needMorePeersC:
@@ -288,6 +296,9 @@ func (a *PeriodicalAnnouncer) newAnnounceError(err error) (e *AnnounceError) {
 		return
 	case tracker.ErrDecode:
 		e.Message = "invalid response from tracker"
+		return
+	case tracker.ErrUDPDisabled:
+		e.Message = "udp trackers are disabled"
 		return
 	}
 	if nerr, ok := err.(net.Error); ok && nerr.Timeout() {

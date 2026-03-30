@@ -166,6 +166,11 @@ func NewSession(cfg Config) (*Session, error) {
 	var customResolver *net.Resolver
 	if cfg.CustomDialFunc != nil {
 		customResolver = &net.Resolver{
+			// PreferGo forces the pure-Go resolver. Without this, Go may use
+			// the cgo resolver (libc getaddrinfo) under certain system configurations
+			// (e.g. nsswitch.conf features, LOCALDOMAIN env var), which bypasses
+			// our custom Dial function and leaks DNS outside the custom transport.
+			PreferGo: true,
 			Dial: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				return cfg.CustomDialFunc(ctx, network, addr)
 			},

@@ -73,6 +73,8 @@ type Config struct {
 	MaxPieces uint32 `yaml:"max-pieces"`
 	// Time to wait when resolving host names for trackers and peers.
 	DNSResolveTimeout time.Duration `yaml:"dns-resolve-timeout"`
+	// TLS handshake timeout for general HTTP requests (blocklist downloads, torrent URL fetching).
+	TLSHandshakeTimeout time.Duration `yaml:"tls-handshake-timeout"`
 	// Global download speed limit in KB/s.
 	SpeedLimitDownload int64 `yaml:"speed-limit-download"`
 	// Global upload speed limit in KB/s.
@@ -249,6 +251,7 @@ var DefaultConfig = Config{
 	MaxTorrentSize:                         10 << 20,
 	MaxPieces:                              64 << 10,
 	DNSResolveTimeout:                      5 * time.Second,
+	TLSHandshakeTimeout:                    10 * time.Second,
 	ResumeOnStartup:                        true,
 	HealthCheckInterval:                    10 * time.Second,
 	HealthCheckTimeout:                     60 * time.Second,

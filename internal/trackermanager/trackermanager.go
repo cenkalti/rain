@@ -3,7 +3,6 @@ package trackermanager
 import (
 	"context"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -88,7 +87,7 @@ type disabledTracker struct {
 }
 
 func (t disabledTracker) Announce(_ context.Context, _ tracker.AnnounceRequest) (*tracker.AnnounceResponse, error) {
-	return nil, errors.New("udp trackers are disabled")
+	return nil, tracker.ErrUDPDisabled
 }
 
 func (t disabledTracker) URL() string {

@@ -122,7 +122,7 @@ func (s *Session) reloadBlocklist() error {
 	if s.config.CustomDialFunc != nil {
 		client.Transport = &http.Transport{
 			DialContext:          s.config.CustomDialFunc,
-			TLSHandshakeTimeout: 10 * time.Second,
+			TLSHandshakeTimeout: s.config.TLSHandshakeTimeout,
 		}
 	}
 

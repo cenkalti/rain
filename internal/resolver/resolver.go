@@ -54,11 +54,10 @@ func ResolveIPv4(ctx context.Context, timeout time.Duration, host string, res *n
 	var cancel func()
 	ctx, cancel = context.WithTimeout(ctx, timeout)
 	defer cancel()
-	r := res
-	if r == nil {
-		r = net.DefaultResolver
+	if res == nil {
+		res = net.DefaultResolver
 	}
-	addrs, err := r.LookupIPAddr(ctx, host)
+	addrs, err := res.LookupIPAddr(ctx, host)
 	if err != nil {
 		return nil, err
 	}

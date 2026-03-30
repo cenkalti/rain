@@ -39,6 +39,9 @@ type AnnounceResponse struct {
 // ErrDecode is returned from Tracker.Announce method when there is problem with the encoding of response.
 var ErrDecode = errors.New("cannot decode response")
 
+// ErrUDPDisabled is returned when a UDP tracker is contacted but UDP trackers are disabled in config.
+var ErrUDPDisabled = errors.New("udp trackers are disabled")
+
 // Error is the string that is sent by the tracker from announce or scrape.
 type Error struct {
 	FailureReason string
