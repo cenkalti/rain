@@ -58,6 +58,7 @@ type PeriodicalAnnouncer struct {
 	responseC     chan *tracker.AnnounceResponse
 	errC          chan error
 	closeC        chan struct{}
+	closeOnce     sync.Once
 	doneC         chan struct{}
 
 	needMorePeers  bool
@@ -93,7 +94,7 @@ func NewPeriodicalAnnouncer(trk tracker.Tracker, numWant int, minInterval time.D
 
 // Close the announcer.
 func (a *PeriodicalAnnouncer) Close() {
-	close(a.closeC)
+	a.closeOnce.Do(func() { close(a.closeC) })
 	<-a.doneC
 }
 
@@ -103,6 +104,13 @@ type statsRequest struct {
 
 // Stats about the tracker and the announce operation.
 func (a *PeriodicalAnnouncer) Stats() Stats {
+	// If Run has exited, return the last known state directly
+	// since the event loop is no longer processing statsCommandC.
+	select {
+	case <-a.doneC:
+		return a.stats()
+	default:
+	}
 	var stats Stats
 	req := statsRequest{Response: make(chan Stats, 1)}
 	select {
@@ -196,6 +204,7 @@ func (a *PeriodicalAnnouncer) Run() {
 			}
 			if errors.Is(err, tracker.ErrUDPDisabled) {
 				a.status = Stopped
+				a.closeOnce.Do(func() { close(a.closeC) })
 				cancel()
 				return
 			}

@@ -178,6 +178,8 @@ const (
 	Working
 	// NotWorking indicates that the tracker didn't respond or returned an error.
 	NotWorking
+	// TrackerStopped indicates the tracker is permanently disabled and will not be contacted.
+	TrackerStopped
 )
 
 func trackerStatusToString(s TrackerStatus) string {
@@ -186,6 +188,7 @@ func trackerStatusToString(s TrackerStatus) string {
 		Contacting:      "Contacting",
 		Working:         "Working",
 		NotWorking:      "Not working",
+		TrackerStopped:  "Stopped",
 	}
 	return m[s]
 }
