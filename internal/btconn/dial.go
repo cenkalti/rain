@@ -44,13 +44,15 @@ func Dial(
 	if customDial != nil {
 		dialFn = customDial
 	} else {
-		d := net.Dialer{Timeout: dialTimeout}
+		var d net.Dialer
 		dialFn = d.DialContext
 	}
 
 	// First connection
 	log.Debug("Connecting to peer...")
-	conn, err = dialFn(ctx, addr.Network(), addr.String())
+	dialCtx, dialCancel := context.WithTimeout(ctx, dialTimeout)
+	conn, err = dialFn(dialCtx, addr.Network(), addr.String())
+	dialCancel()
 	if err != nil {
 		return
 	}
@@ -108,7 +110,9 @@ func Dial(
 			// Close current connection and try again without encryption
 			conn.Close()
 			log.Debug("Connecting again without encryption...")
-			conn, err = dialFn(ctx, addr.Network(), addr.String())
+			dialCtx2, dialCancel2 := context.WithTimeout(ctx, dialTimeout)
+			conn, err = dialFn(dialCtx2, addr.Network(), addr.String())
+			dialCancel2()
 			if err != nil {
 				return
 			}

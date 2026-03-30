@@ -3,6 +3,7 @@ package trackermanager
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -28,17 +29,19 @@ type TrackerManager struct {
 }
 
 // New returns a new TrackerManager.
-func New(bl *blocklist.Blocklist, dnsTimeout time.Duration, tlsSkipVerify bool, customDial DialFunc, disableUDPTrackers bool) *TrackerManager {
+func New(bl *blocklist.Blocklist, dnsTimeout time.Duration, tlsSkipVerify bool, customDial DialFunc, disableUDPTrackers bool, dnsResolver *net.Resolver) *TrackerManager {
 	m := &TrackerManager{
 		httpTransport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: tlsSkipVerify}, // nolint: gosec
 		},
-		udpTransport:       udptracker.NewTransport(bl, dnsTimeout),
 		disableUDPTrackers: disableUDPTrackers,
 	}
-	go m.udpTransport.Run()
+	if !disableUDPTrackers {
+		m.udpTransport = udptracker.NewTransport(bl, dnsTimeout, dnsResolver)
+		go m.udpTransport.Run()
+	}
 	m.httpTransport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-		ip, port, err := resolver.Resolve(ctx, addr, dnsTimeout, bl)
+		ip, port, err := resolver.Resolve(ctx, addr, dnsTimeout, bl, dnsResolver)
 		if err != nil {
 			return nil, err
 		}
@@ -54,7 +57,9 @@ func New(bl *blocklist.Blocklist, dnsTimeout time.Duration, tlsSkipVerify bool, 
 
 func (m *TrackerManager) Close() {
 	m.httpTransport.CloseIdleConnections()
-	m.udpTransport.Close()
+	if m.udpTransport != nil {
+		m.udpTransport.Close()
+	}
 }
 
 // Get a new Tracker implementation from the manager.
@@ -83,7 +88,7 @@ type disabledTracker struct {
 }
 
 func (t disabledTracker) Announce(_ context.Context, _ tracker.AnnounceRequest) (*tracker.AnnounceResponse, error) {
-	return nil, fmt.Errorf("udp trackers are disabled")
+	return nil, errors.New("udp trackers are disabled")
 }
 
 func (t disabledTracker) URL() string {

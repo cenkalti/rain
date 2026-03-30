@@ -162,7 +162,10 @@ func (s *Session) addURL(u string, opt *AddTorrentOptions) (*Torrent, error) {
 		Timeout: s.config.TorrentAddHTTPTimeout,
 	}
 	if s.config.CustomDialFunc != nil {
-		client.Transport = &http.Transport{DialContext: s.config.CustomDialFunc}
+		client.Transport = &http.Transport{
+			DialContext:          s.config.CustomDialFunc,
+			TLSHandshakeTimeout: 10 * time.Second,
+		}
 	}
 	resp, err := client.Get(u) // nolint: noctx
 	if err != nil {

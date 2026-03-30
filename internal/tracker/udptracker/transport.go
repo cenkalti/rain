@@ -29,6 +29,7 @@ type Transport struct {
 	blocklist  *blocklist.Blocklist
 	log        logger.Logger
 	dnsTimeout time.Duration
+	resolver   *net.Resolver
 
 	// Transport.Do will send messages to this channel.
 	requestC chan *transportRequest
@@ -44,11 +45,12 @@ type Transport struct {
 }
 
 // NewTransport returns a new UDP tracker transport.
-func NewTransport(bl *blocklist.Blocklist, dnsTimeout time.Duration) *Transport {
+func NewTransport(bl *blocklist.Blocklist, dnsTimeout time.Duration, resolver *net.Resolver) *Transport {
 	return &Transport{
 		blocklist:  bl,
 		log:        logger.New("udp tracker transport"),
 		dnsTimeout: dnsTimeout,
+		resolver:   resolver,
 		requestC:   make(chan *transportRequest),
 		readC:      make(chan []byte),
 		closeC:     make(chan struct{}),
@@ -132,7 +134,7 @@ func (t *Transport) Run() {
 				if err != nil {
 					conn.SetResponse(nil, err)
 				} else {
-					go resolveDestinationAndConnect(trx, req.dest, udpConn, t.dnsTimeout, t.blocklist, connectDone, t.closeC)
+					go resolveDestinationAndConnect(trx, req.dest, udpConn, t.dnsTimeout, t.blocklist, t.resolver, connectDone, t.closeC)
 				}
 			} else {
 				if !conn.connectedAt.IsZero() {
@@ -289,13 +291,13 @@ type connectionResult struct {
 	connectedAt time.Time
 }
 
-func resolveDestinationAndConnect(trx *transaction, dest string, udpConn *net.UDPConn, dnsTimeout time.Duration, blocklist *blocklist.Blocklist, resultC chan *connectionResult, stopC chan struct{}) {
+func resolveDestinationAndConnect(trx *transaction, dest string, udpConn *net.UDPConn, dnsTimeout time.Duration, blocklist *blocklist.Blocklist, dnsResolver *net.Resolver, resultC chan *connectionResult, stopC chan struct{}) {
 	res := &connectionResult{
 		trx:  trx,
 		dest: dest,
 	}
 
-	ip, port, err := resolver.Resolve(trx.ctx, dest, dnsTimeout, blocklist)
+	ip, port, err := resolver.Resolve(trx.ctx, dest, dnsTimeout, blocklist, dnsResolver)
 	if err != nil {
 		res.err = err
 		select {

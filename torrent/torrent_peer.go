@@ -57,7 +57,7 @@ func (t *torrent) resolveAndAddPeer(host string, port int) {
 		}
 		cancel()
 	}()
-	ip, err := resolver.ResolveIPv4(ctx, t.session.config.DNSResolveTimeout, host)
+	ip, err := resolver.ResolveIPv4(ctx, t.session.config.DNSResolveTimeout, host, t.session.customResolver)
 	if err != nil {
 		return
 	}

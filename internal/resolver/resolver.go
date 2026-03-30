@@ -20,7 +20,7 @@ var (
 )
 
 // Resolve `hostport` to an IPv4 address.
-func Resolve(ctx context.Context, hostport string, timeout time.Duration, bl *blocklist.Blocklist) (net.IP, int, error) {
+func Resolve(ctx context.Context, hostport string, timeout time.Duration, bl *blocklist.Blocklist, res *net.Resolver) (net.IP, int, error) {
 	host, portStr, err := net.SplitHostPort(hostport)
 	if err != nil {
 		return nil, 0, err
@@ -34,7 +34,7 @@ func Resolve(ctx context.Context, hostport string, timeout time.Duration, bl *bl
 	}
 	ip := net.ParseIP(host)
 	if ip == nil {
-		ip, err = ResolveIPv4(ctx, timeout, host)
+		ip, err = ResolveIPv4(ctx, timeout, host, res)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -50,11 +50,15 @@ func Resolve(ctx context.Context, hostport string, timeout time.Duration, bl *bl
 }
 
 // ResolveIPv4 resolves `host` to and IPv4 address.
-func ResolveIPv4(ctx context.Context, timeout time.Duration, host string) (net.IP, error) {
+func ResolveIPv4(ctx context.Context, timeout time.Duration, host string, res *net.Resolver) (net.IP, error) {
 	var cancel func()
 	ctx, cancel = context.WithTimeout(ctx, timeout)
 	defer cancel()
-	addrs, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+	r := res
+	if r == nil {
+		r = net.DefaultResolver
+	}
+	addrs, err := r.LookupIPAddr(ctx, host)
 	if err != nil {
 		return nil, err
 	}

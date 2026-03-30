@@ -42,6 +42,7 @@ var (
 // Session contains torrents, DHT node, caches and other data structures shared by multiple torrents.
 type Session struct {
 	config         Config
+	customResolver *net.Resolver
 	db             *bbolt.DB
 	storage        storage.Provider
 	resumer        *boltdbresumer.Resumer
@@ -162,12 +163,21 @@ func NewSession(cfg Config) (*Session, error) {
 	if cfg.BlocklistEnabledForTrackers {
 		blTracker = bl
 	}
+	var customResolver *net.Resolver
+	if cfg.CustomDialFunc != nil {
+		customResolver = &net.Resolver{
+			Dial: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				return cfg.CustomDialFunc(ctx, network, addr)
+			},
+		}
+	}
 	c := &Session{
 		config:             cfg,
+		customResolver:     customResolver,
 		db:                 db,
 		resumer:            res,
 		blocklist:          bl,
-		trackerManager:     trackermanager.New(blTracker, cfg.DNSResolveTimeout, !cfg.TrackerHTTPVerifyTLS, trackermanager.DialFunc(cfg.CustomDialFunc), cfg.DisableUDPTrackers),
+		trackerManager:     trackermanager.New(blTracker, cfg.DNSResolveTimeout, !cfg.TrackerHTTPVerifyTLS, trackermanager.DialFunc(cfg.CustomDialFunc), cfg.DisableUDPTrackers, customResolver),
 		log:                l,
 		torrents:           make(map[string]*Torrent),
 		torrentsByInfoHash: make(map[dht.InfoHash][]*Torrent),
@@ -181,7 +191,7 @@ func NewSession(cfg Config) (*Session, error) {
 		webseedClient: http.Client{
 			Transport: &http.Transport{
 				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-					ip, port, err := resolver.Resolve(ctx, addr, cfg.DNSResolveTimeout, bl)
+					ip, port, err := resolver.Resolve(ctx, addr, cfg.DNSResolveTimeout, bl, customResolver)
 					if err != nil {
 						return nil, err
 					}

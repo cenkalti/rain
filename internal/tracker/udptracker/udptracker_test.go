@@ -55,7 +55,7 @@ func TestUDPTracker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tr := udptracker.NewTransport(nil, 5*time.Second)
+	tr := udptracker.NewTransport(nil, 5*time.Second, nil)
 	go tr.Run()
 	defer tr.Close()
 	trk := udptracker.New(rawURL, u, tr)

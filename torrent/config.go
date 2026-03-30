@@ -212,6 +212,7 @@ type Config struct {
 	// CustomDialFunc, if set, is used for all outbound TCP connections
 	// (peer connections, HTTP tracker connections, webseed connections,
 	// torrent URL fetching, and blocklist downloads).
+	// DNS resolution is also routed through this transport when set.
 	// This allows routing traffic through a custom network transport (e.g. an embedded VPN).
 	// The function signature matches net.Dialer.DialContext.
 	// Note: DHT and UDP tracker traffic use UDP sockets and cannot be routed through this function.

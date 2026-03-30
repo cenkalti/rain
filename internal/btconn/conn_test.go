@@ -1,6 +1,7 @@
 package btconn
 
 import (
+	"context"
 	"net"
 	"testing"
 	"time"
@@ -28,7 +29,7 @@ func TestUnencrypted(t *testing.T) {
 	var gerr error
 	go func() {
 		defer close(done)
-		conn, cipher, ext, id, err2 := Dial(&net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: port}, 10*time.Second, 10*time.Second, false, false, ext1, infoHash, id1, nil)
+		conn, cipher, ext, id, err2 := Dial(&net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: port}, 10*time.Second, 10*time.Second, false, false, ext1, infoHash, id1, nil, nil)
 		if err2 != nil {
 			gerr = err2
 			return
@@ -83,7 +84,7 @@ func TestEncrypted(t *testing.T) {
 	var gerr error
 	go func() {
 		defer close(done)
-		conn, cipher, ext, id, err2 := Dial(&net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: port}, 10*time.Second, 10*time.Second, true, true, ext1, infoHash, id1, nil)
+		conn, cipher, ext, id, err2 := Dial(&net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: port}, 10*time.Second, 10*time.Second, true, true, ext1, infoHash, id1, nil, nil)
 		if err2 != nil {
 			gerr = err2
 			return
@@ -167,5 +168,50 @@ func TestEncrypted(t *testing.T) {
 	<-done
 	if gerr != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestCustomDialTimeout(t *testing.T) {
+	l, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.IPv4(0, 0, 0, 0), Port: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+	port := l.Addr().(*net.TCPAddr).Port
+
+	dialTimeout := 2 * time.Second
+	var receivedDeadline bool
+
+	customDial := func(ctx context.Context, network, addr string) (net.Conn, error) {
+		if _, ok := ctx.Deadline(); ok {
+			receivedDeadline = true
+		}
+		var d net.Dialer
+		return d.DialContext(ctx, network, addr)
+	}
+
+	done := make(chan struct{})
+	var gerr error
+	go func() {
+		defer close(done)
+		_, _, _, _, err2 := Dial(
+			&net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: port},
+			dialTimeout, 10*time.Second,
+			false, false, ext1, infoHash, id1, nil, customDial)
+		if err2 != nil {
+			gerr = err2
+		}
+	}()
+	conn, err := l.Accept()
+	if err != nil {
+		t.Fatal(err)
+	}
+	Accept(conn, 10*time.Second, nil, false, func(ih [20]byte) bool { return ih == infoHash }, ext2, id2) // nolint: errcheck
+	<-done
+	if gerr != nil {
+		t.Fatal(gerr)
+	}
+	if !receivedDeadline {
+		t.Error("custom dial function did not receive context with deadline")
 	}
 }
