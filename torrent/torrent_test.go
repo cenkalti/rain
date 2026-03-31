@@ -186,6 +186,13 @@ func TestTorrentFiles(t *testing.T) {
 	assertCompleted(t, tor)
 }
 
+// startHTTPTracker starts a chihaya HTTP tracker on 127.0.0.1:5000.
+//
+// Known issue: chihaya's HTTP frontend spawns fire-and-forget goroutines for
+// AfterAnnounce (frontend/http/frontend.go:341) that are not tracked by any
+// WaitGroup. This causes a data race between peerStore.Stop() and in-flight
+// AfterAnnounce goroutines during test cleanup. The time.Sleep below is a
+// best-effort workaround; a proper fix requires patching chihaya.
 func startHTTPTracker(t *testing.T) {
 	t.Helper()
 	responseConfig := middleware.ResponseConfig{

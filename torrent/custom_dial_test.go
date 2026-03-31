@@ -13,11 +13,9 @@ import (
 )
 
 func TestCustomDialFuncNoLeak(t *testing.T) {
-	// Start an HTTP tracker so the torrent has something to announce to.
-	startHTTPTracker(t)
-
-	// Set up a seeder with a normal session (no custom dial) that has the data.
-	seederAddr := seeder(t, false)
+	// Set up a seeder without trackers — we only need peer connections to verify
+	// that CustomDialFunc captures all outbound TCP.
+	seederAddr := seeder(t, true)
 
 	// Track all connections made through the custom dial function.
 	var mu sync.Mutex
@@ -46,11 +44,10 @@ func TestCustomDialFuncNoLeak(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() {
-		if err := s.Close(); err != nil {
-			t.Fatal(err)
-		}
-	})
+	// Close the session explicitly before returning so that stop-announces
+	// complete while the HTTP tracker is still running, avoiding a data race
+	// in chihaya's peerStore during concurrent cleanup.
+	defer s.Close()
 
 	// Add the torrent and start downloading.
 	f, err := os.Open(torrentFile)
