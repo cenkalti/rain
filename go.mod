@@ -6,7 +6,7 @@ require (
 	github.com/br0xen/boltbrowser v0.0.0-20251215133654-65c868158373
 	github.com/cenkalti/backoff/v5 v5.0.3
 	github.com/cenkalti/log v1.0.0
-	github.com/chihaya/chihaya v1.0.1-0.20230615203145-2f794401e44a
+	github.com/chihaya/chihaya v2.0.0-rc.2+incompatible
 	github.com/fatih/structs v1.1.0
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/google/btree v1.1.3
@@ -60,7 +60,6 @@ require (
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/youtube/vitess v3.0.0-rc.3+incompatible // indirect
 	golang.org/x/crypto v0.45.0 // indirect
