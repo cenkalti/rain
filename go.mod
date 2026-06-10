@@ -1,6 +1,6 @@
 module github.com/cenkalti/rain/v2
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/br0xen/boltbrowser v0.0.0-20251215133654-65c868158373
@@ -24,7 +24,7 @@ require (
 	go.etcd.io/bbolt v1.4.3
 	go.uber.org/goleak v1.3.0
 	golang.org/x/sync v0.19.0
-	golang.org/x/sys v0.39.0
+	golang.org/x/sys v0.46.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
