@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"net/http"
@@ -602,6 +603,7 @@ func (h *rpcHandler) handleMoveTorrent(w http.ResponseWriter, r *http.Request) {
 }
 
 func readData(r io.Reader, dir string, perm fs.FileMode) error {
+	dir = filepath.Clean(dir)
 	tr := tar.NewReader(r)
 	for {
 		hdr, err := tr.Next()
@@ -612,6 +614,12 @@ func readData(r io.Reader, dir string, perm fs.FileMode) error {
 			return err
 		}
 		name := filepath.Join(dir, hdr.Name)
+		// Reject entries that escape the destination directory (tar slip).
+		// filepath.Join cleans ".." segments, so a malicious header name
+		// would otherwise resolve to a path outside dir.
+		if name != dir && !strings.HasPrefix(name, dir+string(os.PathSeparator)) {
+			return fmt.Errorf("tar entry %q escapes destination directory", hdr.Name)
+		}
 		err = os.MkdirAll(filepath.Dir(name), os.ModeDir|perm)
 		if err != nil {
 			return err
