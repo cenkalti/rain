@@ -90,6 +90,40 @@ func (d *URLDownloader) Run(client *http.Client, pieces []piece.Piece, multifile
 	var n int // position in piece
 	buf := pool.Get(int(pieces[d.current].Length))
 
+	// completePiece sends the filled piece buffer as a result and prepares
+	// the buffer for the next piece. Returns true if this was the last piece.
+	completePiece := func() (done bool) {
+		index := d.current
+		done = d.current >= d.readEnd()-1
+		d.sendResult(resultC, &PieceResult{Downloader: d, Buffer: buf, Index: index, Done: done})
+		if done {
+			return true
+		}
+		d.incrCurrent()
+		// Allocate new buffer for next piece
+		n = 0
+		buf = pool.Get(int(pieces[d.current].Length))
+		return false
+	}
+
+	// processPadding advances the position in the piece buffer without making
+	// a request. Padding files do not exist on the server. Their bytes are
+	// always zero and the buffer comes zeroed from the pool.
+	processPadding := func(job downloadJob) bool {
+		var m int64 // position in padding
+		for m < job.Length {
+			skipSize := calcReadSize(buf, n, job, m)
+			n += int(skipSize)
+			m += skipSize
+			if n == len(buf.Data) { // piece completed
+				if completePiece() {
+					return true
+				}
+			}
+		}
+		return true
+	}
+
 	processJob := func(job downloadJob) bool {
 		u := d.getURL(job.Filename, multifile)
 		req, err := http.NewRequest(http.MethodGet, u, nil)
@@ -131,22 +165,20 @@ func (d *URLDownloader) Run(client *http.Client, pieces []piece.Piece, multifile
 			n += o
 			m += int64(o)
 			if n == len(buf.Data) { // piece completed
-				index := d.current
-				done := d.current >= d.readEnd()-1
-				d.sendResult(resultC, &PieceResult{Downloader: d, Buffer: buf, Index: index, Done: done})
-				if done {
+				if completePiece() {
 					return true
 				}
-				d.incrCurrent()
-				// Allocate new buffer for next piece
-				n = 0
-				buf = pool.Get(int(pieces[d.current].Length))
 			}
 		}
 		return true
 	}
 	for _, job := range jobs {
-		ok := processJob(job)
+		var ok bool
+		if job.Padding {
+			ok = processPadding(job)
+		} else {
+			ok = processJob(job)
+		}
 		if !ok {
 			buf.Release()
 			break
