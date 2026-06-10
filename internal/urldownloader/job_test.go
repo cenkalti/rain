@@ -113,3 +113,44 @@ func TestCreateJobs(t *testing.T) {
 	}, createJobs(pieces, 2, 3))
 	assert.Equal(t, ([]downloadJob)(nil), createJobs(pieces, 2, 2))
 }
+
+func TestCreateJobsPadding(t *testing.T) {
+	// Piece length is 16. fileA and fileB are aligned to piece boundaries
+	// with padding files (BEP 47). fileB spans pieces 1 and 2.
+	pieces := []piece.Piece{
+		{
+			Data: []filesection.FileSection{
+				{Name: "fileA", Offset: 0, Length: 10},
+				{Name: ".pad/6", Offset: 0, Length: 6, Padding: true},
+			},
+		},
+		{
+			Data: []filesection.FileSection{
+				{Name: "fileB", Offset: 0, Length: 16},
+			},
+		},
+		{
+			Data: []filesection.FileSection{
+				{Name: "fileB", Offset: 16, Length: 4},
+				{Name: ".pad/12", Offset: 0, Length: 12, Padding: true},
+			},
+		},
+		{
+			Data: []filesection.FileSection{
+				{Name: "fileC", Offset: 0, Length: 4},
+			},
+		},
+	}
+	assert.Equal(t, []downloadJob{
+		{Filename: "fileA", RangeBegin: 0, Length: 10},
+		{Filename: ".pad/6", RangeBegin: 0, Length: 6, Padding: true},
+		{Filename: "fileB", RangeBegin: 0, Length: 20},
+		{Filename: ".pad/12", RangeBegin: 0, Length: 12, Padding: true},
+		{Filename: "fileC", RangeBegin: 0, Length: 4},
+	}, createJobs(pieces, 0, 4))
+	assert.Equal(t, []downloadJob{
+		{Filename: "fileB", RangeBegin: 16, Length: 4},
+		{Filename: ".pad/12", RangeBegin: 0, Length: 12, Padding: true},
+		{Filename: "fileC", RangeBegin: 0, Length: 4},
+	}, createJobs(pieces, 2, 4))
+}

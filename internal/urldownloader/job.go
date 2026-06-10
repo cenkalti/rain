@@ -8,6 +8,10 @@ type downloadJob struct {
 	Filename   string
 	RangeBegin int64
 	Length     int64
+	// Padding jobs are not requested from the server because padding files
+	// do not exist there. Their bytes are always zero and are skipped over
+	// in the piece buffer instead.
+	Padding bool
 }
 
 func createJobs(pieces []piece.Piece, begin, end uint32) []downloadJob {
@@ -24,10 +28,11 @@ func createJobs(pieces []piece.Piece, begin, end uint32) []downloadJob {
 					Filename:   sec.Name,
 					RangeBegin: sec.Offset,
 					Length:     sec.Length,
+					Padding:    sec.Padding,
 				}
 				continue
 			}
-			if sec.Name == job.Filename {
+			if sec.Name == job.Filename && sec.Padding == job.Padding {
 				job.Length += sec.Length
 				continue
 			}
@@ -38,6 +43,7 @@ func createJobs(pieces []piece.Piece, begin, end uint32) []downloadJob {
 				Filename:   sec.Name,
 				RangeBegin: sec.Offset,
 				Length:     sec.Length,
+				Padding:    sec.Padding,
 			}
 		}
 	}
