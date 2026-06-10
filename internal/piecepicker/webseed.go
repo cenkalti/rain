@@ -153,6 +153,9 @@ func (p *PiecePicker) pickLastPieceOfSmallestGap(pe *peer.Peer) *myPiece {
 		// Convert index to int because it goes below zero in loop.
 		for i := int(gap.End - 1); i >= int(gap.Begin); i-- {
 			mp := &p.pieces[i]
+			if mp.Requested.Len() > 0 {
+				continue
+			}
 			if !mp.Having.Has(pe) {
 				continue
 			}
