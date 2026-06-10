@@ -239,8 +239,8 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 			t.closePeer(pe)
 			break
 		}
-		if msg.Begin+msg.Length > t.pieces[msg.Index].Length {
-			pe.Logger().Errorln("invalid request length:", msg.Length)
+		if !validPieceRequest(msg.Begin, msg.Length, t.pieces[msg.Index].Length) {
+			pe.Logger().Errorln("invalid request begin:", msg.Begin, "length:", msg.Length)
 			t.closePeer(pe)
 			break
 		}
@@ -357,6 +357,14 @@ func (t *torrent) handlePeerMessage(pm peer.Message) {
 	default:
 		t.crash(fmt.Sprintf("unhandled peer message type: %T", msg))
 	}
+}
+
+// validPieceRequest reports whether a peer's "request" message for a block of
+// the given piece length is in bounds. begin and length are attacker-controlled
+// uint32 values, so the sum is computed in uint64 to avoid an overflow that
+// would let a request with a large begin slip past the bounds check.
+func validPieceRequest(begin, length, pieceLength uint32) bool {
+	return length != 0 && uint64(begin)+uint64(length) <= uint64(pieceLength)
 }
 
 func (t *torrent) updateInterestedState(pe *peer.Peer) {
