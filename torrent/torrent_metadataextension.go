@@ -66,6 +66,8 @@ func (t *torrent) handleMetadataMessage(pe *peer.Peer, msg peerprotocol.Extensio
 			break
 		}
 		if !id.Done() {
+			pe.Snubbed = false
+			delete(t.infoDownloadersSnubbed, pe)
 			id.RequestBlocks(t.maxAllowedRequests(pe))
 			pe.ResetSnubTimer()
 			break
