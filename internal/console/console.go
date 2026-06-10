@@ -1,10 +1,11 @@
 package console
 
 import (
+	"cmp"
 	"fmt"
 	"io"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -660,12 +661,11 @@ func (c *Console) updateSessionStatsLoop(g *gocui.Gui, stop chan struct{}) {
 func (c *Console) updateTorrents(g *gocui.Gui) {
 	rpcTorrents, err := c.client.ListTorrents()
 
-	sort.Slice(rpcTorrents, func(i, j int) bool {
-		a, b := rpcTorrents[i], rpcTorrents[j]
-		if a.AddedAt.Equal(b.AddedAt.Time) {
-			return a.ID < b.ID
-		}
-		return a.AddedAt.Before(b.AddedAt.Time)
+	slices.SortFunc(rpcTorrents, func(a, b rpctypes.Torrent) int {
+		return cmp.Or(
+			a.AddedAt.Compare(b.AddedAt.Time),
+			cmp.Compare(a.ID, b.ID),
+		)
 	})
 
 	torrents := make([]Torrent, 0, len(rpcTorrents))
@@ -742,19 +742,18 @@ func (c *Console) updateDetails(g *gocui.Gui) {
 		c.m.Unlock()
 	case trackers:
 		trackers, err := c.client.GetTorrentTrackers(selectedID)
-		sort.Slice(trackers, func(i, j int) bool { return trackers[i].URL < trackers[j].URL })
+		slices.SortFunc(trackers, func(a, b rpctypes.Tracker) int { return cmp.Compare(a.URL, b.URL) })
 		c.m.Lock()
 		c.trackers = trackers
 		c.errDetails = err
 		c.m.Unlock()
 	case peers:
 		peers, err := c.client.GetTorrentPeers(selectedID)
-		sort.Slice(peers, func(i, j int) bool {
-			a, b := peers[i], peers[j]
-			if a.ConnectedAt.Equal(b.ConnectedAt.Time) {
-				return a.Addr < b.Addr
-			}
-			return a.ConnectedAt.Before(b.ConnectedAt.Time)
+		slices.SortFunc(peers, func(a, b rpctypes.Peer) int {
+			return cmp.Or(
+				a.ConnectedAt.Compare(b.ConnectedAt.Time),
+				cmp.Compare(a.Addr, b.Addr),
+			)
 		})
 		c.m.Lock()
 		c.peers = peers
@@ -762,10 +761,7 @@ func (c *Console) updateDetails(g *gocui.Gui) {
 		c.m.Unlock()
 	case webseeds:
 		webseeds, err := c.client.GetTorrentWebseeds(selectedID)
-		sort.Slice(webseeds, func(i, j int) bool {
-			a, b := webseeds[i], webseeds[j]
-			return a.URL < b.URL
-		})
+		slices.SortFunc(webseeds, func(a, b rpctypes.Webseed) int { return cmp.Compare(a.URL, b.URL) })
 		c.m.Lock()
 		c.webseeds = webseeds
 		c.errDetails = err

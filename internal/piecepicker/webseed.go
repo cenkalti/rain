@@ -1,8 +1,9 @@
 package piecepicker
 
 import (
+	"cmp"
 	"math/rand"
-	"sort"
+	"slices"
 
 	"github.com/cenkalti/rain/v2/internal/peer"
 	"github.com/cenkalti/rain/v2/internal/webseedsource"
@@ -54,7 +55,7 @@ func (p *PiecePicker) findPieceRangeForWebseed() *Range {
 }
 
 func selectRandomLargestGap(gaps []Range) Range {
-	sort.Slice(gaps, func(i, j int) bool { return gaps[i].Len() > gaps[j].Len() })
+	slices.SortFunc(gaps, func(a, b Range) int { return cmp.Compare(b.Len(), a.Len()) })
 	length := gaps[0].Len()
 	for i := range gaps {
 		if gaps[i].Len() != length {
@@ -79,7 +80,7 @@ func (p *PiecePicker) webseedStealsFromAnotherWebseed() *Range {
 	if len(downloading) == 0 {
 		return nil
 	}
-	sort.Slice(downloading, func(i, j int) bool { return downloading[i].Remaining() > downloading[j].Remaining() })
+	slices.SortFunc(downloading, func(a, b *webseedsource.WebseedSource) int { return cmp.Compare(b.Remaining(), a.Remaining()) })
 	src := downloading[0]
 	r := &Range{
 		Begin: (src.Downloader.ReadCurrent() + src.Downloader.End + 1) / 2,
@@ -148,7 +149,7 @@ func (p *PiecePicker) pickLastPieceOfSmallestGap(pe *peer.Peer) *myPiece {
 	if len(gaps) == 0 {
 		return nil
 	}
-	sort.Slice(gaps, func(i, j int) bool { return gaps[i].Len() < gaps[j].Len() })
+	slices.SortFunc(gaps, func(a, b Range) int { return cmp.Compare(a.Len(), b.Len()) })
 	for _, gap := range gaps {
 		// Convert index to int because it goes below zero in loop.
 		for i := int(gap.End - 1); i >= int(gap.Begin); i-- {

@@ -1,8 +1,9 @@
 package piecepicker
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/cenkalti/rain/v2/internal/peer"
 	"github.com/cenkalti/rain/v2/internal/piece"
@@ -278,8 +279,8 @@ func (p *PiecePicker) pickAllowedFast(pe *peer.Peer) *myPiece {
 
 func (p *PiecePicker) pickRarest(pe *peer.Peer) *myPiece {
 	// Sort by rarity
-	sort.Slice(p.piecesByAvailability, func(i, j int) bool {
-		return len(p.piecesByAvailability[i].Having.Items) < len(p.piecesByAvailability[j].Having.Items)
+	slices.SortFunc(p.piecesByAvailability, func(a, b *myPiece) int {
+		return cmp.Compare(len(a.Having.Items), len(b.Having.Items))
 	})
 	var picked *myPiece
 	var hasUnrequested bool
@@ -304,8 +305,8 @@ func (p *PiecePicker) pickRarest(pe *peer.Peer) *myPiece {
 
 func (p *PiecePicker) pickEndgame(pe *peer.Peer) *myPiece {
 	// Sort by request count
-	sort.Slice(p.piecesByAvailability, func(i, j int) bool {
-		return p.piecesByAvailability[i].RunningDownloads() < p.piecesByAvailability[j].RunningDownloads()
+	slices.SortFunc(p.piecesByAvailability, func(a, b *myPiece) int {
+		return cmp.Compare(a.RunningDownloads(), b.RunningDownloads())
 	})
 	// Select unrequested piece
 	for _, mp := range p.piecesByAvailability {
@@ -321,8 +322,8 @@ func (p *PiecePicker) pickEndgame(pe *peer.Peer) *myPiece {
 
 func (p *PiecePicker) pickStalled(pe *peer.Peer) *myPiece {
 	// Sort by request count
-	sort.Slice(p.piecesByStalled, func(i, j int) bool {
-		return p.piecesByStalled[i].StalledDownloads() < p.piecesByStalled[j].StalledDownloads()
+	slices.SortFunc(p.piecesByStalled, func(a, b *myPiece) int {
+		return cmp.Compare(a.StalledDownloads(), b.StalledDownloads())
 	})
 	// Select unrequested piece
 	for _, mp := range p.piecesByStalled {

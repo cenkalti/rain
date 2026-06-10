@@ -2,7 +2,7 @@ package addrlist
 
 import (
 	"net"
-	"sort"
+	"slices"
 	"time"
 
 	"github.com/cenkalti/rain/v2/internal/blocklist"
@@ -107,7 +107,10 @@ func (d *AddrList) Push(addrs []*net.TCPAddr, source peersource.Source) {
 		added++
 	}
 	d.filterNils()
-	sort.Sort(byTimestamp(d.peerByTime))
+	slices.SortFunc(d.peerByTime, func(a, b *peerAddr) int { return a.timestamp.Compare(b.timestamp) })
+	for i, p := range d.peerByTime {
+		p.index = i
+	}
 	d.countBySource[source] += added
 
 	delta := d.peerByPriority.Len() - d.maxItems

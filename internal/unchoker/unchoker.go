@@ -1,8 +1,9 @@
 package unchoker
 
 import (
+	"cmp"
 	"math/rand"
-	"sort"
+	"slices"
 )
 
 // Unchoker implements an algorithm to select peers to unchoke based on their download speed.
@@ -65,12 +66,12 @@ func (u *Unchoker) candidatesUnchoke(allPeers []Peer) []Peer {
 }
 
 func (u *Unchoker) sortPeers(peers []Peer, completed bool) {
-	byUploadSpeed := func(i, j int) bool { return peers[i].UploadSpeed() > peers[j].UploadSpeed() }
-	byDownloadSpeed := func(i, j int) bool { return peers[i].DownloadSpeed() > peers[j].DownloadSpeed() }
+	byUploadSpeed := func(a, b Peer) int { return cmp.Compare(b.UploadSpeed(), a.UploadSpeed()) }
+	byDownloadSpeed := func(a, b Peer) int { return cmp.Compare(b.DownloadSpeed(), a.DownloadSpeed()) }
 	if completed {
-		sort.Slice(peers, byUploadSpeed)
+		slices.SortFunc(peers, byUploadSpeed)
 	} else {
-		sort.Slice(peers, byDownloadSpeed)
+		slices.SortFunc(peers, byDownloadSpeed)
 	}
 }
 

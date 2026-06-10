@@ -2,11 +2,12 @@
 package magnet
 
 import (
+	"cmp"
 	"encoding/base32"
 	"encoding/hex"
 	"errors"
 	"net/url"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -68,7 +69,7 @@ func New(s string) (*Magnet, error) {
 		}
 	}
 
-	sort.Slice(tiers, func(i, j int) bool { return tiers[i].index < tiers[j].index })
+	slices.SortFunc(tiers, func(a, b trackerTier) int { return cmp.Compare(a.index, b.index) })
 
 	magnet.Trackers = make([][]string, len(tiers))
 	for i, ti := range tiers {

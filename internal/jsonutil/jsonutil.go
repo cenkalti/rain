@@ -2,8 +2,7 @@ package jsonutil
 
 import (
 	"bytes"
-	"sort"
-	"strings"
+	"slices"
 
 	"github.com/fatih/structs"
 	"github.com/hokaccha/go-prettyjson"
@@ -22,7 +21,7 @@ func MarshalCompactPretty(v any) ([]byte, error) {
 	var buf bytes.Buffer
 	m := structs.Map(v)
 	names := structs.Names(v)
-	sort.Slice(names, func(i, j int) bool { return strings.Compare(names[i], names[j]) == -1 })
+	slices.Sort(names)
 	for _, name := range names {
 		val := m[name]
 		b, err := formatter.Marshal(val)

@@ -175,11 +175,4 @@ func (p *Piece) VerifyHash(buf []byte, h hash.Hash) bool {
 	return bytes.Equal(sum, p.Hash)
 }
 
-func min[T int64 | uint32](a, b T) T {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 func divmod(a, b uint32) (uint32, uint32) { return a / b, a % b }
