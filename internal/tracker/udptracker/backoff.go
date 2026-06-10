@@ -9,7 +9,7 @@ func (b *udpBackOff) NextBackOff() time.Duration {
 	if *b > 8 {
 		*b = 8
 	}
-	return time.Duration(15*(2^*b)) * time.Second
+	return time.Duration(15*(1<<*b)) * time.Second
 }
 
 func (b *udpBackOff) Reset() { *b = 0 }
