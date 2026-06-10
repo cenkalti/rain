@@ -84,7 +84,7 @@ type PieceMessage struct {
 }
 
 // New wraps the net.Conn and returns a new Peer.
-func New(conn net.Conn, source peersource.Source, id [20]byte, extensions [8]byte, cipher mse.CryptoMethod, pieceReadTimeout, snubTimeout time.Duration, maxRequestsIn int, br, bw *ratelimit.Bucket) *Peer {
+func New(conn net.Conn, source peersource.Source, id [20]byte, extensions [8]byte, cipher mse.CryptoMethod, pieceReadTimeout, snubTimeout time.Duration, maxRequestsIn, maxMsgSize int, br, bw *ratelimit.Bucket) *Peer {
 	bf, _ := bitfield.NewBytes(extensions[:], 64)
 	fastEnabled := bf.Test(61)
 	extensionsEnabled := bf.Test(43)
@@ -93,7 +93,7 @@ func New(conn net.Conn, source peersource.Source, id [20]byte, extensions [8]byt
 	t := time.NewTimer(math.MaxInt64)
 	t.Stop()
 	return &Peer{
-		Conn:              peerconn.New(conn, newPeerLogger(source, conn), pieceReadTimeout, maxRequestsIn, fastEnabled, br, bw),
+		Conn:              peerconn.New(conn, newPeerLogger(source, conn), pieceReadTimeout, maxRequestsIn, maxMsgSize, fastEnabled, br, bw),
 		Source:            source,
 		ConnectedAt:       time.Now(),
 		ID:                id,
