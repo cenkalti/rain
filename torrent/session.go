@@ -367,6 +367,9 @@ func (s *Session) removeTorrentFromClient(id string) (*Torrent, error) {
 			break
 		}
 	}
+	// Read the map while still holding the lock; it must not be accessed after
+	// Unlock since concurrent Add/Remove operations mutate it.
+	lastWithInfoHash := len(s.torrentsByInfoHash[ih]) == 0
 
 	// DHT.RemoveInfoHash below sends a message to DHT loop, hence it is blocking.
 	// We need to make sure that we are not holding any lock that cause a block in DHT loop.
@@ -374,7 +377,7 @@ func (s *Session) removeTorrentFromClient(id string) (*Torrent, error) {
 	// DHT.PeersRequestResults. That's why we are releasing the lock before calling DHT.RemoveInfoHash.
 	s.mTorrents.Unlock()
 
-	if s.config.DHTEnabled && len(s.torrentsByInfoHash[ih]) == 0 {
+	if s.config.DHTEnabled && lastWithInfoHash {
 		s.dht.RemoveInfoHash(string(ih))
 	}
 	return t, s.db.Update(func(tx *bbolt.Tx) error {
