@@ -12,8 +12,8 @@ import (
 // metrics tracking for waiting and active counts.
 type Semaphore struct {
 	sem     *semaphore.Weighted
-	waiting int32
-	active  int32
+	waiting atomic.Int32
+	active  atomic.Int32
 }
 
 // New returns a new counting semaphore of length `n`.
@@ -25,25 +25,25 @@ func New(n int) *Semaphore {
 
 // Waiting returs the number of waiting goroutines on the semaphore.
 func (s *Semaphore) Waiting() int {
-	return int(atomic.LoadInt32(&s.waiting))
+	return int(s.waiting.Load())
 }
 
 // Len returns the number of goroutines currently acquired the semaphore.
 func (s *Semaphore) Len() int {
-	return int(atomic.LoadInt32(&s.active))
+	return int(s.active.Load())
 }
 
 // Wait for the semaphore. Blocks until the resource is available.
 // Returns an error if the context is cancelled before acquiring the semaphore.
 func (s *Semaphore) Wait() {
-	atomic.AddInt32(&s.waiting, 1)
+	s.waiting.Add(1)
 	_ = s.sem.Acquire(context.TODO(), 1)
-	atomic.AddInt32(&s.waiting, -1)
-	atomic.AddInt32(&s.active, 1)
+	s.waiting.Add(-1)
+	s.active.Add(1)
 }
 
 // Signal the semaphore. A random waiting goroutine will be waken up.
 func (s *Semaphore) Signal() {
 	s.sem.Release(1)
-	atomic.AddInt32(&s.active, -1)
+	s.active.Add(-1)
 }

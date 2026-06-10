@@ -9,7 +9,7 @@ import (
 // Tier implements the Tracker interface and contains multiple Trackers which tries to announce to the working Tracker.
 type Tier struct {
 	Trackers []Tracker
-	index    int32
+	index    atomic.Int32
 }
 
 var _ Tracker = (*Tier)(nil)
@@ -28,7 +28,7 @@ func (t *Tier) Announce(ctx context.Context, req AnnounceRequest) (*AnnounceResp
 	index := t.loadIndex()
 	resp, err := t.Trackers[index].Announce(ctx, req)
 	if err != nil {
-		atomic.CompareAndSwapInt32(&t.index, index, index+1)
+		t.index.CompareAndSwap(index, index+1)
 	}
 	return resp, err
 }
@@ -39,7 +39,7 @@ func (t *Tier) URL() string {
 }
 
 func (t *Tier) loadIndex() int32 {
-	index := atomic.LoadInt32(&t.index)
+	index := t.index.Load()
 	if index >= int32(len(t.Trackers)) {
 		index = 0
 	}
