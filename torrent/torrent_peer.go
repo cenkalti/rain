@@ -49,6 +49,7 @@ func (t *torrent) addPeerString(addr string) error {
 func (t *torrent) resolveAndAddPeer(host string, port int) {
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
+	defer close(done)
 	go func() {
 		select {
 		case <-t.closeC:
