@@ -117,6 +117,11 @@ func (t *torrent) stopWebseedDownloads() {
 	for _, src := range t.webseedSources {
 		t.closeWebseedDownloader(src)
 	}
+	// All webseed downloaders are now closed. Closing them does not go through
+	// handleWebseedPieceResult, so the active-downloads counter is not
+	// decremented per source; reset it here to avoid leaking slots across
+	// stop/restart cycles.
+	t.webseedActiveDownloads = 0
 }
 
 func (t *torrent) resetSpeeds() {
