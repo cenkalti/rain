@@ -16,7 +16,7 @@ jobs:
 
       - uses: actions/setup-go@v6
         with:
-          go-version: 1.24
+          go-version: 1.25
 
       - name: Get dependencies
         run: go get -v -t -d ./...
@@ -40,7 +40,7 @@ jobs:
 
       - uses: actions/setup-go@v6
         with:
-          go-version: 1.24
+          go-version: 1.25
           cache: false
 
       - uses: golangci/golangci-lint-action@v9
@@ -62,7 +62,7 @@ jobs:
         run: git fetch --force --tags
       - uses: actions/setup-go@v6
         with:
-          go-version: 1.24
+          go-version: 1.25
       - uses: goreleaser/goreleaser-action@v7
         with:
           args: release --clean
