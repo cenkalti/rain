@@ -614,10 +614,12 @@ func readData(r io.Reader, dir string, perm fs.FileMode) error {
 			return err
 		}
 		name := filepath.Join(dir, hdr.Name)
-		// Reject entries that escape the destination directory (tar slip).
+		// Reject entries that escape the destination directory (zip/tar slip).
 		// filepath.Join cleans ".." segments, so a malicious header name
-		// would otherwise resolve to a path outside dir.
-		if name != dir && !strings.HasPrefix(name, dir+string(os.PathSeparator)) {
+		// would otherwise resolve to a path outside dir. Legitimate archives
+		// produced by generateTar only contain regular files nested under dir,
+		// so every valid entry has the dir+separator prefix.
+		if !strings.HasPrefix(name, dir+string(os.PathSeparator)) {
 			return fmt.Errorf("tar entry %q escapes destination directory", hdr.Name)
 		}
 		err = os.MkdirAll(filepath.Dir(name), os.ModeDir|perm)
