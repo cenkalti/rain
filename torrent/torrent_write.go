@@ -28,6 +28,8 @@ func (t *torrent) handlePieceWriteDone(pw *piecewriter.PieceWriter) {
 		case *urldownloader.URLDownloader:
 			t.log.Debugln("received corrupt piece from webseed", src.URL)
 			t.disableSource(src.URL, errors.New("corrupt piece"), false)
+			// disableSource closed the webseed downloader, so free its slot.
+			t.webseedActiveDownloads--
 		default:
 			t.crash("unhandled piece source")
 		}
@@ -54,6 +56,9 @@ func (t *torrent) handlePieceWriteDone(pw *piecewriter.PieceWriter) {
 			closed := t.piecePicker.WebseedStopAt(src, pw.Piece.Index)
 			if closed {
 				t.log.Debugf("closed webseed downloader: %s", src.URL)
+				// WebseedStopAt closed the downloader, so free its slot before
+				// trying to start a new range (which re-takes a slot on success).
+				t.webseedActiveDownloads--
 				t.startPieceDownloaderForWebseed(src)
 			}
 		}
