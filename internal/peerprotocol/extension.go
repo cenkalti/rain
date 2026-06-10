@@ -84,13 +84,13 @@ func (m *ExtensionMessage) UnmarshalBinary(data []byte) error {
 	case ExtensionIDHandshake:
 		var extMsg ExtensionHandshakeMessage
 		err = dec.Decode(&extMsg)
-		m.Payload = extMsg
 		if extMsg.MetadataSize < 0 {
 			extMsg.MetadataSize = 0
 		}
 		if extMsg.RequestQueue < 0 {
 			extMsg.RequestQueue = 0
 		}
+		m.Payload = extMsg
 	case ExtensionIDMetadata:
 		var extMsg ExtensionMetadataMessage
 		err = dec.Decode(&extMsg)
