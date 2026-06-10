@@ -8,7 +8,7 @@ builds:
   - env:
     - CGO_ENABLED=0
     ldflags:
-    - -s -w -X github.com/cenkalti/rain/torrent.Version={{.Version}}
+    - -s -w -X github.com/cenkalti/rain/v2/torrent.Version={{.Version}}
     goos:
     - linux
     - darwin
