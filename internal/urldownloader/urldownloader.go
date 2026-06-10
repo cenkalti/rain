@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -213,14 +215,27 @@ func (d *URLDownloader) getURL(filename string, multifile bool) string {
 	src := d.URL
 	if !multifile {
 		if src[len(src)-1] == '/' {
-			src += url.PathEscape(filename)
+			src += escapeFilePath(filename)
 		}
 		return src
 	}
 	if src[len(src)-1] != '/' {
 		src += "/"
 	}
-	return src + url.PathEscape(filename)
+	return src + escapeFilePath(filename)
+}
+
+// escapeFilePath escapes each segment of the file's relative path separately,
+// keeping separators as literal slashes in the URL as required by BEP 19.
+// Escaping the whole path with url.PathEscape would encode separators as %2F,
+// which is not equivalent to a slash (RFC 3986) and is rejected by some servers.
+// Paths are built with filepath.Join, so they are split on the OS path separator.
+func escapeFilePath(filename string) string {
+	parts := strings.Split(filename, string(filepath.Separator))
+	for i := range parts {
+		parts[i] = url.PathEscape(parts[i])
+	}
+	return strings.Join(parts, "/")
 }
 
 func (d *URLDownloader) sendResult(resultC chan *PieceResult, res *PieceResult) {

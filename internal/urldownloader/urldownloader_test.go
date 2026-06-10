@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -28,21 +30,30 @@ func TestRunPadding(t *testing.T) {
 	fileA := newFile(0x10, 10)
 	fileB := newFile(0x30, 20)
 	fileC := newFile(0x60, 4)
-	files := map[string][]byte{"fileA": fileA, "fileB": fileB, "fileC": fileC}
+	// Names are relative paths with subdirectories, built with filepath.Join
+	// like metainfo does. One segment contains a space to verify that
+	// segments are still escaped individually.
+	fileAName := filepath.Join("d", "fileA")
+	fileBName := filepath.Join("d", "fileB")
+	fileCName := filepath.Join("d", "sub", "file c")
+	files := map[string][]byte{fileAName: fileA, fileBName: fileB, fileCName: fileC}
 
 	// Padding files are not present on the server, like real webseed servers.
 	var mu sync.Mutex
-	var requestedPaths []string
+	var requestURIs []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
-		requestedPaths = append(requestedPaths, r.URL.Path)
+		// RequestURI is the raw URI from the request line. URL.Path cannot be
+		// used here because the server decodes %2F back to a slash in it.
+		requestURIs = append(requestURIs, r.RequestURI)
 		mu.Unlock()
-		data, ok := files[r.URL.Path[1:]]
+		name := filepath.FromSlash(strings.TrimPrefix(r.URL.Path, "/"))
+		data, ok := files[name]
 		if !ok {
 			http.NotFound(w, r)
 			return
 		}
-		http.ServeContent(w, r, r.URL.Path[1:], time.Time{}, bytes.NewReader(data))
+		http.ServeContent(w, r, name, time.Time{}, bytes.NewReader(data))
 	}))
 	defer srv.Close()
 
@@ -50,18 +61,18 @@ func TestRunPadding(t *testing.T) {
 	// with padding files (BEP 47). fileB spans pieces 1 and 2.
 	pieces := []piece.Piece{
 		{Index: 0, Length: 16, Data: []filesection.FileSection{
-			{Name: "fileA", Offset: 0, Length: 10},
+			{Name: fileAName, Offset: 0, Length: 10},
 			{Name: ".pad/6", Offset: 0, Length: 6, Padding: true},
 		}},
 		{Index: 1, Length: 16, Data: []filesection.FileSection{
-			{Name: "fileB", Offset: 0, Length: 16},
+			{Name: fileBName, Offset: 0, Length: 16},
 		}},
 		{Index: 2, Length: 16, Data: []filesection.FileSection{
-			{Name: "fileB", Offset: 16, Length: 4},
+			{Name: fileBName, Offset: 16, Length: 4},
 			{Name: ".pad/12", Offset: 0, Length: 12, Padding: true},
 		}},
 		{Index: 3, Length: 4, Data: []filesection.FileSection{
-			{Name: "fileC", Offset: 0, Length: 4},
+			{Name: fileCName, Offset: 0, Length: 4},
 		}},
 	}
 	concat := func(parts ...[]byte) []byte {
@@ -120,11 +131,13 @@ func TestRunPadding(t *testing.T) {
 		res.Buffer.Release()
 	}
 
-	// Padding files must never be requested from the server.
+	// Each file is requested once per run with its exact raw URI: path
+	// separators as literal slashes (not %2F, see BEP 19), other special
+	// characters escaped per segment, and no requests for padding files.
 	mu.Lock()
 	defer mu.Unlock()
-	assert.NotEmpty(t, requestedPaths)
-	for _, p := range requestedPaths {
-		assert.NotContains(t, p, "pad")
-	}
+	assert.Equal(t, []string{
+		"/d/fileA", "/d/fileB", "/d/sub/file%20c", // run(0, 4)
+		"/d/fileB", "/d/sub/file%20c", // run(2, 4)
+	}, requestURIs)
 }
