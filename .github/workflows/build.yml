@@ -23,7 +23,7 @@ jobs:
           go-version: 1.25
 
       - name: Get dependencies
-        run: go get -v -t -d ./...
+        run: go mod download
 
       - name: Build
         run: go build -v ./...
