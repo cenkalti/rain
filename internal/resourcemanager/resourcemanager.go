@@ -1,6 +1,6 @@
 package resourcemanager
 
-import "math/rand"
+import "math/rand/v2"
 
 // ResourceManager is a fair manager for distributing limited amount of resources to requesters.
 type ResourceManager[T any] struct {
@@ -152,7 +152,7 @@ func (m *ResourceManager[T]) deleteRequest(key string, i int) {
 
 func (m *ResourceManager[T]) randomRequest() (request[T], int) {
 	for _, rs := range m.requests {
-		i := rand.Intn(len(rs)) // nolint: gosec
+		i := rand.IntN(len(rs)) // nolint: gosec
 		r := rs[i]
 		if r.n > m.available {
 			break

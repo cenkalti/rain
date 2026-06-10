@@ -2,7 +2,7 @@ package piecepicker
 
 import (
 	"cmp"
-	"math/rand"
+	"math/rand/v2"
 	"slices"
 
 	"github.com/cenkalti/rain/v2/internal/peer"
@@ -59,10 +59,10 @@ func selectRandomLargestGap(gaps []Range) Range {
 	length := gaps[0].Len()
 	for i := range gaps {
 		if gaps[i].Len() != length {
-			return gaps[rand.Intn(i)]
+			return gaps[rand.IntN(i)]
 		}
 	}
-	return gaps[rand.Intn(len(gaps))]
+	return gaps[rand.IntN(len(gaps))]
 }
 
 func (p *PiecePicker) getDownloadingSources() []*webseedsource.WebseedSource {

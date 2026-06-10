@@ -3,7 +3,7 @@ package udptracker
 import (
 	"context"
 	"io"
-	"math/rand"
+	"math/rand/v2"
 )
 
 type transaction struct {
@@ -30,7 +30,7 @@ type udpRequest interface {
 
 func newTransaction(req udpRequest) *transaction {
 	t := &transaction{
-		id:      rand.Int31(), // nolint: gosec
+		id:      rand.Int32(), // nolint: gosec
 		request: req,
 	}
 	req.SetTransactionID(t.id)

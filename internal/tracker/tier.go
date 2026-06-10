@@ -2,7 +2,7 @@ package tracker
 
 import (
 	"context"
-	"math/rand"
+	"math/rand/v2"
 	"sync/atomic"
 )
 
