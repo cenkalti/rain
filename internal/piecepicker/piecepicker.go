@@ -182,6 +182,7 @@ func (p *PiecePicker) HandleUnchoke(pe *peer.Peer, i uint32) {
 func (p *PiecePicker) HandleCancelDownload(pe *peer.Peer, i uint32) {
 	p.pieces[i].Requested.Remove(pe)
 	p.pieces[i].Snubbed.Remove(pe)
+	p.pieces[i].Choked.Remove(pe)
 }
 
 // HandleDisconnect must be called to remove the peer from internal indexes.
