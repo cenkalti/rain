@@ -2,6 +2,8 @@ package udptracker_test
 
 import (
 	"context"
+	"fmt"
+	"net"
 	"net/url"
 	"strconv"
 	"testing"
@@ -47,10 +49,35 @@ func startUDPTracker(t *testing.T, port int) func() {
 	}
 }
 
-func TestUDPTracker(t *testing.T) {
-	defer startUDPTracker(t, 5000)()
+// freeUDPPort returns a UDP port that is free at the time of the call. Picking
+// a port dynamically instead of hardcoding one avoids collisions with other
+// processes (or parallel test packages) on the host.
+func freeUDPPort(t *testing.T) int {
+	t.Helper()
+	conn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	return conn.LocalAddr().(*net.UDPAddr).Port
+}
 
-	const rawURL = "udp://127.0.0.1:5000/announce"
+func containsPort(peers []*net.TCPAddr, port int) bool {
+	for _, p := range peers {
+		if p.Port == port {
+			return true
+		}
+	}
+	return false
+}
+
+func TestUDPTracker(t *testing.T) {
+	const seederPort = 1111
+
+	port := freeUDPPort(t)
+	defer startUDPTracker(t, port)()
+
+	rawURL := fmt.Sprintf("udp://127.0.0.1:%d/announce", port)
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		t.Fatal(err)
@@ -63,18 +90,23 @@ func TestUDPTracker(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	req := tracker.AnnounceRequest{
+	// Register a seeder (BytesLeft == 0).
+	seeder := tracker.AnnounceRequest{
 		Torrent: tracker.Torrent{
-			Port:   1111,
+			Port:   seederPort,
 			PeerID: [20]byte{1},
 		},
 	}
-	_, err = trk.Announce(ctx, req)
-	if err != nil {
+	if _, err := trk.Announce(ctx, seeder); err != nil {
 		t.Fatal(err)
 	}
 
-	req = tracker.AnnounceRequest{
+	// A leecher announcing the same torrent should receive the seeder in its
+	// peer list. The tracker builds the response from swarm state as it was
+	// *before* the announcing peer is stored, and UDP retransmits mean the
+	// exact set returned by any single announce is not deterministic, so retry
+	// until the seeder shows up or the context deadline is reached.
+	leecher := tracker.AnnounceRequest{
 		Torrent: tracker.Torrent{
 			Port:      2222,
 			PeerID:    [20]byte{2},
@@ -82,17 +114,18 @@ func TestUDPTracker(t *testing.T) {
 		},
 		NumWant: 10,
 	}
-	resp, err := trk.Announce(ctx, req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(resp.Peers) != 1 {
-		t.Logf("%#v", resp)
-		t.FailNow()
-	}
-	addr := resp.Peers[0]
-	if addr.Port != 1111 {
-		t.Log(addr.String())
-		t.FailNow()
+	for {
+		resp, err := trk.Announce(ctx, leecher)
+		if err != nil {
+			t.Fatalf("leecher announce failed: %v", err)
+		}
+		if containsPort(resp.Peers, seederPort) {
+			return // success: leecher received the seeder
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("seeder (port %d) not returned to leecher; last peers: %v", seederPort, resp.Peers)
+		case <-time.After(50 * time.Millisecond):
+		}
 	}
 }
