@@ -132,7 +132,12 @@ func (t *HTTPTracker) handleAnnounce(w http.ResponseWriter, r *http.Request) {
 	var infoHash [20]byte
 	copy(infoHash[:], q.Get("info_hash"))
 
-	port, _ := strconv.Atoi(q.Get("port"))
+	port64, err := strconv.ParseUint(q.Get("port"), 10, 16)
+	if err != nil {
+		http.Error(w, "invalid port", http.StatusBadRequest)
+		return
+	}
+	port := int(port64)
 	numWant, _ := strconv.Atoi(q.Get("numwant"))
 	stopped := q.Get("event") == "stopped"
 

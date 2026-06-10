@@ -16,7 +16,11 @@ type CompactPeer struct {
 
 // NewCompactPeer returns a new CompactPeer from a net.TCPAddr.
 func NewCompactPeer(addr *net.TCPAddr) CompactPeer {
-	p := CompactPeer{Port: uint16(addr.Port)}
+	port := addr.Port
+	if port < 0 || port > 65535 {
+		port = 0
+	}
+	p := CompactPeer{Port: uint16(port)}
 	copy(p.IP[:], addr.IP.To4())
 	return p
 }
