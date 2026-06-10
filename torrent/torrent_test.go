@@ -217,9 +217,12 @@ func startHTTPTracker(t *testing.T) {
 		if len(errs) > 0 {
 			t.Fatal(errs[0])
 		}
-		// Wait for HTTP handler goroutines to finish before peer store cleanup
-		// to prevent race condition in tests between frontend handlers and peer store shutdown
-		time.Sleep(100 * time.Millisecond)
+		// chihaya runs its post-announce hooks (GraduateLeecher) in a detached
+		// goroutine, so fe.Stop().Wait() does not wait for them. They read the
+		// peer store that the following ps.Stop() cleanup writes to, so give
+		// them time to drain first to avoid a data race. The previous 100ms was
+		// too short on loaded CI runners.
+		time.Sleep(time.Second)
 	})
 }
 
