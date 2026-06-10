@@ -11,39 +11,18 @@ import (
 
 	"github.com/cenkalti/rain/v2/internal/tracker"
 	"github.com/cenkalti/rain/v2/internal/tracker/udptracker"
-	"github.com/chihaya/chihaya/frontend/udp"
-	"github.com/chihaya/chihaya/middleware"
-	"github.com/chihaya/chihaya/storage"
-	_ "github.com/chihaya/chihaya/storage/memory"
+	"github.com/cenkalti/rain/v2/internal/trackertest"
 )
 
 const timeout = 2 * time.Second
 
-func trackerLogic(t *testing.T) *middleware.Logic {
-	responseConfig := middleware.ResponseConfig{
-		AnnounceInterval: time.Minute,
-	}
-	ps, err := storage.NewPeerStore("memory", map[string]any{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return middleware.NewLogic(responseConfig, ps, nil, nil)
-}
-
 func startUDPTracker(t *testing.T, port int) func() {
-	lgc := trackerLogic(t)
-	fe, err := udp.NewFrontend(lgc, udp.Config{
-		Addr:         "127.0.0.1:" + strconv.Itoa(port),
-		MaxClockSkew: time.Minute,
-		PrivateKey:   "M4YlzP02iB0B46P2i3QLyMOW6nWXnVlYeJ91xIdtu8Ao7IIVKLZEaCEshTChmFrS",
-	})
+	trk, err := trackertest.NewUDP("127.0.0.1:" + strconv.Itoa(port))
 	if err != nil {
 		t.Fatal(err)
 	}
 	return func() {
-		errC := fe.Stop()
-		err := <-errC
-		if err != nil {
+		if err := trk.Close(); err != nil {
 			t.Fatal(err)
 		}
 	}

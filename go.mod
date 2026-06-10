@@ -6,7 +6,6 @@ require (
 	github.com/br0xen/boltbrowser v0.0.0-20251215133654-65c868158373
 	github.com/cenkalti/backoff/v5 v5.0.3
 	github.com/cenkalti/log v1.0.0
-	github.com/chihaya/chihaya v1.0.1-0.20230615203145-2f794401e44a
 	github.com/fatih/structs v1.1.0
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/google/btree v1.1.3
@@ -29,25 +28,21 @@ require (
 )
 
 require (
-	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/br0xen/termbox-util v0.0.0-20200220160819-dc6d6950ba00 // indirect
-	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/clipperhouse/stringish v0.1.1 // indirect
 	github.com/clipperhouse/uax29/v2 v2.3.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fatih/color v1.10.0 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
-	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/jackpal/bencode-go v1.0.0 // indirect
-	github.com/julienschmidt/httprouter v1.3.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
+	github.com/kr/pretty v0.3.0 // indirect
 	github.com/mattn/go-colorable v0.1.8 // indirect
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/mattn/go-runewidth v0.0.19 // indirect
-	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/minio/sha256-simd v1.0.0 // indirect
 	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/multiformats/go-varint v0.0.6 // indirect
@@ -55,16 +50,12 @@ require (
 	github.com/nsf/termbox-go v1.1.1 // indirect
 	github.com/otiai10/mint v1.6.3 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/prometheus/client_golang v1.14.0 // indirect
-	github.com/prometheus/client_model v0.3.0 // indirect
-	github.com/prometheus/common v0.37.0 // indirect
-	github.com/prometheus/procfs v0.8.0 // indirect
+	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/sirupsen/logrus v1.8.3 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/youtube/vitess v3.0.0-rc.3+incompatible // indirect
 	golang.org/x/crypto v0.45.0 // indirect
-	google.golang.org/protobuf v1.33.0 // indirect
+	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.1.6 // indirect
 )

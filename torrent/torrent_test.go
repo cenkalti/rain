@@ -11,11 +11,8 @@ import (
 	"time"
 
 	"github.com/cenkalti/rain/v2/internal/logger"
+	"github.com/cenkalti/rain/v2/internal/trackertest"
 	"github.com/cenkalti/rain/v2/internal/webseedsource"
-	fhttp "github.com/chihaya/chihaya/frontend/http"
-	"github.com/chihaya/chihaya/middleware"
-	"github.com/chihaya/chihaya/storage"
-	_ "github.com/chihaya/chihaya/storage/memory"
 	cp "github.com/otiai10/copy"
 	"github.com/rcrowley/go-metrics"
 	"github.com/stretchr/testify/assert"
@@ -37,7 +34,6 @@ func init() {
 
 func TestMain(m *testing.M) {
 	goleak.VerifyTestMain(m,
-		goleak.IgnoreTopFunction("github.com/chihaya/chihaya/pkg/timecache.(*TimeCache).Run"),
 		goleak.IgnoreTopFunction("github.com/rcrowley/go-metrics.(*meterArbiter).tick"),
 	)
 }
@@ -188,41 +184,14 @@ func TestTorrentFiles(t *testing.T) {
 
 func startHTTPTracker(t *testing.T) {
 	t.Helper()
-	responseConfig := middleware.ResponseConfig{
-		AnnounceInterval: time.Minute,
-	}
-	ps, err := storage.NewPeerStore("memory", map[string]any{})
+	trk, err := trackertest.NewHTTP("127.0.0.1:5000")
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		errs := ps.Stop().Wait()
-		if len(errs) > 0 {
-			t.Fatal(errs[0])
+		if err := trk.Close(); err != nil {
+			t.Fatal(err)
 		}
-	})
-	lgc := middleware.NewLogic(responseConfig, ps, nil, nil)
-	fe, err := fhttp.NewFrontend(lgc, fhttp.Config{
-		Addr:           "127.0.0.1:5000",
-		ReadTimeout:    time.Second,
-		WriteTimeout:   time.Second,
-		AnnounceRoutes: []string{"/announce"},
-		ScrapeRoutes:   []string{"/scrape"},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		errs := fe.Stop().Wait()
-		if len(errs) > 0 {
-			t.Fatal(errs[0])
-		}
-		// chihaya runs its post-announce hooks (GraduateLeecher) in a detached
-		// goroutine, so fe.Stop().Wait() does not wait for them. They read the
-		// peer store that the following ps.Stop() cleanup writes to, so give
-		// them time to drain first to avoid a data race. The previous 100ms was
-		// too short on loaded CI runners.
-		time.Sleep(time.Second)
 	})
 }
 

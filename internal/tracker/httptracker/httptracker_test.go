@@ -9,41 +9,18 @@ import (
 
 	"github.com/cenkalti/rain/v2/internal/tracker"
 	"github.com/cenkalti/rain/v2/internal/tracker/httptracker"
-	fhttp "github.com/chihaya/chihaya/frontend/http"
-	"github.com/chihaya/chihaya/middleware"
-	"github.com/chihaya/chihaya/storage"
-	_ "github.com/chihaya/chihaya/storage/memory"
+	"github.com/cenkalti/rain/v2/internal/trackertest"
 )
 
 const timeout = 2 * time.Second
 
-func trackerLogic(t *testing.T) *middleware.Logic {
-	responseConfig := middleware.ResponseConfig{
-		AnnounceInterval: time.Minute,
-	}
-	ps, err := storage.NewPeerStore("memory", map[string]any{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return middleware.NewLogic(responseConfig, ps, nil, nil)
-}
-
 func startHTTPTracker(t *testing.T) (stop func()) {
-	lgc := trackerLogic(t)
-	fe, err := fhttp.NewFrontend(lgc, fhttp.Config{
-		Addr:           "127.0.0.1:5000",
-		ReadTimeout:    time.Second,
-		WriteTimeout:   time.Second,
-		AnnounceRoutes: []string{"/announce"},
-		ScrapeRoutes:   []string{"/scrape"},
-	})
+	trk, err := trackertest.NewHTTP("127.0.0.1:5000")
 	if err != nil {
 		t.Fatal(err)
 	}
 	return func() {
-		errC := fe.Stop()
-		err := <-errC
-		if err != nil {
+		if err := trk.Close(); err != nil {
 			t.Fatal(err)
 		}
 	}
