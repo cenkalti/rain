@@ -160,17 +160,20 @@ func NewInfo(b []byte, utf8 bool, pad bool) (*Info, error) {
 				parts = append(parts, cleanName(p))
 			}
 			joinedPath := filepath.Join(parts...)
-			if _, ok := uniquePaths[joinedPath]; ok {
-				return nil, fmt.Errorf("duplicate file name: %q", joinedPath)
-			} else {
+			isPadding := pad && f.isPadding()
+			// Padding files are never written to disk, so conflicting paths
+			// are harmless. BEP 47 even recommends that pad files share the
+			// same ".pad/<length>" path, so duplicates are common.
+			if !isPadding {
+				if _, ok := uniquePaths[joinedPath]; ok {
+					return nil, fmt.Errorf("duplicate file name: %q", joinedPath)
+				}
 				uniquePaths[joinedPath] = nil
 			}
 			i.Files[j] = File{
-				Path:   joinedPath,
-				Length: f.Length,
-			}
-			if pad {
-				i.Files[j].Padding = f.isPadding()
+				Path:    joinedPath,
+				Length:  f.Length,
+				Padding: isPadding,
 			}
 		}
 	} else {
