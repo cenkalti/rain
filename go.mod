@@ -3,13 +3,13 @@ module github.com/cenkalti/rain/v2
 go 1.25.0
 
 require (
-	github.com/br0xen/boltbrowser v0.0.0-20251215133654-65c868158373
+	github.com/br0xen/boltbrowser v0.0.0-20260327130740-898a1e52a566
 	github.com/cenkalti/backoff/v5 v5.0.3
 	github.com/cenkalti/log v1.0.0
 	github.com/fatih/structs v1.1.0
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/google/btree v1.1.3
-	github.com/hokaccha/go-prettyjson v0.0.0-20210113012101-fb4e108d2519
+	github.com/hokaccha/go-prettyjson v0.0.0-20211117102719-0474bc63780f
 	github.com/jroimartin/gocui v0.5.0
 	github.com/juju/ratelimit v1.0.2
 	github.com/multiformats/go-multihash v0.2.3

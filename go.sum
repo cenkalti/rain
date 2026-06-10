@@ -1,6 +1,6 @@
 github.com/BurntSushi/toml v1.5.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
-github.com/br0xen/boltbrowser v0.0.0-20251215133654-65c868158373 h1:xI83K+yet/wOGUJAapgQXyAiDOGvy7vkKrIAzbUrIh4=
-github.com/br0xen/boltbrowser v0.0.0-20251215133654-65c868158373/go.mod h1:uhjRwoqgy4g6fCwo7OJHjCxDOmx/YSCz2rnAYb63ZhY=
+github.com/br0xen/boltbrowser v0.0.0-20260327130740-898a1e52a566 h1:h78qFJAelvS6GnMB3Pl4qw9B/yB084PiUC/KzimWyY0=
+github.com/br0xen/boltbrowser v0.0.0-20260327130740-898a1e52a566/go.mod h1:n4LHSQAWdj9tTDV5p3O2e5niOv49FEHVuZKAkFjlrOY=
 github.com/br0xen/termbox-util v0.0.0-20200220160819-dc6d6950ba00 h1:9AXfX20nYtpadSCppvKkZfFgU/htFHVhYqYdPNa4bm4=
 github.com/br0xen/termbox-util v0.0.0-20200220160819-dc6d6950ba00/go.mod h1:x9wJlgOj74OFTOBwXOuO8pBguW37EgYNx51Dbjkfzo4=
 github.com/cenkalti/backoff/v5 v5.0.3 h1:ZN+IMa753KfX5hd8vVaMixjnqRZ3y8CuJKRKj1xcsSM=
@@ -34,8 +34,8 @@ github.com/hashicorp/errwrap v1.1.0/go.mod h1:YH+1FKiLXxHSkmPseP+kNlulaMuP3n2brv
 github.com/hashicorp/go-multierror v1.1.0/go.mod h1:spPvp8C1qA32ftKqdAHm4hHTbPw+vmowP0z+KUhOZdA=
 github.com/hashicorp/go-multierror v1.1.1 h1:H5DkEtf6CXdFp0N0Em5UCwQpXMWke8IA0+lD48awMYo=
 github.com/hashicorp/go-multierror v1.1.1/go.mod h1:iw975J/qwKPdAO1clOe2L8331t/9/fmwbPZ6JB6eMoM=
-github.com/hokaccha/go-prettyjson v0.0.0-20210113012101-fb4e108d2519 h1:nqAlWFEdqI0ClbTDrhDvE/8LeQ4pftrqKUX9w5k0j3s=
-github.com/hokaccha/go-prettyjson v0.0.0-20210113012101-fb4e108d2519/go.mod h1:pFlLw2CfqZiIBOx6BuCeRLCrfxBJipTY0nIOF/VbGcI=
+github.com/hokaccha/go-prettyjson v0.0.0-20211117102719-0474bc63780f h1:7LYC+Yfkj3CTRcShK0KOL/w6iTiKyqqBA9a41Wnggw8=
+github.com/hokaccha/go-prettyjson v0.0.0-20211117102719-0474bc63780f/go.mod h1:pFlLw2CfqZiIBOx6BuCeRLCrfxBJipTY0nIOF/VbGcI=
 github.com/jackpal/bencode-go v0.0.0-20180813173944-227668e840fa/go.mod h1:5FSBQ74yhCl5oQ+QxRPYzWMONFnxbL68/23eezsBI5c=
 github.com/jackpal/bencode-go v1.0.0 h1:lzbSPPqqSfWQnqVNe/BBY1NXdDpncArxShL10+fmFus=
 github.com/jackpal/bencode-go v1.0.0/go.mod h1:5FSBQ74yhCl5oQ+QxRPYzWMONFnxbL68/23eezsBI5c=
