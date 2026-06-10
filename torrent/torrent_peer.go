@@ -135,6 +135,7 @@ func (t *torrent) startPeer(
 	if ok {
 		t.log.Debugf("peer with same id already connected. addr: %s id: %s", addr, peerID)
 		conn.Close()
+		delete(t.connectedPeerIPs, addr.IP.String())
 		t.pexDropPeer(addr)
 		t.dialAddresses()
 		return
