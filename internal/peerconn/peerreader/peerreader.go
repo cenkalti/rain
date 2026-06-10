@@ -33,6 +33,7 @@ type PeerReader struct {
 	r            io.Reader
 	log          logger.Logger
 	pieceTimeout time.Duration
+	maxMsgSize   int
 	bucket       *ratelimit.Bucket
 	messages     chan any
 	stopC        chan struct{}
@@ -40,12 +41,15 @@ type PeerReader struct {
 }
 
 // New returns a new PeerReader by wrapping a net.Conn.
-func New(conn net.Conn, l logger.Logger, pieceTimeout time.Duration, b *ratelimit.Bucket) *PeerReader {
+// maxMsgSize is the largest message length accepted from the peer; larger
+// messages are rejected before allocating a buffer for them.
+func New(conn net.Conn, l logger.Logger, pieceTimeout time.Duration, maxMsgSize int, b *ratelimit.Bucket) *PeerReader {
 	return &PeerReader{
 		conn:         conn,
 		r:            bufio.NewReaderSize(conn, readBufferSize),
 		log:          l,
 		pieceTimeout: pieceTimeout,
+		maxMsgSize:   maxMsgSize,
 		bucket:       b,
 		messages:     make(chan any),
 		stopC:        make(chan struct{}),
@@ -123,6 +127,15 @@ func (p *PeerReader) Run() {
 		length--
 
 		// p.log.Debugf("Received message of type: %q", id)
+
+		// Reject oversized messages before allocating a buffer for them. The
+		// remaining variable-length messages (bitfield, extension) size a buffer
+		// directly from this attacker-controlled length, so without this an
+		// untrusted peer could force an arbitrarily large allocation.
+		if int64(length) > int64(p.maxMsgSize) {
+			err = fmt.Errorf("received message larger than allowed (%d > %d)", length, p.maxMsgSize)
+			return
+		}
 
 		var msg any
 

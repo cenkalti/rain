@@ -24,10 +24,10 @@ type Conn struct {
 }
 
 // New returns a new PeerConn by wrapping a net.Conn.
-func New(conn net.Conn, l logger.Logger, pieceTimeout time.Duration, maxRequestsIn int, fastEnabled bool, br, bw *ratelimit.Bucket) *Conn {
+func New(conn net.Conn, l logger.Logger, pieceTimeout time.Duration, maxRequestsIn, maxMsgSize int, fastEnabled bool, br, bw *ratelimit.Bucket) *Conn {
 	return &Conn{
 		conn:     conn,
-		reader:   peerreader.New(conn, l, pieceTimeout, br),
+		reader:   peerreader.New(conn, l, pieceTimeout, maxMsgSize, br),
 		writer:   peerwriter.New(conn, l, maxRequestsIn, fastEnabled, bw),
 		messages: make(chan any),
 		log:      l,
