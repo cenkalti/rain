@@ -419,9 +419,11 @@ func (s *Session) StartAll() error {
 	if err != nil {
 		return err
 	}
+	s.mTorrents.RLock()
 	for _, t := range s.torrents {
 		t.torrent.Start()
 	}
+	s.mTorrents.RUnlock()
 	return nil
 }
 
@@ -440,8 +442,10 @@ func (s *Session) StopAll() error {
 	if err != nil {
 		return err
 	}
+	s.mTorrents.RLock()
 	for _, t := range s.torrents {
 		t.torrent.Stop()
 	}
+	s.mTorrents.RUnlock()
 	return nil
 }
