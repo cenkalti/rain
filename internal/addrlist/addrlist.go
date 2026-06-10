@@ -114,7 +114,6 @@ func (d *AddrList) Push(addrs []*net.TCPAddr, source peersource.Source) {
 	if delta > 0 {
 		d.removeExcessItems(delta)
 		d.filterNils()
-		d.countBySource[source] -= delta
 	}
 	if len(d.peerByTime) != d.peerByPriority.Len() {
 		panic("addr list data structures not in sync")
@@ -134,6 +133,7 @@ func (d *AddrList) filterNils() {
 
 func (d *AddrList) removeExcessItems(delta int) {
 	for i := range delta {
+		d.countBySource[d.peerByTime[i].source]--
 		d.peerByPriority.Delete(d.peerByTime[i])
 		d.peerByTime[i] = nil
 	}
