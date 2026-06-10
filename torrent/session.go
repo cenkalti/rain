@@ -422,11 +422,18 @@ func (s *Session) StartAll() error {
 	if err != nil {
 		return err
 	}
+	// Snapshot the torrents under the lock, then start them without holding it.
+	// Start() blocks on an unbuffered channel until the torrent loop receives,
+	// so calling it under the lock could stall concurrent Add/Remove.
 	s.mTorrents.RLock()
+	torrents := make([]*Torrent, 0, len(s.torrents))
 	for _, t := range s.torrents {
-		t.torrent.Start()
+		torrents = append(torrents, t)
 	}
 	s.mTorrents.RUnlock()
+	for _, t := range torrents {
+		t.torrent.Start()
+	}
 	return nil
 }
 
@@ -445,10 +452,17 @@ func (s *Session) StopAll() error {
 	if err != nil {
 		return err
 	}
+	// Snapshot the torrents under the lock, then stop them without holding it.
+	// Stop() blocks on an unbuffered channel until the torrent loop receives,
+	// so calling it under the lock could stall concurrent Add/Remove.
 	s.mTorrents.RLock()
+	torrents := make([]*Torrent, 0, len(s.torrents))
 	for _, t := range s.torrents {
-		t.torrent.Stop()
+		torrents = append(torrents, t)
 	}
 	s.mTorrents.RUnlock()
+	for _, t := range torrents {
+		t.torrent.Stop()
+	}
 	return nil
 }
