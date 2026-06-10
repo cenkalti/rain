@@ -140,6 +140,9 @@ func (m HaveAllMessage) ID() MessageID { return HaveAll }
 func (m HaveNoneMessage) ID() MessageID { return HaveNone }
 
 // ID returns the peer protocol message type.
+func (m AllowedFastMessage) ID() MessageID { return AllowedFast }
+
+// ID returns the peer protocol message type.
 func (m RejectMessage) ID() MessageID { return Reject }
 
 // ID returns the peer protocol message type.
