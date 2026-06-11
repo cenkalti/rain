@@ -95,7 +95,6 @@ func (t *torrent) disableSource(srcurl string, err error, retry bool) {
 			continue
 		}
 		src.Disabled = true
-		src.DisabledAt = time.Now()
 		src.LastError = err
 		t.closeWebseedDownloader(src)
 		if retry {
