@@ -18,14 +18,14 @@ func (l *SliceSet[T]) Add(pe *T) bool {
 
 // Remove the piece from the set.
 func (l *SliceSet[T]) Remove(pe *T) bool {
-	for i, p := range l.Items {
-		if p == pe {
-			l.Items[i] = l.Items[len(l.Items)-1]
-			l.Items = l.Items[:len(l.Items)-1]
-			return true
-		}
+	i := slices.Index(l.Items, pe)
+	if i == -1 {
+		return false
 	}
-	return false
+	// Swap-with-last removal: order is not preserved.
+	l.Items[i] = l.Items[len(l.Items)-1]
+	l.Items = l.Items[:len(l.Items)-1]
+	return true
 }
 
 // Has returns true if the set contains the piece.
