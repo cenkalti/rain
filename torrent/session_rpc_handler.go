@@ -326,7 +326,7 @@ func (h *rpcHandler) GetTorrentPeers(args *rpctypes.GetTorrentPeersRequest, repl
 		case SourceManual:
 			source = "MANUAL"
 		default:
-			panic("unhandled peer source")
+			source = "UNKNOWN"
 		}
 		reply.Peers[i] = rpctypes.Peer{
 			ID:                 hex.EncodeToString(p.ID[:]),
