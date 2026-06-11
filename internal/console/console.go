@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -592,14 +593,14 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 			format := "%2s %21s %7s %8s %6s %s\n"
 			fmt.Fprintf(v, format, "#", "Addr", "Flags", "Download", "Upload", "Client")
 			for i, p := range c.peers {
-				num := fmt.Sprintf("%d", i+1)
+				num := strconv.Itoa(i + 1)
 				var dl string
 				if p.DownloadSpeed > 0 {
-					dl = fmt.Sprintf("%d", p.DownloadSpeed/1024)
+					dl = strconv.Itoa(p.DownloadSpeed / 1024)
 				}
 				var ul string
 				if p.UploadSpeed > 0 {
-					ul = fmt.Sprintf("%d", p.UploadSpeed/1024)
+					ul = strconv.Itoa(p.UploadSpeed / 1024)
 				}
 				fmt.Fprintf(v, format, num, p.Addr, flags(p), dl, ul, p.Client)
 			}
@@ -607,16 +608,12 @@ func (c *Console) drawDetails(g *gocui.Gui) error {
 			format := "%2s %40s %8s %s\n"
 			fmt.Fprintf(v, format, "#", "URL", "Speed", "Error")
 			for i, p := range c.webseeds {
-				num := fmt.Sprintf("%d", i+1)
+				num := strconv.Itoa(i + 1)
 				var dl string
 				if p.DownloadSpeed > 0 {
-					dl = fmt.Sprintf("%d", p.DownloadSpeed/1024)
+					dl = strconv.Itoa(p.DownloadSpeed / 1024)
 				}
-				var errstr string
-				if p.Error != "" {
-					errstr = p.Error
-				}
-				fmt.Fprintf(v, format, num, p.URL, dl, errstr)
+				fmt.Fprintf(v, format, num, p.URL, dl, p.Error)
 			}
 		}
 	}
