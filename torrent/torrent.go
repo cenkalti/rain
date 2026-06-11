@@ -263,9 +263,9 @@ type torrent struct {
 	log logger.Logger
 }
 
-// newTorrent2 is a constructor for torrent struct.
+// newTorrent is a constructor for torrent struct.
 // loadExistingTorrents, addTorrentStopped and addMagnet ultimately calls this method.
-func newTorrent2(
+func newTorrent(
 	s *Session,
 	id string,
 	addedAt time.Time,

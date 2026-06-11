@@ -87,7 +87,7 @@ func (s *Session) loadExistingTorrent(id string) (tt *Torrent, hasStarted bool, 
 	if err != nil {
 		return
 	}
-	t, err := newTorrent2(
+	t, err := newTorrent(
 		s,
 		id,
 		spec.AddedAt,

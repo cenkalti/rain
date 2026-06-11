@@ -75,7 +75,7 @@ func (s *Session) addTorrentStopped(r io.Reader, opt *AddTorrentOptions) (*Torre
 			s.releasePort(port)
 		}
 	}()
-	t, err := newTorrent2(
+	t, err := newTorrent(
 		s,
 		id,
 		time.Now(),
@@ -188,7 +188,7 @@ func (s *Session) addMagnet(link string, opt *AddTorrentOptions) (*Torrent, erro
 			s.releasePort(port)
 		}
 	}()
-	t, err := newTorrent2(
+	t, err := newTorrent(
 		s,
 		id,
 		time.Now(),

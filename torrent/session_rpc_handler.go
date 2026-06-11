@@ -35,7 +35,7 @@ func (h *rpcHandler) ListTorrents(args *rpctypes.ListTorrentsRequest, reply *rpc
 	torrents := h.session.ListTorrents()
 	reply.Torrents = make([]rpctypes.Torrent, 0, len(torrents))
 	for _, t := range torrents {
-		reply.Torrents = append(reply.Torrents, newTorrent(t))
+		reply.Torrents = append(reply.Torrents, torrentToRPC(t))
 	}
 	return nil
 }
@@ -56,7 +56,7 @@ func (h *rpcHandler) AddTorrent(args *rpctypes.AddTorrentRequest, reply *rpctype
 	if err != nil {
 		return err
 	}
-	reply.Torrent = newTorrent(t)
+	reply.Torrent = torrentToRPC(t)
 	return nil
 }
 
@@ -75,11 +75,11 @@ func (h *rpcHandler) AddURI(args *rpctypes.AddURIRequest, reply *rpctypes.AddURI
 	if err != nil {
 		return err
 	}
-	reply.Torrent = newTorrent(t)
+	reply.Torrent = torrentToRPC(t)
 	return nil
 }
 
-func newTorrent(t *Torrent) rpctypes.Torrent {
+func torrentToRPC(t *Torrent) rpctypes.Torrent {
 	return rpctypes.Torrent{
 		ID:       t.ID(),
 		Name:     t.Name(),
