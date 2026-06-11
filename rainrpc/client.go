@@ -163,12 +163,14 @@ func (c *Client) GetTorrentWebseeds(id string) ([]rpctypes.Webseed, error) {
 	return reply.Webseeds, c.client.Call("Session.GetTorrentWebseeds", args, &reply)
 }
 
+// GetTorrentFiles returns the list of files in a torrent.
 func (c *Client) GetTorrentFiles(id string) ([]rpctypes.File, error) {
 	args := rpctypes.GetTorrentFilesRequest{ID: id}
 	var reply rpctypes.GetTorrentFilesResponse
 	return reply.Files, c.client.Call("Session.GetTorrentFiles", args, &reply)
 }
 
+// GetTorrentFileStats returns the per-file download stats of a torrent.
 func (c *Client) GetTorrentFileStats(id string) ([]rpctypes.FileStats, error) {
 	args := rpctypes.GetTorrentFileStatsRequest{ID: id}
 	var reply rpctypes.GetTorrentFileStatsResponse
