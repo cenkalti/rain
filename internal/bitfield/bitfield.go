@@ -29,16 +29,12 @@ func New(length uint32) *Bitfield {
 // Bytes in b are not copied. Unused bits in last byte are cleared.
 // Panics if b is not big enough to hold "length" bits.
 func NewBytes(b []byte, length uint32) (*Bitfield, error) {
-	div, mod := divMod32(length)
-	lastByteIncomplete := mod != 0
-	requiredBytes := div
-	if lastByteIncomplete {
-		requiredBytes++
-	}
-	if uint32(len(b)) != requiredBytes {
+	requiredBytes := NumBytes(length)
+	if len(b) != requiredBytes {
 		return nil, errors.New("invalid length")
 	}
-	if lastByteIncomplete {
+	if _, mod := divMod32(length); mod != 0 {
+		// Clear the unused high bits in the last (incomplete) byte.
 		b[len(b)-1] &= ^(0xff >> mod)
 	}
 	return &Bitfield{
