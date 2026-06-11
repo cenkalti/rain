@@ -16,7 +16,7 @@ func (t *torrent) handleAllocationDone(al *allocator.Allocator) {
 	t.allocator = nil
 
 	if al.Error != nil {
-		t.stop(fmt.Errorf("file allocation error: %s", al.Error))
+		t.stop(fmt.Errorf("file allocation error: %w", al.Error))
 		return
 	}
 

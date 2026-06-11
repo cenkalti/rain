@@ -25,7 +25,7 @@ func (t *torrent) handleVerificationDone(ve *verifier.Verifier) {
 	t.verifier = nil
 
 	if ve.Error != nil {
-		t.stop(fmt.Errorf("file verification error: %s", ve.Error))
+		t.stop(fmt.Errorf("file verification error: %w", ve.Error))
 		return
 	}
 

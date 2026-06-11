@@ -86,7 +86,7 @@ func (t *torrent) handleMetadataMessage(pe *peer.Peer, msg peerprotocol.Extensio
 
 		info, err := t.session.parseInfo(id.Bytes, boltdbresumer.LatestVersion)
 		if err != nil {
-			t.stop(fmt.Errorf("cannot parse info bytes: %s", err))
+			t.stop(fmt.Errorf("cannot parse info bytes: %w", err))
 			break
 		}
 		if info.Private {
@@ -97,7 +97,7 @@ func (t *torrent) handleMetadataMessage(pe *peer.Peer, msg peerprotocol.Extensio
 		t.piecePool = bufferpool.New(int(info.PieceLength))
 		err = t.session.resumer.WriteInfo(t.id, t.info.Bytes)
 		if err != nil {
-			t.stop(fmt.Errorf("cannot write resume info: %s", err))
+			t.stop(fmt.Errorf("cannot write resume info: %w", err))
 			break
 		}
 		select {
