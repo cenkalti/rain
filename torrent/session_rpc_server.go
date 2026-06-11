@@ -52,7 +52,10 @@ func (s *rpcServer) Start(host string, port int) error {
 		if err == http.ErrServerClosed {
 			return
 		}
-		s.log.Fatal(err)
+		// Log instead of Fatal: the torrent package is embeddable as a
+		// library, so an unexpected Serve error must not os.Exit the host
+		// process. (The pprof serve goroutine in main.go logs likewise.)
+		s.log.Errorln("rpc server stopped serving:", err)
 	}()
 
 	return nil
