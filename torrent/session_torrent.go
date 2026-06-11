@@ -237,10 +237,10 @@ func (t *Torrent) Move(target string) error {
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("http error: %d", resp.StatusCode)
 	}
-	defer resp.Body.Close()
 	return t.torrent.session.RemoveTorrent(t.torrent.id, true)
 }
 
