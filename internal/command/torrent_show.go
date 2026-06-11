@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/hokaccha/go-prettyjson"
 	"github.com/urfave/cli"
 	"github.com/zeebo/bencode"
 )
@@ -40,11 +39,5 @@ func handleTorrentShow(c *cli.Context) error {
 			info["pieces"] = fmt.Sprintf("<<< %d bytes of data >>>", len(pieces))
 		}
 	}
-	b, err := prettyjson.Marshal(val)
-	if err != nil {
-		return err
-	}
-	_, _ = os.Stdout.Write(b)
-	_, _ = os.Stdout.WriteString("\n")
-	return nil
+	return printJSON(val)
 }

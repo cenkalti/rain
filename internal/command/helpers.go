@@ -12,11 +12,24 @@ import (
 
 	"github.com/cenkalti/rain/v2/internal/logger"
 	"github.com/cenkalti/rain/v2/torrent"
+	"github.com/hokaccha/go-prettyjson"
 	"github.com/urfave/cli"
 	"gopkg.in/yaml.v2"
 )
 
 var log = logger.New("rain")
+
+// printJSON writes v to stdout as colorized, compact JSON followed by a
+// newline. Used by the commands that dump RPC responses or torrent contents.
+func printJSON(v any) error {
+	b, err := prettyjson.Marshal(v)
+	if err != nil {
+		return err
+	}
+	_, _ = os.Stdout.Write(b)
+	_, _ = os.Stdout.WriteString("\n")
+	return nil
+}
 
 func prepareConfig(c *cli.Context) (torrent.Config, error) {
 	cfg := torrent.DefaultConfig

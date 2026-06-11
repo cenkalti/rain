@@ -1,13 +1,11 @@
 package command
 
 import (
-	"os"
 	"strconv"
 	"time"
 
 	"github.com/cenkalti/rain/v2/rainrpc"
 	"github.com/cenkalti/rain/v2/torrent"
-	"github.com/hokaccha/go-prettyjson"
 	"github.com/urfave/cli"
 )
 
@@ -64,17 +62,5 @@ func ClientCommand() cli.Command {
 func handleBeforeClient(c *cli.Context) error {
 	clt = rainrpc.NewClient(c.String("url"))
 	clt.SetTimeout(c.Duration("timeout"))
-	return nil
-}
-
-// printJSON writes v to stdout as colorized, compact JSON followed by a
-// newline. Used by the client subcommands that dump RPC responses.
-func printJSON(v any) error {
-	b, err := prettyjson.Marshal(v)
-	if err != nil {
-		return err
-	}
-	_, _ = os.Stdout.Write(b)
-	_, _ = os.Stdout.WriteString("\n")
 	return nil
 }
