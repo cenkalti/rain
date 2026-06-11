@@ -1,7 +1,6 @@
 package incominghandshaker
 
 import (
-	"io"
 	"net"
 	"time"
 
@@ -53,15 +52,7 @@ func (h *IncomingHandshaker) Run(peerID [20]byte, getSKeyFunc func([20]byte) []b
 	conn, cipher, peerExtensions, peerID, _, err := btconn.Accept(
 		h.Conn, timeout, getSKeyFunc, forceIncomingEncryption, checkInfoHashFunc, ourExtensions, peerID)
 	if err != nil {
-		if err == io.EOF {
-			log.Debug("peer has closed the connection: EOF")
-		} else if err == io.ErrUnexpectedEOF {
-			log.Debug("peer has closed the connection: Unexpected EOF")
-		} else if _, ok := err.(*net.OpError); ok {
-			log.Debugln("net operation error:", err)
-		} else if _, ok := err.(*btconn.HandshakeError); ok {
-			log.Debugln("protocol error:", err)
-		} else {
+		if !btconn.LogHandshakeError(log, err) {
 			log.Debugln("cannot complete incoming handshake:", err)
 		}
 		h.Error = err
