@@ -3,6 +3,8 @@ package torrent
 import (
 	"net"
 	"time"
+
+	"github.com/cenkalti/rain/v2/internal/tracker"
 )
 
 func (s *Session) processDHTResults() {
@@ -48,15 +50,13 @@ func (s *Session) handleDHTtick() {
 func parseDHTPeers(peers []string) []*net.TCPAddr {
 	addrs := make([]*net.TCPAddr, 0, len(peers))
 	for _, peer := range peers {
-		if len(peer) != 6 {
-			// only IPv4 is supported for now
+		// DHT returns one entry per peer. UnmarshalBinary rejects anything
+		// that isn't a 6-byte compact peer, so non-IPv4 entries are skipped.
+		var cp tracker.CompactPeer
+		if cp.UnmarshalBinary([]byte(peer)) != nil {
 			continue
 		}
-		addr := &net.TCPAddr{
-			IP:   net.IP(peer[:4]),
-			Port: int((uint16(peer[4]) << 8) | uint16(peer[5])),
-		}
-		addrs = append(addrs, addr)
+		addrs = append(addrs, cp.Addr())
 	}
 	return addrs
 }
