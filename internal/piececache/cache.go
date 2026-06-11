@@ -23,8 +23,6 @@ type Cache struct {
 	NumTotal       metrics.Meter
 	NumLoad        metrics.Meter
 	NumLoadedBytes metrics.Meter
-
-	closeC chan struct{}
 }
 
 // Loader is a function that loads data from a piece.
@@ -41,13 +39,13 @@ func New(maxSize int64, ttl time.Duration, parallelReads uint) *Cache {
 		NumTotal:       metrics.NewMeter(),
 		NumLoad:        metrics.NewMeter(),
 		NumLoadedBytes: metrics.NewMeter(),
-		closeC:         make(chan struct{}),
 	}
 }
 
-// Close the cache and release all resources.
+// Close the cache and release all resources. It drops all cached items,
+// stopping their expiry timers, then stops the metrics meters.
 func (c *Cache) Close() {
-	close(c.closeC)
+	c.Clear()
 	c.NumCached.Stop()
 	c.NumTotal.Stop()
 	c.NumLoad.Stop()
