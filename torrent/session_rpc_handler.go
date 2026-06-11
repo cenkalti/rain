@@ -626,19 +626,25 @@ func readData(r io.Reader, dir string, perm fs.FileMode) error {
 		if err != nil {
 			return err
 		}
-		f, err := os.Create(name)
+		err = writeFile(name, tr)
 		if err != nil {
 			return err
 		}
-		_, err = io.Copy(f, tr) // nolint: gosec
-		if err != nil {
-			return err
-		}
-		err = f.Sync()
-		if err != nil {
-			return err
-		}
-		_ = f.Close()
 	}
 	return nil
+}
+
+// writeFile creates name and copies r into it, syncing before close. The file
+// handle is closed on every path so a failed entry does not leak a descriptor.
+func writeFile(name string, r io.Reader) error {
+	f, err := os.Create(name)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = io.Copy(f, r) // nolint: gosec
+	if err != nil {
+		return err
+	}
+	return f.Sync()
 }
