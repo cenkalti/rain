@@ -30,7 +30,7 @@ type AnnounceError struct {
 	err *announcer.AnnounceError
 }
 
-// Contains the humanized version of error.
+// Error returns the humanized version of the error.
 func (e *AnnounceError) Error() string {
 	return e.err.Message
 }
