@@ -23,7 +23,7 @@ require (
 	go.etcd.io/bbolt v1.5.0
 	go.uber.org/goleak v1.3.0
 	golang.org/x/sync v0.22.0
-	golang.org/x/sys v0.46.0
+	golang.org/x/sys v0.47.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
