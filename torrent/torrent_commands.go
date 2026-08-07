@@ -10,38 +10,49 @@ import (
 	"github.com/cenkalti/rain/v2/internal/tracker"
 )
 
+// sendCommand sends cmd to the torrent's run loop.
+// It gives up and returns false if the torrent is closed first.
+func sendCommand[T any](ch chan<- T, cmd T, closeC <-chan struct{}) bool {
+	select {
+	case ch <- cmd:
+		return true
+	case <-closeC:
+		return false
+	}
+}
+
+// recvResponse receives a command response from the torrent's run loop.
+// It gives up and returns the zero value if the torrent is closed first.
+func recvResponse[T any](ch <-chan T, closeC <-chan struct{}) T {
+	select {
+	case v := <-ch:
+		return v
+	case <-closeC:
+		var zero T
+		return zero
+	}
+}
+
 // Start downloading.
 // After all files are downloaded, seeding continues until the torrent is stopped.
 func (t *torrent) Start() {
-	select {
-	case t.startCommandC <- struct{}{}:
-	case <-t.closeC:
-	}
+	sendCommand(t.startCommandC, struct{}{}, t.closeC)
 }
 
 // Stop downloading and seeding.
 // Stop closes all peer connections.
 func (t *torrent) Stop() {
-	select {
-	case t.stopCommandC <- struct{}{}:
-	case <-t.closeC:
-	}
+	sendCommand(t.stopCommandC, struct{}{}, t.closeC)
 }
 
 // Announce torrent to trackers and DHT manually.
 func (t *torrent) Announce() {
-	select {
-	case t.announceCommandC <- struct{}{}:
-	case <-t.closeC:
-	}
+	sendCommand(t.announceCommandC, struct{}{}, t.closeC)
 }
 
 // Verify pieces by checking files.
 func (t *torrent) Verify() {
-	select {
-	case t.verifyCommandC <- struct{}{}:
-	case <-t.closeC:
-	}
+	sendCommand(t.verifyCommandC, struct{}{}, t.closeC)
 }
 
 // Close this torrent and release all resources.
@@ -69,12 +80,10 @@ type notifyErrorCommand struct {
 
 func (t *torrent) NotifyError() <-chan error {
 	cmd := notifyErrorCommand{errCC: make(chan chan error)}
-	select {
-	case t.notifyErrorCommandC <- cmd:
-		return <-cmd.errCC
-	case <-t.closeC:
+	if !sendCommand(t.notifyErrorCommandC, cmd, t.closeC) {
 		return nil
 	}
+	return <-cmd.errCC
 }
 
 type notifyListenCommand struct {
@@ -85,12 +94,10 @@ type notifyListenCommand struct {
 // NotifyListen must be called after calling Start().
 func (t *torrent) NotifyListen() <-chan int {
 	cmd := notifyListenCommand{portCC: make(chan chan int)}
-	select {
-	case t.notifyListenCommandC <- cmd:
-		return <-cmd.portCC
-	case <-t.closeC:
+	if !sendCommand(t.notifyListenCommandC, cmd, t.closeC) {
 		return nil
 	}
+	return <-cmd.portCC
 }
 
 func (t *torrent) Magnet() (string, error) {
@@ -139,31 +146,17 @@ type statsRequest struct {
 
 // Stats returns statistics about the Torrent.
 func (t *torrent) Stats() Stats {
-	var stats Stats
 	req := statsRequest{Response: make(chan Stats, 1)}
-	select {
-	case t.statsCommandC <- req:
-	case <-t.closeC:
-	}
-	select {
-	case stats = <-req.Response:
-	case <-t.closeC:
-	}
-	return stats
+	sendCommand(t.statsCommandC, req, t.closeC)
+	return recvResponse(req.Response, t.closeC)
 }
 
 func (t *torrent) AddPeers(peers []*net.TCPAddr) {
-	select {
-	case t.addPeersCommandC <- peers:
-	case <-t.closeC:
-	}
+	sendCommand(t.addPeersCommandC, peers, t.closeC)
 }
 
 func (t *torrent) AddTrackers(trackers []tracker.Tracker) {
-	select {
-	case t.addTrackersCommandC <- trackers:
-	case <-t.closeC:
-	}
+	sendCommand(t.addTrackersCommandC, trackers, t.closeC)
 }
 
 // TrackerStatus is status of the Tracker.
@@ -207,17 +200,9 @@ type trackersRequest struct {
 }
 
 func (t *torrent) Trackers() []Tracker {
-	var trackers []Tracker
 	req := trackersRequest{Response: make(chan []Tracker, 1)}
-	select {
-	case t.trackersCommandC <- req:
-	case <-t.closeC:
-	}
-	select {
-	case trackers = <-req.Response:
-	case <-t.closeC:
-	}
-	return trackers
+	sendCommand(t.trackersCommandC, req, t.closeC)
+	return recvResponse(req.Response, t.closeC)
 }
 
 // Peer is a remote peer that is connected and completed protocol handshake.
@@ -261,17 +246,9 @@ type peersRequest struct {
 }
 
 func (t *torrent) Peers() []Peer {
-	var peers []Peer
 	req := peersRequest{Response: make(chan []Peer, 1)}
-	select {
-	case t.peersCommandC <- req:
-	case <-t.closeC:
-	}
-	select {
-	case peers = <-req.Response:
-	case <-t.closeC:
-	}
-	return peers
+	sendCommand(t.peersCommandC, req, t.closeC)
+	return recvResponse(req.Response, t.closeC)
 }
 
 // Webseed is a HTTP source defined in Torrent.
@@ -287,15 +264,7 @@ type webseedsRequest struct {
 }
 
 func (t *torrent) Webseeds() []Webseed {
-	var webseeds []Webseed
 	req := webseedsRequest{Response: make(chan []Webseed, 1)}
-	select {
-	case t.webseedsCommandC <- req:
-	case <-t.closeC:
-	}
-	select {
-	case webseeds = <-req.Response:
-	case <-t.closeC:
-	}
-	return webseeds
+	sendCommand(t.webseedsCommandC, req, t.closeC)
+	return recvResponse(req.Response, t.closeC)
 }
