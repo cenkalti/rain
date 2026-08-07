@@ -56,6 +56,10 @@ type myPiece struct {
 
 	// Downloading from webseed source or marked to be downloaded later.
 	RequestedWebseed *webseedsource.WebseedSource
+
+	// The piece contains the first or the last byte of a file.
+	// Only set in sequential download mode.
+	FileHead, FileTail bool
 }
 
 // RunningDownloads returns the number of pieces that are being downloaded actively.
@@ -77,6 +81,17 @@ func (p *myPiece) AvailableForWebseed() bool {
 	return p.RequestedWebseed == nil
 }
 
+// PickableBy returns true if the piece can be requested from the peer right away.
+func (p *myPiece) PickableBy(pe *peer.Peer) bool {
+	if p.Done || p.Writing {
+		return false
+	}
+	if p.Requested.Len() > 0 {
+		return false
+	}
+	return p.Having.Has(pe)
+}
+
 // New returns a new PiecePicker.
 // If sequential is true, pieces are picked in sequential order instead of rarest-first.
 func New(pieces []piece.Piece, maxDuplicateDownload int, webseedSources []*webseedsource.WebseedSource, sequential bool) *PiecePicker {
@@ -94,6 +109,9 @@ func New(pieces []piece.Piece, maxDuplicateDownload int, webseedSources []*webse
 	if maxWebseedPieces == 0 {
 		maxWebseedPieces = 1
 	}
+	if sequential {
+		markFileEnds(ps)
+	}
 	return &PiecePicker{
 		pieces:               ps,
 		piecesByAvailability: sps,
@@ -102,6 +120,32 @@ func New(pieces []piece.Piece, maxDuplicateDownload int, webseedSources []*webse
 		maxWebseedPieces:     maxWebseedPieces,
 		webseedSources:       webseedSources,
 		sequential:           sequential,
+	}
+}
+
+// markFileEnds flags the pieces that contain the first or the last byte of a file.
+// Files are laid out in the torrent one after another, so a new file begins where the name of
+// the section changes. Padding files are skipped, they don't belong to any file.
+func markFileEnds(pieces []myPiece) {
+	var name string
+	var tail *myPiece // piece that contains the last byte seen so far
+	for i := range pieces {
+		for _, sec := range pieces[i].Data {
+			if sec.Padding {
+				continue
+			}
+			if sec.Name != name {
+				if tail != nil {
+					tail.FileTail = true
+				}
+				pieces[i].FileHead = true
+				name = sec.Name
+			}
+			tail = &pieces[i]
+		}
+	}
+	if tail != nil {
+		tail.FileTail = true
 	}
 }
 
@@ -320,26 +364,20 @@ func (p *PiecePicker) pickRarest(pe *peer.Peer) *myPiece {
 	return picked
 }
 
-// sequentialIndex returns the index of the piece at the given position in sequential order.
-// The last piece comes right after the first one because media files often keep their index
-// at the end and players need both ends of the file before they can start playing.
-func (p *PiecePicker) sequentialIndex(pos int) int {
-	switch pos {
-	case 0:
-		return 0
-	case 1:
-		return len(p.pieces) - 1
-	default:
-		return pos - 1
-	}
-}
-
 // pickSequential returns the first piece in sequential order that the peer has and nobody
 // else is downloading. It replaces pickRarest in sequential download mode.
 func (p *PiecePicker) pickSequential(pe *peer.Peer) *myPiece {
+	// Both ends of every file come before the rest of the pieces because media files keep
+	// their index at one of the two ends. Players need it before they can start playing.
+	for i := range p.pieces {
+		mp := &p.pieces[i]
+		if (mp.FileHead || mp.FileTail) && mp.PickableBy(pe) {
+			return mp
+		}
+	}
 	var hasUnrequested bool
-	for pos := range p.pieces {
-		mp := &p.pieces[p.sequentialIndex(pos)]
+	for i := range p.pieces {
+		mp := &p.pieces[i]
 		if mp.Done || mp.Writing {
 			continue
 		}

@@ -51,11 +51,13 @@ func (p *PiecePicker) findPieceRangeForWebseed() *Range {
 		return p.webseedStealsFromAnotherWebseed()
 	}
 	if p.sequential {
-		// Download the last piece before anything else. It is a single piece request, so it
-		// completes quickly, while the gap at the beginning may span many pieces.
-		last := uint32(len(p.pieces) - 1)
-		if p.pieces[last].AvailableForWebseed() {
-			return &Range{Begin: last, End: last + 1}
+		// Download the piece at the end of a file before anything else. It is a single piece
+		// request, so it completes quickly, while the gap at the beginning may span many pieces.
+		for i := range p.pieces {
+			mp := &p.pieces[i]
+			if mp.FileTail && mp.AvailableForWebseed() {
+				return &Range{Begin: mp.Index, End: mp.Index + 1}
+			}
 		}
 		// findGaps returns gaps in ascending index order.
 		return &gaps[0]

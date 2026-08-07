@@ -4,14 +4,16 @@ import (
 	"testing"
 
 	"github.com/cenkalti/rain/v2/internal/bitfield"
+	"github.com/cenkalti/rain/v2/internal/filesection"
 	"github.com/cenkalti/rain/v2/internal/peer"
 	"github.com/cenkalti/rain/v2/internal/piece"
 	"github.com/stretchr/testify/assert"
 )
 
 const (
-	numPieces = 7
-	numPeers  = 3
+	numPieces   = 7
+	numPeers    = 3
+	pieceLength = 16 * 1024
 )
 
 func TestPiecePicker(t *testing.T) {
@@ -124,8 +126,55 @@ func TestPiecePickerSequentialOrder(t *testing.T) {
 	}
 }
 
+func TestPiecePickerSequentialOrderMultiFile(t *testing.T) {
+	// File "a" spans pieces 0-2 and file "b" spans pieces 3-6.
+	pieces := make([]piece.Piece, numPieces)
+	for i := range pieces {
+		if i < 3 {
+			pieces[i] = newFilePiece(i, "a", int64(i)*pieceLength)
+		} else {
+			pieces[i] = newFilePiece(i, "b", int64(i-3)*pieceLength)
+		}
+	}
+	pe := newPeer(0)
+	pp := New(pieces, 2, nil, true)
+	for i := range pieces {
+		pp.HandleHave(pe, uint32(i))
+	}
+	// Both ends of both files, then the rest in index order.
+	for _, i := range []int{0, 2, 3, 6, 1, 4, 5} {
+		assert.Equal(t, &pieces[i], pp.pickFor(pe))
+	}
+}
+
+func TestMarkFileEnds(t *testing.T) {
+	// Piece 1 holds the end of file "a", a padding file and the beginning of file "b".
+	pieces := []piece.Piece{
+		newFilePiece(0, "a", 0),
+		{Index: 1, Length: pieceLength, Data: filesection.Piece{
+			{Name: "a", Offset: pieceLength, Length: pieceLength / 2},
+			{Name: "pad", Length: pieceLength / 4, Padding: true},
+			{Name: "b", Length: pieceLength / 4},
+		}},
+		newFilePiece(2, "b", pieceLength/4),
+	}
+	pp := New(pieces, 2, nil, true)
+	assert.Equal(t, []bool{true, true, false}, []bool{pp.pieces[0].FileHead, pp.pieces[1].FileHead, pp.pieces[2].FileHead})
+	assert.Equal(t, []bool{false, true, true}, []bool{pp.pieces[0].FileTail, pp.pieces[1].FileTail, pp.pieces[2].FileTail})
+}
+
+// newPiece returns a piece of a torrent that contains a single file.
 func newPiece(i int) piece.Piece {
-	return piece.Piece{Index: uint32(i)}
+	return newFilePiece(i, "file", int64(i)*pieceLength)
+}
+
+// newFilePiece returns a piece that holds a single section of the named file.
+func newFilePiece(i int, name string, offset int64) piece.Piece {
+	return piece.Piece{
+		Index:  uint32(i),
+		Length: pieceLength,
+		Data:   filesection.Piece{{Name: name, Offset: offset, Length: pieceLength}},
+	}
 }
 
 func newPeer(i int) *peer.Peer {
