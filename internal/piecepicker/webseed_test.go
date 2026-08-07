@@ -50,8 +50,12 @@ func TestFindPieceRangeForWebseedSequential(t *testing.T) {
 	pieces[2].Done = true
 	pp := New(pieces, 2, nil, true)
 	pp.maxWebseedPieces = 10
-	// Gaps are {0,2} and {3,10}. Sequential mode takes the first one, not the largest.
+	// Gaps are {0,2} and {3,10}.
 	assert.Equal(t, []Range{{0, 2}, {3, 10}}, pp.findGaps())
+	// Sequential mode downloads the last piece first.
+	assert.Equal(t, &Range{9, 10}, pp.findPieceRangeForWebseed())
+	// Then it takes the first gap, not the largest one.
+	pieces[9].Done = true
 	assert.Equal(t, &Range{0, 2}, pp.findPieceRangeForWebseed())
 }
 

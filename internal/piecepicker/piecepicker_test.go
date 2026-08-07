@@ -95,16 +95,33 @@ func TestPiecePickerSequential(t *testing.T) {
 	pp, pieces, peers := newPicker(false)
 	assert.Equal(t, &pieces[6], pp.pickFor(peers[0]))
 
-	// Sequential mode ignores rarity and hands out the lowest indexed piece.
+	// Sequential mode ignores rarity. Piece 0 is done, so the last piece comes first,
+	// then the remaining pieces in index order.
 	pp, pieces, peers = newPicker(true)
-	assert.Equal(t, &pieces[1], pp.pickFor(peers[0]))
-	assert.Equal(t, &pieces[2], pp.pickFor(peers[1]))
-	assert.Equal(t, &pieces[3], pp.pickFor(peers[2]))
+	assert.Equal(t, &pieces[6], pp.pickFor(peers[0]))
+	assert.Equal(t, &pieces[1], pp.pickFor(peers[1]))
+	assert.Equal(t, &pieces[2], pp.pickFor(peers[2]))
 	assert.False(t, pp.endgame)
 
-	// Pieces 4 and 5 are unavailable, so piece 6 is all that is left for peers[0].
-	assert.Equal(t, &pieces[6], pp.pickFor(peers[0]))
+	// Pieces 4 and 5 are unavailable, so piece 3 is all that is left for peers[0].
+	assert.Equal(t, &pieces[3], pp.pickFor(peers[0]))
 	assert.False(t, pp.endgame)
+}
+
+func TestPiecePickerSequentialOrder(t *testing.T) {
+	pieces := make([]piece.Piece, numPieces)
+	for i := range pieces {
+		pieces[i] = newPiece(i)
+	}
+	pe := newPeer(0)
+	pp := New(pieces, 2, nil, true)
+	for i := range pieces {
+		pp.HandleHave(pe, uint32(i))
+	}
+	// First piece, then last piece, then the rest in index order.
+	for _, i := range []int{0, 6, 1, 2, 3, 4, 5} {
+		assert.Equal(t, &pieces[i], pp.pickFor(pe))
+	}
 }
 
 func newPiece(i int) piece.Piece {

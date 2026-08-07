@@ -43,7 +43,7 @@ type PiecePicker struct {
 	available            uint32
 	endgame              bool
 
-	// Pick the lowest indexed piece instead of the rarest piece.
+	// Pick the next piece in sequential order instead of the rarest piece.
 	sequential bool
 }
 
@@ -78,7 +78,7 @@ func (p *myPiece) AvailableForWebseed() bool {
 }
 
 // New returns a new PiecePicker.
-// If sequential is true, pieces are picked in index order instead of rarest-first.
+// If sequential is true, pieces are picked in sequential order instead of rarest-first.
 func New(pieces []piece.Piece, maxDuplicateDownload int, webseedSources []*webseedsource.WebseedSource, sequential bool) *PiecePicker {
 	ps := make([]myPiece, len(pieces))
 	for i := range pieces {
@@ -320,12 +320,26 @@ func (p *PiecePicker) pickRarest(pe *peer.Peer) *myPiece {
 	return picked
 }
 
-// pickSequential returns the lowest indexed piece that the peer has and nobody else is downloading.
-// It replaces pickRarest in sequential download mode.
+// sequentialIndex returns the index of the piece at the given position in sequential order.
+// The last piece comes right after the first one because media files often keep their index
+// at the end and players need both ends of the file before they can start playing.
+func (p *PiecePicker) sequentialIndex(pos int) int {
+	switch pos {
+	case 0:
+		return 0
+	case 1:
+		return len(p.pieces) - 1
+	default:
+		return pos - 1
+	}
+}
+
+// pickSequential returns the first piece in sequential order that the peer has and nobody
+// else is downloading. It replaces pickRarest in sequential download mode.
 func (p *PiecePicker) pickSequential(pe *peer.Peer) *myPiece {
 	var hasUnrequested bool
-	for i := range p.pieces {
-		mp := &p.pieces[i]
+	for pos := range p.pieces {
+		mp := &p.pieces[p.sequentialIndex(pos)]
 		if mp.Done || mp.Writing {
 			continue
 		}
