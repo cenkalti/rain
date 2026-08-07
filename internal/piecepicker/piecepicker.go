@@ -57,7 +57,7 @@ type myPiece struct {
 	// Downloading from webseed source or marked to be downloaded later.
 	RequestedWebseed *webseedsource.WebseedSource
 
-	// The piece contains the first or the last byte of a file.
+	// The piece holds data from the first or the last fileEndSize bytes of a file.
 	// Only set in sequential download mode.
 	FileHead, FileTail bool
 }
@@ -123,29 +123,41 @@ func New(pieces []piece.Piece, maxDuplicateDownload int, webseedSources []*webse
 	}
 }
 
-// markFileEnds flags the pieces that contain the first or the last byte of a file.
-// Files are laid out in the torrent one after another, so a new file begins where the name of
-// the section changes. Padding files are skipped, they don't belong to any file.
+// Upper limit for the number of bytes that are downloaded first at both ends of a file.
+const maxFileEndSize = 8 * 1024 * 1024
+
+// fileEndSize returns the number of bytes at both ends of a file that are downloaded before the
+// rest of the file. A single piece is not always enough: the moov atom of an MP4 file or the
+// idx1 index of an AVI file is a few megabytes long on a long recording.
+// qBittorrent reserves 1% of the file size for the same purpose.
+func fileEndSize(fileSize int64) int64 {
+	return max(min(fileSize/100, maxFileEndSize), 1)
+}
+
+// markFileEnds flags the pieces that hold data from either end of a file.
+// Padding files are skipped, they don't belong to any file.
 func markFileEnds(pieces []myPiece) {
-	var name string
-	var tail *myPiece // piece that contains the last byte seen so far
+	sizes := make(map[string]int64)
+	for i := range pieces {
+		for _, sec := range pieces[i].Data {
+			if !sec.Padding {
+				sizes[sec.Name] = max(sizes[sec.Name], sec.Offset+sec.Length)
+			}
+		}
+	}
 	for i := range pieces {
 		for _, sec := range pieces[i].Data {
 			if sec.Padding {
 				continue
 			}
-			if sec.Name != name {
-				if tail != nil {
-					tail.FileTail = true
-				}
+			n := fileEndSize(sizes[sec.Name])
+			if sec.Offset < n {
 				pieces[i].FileHead = true
-				name = sec.Name
 			}
-			tail = &pieces[i]
+			if sec.Offset+sec.Length > sizes[sec.Name]-n {
+				pieces[i].FileTail = true
+			}
 		}
-	}
-	if tail != nil {
-		tail.FileTail = true
 	}
 }
 

@@ -31,8 +31,8 @@ type AddTorrentOptions struct {
 	StopAfterDownload bool
 	// Stop torrent after metadata is downloaded from magnet links.
 	StopAfterMetadata bool
-	// Download the first and the last piece of every file first, then the remaining pieces
-	// in index order, instead of rarest-first.
+	// Download both ends of every file first, then the remaining pieces in index order,
+	// instead of rarest-first.
 	// Useful for streaming, at the cost of slower overall download and worse swarm health.
 	Sequential bool
 }

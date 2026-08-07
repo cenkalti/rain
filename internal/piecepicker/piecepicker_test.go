@@ -147,6 +147,30 @@ func TestPiecePickerSequentialOrderMultiFile(t *testing.T) {
 	}
 }
 
+func TestPiecePickerSequentialFileEnds(t *testing.T) {
+	// The file is 3 MiB long, so 1% of it spans two pieces at both ends.
+	const n = 200
+	pieces := make([]piece.Piece, n)
+	for i := range pieces {
+		pieces[i] = newPiece(i)
+	}
+	pe := &peer.Peer{Bitfield: bitfield.New(n)}
+	pp := New(pieces, 2, nil, true)
+	for i := range pieces {
+		pp.HandleHave(pe, uint32(i))
+	}
+	for _, i := range []int{0, 1, 198, 199, 2, 3} {
+		assert.Equal(t, &pieces[i], pp.pickFor(pe))
+	}
+}
+
+func TestFileEndSize(t *testing.T) {
+	assert.Equal(t, int64(1), fileEndSize(0))
+	assert.Equal(t, int64(1), fileEndSize(99))
+	assert.Equal(t, int64(1024), fileEndSize(100*1024))
+	assert.Equal(t, int64(maxFileEndSize), fileEndSize(10*1024*1024*1024))
+}
+
 func TestMarkFileEnds(t *testing.T) {
 	// Piece 1 holds the end of file "a", a padding file and the beginning of file "b".
 	pieces := []piece.Piece{
