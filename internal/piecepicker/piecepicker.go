@@ -57,7 +57,7 @@ type myPiece struct {
 	// Downloading from webseed source or marked to be downloaded later.
 	RequestedWebseed *webseedsource.WebseedSource
 
-	// The piece holds data from the first or the last fileEndSize bytes of a file.
+	// The piece holds data from the first or the last fileEdgeSize bytes of a file.
 	// Only set in sequential download mode.
 	FileHead, FileTail bool
 }
@@ -110,7 +110,7 @@ func New(pieces []piece.Piece, maxDuplicateDownload int, webseedSources []*webse
 		maxWebseedPieces = 1
 	}
 	if sequential {
-		markFileEnds(ps)
+		markFileEdges(ps)
 	}
 	return &PiecePicker{
 		pieces:               ps,
@@ -124,19 +124,19 @@ func New(pieces []piece.Piece, maxDuplicateDownload int, webseedSources []*webse
 }
 
 // Upper limit for the number of bytes that are downloaded first at both ends of a file.
-const maxFileEndSize = 8 * 1024 * 1024
+const maxFileEdgeSize = 8 * 1024 * 1024
 
-// fileEndSize returns the number of bytes at both ends of a file that are downloaded before the
+// fileEdgeSize returns the number of bytes at both ends of a file that are downloaded before the
 // rest of the file. A single piece is not always enough: the moov atom of an MP4 file or the
 // idx1 index of an AVI file is a few megabytes long on a long recording.
 // qBittorrent reserves 1% of the file size for the same purpose.
-func fileEndSize(fileSize int64) int64 {
-	return max(min(fileSize/100, maxFileEndSize), 1)
+func fileEdgeSize(fileSize int64) int64 {
+	return max(min(fileSize/100, maxFileEdgeSize), 1)
 }
 
-// markFileEnds flags the pieces that hold data from either end of a file.
+// markFileEdges flags the pieces that hold data from either end of a file.
 // Padding files are skipped, they don't belong to any file.
-func markFileEnds(pieces []myPiece) {
+func markFileEdges(pieces []myPiece) {
 	sizes := make(map[string]int64)
 	for i := range pieces {
 		for _, sec := range pieces[i].Data {
@@ -150,7 +150,7 @@ func markFileEnds(pieces []myPiece) {
 			if sec.Padding {
 				continue
 			}
-			n := fileEndSize(sizes[sec.Name])
+			n := fileEdgeSize(sizes[sec.Name])
 			if sec.Offset < n {
 				pieces[i].FileHead = true
 			}
@@ -300,6 +300,15 @@ func (p *PiecePicker) findPiece(pe *peer.Peer) (mp *myPiece, allowedFast bool) {
 		}
 		return nil, false
 	}
+	// Pieces at file edges come before the allowed-fast pieces, which are spread over the
+	// torrent. While choked they are the only pieces we can request, so this applies only
+	// after the peer unchokes us.
+	if p.sequential && !pe.PeerChoking {
+		mp = p.pickFileEdge(pe)
+		if mp != nil {
+			return mp, false
+		}
+	}
 	// Pick allowed fast piece
 	pi := p.pickAllowedFast(pe)
 	if pi != nil {
@@ -376,17 +385,23 @@ func (p *PiecePicker) pickRarest(pe *peer.Peer) *myPiece {
 	return picked
 }
 
-// pickSequential returns the first piece in sequential order that the peer has and nobody
-// else is downloading. It replaces pickRarest in sequential download mode.
-func (p *PiecePicker) pickSequential(pe *peer.Peer) *myPiece {
-	// Both ends of every file come before the rest of the pieces because media files keep
-	// their index at one of the two ends. Players need it before they can start playing.
+// pickFileEdge returns a piece at either end of a file that the peer has and nobody else is
+// downloading. Media files keep their index at one of the two ends, so these pieces come
+// before the rest of the pieces. Players need the index before they can start playing.
+func (p *PiecePicker) pickFileEdge(pe *peer.Peer) *myPiece {
 	for i := range p.pieces {
 		mp := &p.pieces[i]
 		if (mp.FileHead || mp.FileTail) && mp.PickableBy(pe) {
 			return mp
 		}
 	}
+	return nil
+}
+
+// pickSequential returns the first piece in index order that the peer has and nobody else is
+// downloading. It replaces pickRarest in sequential download mode. The pieces at file edges are
+// already picked by pickFileEdge before this function runs.
+func (p *PiecePicker) pickSequential(pe *peer.Peer) *myPiece {
 	var hasUnrequested bool
 	for i := range p.pieces {
 		mp := &p.pieces[i]

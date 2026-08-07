@@ -147,7 +147,7 @@ func TestPiecePickerSequentialOrderMultiFile(t *testing.T) {
 	}
 }
 
-func TestPiecePickerSequentialFileEnds(t *testing.T) {
+func TestPiecePickerSequentialFileEdges(t *testing.T) {
 	// The file is 3 MiB long, so 1% of it spans two pieces at both ends.
 	const n = 200
 	pieces := make([]piece.Piece, n)
@@ -164,14 +164,40 @@ func TestPiecePickerSequentialFileEnds(t *testing.T) {
 	}
 }
 
-func TestFileEndSize(t *testing.T) {
-	assert.Equal(t, int64(1), fileEndSize(0))
-	assert.Equal(t, int64(1), fileEndSize(99))
-	assert.Equal(t, int64(1024), fileEndSize(100*1024))
-	assert.Equal(t, int64(maxFileEndSize), fileEndSize(10*1024*1024*1024))
+func TestPiecePickerSequentialAllowedFast(t *testing.T) {
+	pieces := make([]piece.Piece, numPieces)
+	for i := range pieces {
+		pieces[i] = newPiece(i)
+	}
+	pe := newPeer(0)
+	pp := New(pieces, 2, nil, true)
+	for i := range pieces {
+		pp.HandleHave(pe, uint32(i))
+	}
+	// Piece 3 is in the middle of the file. The peer allows us to request it while choking.
+	pp.HandleAllowedFast(pe, 3)
+
+	// While choked, the allowed-fast piece is the only piece we can request.
+	pe.PeerChoking = true
+	pi, allowedFast := pp.PickFor(pe)
+	assert.Equal(t, &pieces[3], pi)
+	assert.True(t, allowedFast)
+
+	// After the peer unchokes us, the pieces at file edges come first.
+	pe.PeerChoking = false
+	pi, allowedFast = pp.PickFor(pe)
+	assert.Equal(t, &pieces[0], pi)
+	assert.False(t, allowedFast)
 }
 
-func TestMarkFileEnds(t *testing.T) {
+func TestFileEdgeSize(t *testing.T) {
+	assert.Equal(t, int64(1), fileEdgeSize(0))
+	assert.Equal(t, int64(1), fileEdgeSize(99))
+	assert.Equal(t, int64(1024), fileEdgeSize(100*1024))
+	assert.Equal(t, int64(maxFileEdgeSize), fileEdgeSize(10*1024*1024*1024))
+}
+
+func TestMarkFileEdges(t *testing.T) {
 	// Piece 1 holds the end of file "a", a padding file and the beginning of file "b".
 	pieces := []piece.Piece{
 		newFilePiece(0, "a", 0),
