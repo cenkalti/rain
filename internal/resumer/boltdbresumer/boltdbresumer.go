@@ -124,46 +124,42 @@ func (r *Resumer) Write(torrentID string, spec *Spec) error {
 	})
 }
 
-// WriteInfo writes only the info dict of a torrent.
-func (r *Resumer) WriteInfo(torrentID string, value []byte) error {
+// update runs fn on the sub-bucket of the torrent with torrentID.
+// It does nothing if the torrent is not in the database.
+func (r *Resumer) update(torrentID string, fn func(b *bbolt.Bucket) error) error {
 	return r.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(r.bucket).Bucket([]byte(torrentID))
 		if b == nil {
 			return nil
 		}
+		return fn(b)
+	})
+}
+
+// WriteInfo writes only the info dict of a torrent.
+func (r *Resumer) WriteInfo(torrentID string, value []byte) error {
+	return r.update(torrentID, func(b *bbolt.Bucket) error {
 		return b.Put(Keys.Info, value)
 	})
 }
 
 // WriteBitfield writes only bitfield of a torrent.
 func (r *Resumer) WriteBitfield(torrentID string, value []byte) error {
-	return r.db.Update(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(r.bucket).Bucket([]byte(torrentID))
-		if b == nil {
-			return nil
-		}
+	return r.update(torrentID, func(b *bbolt.Bucket) error {
 		return b.Put(Keys.Bitfield, value)
 	})
 }
 
 // WriteStarted writes the start status of a torrent.
 func (r *Resumer) WriteStarted(torrentID string, value bool) error {
-	return r.db.Update(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(r.bucket).Bucket([]byte(torrentID))
-		if b == nil {
-			return nil
-		}
+	return r.update(torrentID, func(b *bbolt.Bucket) error {
 		return b.Put(Keys.Started, []byte(strconv.FormatBool(value)))
 	})
 }
 
 // HandleStopAfterDownload clears the start status and stop_after_download fields.
 func (r *Resumer) HandleStopAfterDownload(torrentID string) error {
-	return r.db.Update(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(r.bucket).Bucket([]byte(torrentID))
-		if b == nil {
-			return nil
-		}
+	return r.update(torrentID, func(b *bbolt.Bucket) error {
 		err := b.Put(Keys.Started, []byte(strconv.FormatBool(false)))
 		if err != nil {
 			return err
@@ -174,11 +170,7 @@ func (r *Resumer) HandleStopAfterDownload(torrentID string) error {
 
 // HandleStopAfterMetadata clears the start status and stop_after_metadata fields.
 func (r *Resumer) HandleStopAfterMetadata(torrentID string) error {
-	return r.db.Update(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(r.bucket).Bucket([]byte(torrentID))
-		if b == nil {
-			return nil
-		}
+	return r.update(torrentID, func(b *bbolt.Bucket) error {
 		err := b.Put(Keys.Started, []byte(strconv.FormatBool(false)))
 		if err != nil {
 			return err
@@ -189,11 +181,7 @@ func (r *Resumer) HandleStopAfterMetadata(torrentID string) error {
 
 // WriteCompleteCmdRun writes the start status of a torrent.
 func (r *Resumer) WriteCompleteCmdRun(torrentID string) error {
-	return r.db.Update(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(r.bucket).Bucket([]byte(torrentID))
-		if b == nil {
-			return nil
-		}
+	return r.update(torrentID, func(b *bbolt.Bucket) error {
 		return b.Put(Keys.CompleteCmdRun, []byte(strconv.FormatBool(true)))
 	})
 }
