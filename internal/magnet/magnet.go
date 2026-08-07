@@ -10,8 +10,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-
-	"github.com/multiformats/go-multihash"
 )
 
 // Magnet link contains the information to download torrent metadata from network.
@@ -42,10 +40,9 @@ func New(s string) (*Magnet, error) {
 	if len(xts) == 0 {
 		return nil, errors.New("empty xt param")
 	}
-	xt := xts[0]
 
 	var magnet Magnet
-	magnet.InfoHash, err = infoHashString(xt)
+	magnet.InfoHash, err = parseInfoHash(xts)
 	if err != nil {
 		return nil, err
 	}
@@ -115,37 +112,41 @@ type trackerTier struct {
 	index    int
 }
 
+// parseInfoHash returns the v1 info hash found in xts.
+// Hybrid magnet links carry both a "urn:btih:" (v1) and a "urn:btmh:" (v2) topic
+// in no particular order. Only the v1 topic is usable because v2 is not supported.
+func parseInfoHash(xts []string) ([20]byte, error) {
+	var v2 bool
+	for _, xt := range xts {
+		if s, ok := strings.CutPrefix(xt, "urn:btih:"); ok {
+			return infoHashString(s)
+		}
+		if strings.HasPrefix(xt, "urn:btmh:") {
+			v2 = true
+		}
+	}
+	if v2 {
+		return [20]byte{}, errors.New("magnet link has no v1 info hash: BitTorrent v2 is not supported")
+	}
+	return [20]byte{}, errors.New("invalid xt param: must start with \"urn:btih:\"")
+}
+
 // infoHashString returns a new info hash value from a string.
 // s must be 40 (hex encoded) or 32 (base32 encoded) characters, otherwise it returns error.
-func infoHashString(xt string) ([20]byte, error) {
+func infoHashString(s string) ([20]byte, error) {
 	var ih [20]byte
 	var b []byte
 	var err error
-	switch {
-	case strings.HasPrefix(xt, "urn:btih:"):
-		xt = xt[9:]
-		switch len(xt) {
-		case 40:
-			b, err = hex.DecodeString(xt)
-		case 32:
-			b, err = base32.StdEncoding.DecodeString(xt)
-		default:
-			return ih, errors.New("info hash must be 32 or 40 characters")
-		}
-		if err != nil {
-			return ih, err
-		}
-	case strings.HasPrefix(xt, "urn:btmh:"):
-		xt = xt[9:]
-		b, err = multihash.FromHexString(xt)
-		if err != nil {
-			return ih, err
-		}
-		if len(b) != 20 {
-			return ih, errors.New("invalid multihash (len != 20)")
-		}
+	switch len(s) {
+	case 40:
+		b, err = hex.DecodeString(s)
+	case 32:
+		b, err = base32.StdEncoding.DecodeString(s)
 	default:
-		return ih, errors.New("invalid xt param: must start with \"urn:btih:\" or \"urn:btmh\"")
+		return ih, errors.New("info hash must be 32 or 40 characters")
+	}
+	if err != nil {
+		return ih, err
 	}
 	copy(ih[:], b)
 	return ih, nil
