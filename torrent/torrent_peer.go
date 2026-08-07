@@ -1,11 +1,11 @@
 package torrent
 
 import (
-	"context"
 	"net"
 	"strconv"
 
 	"github.com/cenkalti/rain/v2/internal/bitfield"
+	"github.com/cenkalti/rain/v2/internal/ctxutil"
 	"github.com/cenkalti/rain/v2/internal/handshaker/outgoinghandshaker"
 	"github.com/cenkalti/rain/v2/internal/mse"
 	"github.com/cenkalti/rain/v2/internal/peer"
@@ -47,16 +47,8 @@ func (t *torrent) addPeerString(addr string) error {
 }
 
 func (t *torrent) resolveAndAddPeer(host string, port int) {
-	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan struct{})
-	defer close(done)
-	go func() {
-		select {
-		case <-t.closeC:
-		case <-done:
-		}
-		cancel()
-	}()
+	ctx, cancel := ctxutil.FromChan(t.closeC)
+	defer cancel()
 	ip, err := resolver.ResolveIPv4(ctx, t.session.config.DNSResolveTimeout, host)
 	if err != nil {
 		return

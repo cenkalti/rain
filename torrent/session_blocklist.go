@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v7"
+	"github.com/cenkalti/rain/v2/internal/ctxutil"
 	"go.etcd.io/bbolt"
 )
 
@@ -79,15 +80,8 @@ func (s *Session) getBlocklistTimestamp() (time.Time, error) {
 }
 
 func (s *Session) retryReloadBlocklist() {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := ctxutil.FromChan(s.closeC)
 	defer cancel()
-	go func() {
-		select {
-		case <-s.closeC:
-			cancel()
-		case <-ctx.Done():
-		}
-	}()
 
 	_, _ = backoff.Retry(ctx, func() (result struct{}, err error) {
 		err = s.reloadBlocklist(ctx)

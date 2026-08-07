@@ -1,7 +1,6 @@
 package urldownloader
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/rain/v2/internal/bufferpool"
+	"github.com/cenkalti/rain/v2/internal/ctxutil"
 	"github.com/cenkalti/rain/v2/internal/piece"
 	"github.com/juju/ratelimit"
 )
@@ -78,14 +78,8 @@ func (d *URLDownloader) ReadCurrent() uint32 {
 // Run the URLDownloader and download pieces.
 func (d *URLDownloader) Run(client *http.Client, pieces []piece.Piece, multifile bool, resultC chan *PieceResult, pool *bufferpool.Pool, readTimeout time.Duration) {
 	defer close(d.doneC)
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		select {
-		case <-d.doneC:
-		case <-d.closeC:
-		}
-		cancel()
-	}()
+	ctx, cancel := ctxutil.FromChan(d.closeC)
+	defer cancel()
 
 	jobs := createJobs(pieces, d.Begin, d.readEnd())
 
