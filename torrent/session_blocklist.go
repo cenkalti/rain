@@ -79,32 +79,6 @@ func (s *Session) getBlocklistTimestamp() (time.Time, error) {
 }
 
 func (s *Session) retryReloadBlocklist() {
-	bo := backoff.NewExponentialBackOff()
-
-	ticker := backoff.NewTicker(bo)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			err := s.reloadBlocklist()
-			if err != nil {
-				s.log.Errorln("cannot load blocklist:", err.Error())
-				continue
-			}
-			return
-		case <-s.closeC:
-			return
-		}
-	}
-}
-
-func (s *Session) reloadBlocklist() error {
-	req, err := http.NewRequest(http.MethodGet, s.config.BlocklistURL, nil)
-	if err != nil {
-		return err
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() {
@@ -114,7 +88,21 @@ func (s *Session) reloadBlocklist() error {
 		case <-ctx.Done():
 		}
 	}()
-	req = req.WithContext(ctx)
+
+	_, _ = backoff.Retry(ctx, func() (result struct{}, err error) {
+		err = s.reloadBlocklist(ctx)
+		if err != nil {
+			s.log.Errorln("cannot load blocklist:", err.Error())
+		}
+		return struct{}{}, err
+	}, backoff.WithMaxElapsedTime(0))
+}
+
+func (s *Session) reloadBlocklist(ctx context.Context) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s.config.BlocklistURL, nil)
+	if err != nil {
+		return err
+	}
 
 	client := http.Client{
 		Timeout: s.config.BlocklistUpdateTimeout,
