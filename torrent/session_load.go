@@ -109,6 +109,7 @@ func (s *Session) loadExistingTorrent(id string) (tt *Torrent, hasStarted bool, 
 		spec.StopAfterDownload,
 		spec.StopAfterMetadata,
 		spec.CompleteCmdRun,
+		spec.Sequential,
 	)
 	if err != nil {
 		return
@@ -184,6 +185,7 @@ func (s *Session) CompactDatabase(output string) error {
 			StopAfterDownload: t.torrent.stopAfterDownload,
 			StopAfterMetadata: t.torrent.stopAfterMetadata,
 			CompleteCmdRun:    t.torrent.completeCmdRun,
+			Sequential:        t.torrent.sequential,
 		}
 		err = res.Write(t.torrent.id, spec)
 		if err != nil {

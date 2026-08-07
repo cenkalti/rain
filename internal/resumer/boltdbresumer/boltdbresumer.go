@@ -34,6 +34,7 @@ var Keys = struct {
 	StopAfterDownload []byte
 	StopAfterMetadata []byte
 	CompleteCmdRun    []byte
+	Sequential        []byte
 	Version           []byte
 }{
 	InfoHash:          []byte("info_hash"),
@@ -54,6 +55,7 @@ var Keys = struct {
 	StopAfterDownload: []byte("stop_after_download"),
 	StopAfterMetadata: []byte("stop_after_metadata"),
 	CompleteCmdRun:    []byte("complete_cmd_run"),
+	Sequential:        []byte("sequential"),
 	Version:           []byte("version"),
 }
 
@@ -119,6 +121,7 @@ func (r *Resumer) Write(torrentID string, spec *Spec) error {
 		_ = b.Put(Keys.StopAfterDownload, []byte(strconv.FormatBool(spec.StopAfterDownload)))
 		_ = b.Put(Keys.StopAfterMetadata, []byte(strconv.FormatBool(spec.StopAfterMetadata)))
 		_ = b.Put(Keys.CompleteCmdRun, []byte(strconv.FormatBool(spec.CompleteCmdRun)))
+		_ = b.Put(Keys.Sequential, []byte(strconv.FormatBool(spec.Sequential)))
 		_ = b.Put(Keys.Version, []byte(strconv.Itoa(version)))
 		return nil
 	})
@@ -342,6 +345,14 @@ func (r *Resumer) Read(torrentID string) (spec *Spec, err error) {
 		value = b.Get(Keys.CompleteCmdRun)
 		if value != nil {
 			spec.CompleteCmdRun, err = strconv.ParseBool(string(value))
+			if err != nil {
+				return err
+			}
+		}
+
+		value = b.Get(Keys.Sequential)
+		if value != nil {
+			spec.Sequential, err = strconv.ParseBool(string(value))
 			if err != nil {
 				return err
 			}

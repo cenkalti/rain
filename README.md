@@ -28,6 +28,7 @@ Features
 
 ### Client Features
 - Fast resuming with BoltDB persistence
+- Sequential downloading for streaming
 - IP blocklist support
 - JSON-RPC 2.0 server & client
 - Interactive console UI
@@ -213,7 +214,6 @@ The following features are not implemented in Rain. This list should not be cons
 - [BEP-030: Merkle tree torrent extension](http://bittorrent.org/beps/bep_0030.html)
 - uPnP port forwarding
 - Selective downloading
-- Sequential downloading
 
 Contributing
 ------------

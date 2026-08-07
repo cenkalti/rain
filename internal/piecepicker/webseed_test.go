@@ -14,7 +14,7 @@ func TestPickLastPieceOfSmallestGap(t *testing.T) {
 	}
 	pieces[1].Done = true
 	peer := newPeer(0)
-	pp := New(pieces, 2, nil)
+	pp := New(pieces, 2, nil, false)
 	pp.maxWebseedPieces = 10
 	assert.Nil(t, pp.pickLastPieceOfSmallestGap(peer))
 }
@@ -25,7 +25,7 @@ func TestFindGapsContiguous(t *testing.T) {
 		p := newPiece(i)
 		pieces[i] = p
 	}
-	pp := New(pieces, 2, nil)
+	pp := New(pieces, 2, nil, false)
 	pp.maxWebseedPieces = 10
 	assert.Equal(t, []Range{{0, 10}}, pp.findGaps())
 }
@@ -37,9 +37,22 @@ func TestFindGapsSplit(t *testing.T) {
 		pieces[i] = p
 	}
 	pieces[4].Done = true
-	pp := New(pieces, 2, nil)
+	pp := New(pieces, 2, nil, false)
 	pp.maxWebseedPieces = 10
 	assert.Equal(t, []Range{{0, 4}, {5, 9}}, pp.findGaps())
+}
+
+func TestFindPieceRangeForWebseedSequential(t *testing.T) {
+	pieces := make([]piece.Piece, 10)
+	for i := range pieces {
+		pieces[i] = newPiece(i)
+	}
+	pieces[2].Done = true
+	pp := New(pieces, 2, nil, true)
+	pp.maxWebseedPieces = 10
+	// Gaps are {0,2} and {3,10}. Sequential mode takes the first one, not the largest.
+	assert.Equal(t, []Range{{0, 2}, {3, 10}}, pp.findGaps())
+	assert.Equal(t, &Range{0, 2}, pp.findPieceRangeForWebseed())
 }
 
 func TestFindGapsLimitMaxPieces(t *testing.T) {
@@ -48,7 +61,7 @@ func TestFindGapsLimitMaxPieces(t *testing.T) {
 		p := newPiece(i)
 		pieces[i] = p
 	}
-	pp := New(pieces, 2, nil)
+	pp := New(pieces, 2, nil, false)
 	pp.maxWebseedPieces = 4
 	assert.Equal(t, []Range{{0, 4}, {4, 8}, {8, 10}}, pp.findGaps())
 }

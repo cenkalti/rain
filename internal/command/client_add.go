@@ -31,6 +31,10 @@ func clientAddCommand() cli.Command {
 				Name:  "stop-after-metadata",
 				Usage: "stop the torrent after metadata download is finished",
 			},
+			cli.BoolFlag{
+				Name:  "sequential",
+				Usage: "download pieces in order, useful for streaming",
+			},
 			cli.StringFlag{
 				Name:  "id",
 				Usage: "if id is not given, a unique id is automatically generated",
@@ -45,6 +49,7 @@ func handleAdd(c *cli.Context) error {
 		Stopped:           c.Bool("stopped"),
 		StopAfterDownload: c.Bool("stop-after-download"),
 		StopAfterMetadata: c.Bool("stop-after-metadata"),
+		Sequential:        c.Bool("sequential"),
 		ID:                c.String("id"),
 	}
 	if isURI(arg) {

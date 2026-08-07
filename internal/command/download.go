@@ -34,6 +34,10 @@ func DownloadCommand() cli.Command {
 				Name:  "seed,s",
 				Usage: "continue seeding after download is finished",
 			},
+			cli.BoolFlag{
+				Name:  "sequential",
+				Usage: "download pieces in order, useful for streaming",
+			},
 			cli.StringFlag{
 				Name:  "resume,r",
 				Usage: "path to .resume file",
@@ -105,6 +109,7 @@ func handleDownload(c *cli.Context) error {
 		// Add as new torrent
 		opt := &torrent.AddTorrentOptions{
 			StopAfterDownload: !seed,
+			Sequential:        c.Bool("sequential"),
 		}
 		if isURI(arg) {
 			t, err = ses.AddURI(arg, opt)

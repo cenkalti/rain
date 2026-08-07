@@ -26,7 +26,7 @@ func TestPiecePicker(t *testing.T) {
 	pieces[0].Done = true
 	pieces[2].Done = true
 	pieces[3].Done = true
-	pp := New(pieces, 2, nil)
+	pp := New(pieces, 2, nil, false)
 	pp.HandleHave(peers[0], 1)
 	pp.HandleHave(peers[0], 3)
 	pp.HandleHave(peers[0], 4)
@@ -67,6 +67,44 @@ func TestPiecePicker(t *testing.T) {
 	pp.HandleHave(peers[6], 6)
 	assert.Nil(t, pp.pickFor(peers[6]))
 	assert.True(t, pp.endgame)
+}
+
+func TestPiecePickerSequential(t *testing.T) {
+	newPicker := func(sequential bool) (*PiecePicker, []piece.Piece, []*peer.Peer) {
+		pieces := make([]piece.Piece, numPieces)
+		for i := range pieces {
+			pieces[i] = newPiece(i)
+		}
+		peers := make([]*peer.Peer, numPeers)
+		for i := range peers {
+			peers[i] = newPeer(i)
+		}
+		pieces[0].Done = true
+		pp := New(pieces, 2, nil, sequential)
+		for _, pe := range peers {
+			pp.HandleHave(pe, 1)
+			pp.HandleHave(pe, 2)
+			pp.HandleHave(pe, 3)
+		}
+		// Piece 6 is the rarest piece that peers[0] can download.
+		pp.HandleHave(peers[0], 6)
+		return pp, pieces, peers
+	}
+
+	// Rarest-first prefers the rare high indexed piece.
+	pp, pieces, peers := newPicker(false)
+	assert.Equal(t, &pieces[6], pp.pickFor(peers[0]))
+
+	// Sequential mode ignores rarity and hands out the lowest indexed piece.
+	pp, pieces, peers = newPicker(true)
+	assert.Equal(t, &pieces[1], pp.pickFor(peers[0]))
+	assert.Equal(t, &pieces[2], pp.pickFor(peers[1]))
+	assert.Equal(t, &pieces[3], pp.pickFor(peers[2]))
+	assert.False(t, pp.endgame)
+
+	// Pieces 4 and 5 are unavailable, so piece 6 is all that is left for peers[0].
+	assert.Equal(t, &pieces[6], pp.pickFor(peers[0]))
+	assert.False(t, pp.endgame)
 }
 
 func newPiece(i int) piece.Piece {

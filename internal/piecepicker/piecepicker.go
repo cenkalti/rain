@@ -25,6 +25,7 @@ These are the things to consider when selecting a piece for downloading:
   * Piece is reserved for downloading by a webseed source
   * Is endgame mode activated (all pieces are requested)
   * Are there stalled peers (snubbed or choked in the middle of download)
+  * Is sequential download mode enabled
 
 Do not forget to re-check these when making changes.
 
@@ -41,6 +42,9 @@ type PiecePicker struct {
 	maxWebseedPieces     int
 	available            uint32
 	endgame              bool
+
+	// Pick the lowest indexed piece instead of the rarest piece.
+	sequential bool
 }
 
 type myPiece struct {
@@ -74,7 +78,8 @@ func (p *myPiece) AvailableForWebseed() bool {
 }
 
 // New returns a new PiecePicker.
-func New(pieces []piece.Piece, maxDuplicateDownload int, webseedSources []*webseedsource.WebseedSource) *PiecePicker {
+// If sequential is true, pieces are picked in index order instead of rarest-first.
+func New(pieces []piece.Piece, maxDuplicateDownload int, webseedSources []*webseedsource.WebseedSource, sequential bool) *PiecePicker {
 	ps := make([]myPiece, len(pieces))
 	for i := range pieces {
 		ps[i] = myPiece{Piece: &pieces[i]}
@@ -96,6 +101,7 @@ func New(pieces []piece.Piece, maxDuplicateDownload int, webseedSources []*webse
 		maxDuplicateDownload: maxDuplicateDownload,
 		maxWebseedPieces:     maxWebseedPieces,
 		webseedSources:       webseedSources,
+		sequential:           sequential,
 	}
 }
 
@@ -252,7 +258,11 @@ func (p *PiecePicker) findPiece(pe *peer.Peer) (mp *myPiece, allowedFast bool) {
 		return p.pickEndgame(pe), false
 	}
 	// Pieck rarest piece
-	pi = p.pickRarest(pe)
+	if p.sequential {
+		pi = p.pickSequential(pe)
+	} else {
+		pi = p.pickRarest(pe)
+	}
 	if pi != nil {
 		return pi, false
 	}
@@ -265,16 +275,23 @@ func (p *PiecePicker) findPiece(pe *peer.Peer) (mp *myPiece, allowedFast bool) {
 }
 
 func (p *PiecePicker) pickAllowedFast(pe *peer.Peer) *myPiece {
+	var picked *myPiece
 	for _, pi := range pe.ReceivedAllowedFast.Items {
 		mp := &p.pieces[pi.Index]
 		if mp.Done || mp.Writing {
 			continue
 		}
 		if mp.Requested.Len() == 0 && mp.Having.Has(pe) {
-			return mp
+			if !p.sequential {
+				return mp
+			}
+			// The allowed-fast set is unordered, so scan it all for the lowest index.
+			if picked == nil || mp.Index < picked.Index {
+				picked = mp
+			}
 		}
 	}
-	return nil
+	return picked
 }
 
 func (p *PiecePicker) pickRarest(pe *peer.Peer) *myPiece {
@@ -301,6 +318,29 @@ func (p *PiecePicker) pickRarest(pe *peer.Peer) *myPiece {
 		p.endgame = true
 	}
 	return picked
+}
+
+// pickSequential returns the lowest indexed piece that the peer has and nobody else is downloading.
+// It replaces pickRarest in sequential download mode.
+func (p *PiecePicker) pickSequential(pe *peer.Peer) *myPiece {
+	var hasUnrequested bool
+	for i := range p.pieces {
+		mp := &p.pieces[i]
+		if mp.Done || mp.Writing {
+			continue
+		}
+		if mp.Requested.Len() > 0 {
+			continue
+		}
+		if mp.Having.Has(pe) {
+			return mp
+		}
+		hasUnrequested = true
+	}
+	if !hasUnrequested {
+		p.endgame = true
+	}
+	return nil
 }
 
 func (p *PiecePicker) pickEndgame(pe *peer.Peer) *myPiece {

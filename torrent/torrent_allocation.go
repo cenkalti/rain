@@ -42,7 +42,7 @@ func (t *torrent) handleAllocationDone(al *allocator.Allocator) {
 	if t.piecePicker != nil {
 		t.crash("piece picker exists")
 	}
-	t.piecePicker = piecepicker.New(t.pieces, t.session.config.EndgameMaxDuplicateDownloads, t.webseedSources)
+	t.piecePicker = piecepicker.New(t.pieces, t.session.config.EndgameMaxDuplicateDownloads, t.webseedSources, t.sequential)
 
 	for pe := range t.peers {
 		pe.Bitfield = bitfield.New(t.info.NumPieces)

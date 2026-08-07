@@ -257,6 +257,9 @@ type torrent struct {
 	// If true, the torrent is stopped automatically when all metadata pieces are downloaded.
 	stopAfterMetadata bool
 
+	// If true, pieces are downloaded in index order instead of rarest-first.
+	sequential bool
+
 	// True means that completeCmd has run before.
 	completeCmdRun bool
 
@@ -282,6 +285,7 @@ func newTorrent(
 	stopAfterDownload bool,
 	stopAfterMetadata bool,
 	completeCmdRun bool,
+	sequential bool,
 ) (*torrent, error) {
 	if len(infoHash) != 20 {
 		return nil, errors.New("invalid infoHash (must be 20 bytes)")
@@ -363,6 +367,7 @@ func newTorrent(
 		stopAfterDownload:         stopAfterDownload,
 		stopAfterMetadata:         stopAfterMetadata,
 		completeCmdRun:            completeCmdRun,
+		sequential:                sequential,
 	}
 	if len(t.webseedSources) > s.config.WebseedMaxSources {
 		t.webseedSources = t.webseedSources[:10]

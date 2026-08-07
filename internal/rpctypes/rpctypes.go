@@ -196,6 +196,7 @@ type AddTorrentOptions struct {
 	Stopped           bool
 	StopAfterDownload bool
 	StopAfterMetadata bool
+	Sequential        bool
 }
 
 // AddTorrentRequest contains request arguments for Session.AddTorrent method.

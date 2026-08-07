@@ -50,6 +50,10 @@ func (p *PiecePicker) findPieceRangeForWebseed() *Range {
 	if len(gaps) == 0 {
 		return p.webseedStealsFromAnotherWebseed()
 	}
+	if p.sequential {
+		// findGaps returns gaps in ascending index order.
+		return &gaps[0]
+	}
 	gap := selectRandomLargestGap(gaps)
 	return &gap
 }

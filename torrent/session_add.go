@@ -31,6 +31,9 @@ type AddTorrentOptions struct {
 	StopAfterDownload bool
 	// Stop torrent after metadata is downloaded from magnet links.
 	StopAfterMetadata bool
+	// Download pieces in index order instead of rarest-first.
+	// Useful for streaming, at the cost of slower overall download and worse swarm health.
+	Sequential bool
 }
 
 // AddTorrent adds a new torrent to the session by reading .torrent metainfo from reader.
@@ -92,6 +95,7 @@ func (s *Session) addTorrentStopped(r io.Reader, opt *AddTorrentOptions) (*Torre
 		opt.StopAfterDownload,
 		opt.StopAfterMetadata,
 		false, // completeCmdRun
+		opt.Sequential,
 	)
 	if err != nil {
 		return nil, err
@@ -112,6 +116,7 @@ func (s *Session) addTorrentStopped(r io.Reader, opt *AddTorrentOptions) (*Torre
 		AddedAt:           t.addedAt,
 		StopAfterDownload: opt.StopAfterDownload,
 		StopAfterMetadata: opt.StopAfterMetadata,
+		Sequential:        opt.Sequential,
 	}
 	err = s.resumer.Write(id, rspec)
 	if err != nil {
@@ -205,6 +210,7 @@ func (s *Session) addMagnet(link string, opt *AddTorrentOptions) (*Torrent, erro
 		opt.StopAfterDownload,
 		opt.StopAfterMetadata,
 		false, // completeCmdRun
+		opt.Sequential,
 	)
 	if err != nil {
 		return nil, err
@@ -224,6 +230,7 @@ func (s *Session) addMagnet(link string, opt *AddTorrentOptions) (*Torrent, erro
 		AddedAt:           t.addedAt,
 		StopAfterDownload: opt.StopAfterDownload,
 		StopAfterMetadata: opt.StopAfterMetadata,
+		Sequential:        opt.Sequential,
 	}
 	err = s.resumer.Write(id, rspec)
 	if err != nil {

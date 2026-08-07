@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- "sequential" option for downloading pieces in order instead of rarest-first.
+  Available in AddTorrentOptions, the AddTorrent/AddURI RPC methods and as
+  `--sequential` on the `client add` and `download` commands.
+
 ## [2.3.0] - 2026-02-07
 
 ### Added

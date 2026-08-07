@@ -38,6 +38,7 @@ func (h *rpcHandler) AddTorrent(args *rpctypes.AddTorrentRequest, reply *rpctype
 		ID:                args.ID,
 		StopAfterDownload: args.StopAfterDownload,
 		StopAfterMetadata: args.StopAfterMetadata,
+		Sequential:        args.Sequential,
 	}
 	t, err := h.session.AddTorrent(r, opt)
 	var e *InputError
@@ -57,6 +58,7 @@ func (h *rpcHandler) AddURI(args *rpctypes.AddURIRequest, reply *rpctypes.AddURI
 		ID:                args.ID,
 		StopAfterDownload: args.StopAfterDownload,
 		StopAfterMetadata: args.StopAfterMetadata,
+		Sequential:        args.Sequential,
 	}
 	t, err := h.session.AddURI(args.URI, opt)
 	var e *InputError
