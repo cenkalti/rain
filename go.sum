@@ -3,8 +3,8 @@ github.com/br0xen/boltbrowser v0.0.0-20260327130740-898a1e52a566 h1:h78qFJAelvS6
 github.com/br0xen/boltbrowser v0.0.0-20260327130740-898a1e52a566/go.mod h1:n4LHSQAWdj9tTDV5p3O2e5niOv49FEHVuZKAkFjlrOY=
 github.com/br0xen/termbox-util v0.0.0-20200220160819-dc6d6950ba00 h1:9AXfX20nYtpadSCppvKkZfFgU/htFHVhYqYdPNa4bm4=
 github.com/br0xen/termbox-util v0.0.0-20200220160819-dc6d6950ba00/go.mod h1:x9wJlgOj74OFTOBwXOuO8pBguW37EgYNx51Dbjkfzo4=
-github.com/cenkalti/backoff/v6 v6.0.1 h1:sjqUu1q4wY0FfFEkBmM3bVIHfr1QGq4nATg9M5VWj1U=
-github.com/cenkalti/backoff/v6 v6.0.1/go.mod h1:5WCmPelT2zwAaNETjGJVKHDnZvjQdPsGeHHwm5lIPPI=
+github.com/cenkalti/backoff/v7 v7.0.0 h1:ZP+QAaaOnVUHo+ufFpZ835hbT3x2fy+h2lecVEosZ6A=
+github.com/cenkalti/backoff/v7 v7.0.0/go.mod h1:qcKBGwsu4hpxHtQ8tWYsQ+ifzx2+sS+Xx/3jfe30lI8=
 github.com/cenkalti/log v1.0.0 h1:0SITaDyovlmHFLaV+qenYmDxh8TNgxbJscMyn4W8XWk=
 github.com/cenkalti/log v1.0.0/go.mod h1:Kbz0XnbnTBtcJN8yeRuPW/9SNtP1tx5SwjU+357jKYM=
 github.com/clipperhouse/stringish v0.1.1 h1:+NSqMOr3GR6k1FdRhhnXrLfztGzuG+VuFDfatpWHKCs=

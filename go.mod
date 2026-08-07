@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/br0xen/boltbrowser v0.0.0-20260327130740-898a1e52a566
-	github.com/cenkalti/backoff/v6 v6.0.1
+	github.com/cenkalti/backoff/v7 v7.0.0
 	github.com/cenkalti/log v1.0.0
 	github.com/fatih/structs v1.1.0
 	github.com/gofrs/uuid v4.4.0+incompatible
