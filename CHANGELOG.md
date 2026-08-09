@@ -7,11 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-08-09
+
 ### Added
 
 - "sequential" option for downloading pieces in order instead of rarest-first.
-  Available in AddTorrentOptions, the AddTorrent/AddURI RPC methods and as
-  `--sequential` on the `client add` and `download` commands.
+
+### Changed
+
+- Building requires Go 1.25.
+
+### Fixed
+
+- Hybrid magnet links with both v1 and v2 info hashes are now recognized
+  correctly.
+
+### Security
+
+- Reject tar entries that escape the destination directory in the
+  `/move-torrent` endpoint (tar slip).
 
 ## [2.3.0] - 2026-02-07
 
