@@ -16,7 +16,7 @@ require (
 	github.com/otiai10/copy v1.14.1
 	github.com/powerman/rpc-codec v1.2.2
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.0
 	github.com/urfave/cli v1.22.17
 	github.com/zeebo/bencode v1.0.0
 	go.etcd.io/bbolt v1.5.0
@@ -31,7 +31,6 @@ require (
 	github.com/clipperhouse/stringish v0.1.1 // indirect
 	github.com/clipperhouse/uax29/v2 v2.3.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fatih/color v1.10.0 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
@@ -44,7 +43,6 @@ require (
 	github.com/nictuku/nettools v0.0.0-20150117095333-8867a2107ad3 // indirect
 	github.com/nsf/termbox-go v1.1.1 // indirect
 	github.com/otiai10/mint v1.6.3 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/youtube/vitess v3.0.0-rc.3+incompatible // indirect
