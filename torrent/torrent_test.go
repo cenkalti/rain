@@ -1,8 +1,8 @@
 package torrent
 
 import (
-	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -195,33 +195,19 @@ func startHTTPTracker(t *testing.T) {
 	})
 }
 
-func webseed(t *testing.T) (port int) {
+func webseed(t *testing.T) string {
 	t.Helper()
-	l, err := net.Listen("tcp4", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	port = l.Addr().(*net.TCPAddr).Port
-	servingDone := make(chan struct{})
-	srv := &http.Server{Handler: http.FileServer(http.Dir("./testdata"))}
-	go func() {
-		srv.Serve(l)
-		close(servingDone)
-	}()
-	t.Cleanup(func() {
-		srv.Close()
-		l.Close()
-		<-servingDone
-	})
-	return port
+	srv := httptest.NewServer(http.FileServer(http.Dir("./testdata")))
+	t.Cleanup(srv.Close)
+	return srv.URL
 }
 
 func TestDownloadWebseed(t *testing.T) {
 	metrics.UseNilMetrics = true
 	defer func() { metrics.UseNilMetrics = false }()
 
-	port1 := webseed(t)
-	port2 := webseed(t)
+	url1 := webseed(t)
+	url2 := webseed(t)
 	addr := seeder(t, true)
 	s := newTestSession(t)
 
@@ -236,10 +222,7 @@ func TestDownloadWebseed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tor.torrent.webseedSources = webseedsource.NewList([]string{
-		"http://127.0.0.1:" + strconv.Itoa(port1),
-		"http://127.0.0.1:" + strconv.Itoa(port2),
-	})
+	tor.torrent.webseedSources = webseedsource.NewList([]string{url1, url2})
 	tor.torrent.webseedClient = http.DefaultClient
 	tor.Start()
 	tor.AddPeer(addr)
