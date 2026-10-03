@@ -41,8 +41,7 @@ func (h *rpcHandler) AddTorrent(args *rpctypes.AddTorrentRequest, reply *rpctype
 		Sequential:        args.Sequential,
 	}
 	t, err := h.session.AddTorrent(r, opt)
-	var e *InputError
-	if errors.As(err, &e) {
+	if e, ok := errors.AsType[*InputError](err); ok {
 		return jsonrpc2.NewError(2, e.Error())
 	}
 	if err != nil {
@@ -61,8 +60,7 @@ func (h *rpcHandler) AddURI(args *rpctypes.AddURIRequest, reply *rpctypes.AddURI
 		Sequential:        args.Sequential,
 	}
 	t, err := h.session.AddURI(args.URI, opt)
-	var e *InputError
-	if errors.As(err, &e) {
+	if e, ok := errors.AsType[*InputError](err); ok {
 		return jsonrpc2.NewError(2, e.Error())
 	}
 	if err != nil {
