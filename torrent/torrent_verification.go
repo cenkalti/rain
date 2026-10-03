@@ -11,7 +11,9 @@ func (t *torrent) handleVerifyCommand() {
 	t.log.Info("verifying")
 	t.doVerify = true
 	if t.status() == Stopped {
+		t.mBitfield.Lock()
 		t.bitfield = nil
+		t.mBitfield.Unlock()
 		t.start()
 	} else {
 		t.stop(nil)

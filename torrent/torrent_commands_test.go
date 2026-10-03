@@ -232,6 +232,29 @@ func TestNotifyChannelsFollowRunState(t *testing.T) {
 	}, timeout, 10*time.Millisecond, "Stop must eventually retract both channels")
 }
 
+// Start and Verify are left out of the command set above because they spawn
+// real allocator and verifier work, so they get their own sequential pass. They
+// still have to reach the run loop and take effect.
+func TestStartAndVerifyReachTheRunLoop(t *testing.T) {
+	s := newTestSession(t)
+	tor := addStoppedTorrent(t, s)
+	tor.torrent.trackers = nil
+	inner := tor.torrent
+
+	require.Equal(t, Stopped, query(inner, inner.status))
+
+	require.NoError(t, tor.Start())
+	require.Eventually(t, func() bool {
+		return query(inner, inner.status) != Stopped
+	}, timeout, 10*time.Millisecond, "Start must move the torrent out of Stopped")
+
+	// Verify sets doVerify and routes through stop/start depending on state.
+	require.NoError(t, tor.Verify())
+	require.Eventually(t, func() bool {
+		return query(inner, func() bool { return inner.doVerify })
+	}, timeout, 10*time.Millisecond, "Verify must reach the run loop")
+}
+
 // The session health check proves the run loop is alive by sending it a command
 // and not waiting for any reply. A command that the loop cannot accept promptly
 // is what makes checkTorrent crash the process, so the probe must stay cheap

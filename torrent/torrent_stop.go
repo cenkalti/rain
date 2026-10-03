@@ -14,7 +14,9 @@ func (t *torrent) handleStopped() {
 	t.errC = nil
 	t.portC = nil
 	if t.doVerify {
+		t.mBitfield.Lock()
 		t.bitfield = nil
+		t.mBitfield.Unlock()
 		t.start()
 	} else {
 		t.log.Info("torrent has stopped")
