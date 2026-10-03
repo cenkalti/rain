@@ -16,7 +16,7 @@ require (
 	github.com/otiai10/copy v1.14.1
 	github.com/powerman/rpc-codec v1.2.2
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475
-	github.com/stretchr/testify v1.12.0
+	github.com/stretchr/testify v1.12.1
 	github.com/urfave/cli v1.22.17
 	github.com/zeebo/bencode v1.0.0
 	go.etcd.io/bbolt v1.5.0
@@ -46,6 +46,6 @@ require (
 	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/youtube/vitess v3.0.0-rc.3+incompatible // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
