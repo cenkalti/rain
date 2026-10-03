@@ -15,7 +15,9 @@ func (s *Session) checkTorrent(t *torrent) {
 		case <-time.After(s.config.HealthCheckInterval):
 			timeout := time.NewTimer(s.config.HealthCheckTimeout)
 			select {
-			case t.notifyErrorCommandC <- notifyErrorCommand{errCC: make(chan chan error, 1)}:
+			// A no-op command the loop has to receive to make progress. We do
+			// not care what it does, only that it was taken.
+			case t.commandC <- func() {}:
 				timeout.Stop()
 			case <-t.closeC:
 				return

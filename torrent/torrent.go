@@ -142,19 +142,10 @@ type torrent struct {
 	// Close() blocks until doneC is closed.
 	doneC chan struct{}
 
-	// These are the channels for sending a message to run() loop.
-	statsCommandC        chan statsRequest        // Stats()
-	trackersCommandC     chan trackersRequest     // Trackers()
-	peersCommandC        chan peersRequest        // Peers()
-	webseedsCommandC     chan webseedsRequest     // Webseeds()
-	startCommandC        chan struct{}            // Start()
-	stopCommandC         chan struct{}            // Stop()
-	announceCommandC     chan struct{}            // Announce()
-	verifyCommandC       chan struct{}            // Verify()
-	notifyErrorCommandC  chan notifyErrorCommand  // NotifyError()
-	notifyListenCommandC chan notifyListenCommand // NotifyListen()
-	addPeersCommandC     chan []*net.TCPAddr      // AddPeers()
-	addTrackersCommandC  chan []tracker.Tracker   // AddTrackers()
+	// Commands from the public API arrive here as closures and run on the run()
+	// goroutine, which is the only goroutine allowed to touch torrent state.
+	// See torrent_commands.go for the senders.
+	commandC chan func()
 
 	// Trackers send announce responses to this channel.
 	addrsFromTrackers chan []*net.TCPAddr
@@ -322,18 +313,7 @@ func newTorrent(
 		completeC:                 make(chan struct{}),
 		completeMetadataC:         make(chan struct{}),
 		closeC:                    make(chan struct{}),
-		startCommandC:             make(chan struct{}),
-		stopCommandC:              make(chan struct{}),
-		announceCommandC:          make(chan struct{}),
-		verifyCommandC:            make(chan struct{}),
-		statsCommandC:             make(chan statsRequest),
-		trackersCommandC:          make(chan trackersRequest),
-		peersCommandC:             make(chan peersRequest),
-		webseedsCommandC:          make(chan webseedsRequest),
-		notifyErrorCommandC:       make(chan notifyErrorCommand),
-		notifyListenCommandC:      make(chan notifyListenCommand),
-		addPeersCommandC:          make(chan []*net.TCPAddr),
-		addTrackersCommandC:       make(chan []tracker.Tracker),
+		commandC:                  make(chan func()),
 		addrsFromTrackers:         make(chan []*net.TCPAddr),
 		peerIDs:                   make(map[[20]byte]struct{}),
 		incomingConnC:             make(chan net.Conn),

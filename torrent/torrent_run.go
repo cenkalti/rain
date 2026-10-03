@@ -20,28 +20,12 @@ func (t *torrent) run() {
 			t.close()
 			close(t.doneC)
 			return
-		case <-t.startCommandC:
-			t.start()
-		case <-t.stopCommandC:
-			t.stop(nil)
-		case <-t.announceCommandC:
-			t.setNeedMorePeers(true)
-		case <-t.verifyCommandC:
-			t.handleVerifyCommand()
+		// Commands from the public API. Each carries its own behavior, so the
+		// senders in torrent_commands.go are the list of what can arrive here.
+		case f := <-t.commandC:
+			f()
 		case <-t.announcersStoppedC:
 			t.handleStopped()
-		case cmd := <-t.notifyErrorCommandC:
-			cmd.errCC <- t.errC
-		case cmd := <-t.notifyListenCommandC:
-			cmd.portCC <- t.portC
-		case req := <-t.statsCommandC:
-			req.Response <- t.stats()
-		case req := <-t.trackersCommandC:
-			req.Response <- t.getTrackers()
-		case req := <-t.peersCommandC:
-			req.Response <- t.getPeers()
-		case req := <-t.webseedsCommandC:
-			req.Response <- t.getWebseeds()
 		case p := <-t.allocatorProgressC:
 			t.bytesAllocated = p.AllocatedSize
 		case al := <-t.allocatorResultC:
@@ -54,12 +38,8 @@ func (t *torrent) run() {
 			t.startSinglePieceDownloader(data)
 		case addrs := <-t.addrsFromTrackers:
 			t.handleNewPeers(addrs, peersource.Tracker)
-		case addrs := <-t.addPeersCommandC:
-			t.handleNewPeers(addrs, peersource.Manual)
 		case addrs := <-t.dhtPeersC:
 			t.handleNewPeers(addrs, peersource.DHT)
-		case trackers := <-t.addTrackersCommandC:
-			t.handleNewTrackers(trackers)
 		case conn := <-t.incomingConnC:
 			t.handleNewConnection(conn)
 		case res := <-t.webseedPieceResultC.ReceiveC():

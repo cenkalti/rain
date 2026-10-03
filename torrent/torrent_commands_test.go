@@ -243,7 +243,7 @@ func TestRunLoopAcceptsLivenessProbe(t *testing.T) {
 
 	for range 10 {
 		select {
-		case inner.notifyErrorCommandC <- notifyErrorCommand{errCC: make(chan chan error, 1)}:
+		case inner.commandC <- func() {}:
 		case <-inner.closeC:
 			t.Fatal("torrent closed unexpectedly")
 		case <-time.After(timeout):
