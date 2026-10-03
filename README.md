@@ -10,7 +10,6 @@ rain
 [![GoDoc](https://godoc.org/github.com/cenkalti/rain?status.svg)][docs-link]
 [![GitHub Release](https://img.shields.io/github/release/cenkalti/rain.svg)](https://github.com/cenkalti/rain/releases)
 [![Coverage Status](https://coveralls.io/repos/github/cenkalti/rain/badge.svg)](https://coveralls.io/github/cenkalti/rain)
-[![Go Report Card](https://goreportcard.com/badge/github.com/cenkalti/rain)](https://goreportcard.com/report/github.com/cenkalti/rain)
 
 Features
 --------
