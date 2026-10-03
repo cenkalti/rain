@@ -15,6 +15,17 @@ builds:
     - windows
     goarch:
     - amd64
+    - arm64
+    ignore:
+    - goos: linux
+      goarch: arm64
+    - goos: windows
+      goarch: arm64
+universal_binaries:
+  # Merge the darwin amd64 and arm64 builds into one binary, so a single
+  # macOS archive with the same name as before runs natively on Intel and
+  # Apple Silicon Macs.
+  - replace: true
 archives:
   - format: tar.gz
     name_template: >-
