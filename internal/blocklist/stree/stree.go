@@ -66,7 +66,7 @@ func elementaryIntervals(endpoints []ValueType) []segment {
 }
 
 // endpoints returns a slice with all endpoints (sorted, unique)
-func endpoints(base []interval) (result []ValueType, min, max ValueType) {
+func endpoints(base []interval) (result []ValueType, lo, hi ValueType) {
 	baseLen := len(base)
 	endpoints := make([]ValueType, baseLen*2)
 	for i, interval := range base {
@@ -74,8 +74,8 @@ func endpoints(base []interval) (result []ValueType, min, max ValueType) {
 		endpoints[i+baseLen] = interval.To
 	}
 	result = dedup(endpoints)
-	min = result[0]
-	max = result[len(result)-1]
+	lo = result[0]
+	hi = result[len(result)-1]
 	return
 }
 

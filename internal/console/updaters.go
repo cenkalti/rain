@@ -174,8 +174,8 @@ func (c *Console) updateSessionStats(g *gocui.Gui) {
 	g.Update(c.drawSessionStats)
 }
 
-func (c *Console) triggerUpdateDetails(clear bool) {
-	if clear {
+func (c *Console) triggerUpdateDetails(clearFirst bool) {
+	if clearFirst {
 		c.updatingDetails = true
 	}
 	select {

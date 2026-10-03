@@ -186,23 +186,23 @@ func cleanName(s string) string {
 	return cleanNameN(s, 255)
 }
 
-func cleanNameN(s string, max int) string {
+func cleanNameN(s string, maxLen int) string {
 	s = strings.ToValidUTF8(s, string(unicode.ReplacementChar))
-	s = trimName(s, max)
+	s = trimName(s, maxLen)
 	s = strings.ToValidUTF8(s, "")
 	return replaceSeparator(s)
 }
 
 // trimName trims the file name that it won't exceed 255 characters while keeping the extension.
-func trimName(s string, max int) string {
-	if len(s) <= max {
+func trimName(s string, maxLen int) string {
+	if len(s) <= maxLen {
 		return s
 	}
 	ext := path.Ext(s)
-	if len(ext) > max {
-		return s[:max]
+	if len(ext) > maxLen {
+		return s[:maxLen]
 	}
-	return s[:max-len(ext)] + ext
+	return s[:maxLen-len(ext)] + ext
 }
 
 func replaceSeparator(s string) string {

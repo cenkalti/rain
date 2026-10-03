@@ -20,8 +20,8 @@ func newTestReader(t *testing.T) (*PeerReader, net.Conn) {
 	r := New(server, logger.New("test"), time.Minute, 1<<20, nil)
 	go r.Run()
 	t.Cleanup(func() {
-		r.Stop()        // unblock a pending send on the messages channel
-		client.Close()  // unblock a pending read
+		r.Stop()       // unblock a pending send on the messages channel
+		client.Close() // unblock a pending read
 		<-r.Done()
 	})
 	return r, client

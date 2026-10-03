@@ -397,23 +397,23 @@ func (s *Stream) updateCipher(selected CryptoMethod) {
 	}
 }
 
-func (s *Stream) readSync(key []byte, max int) error {
+func (s *Stream) readSync(key []byte, remaining int) error {
 	var readBuf bytes.Buffer
 	if _, err := io.CopyN(&readBuf, s.raw, int64(len(key))); err != nil {
 		return err
 	}
-	max -= len(key)
+	remaining -= len(key)
 	for {
 		if bytes.Equal(readBuf.Bytes(), key) {
 			return nil
 		}
-		if max <= 0 {
+		if remaining <= 0 {
 			return errors.New("sync point is not found")
 		}
 		if _, err := io.CopyN(&readBuf, s.raw, 1); err != nil {
 			return err
 		}
-		max--
+		remaining--
 		if _, err := io.CopyN(io.Discard, &readBuf, 1); err != nil {
 			return err
 		}

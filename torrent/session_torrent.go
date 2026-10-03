@@ -291,13 +291,12 @@ func (t *Torrent) generateTar(pw *io.PipeWriter) {
 	var err error
 	defer func() { _ = pw.CloseWithError(err) }()
 
-	var root string
-	if provider, ok := t.torrent.session.storage.(*fileStorageProvider); !ok {
+	provider, ok := t.torrent.session.storage.(*fileStorageProvider)
+	if !ok {
 		err = errors.New("session is not using file storage")
 		return
-	} else {
-		root = provider.getDataDir(t.torrent.id)
 	}
+	root := provider.getDataDir(t.torrent.id)
 
 	tw := tar.NewWriter(pw)
 	walkFunc := func(path string, info os.FileInfo, err error) error {

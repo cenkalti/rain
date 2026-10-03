@@ -135,13 +135,13 @@ func (p *PeerWriter) queueMessage(msg peerprotocol.Message) {
 	case Piece:
 		// Reject request if peer queued to many requests
 		if p.currentQueuedRequests >= p.maxQueuedRequests {
-			if p.fastEnabled {
-				msg = peerprotocol.RejectMessage{RequestMessage: msg2.RequestMessage}
-				break
-			} else {
+			if !p.fastEnabled {
 				// Drop message silently
 				return
 			}
+			// break leaves the switch, so the reject is queued below.
+			msg = peerprotocol.RejectMessage{RequestMessage: msg2.RequestMessage}
+			break
 		}
 		p.currentQueuedRequests++
 	}
