@@ -1,6 +1,7 @@
 package console
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -254,23 +255,44 @@ func TestFormatSessionStats(t *testing.T) {
 	}, "\n"), sb.String())
 }
 
-// TestColumnsNeedStats documents what columnsNeedStats currently returns, which
-// is not what its name promises: it reports true for every non-empty column
-// list, including one built only from the four fields that need no stats call.
-// The nested loop returns true on the first (column, cheap-column) pair that
-// differs, so "ID" trips it against "Name". The effect is that the console
-// always issues a GetTorrentStats call per visible row.
-//
-// Left as-is here because splitting console.go is a pure move; fixing it
-// changes runtime behavior and belongs in its own commit.
 func TestColumnsNeedStats(t *testing.T) {
-	assert.False(t, columnsNeedStats(nil))
-	assert.False(t, columnsNeedStats([]string{}))
+	cases := []struct {
+		name    string
+		columns []string
+		want    bool
+	}{
+		{"nil", nil, false},
+		{"empty", []string{}, false},
+		{"default columns", []string{"#", "ID", "Name"}, false},
+		{"every torrent-only column", columnsFromTorrent, false},
+		{"status alone", []string{"Status"}, true},
+		{"progress alone", []string{"Progress"}, true},
+		{"one stats column among cheap ones", []string{"#", "ID", "Name", "Ratio"}, true},
+		{"unknown column is assumed to need stats", []string{"Bogus"}, true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assert.Equal(t, c.want, columnsNeedStats(c.columns))
+		})
+	}
+}
 
-	assert.True(t, columnsNeedStats([]string{"Status"}))
-	assert.True(t, columnsNeedStats([]string{"ID", "Progress"}))
+// Every column getRow can render must be classified: either it is listed in
+// columnsFromTorrent, or asking for it alone must request stats. Otherwise a
+// new column silently renders blank.
+func TestColumnsNeedStatsCoversEveryColumn(t *testing.T) {
+	all := []string{"#", "ID", "Name", "InfoHash", "Port", "Status", "Speed",
+		"ETA", "Progress", "Ratio", "Size"}
+	for _, col := range all {
+		// getHeader panics on a column it does not know, so this also asserts
+		// the list above stays in step with the switch in views.go.
+		assert.NotPanics(t, func() { getHeader([]string{col}) }, "column %q", col)
 
-	// Should be false once the predicate is corrected.
-	assert.True(t, columnsNeedStats([]string{"ID"}))
-	assert.True(t, columnsNeedStats([]string{"ID", "Name", "InfoHash", "Port"}))
+		needs := columnsNeedStats([]string{col})
+		if slices.Contains(columnsFromTorrent, col) {
+			assert.False(t, needs, "column %q is torrent-only, must not need stats", col)
+		} else {
+			assert.True(t, needs, "column %q is stats-derived, must need stats", col)
+		}
+	}
 }

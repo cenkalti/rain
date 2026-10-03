@@ -3,19 +3,21 @@ package console
 import (
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/cenkalti/rain/v2/internal/rpctypes"
 )
 
+// columnsFromTorrent are the columns that getRow can fill from a Torrent
+// alone. Any other column needs a GetTorrentStats call per row.
+var columnsFromTorrent = []string{"#", "ID", "Name", "InfoHash", "Port"}
+
 func columnsNeedStats(columns []string) bool {
-	l := []string{"ID", "Name", "InfoHash", "Port"}
 	for _, c := range columns {
-		for _, d := range l {
-			if c != d {
-				return true
-			}
+		if !slices.Contains(columnsFromTorrent, c) {
+			return true
 		}
 	}
 	return false
