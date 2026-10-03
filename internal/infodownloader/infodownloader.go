@@ -38,14 +38,14 @@ func New(pe Peer) *InfoDownloader {
 // GotBlock must be called when a metadata block is received from the peer.
 func (d *InfoDownloader) GotBlock(index uint32, data []byte) error {
 	if index >= uint32(len(d.blocks)) {
-		return fmt.Errorf("peer sent invalid metadata piece index: %q", index)
+		return fmt.Errorf("peer sent invalid metadata piece index: %d", index)
 	}
 	b := &d.blocks[index]
 	if !b.requested {
-		return fmt.Errorf("peer sent unrequested index for metadata message: %q", index)
+		return fmt.Errorf("peer sent unrequested index for metadata message: %d", index)
 	}
 	if uint32(len(data)) != b.size {
-		return fmt.Errorf("peer sent invalid size for metadata message: %q", len(data))
+		return fmt.Errorf("peer sent invalid size for metadata message: %d", len(data))
 	}
 	d.pending--
 	begin := index * blockSize
