@@ -27,34 +27,39 @@ universal_binaries:
   # Apple Silicon Macs.
   - replace: true
 archives:
-  - format: tar.gz
+  - formats: [tar.gz]
     name_template: >-
       {{- .ProjectName }}_{{ .Version }}_
       {{- if eq .Os "darwin" }}macos{{ else }}{{ .Os }}{{ end }}
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [zip]
 checksum:
   name_template: 'checksums.txt'
 snapshot:
-  name_template: "{{ .Tag }}-next"
+  version_template: "{{ .Tag }}-next"
 changelog:
   sort: asc
   filters:
     exclude:
     - '^docs:'
     - '^test:'
-brews:
+homebrew_casks:
   - repository:
       owner: cenkalti
       name: homebrew-rain
-    directory: Formula
-    homepage:  https://github.com/cenkalti/rain
+    homepage: https://github.com/cenkalti/rain
     description: BitTorrent client
-    install: |
-      bin.install "rain"
-      output = Utils.popen_read("#{bin}/rain bash-autocomplete")
-      (bash_completion/"rain").write output
-      prefix.install_metafiles
-    test: |
-      system "#{bin}/rain --version"
+    generate_completions_from_executable:
+      args:
+        - bash-autocomplete
+      shell_parameter_format: none
+      shells:
+        - bash
+    hooks:
+      post:
+        # The merged universal binary is unsigned, and casks are quarantined on download.
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/rain"]
+          end
