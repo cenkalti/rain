@@ -47,7 +47,7 @@ type Config struct {
 	// Client version that is sent in BEP 10 handshake message.
 	// Only applies to private torrents.
 	PrivateExtensionHandshakeClientVersion string `yaml:"private-extension-handshake-client-version"`
-	// URL to the blocklist file in CIDR format.
+	// URL to the blocklist file in CIDR or address range format.
 	BlocklistURL string `yaml:"blocklist-url"`
 	// When to refresh blocklist
 	BlocklistUpdateInterval time.Duration `yaml:"blocklist-update-interval"`
