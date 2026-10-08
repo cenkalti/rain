@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Support plain address ranges, PeerGuardian/P2P and eMule `ipfilter.dat`
+  formats in the IP blocklist, in addition to CIDR.
+
 ## [2.4.2] - 2026-10-03
 
 ### Changed
