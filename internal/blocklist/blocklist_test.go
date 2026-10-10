@@ -69,6 +69,8 @@ func TestParseRange(t *testing.T) {
 		{"1.2.3.0-1.2.3.255", "1.2.3.0", "1.2.3.255"},
 		{"1.2.3.4 - 1.2.3.5", "1.2.3.4", "1.2.3.5"},
 		{"Some list:1.2.3.0-1.2.3.255", "1.2.3.0", "1.2.3.255"},
+		{"Example Corp, Inc:1.2.3.0-1.2.3.255", "1.2.3.0", "1.2.3.255"},
+		{"Example Corp, Inc, US:1.2.3.0-1.2.3.255", "1.2.3.0", "1.2.3.255"},
 		{"005.006.007.000 - 005.006.007.010 , 000 , emule", "5.6.7.0", "5.6.7.10"},
 		{"1.2.3.255-1.2.3.0", "1.2.3.0", "1.2.3.255"},
 	}
@@ -105,6 +107,7 @@ func TestReloadFormats(t *testing.T) {
 	rules := `# rules in different formats
 10.0.0.0/8
 Bad people:1.2.3.0-1.2.3.255
+Bad people, Inc:4.4.4.0-4.4.4.255
 005.006.007.000 - 005.006.007.010 , 000 , emule
 009.009.009.000 - 009.009.009.255 , 200 , allowed
 `
@@ -113,9 +116,10 @@ Bad people:1.2.3.0-1.2.3.255
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, 3, n)
+	assert.Equal(t, 4, n)
 	assert.True(t, b.Blocked(net.ParseIP("10.1.2.3")))
 	assert.True(t, b.Blocked(net.ParseIP("1.2.3.200")))
+	assert.True(t, b.Blocked(net.ParseIP("4.4.4.4")))
 	assert.True(t, b.Blocked(net.ParseIP("5.6.7.9")))
 	assert.False(t, b.Blocked(net.ParseIP("5.6.7.11")))
 	assert.False(t, b.Blocked(net.ParseIP("9.9.9.9")))

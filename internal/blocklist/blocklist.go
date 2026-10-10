@@ -157,22 +157,28 @@ func parseLine(b []byte) (ipRange, error) {
 }
 
 // parseRange parses an address range in the forms listed in parseLine.
-func parseRange(b []byte) (r ipRange, err error) {
-	if i := bytes.IndexByte(b, ','); i >= 0 {
-		// eMule: "first - last , level , description". A level of 128 or
-		// higher means the range is allowed, not blocked.
-		fields := bytes.SplitN(b, []byte(","), 3)
-		level, perr := strconv.Atoi(string(bytes.TrimSpace(fields[1])))
-		if perr == nil && level >= 128 {
-			err = errAllowedEntry
-			return
+func parseRange(b []byte) (ipRange, error) {
+	// eMule: "first - last , level , description". A level of 128 or
+	// higher means the range is allowed, not blocked.
+	// PeerGuardian descriptions may contain commas too, so a line is only
+	// treated as eMule when the text before the first comma is a range.
+	if fields := bytes.SplitN(b, []byte(","), 3); len(fields) > 1 {
+		if r, err := parseAddrRange(fields[0]); err == nil {
+			level, perr := strconv.Atoi(string(bytes.TrimSpace(fields[1])))
+			if perr == nil && level >= 128 {
+				return ipRange{}, errAllowedEntry
+			}
+			return r, nil
 		}
-		b = fields[0]
-	} else if i := bytes.LastIndexByte(b, ':'); i >= 0 {
-		// PeerGuardian: "description:first-last".
+	}
+	// PeerGuardian: "description:first-last".
+	if i := bytes.LastIndexByte(b, ':'); i >= 0 {
 		b = b[i+1:]
 	}
+	return parseAddrRange(b)
+}
 
+func parseAddrRange(b []byte) (r ipRange, err error) {
 	left, right, ok := bytes.Cut(b, []byte("-"))
 	if !ok {
 		err = errNotIPv4Address
