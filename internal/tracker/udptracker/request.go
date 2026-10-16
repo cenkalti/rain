@@ -10,7 +10,10 @@ import (
 type transportRequest struct {
 	*requestBase
 	transferAnnounceRequest
+	// Retry and connection state is owned by Transport.Run.
 	retryBackoff udpBackOff
+	connection   *connection
+	transaction  *transaction
 }
 
 var _ udpRequest = (*transportRequest)(nil)
