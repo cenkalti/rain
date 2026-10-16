@@ -10,7 +10,8 @@ type connection struct {
 	*connectRequest
 
 	// holds the announce requests that needs to be sent after the connection is successful.
-	requests []*transportRequest
+	requests     []*transportRequest
+	retryBackoff udpBackOff
 
 	// These fields are set by Transport.Run loop if connected successfully.
 	addr        *net.UDPAddr
@@ -25,5 +26,6 @@ func newConnection(req *transportRequest) *connection {
 		requestBase:    newRequestBase(req.ctx, req.dest),
 		connectRequest: newConnectRequest(),
 		requests:       []*transportRequest{req},
+		retryBackoff:   req.retryBackoff,
 	}
 }
