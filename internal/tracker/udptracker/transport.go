@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/cenkalti/backoff/v7"
 	"github.com/cenkalti/rain/v2/internal/blocklist"
 	"github.com/cenkalti/rain/v2/internal/logger"
 	"github.com/cenkalti/rain/v2/internal/resolver"
@@ -103,7 +102,8 @@ func (t *Transport) Run() {
 	// Connections can be either connecting or connected.
 	connections := make(map[string]*connection)
 	connectDone := make(chan *connectionResult)
-	connectionExpired := make(chan string)
+	connectionExpired := make(chan *connection)
+	transactionExpired := make(chan expiredTransaction)
 
 	// Transaction can be either a connection request or announce request.
 	beginTransaction := func(i udpRequest) (*transaction, error) {
@@ -116,38 +116,59 @@ func (t *Transport) Run() {
 		return trx, nil
 	}
 
+	startRequest := func(req *transportRequest) {
+		if req.ctx.Err() != nil {
+			return
+		}
+		// Requests cannot proceed if the UDP listener failed.
+		if !listening {
+			req.SetResponse(nil, listenErr)
+			return
+		}
+		conn, ok := connections[req.dest]
+		if ok && !conn.connectedAt.IsZero() && time.Since(conn.connectedAt) >= connectionIDInterval {
+			delete(connections, req.dest)
+			ok = false
+		}
+		if !ok {
+			conn = newConnection(req)
+			connections[req.dest] = conn
+			trx, err := beginTransaction(conn)
+			if err != nil {
+				conn.SetResponse(nil, err)
+			} else {
+				go resolveDestinationAndConnect(trx, req.dest, udpConn, t.dnsTimeout, t.blocklist, connectDone, t.closeC)
+			}
+		} else {
+			if !conn.connectedAt.IsZero() {
+				req.ConnectionID = conn.id
+				trx, err := beginTransaction(req)
+				if err != nil {
+					req.SetResponse(nil, err)
+				} else {
+					go retryTransaction(trx, udpConn, conn.addr, req.retryBackoff, conn.connectedAt.Add(connectionIDInterval), transactionExpired)
+				}
+			} else {
+				// Connection is in connecting state.
+				conn.requests = append(conn.requests, req)
+			}
+		}
+	}
+
 	for {
 		select {
 		case req := <-t.requestC:
-			// Early break if we couldn't listen on the UDP port.
-			if !listening {
-				req.SetResponse(nil, listenErr)
+			startRequest(req)
+		case expired := <-transactionExpired:
+			trx := expired.trx
+			if transactions[trx.id] != trx {
 				break
 			}
-			conn, ok := connections[req.dest]
-			if !ok {
-				conn = newConnection(req)
-				connections[req.dest] = conn
-				trx, err := beginTransaction(conn)
-				if err != nil {
-					conn.SetResponse(nil, err)
-				} else {
-					go resolveDestinationAndConnect(trx, req.dest, udpConn, t.dnsTimeout, t.blocklist, connectDone, t.closeC)
-				}
-			} else {
-				if !conn.connectedAt.IsZero() {
-					req.ConnectionID = conn.id
-					trx, err := beginTransaction(req)
-					if err != nil {
-						req.SetResponse(nil, err)
-					} else {
-						go retryTransaction(trx, udpConn, conn.addr)
-					}
-				} else {
-					// Connection is in connecting state.
-					conn.requests = append(conn.requests, req)
-				}
-			}
+			delete(transactions, trx.id)
+			trx.cancel()
+			req := trx.request.(*transportRequest)
+			req.retryBackoff = expired.backoff
+			startRequest(req)
 		case res := <-connectDone:
 			conn := res.trx.request.(*connection)
 
@@ -170,33 +191,42 @@ func (t *Transport) Run() {
 			conn.connectedAt = res.connectedAt
 
 			// Expire the connection after defined period.
-			go func(dest string) {
+			go func(conn *connection) {
 				select {
 				case <-time.After(connectionIDInterval):
 				case <-t.closeC:
 					return
 				}
 				select {
-				case connectionExpired <- dest:
+				case connectionExpired <- conn:
 				case <-t.closeC:
 				}
-			}(res.dest)
+			}(conn)
 
 			// Start announce transaction for all waiting requests.
 			for _, req := range conn.requests {
+				if req.ctx.Err() != nil {
+					continue
+				}
 				req.ConnectionID = conn.id
+				if req.retryBackoff > 0 {
+					// Reconnecting must not restart an announce's retry schedule.
+					req.retryBackoff = max(req.retryBackoff, res.retryBackoff)
+				}
 				trx, err := beginTransaction(req)
 				if err != nil {
 					req.SetResponse(nil, err)
 				} else {
-					go retryTransaction(trx, udpConn, conn.addr)
+					go retryTransaction(trx, udpConn, conn.addr, req.retryBackoff, conn.connectedAt.Add(connectionIDInterval), transactionExpired)
 				}
 			}
 
 			// All requests are sent, clear waiting request list.
 			conn.requests = nil
-		case dest := <-connectionExpired:
-			delete(connections, dest)
+		case conn := <-connectionExpired:
+			if connections[conn.dest] == conn {
+				delete(connections, conn.dest)
+			}
 		case buf := <-t.readC:
 			var header udpMessageHeader
 			err := binary.Read(bytes.NewReader(buf), binary.BigEndian, &header)
@@ -281,12 +311,13 @@ func (t *Transport) readLoop(conn net.Conn) {
 }
 
 type connectionResult struct {
-	trx         *transaction
-	dest        string
-	addr        *net.UDPAddr
-	id          int64
-	err         error
-	connectedAt time.Time
+	trx          *transaction
+	dest         string
+	addr         *net.UDPAddr
+	id           int64
+	err          error
+	connectedAt  time.Time
+	retryBackoff udpBackOff
 }
 
 func resolveDestinationAndConnect(trx *transaction, dest string, udpConn *net.UDPConn, dnsTimeout time.Duration, blocklist *blocklist.Blocklist, resultC chan *connectionResult, stopC chan struct{}) {
@@ -307,7 +338,7 @@ func resolveDestinationAndConnect(trx *transaction, dest string, udpConn *net.UD
 
 	res.addr = &net.UDPAddr{IP: ip, Port: port}
 
-	res.id, res.err = sendAndReceiveConnect(trx, udpConn, res.addr)
+	res.id, res.retryBackoff, res.err = sendAndReceiveConnect(trx, udpConn, res.addr)
 	if res.err == nil {
 		res.connectedAt = time.Now()
 	}
@@ -318,51 +349,83 @@ func resolveDestinationAndConnect(trx *transaction, dest string, udpConn *net.UD
 	}
 }
 
-func sendAndReceiveConnect(trx *transaction, conn *net.UDPConn, addr net.Addr) (connectionID int64, err error) {
+func sendAndReceiveConnect(trx *transaction, conn *net.UDPConn, addr net.Addr) (connectionID int64, retryBackoff udpBackOff, err error) {
 	// Send request until the transaction is canceled.
-	go retryTransaction(trx, conn, addr)
+	retryDone := make(chan udpBackOff, 1)
+	go func() {
+		retryDone <- retryTransaction(trx, conn, addr, trx.request.(*connection).retryBackoff, time.Time{}, nil)
+	}()
+	defer func() {
+		trx.cancel()
+		retryBackoff = <-retryDone
+	}()
 
 	// Wait until transaction is finished.
 	select {
 	case <-trx.request.(*connection).done:
 	case <-trx.ctx.Done():
-		return 0, trx.ctx.Err()
+		// Receiving a response also cancels the transaction.
+		select {
+		case <-trx.request.(*connection).done:
+		default:
+			return 0, 0, trx.ctx.Err()
+		}
 	}
 
 	data, err := trx.request.GetResponse()
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 
 	var response connectResponse
 	err = binary.Read(bytes.NewReader(data), binary.BigEndian, &response)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 
 	if response.Action != actionConnect {
-		return 0, errors.New("invalid action in connect response")
+		return 0, 0, errors.New("invalid action in connect response")
 	}
 
-	return response.ConnectionID, nil
+	return response.ConnectionID, 0, nil
+}
+
+type expiredTransaction struct {
+	trx     *transaction
+	backoff udpBackOff
 }
 
 // Send the request until the transaction is canceled.
 // Transaction canceled by either via outer context or when response is received from the tracker.
 // It backs off with the algorithm described in BEP15 and retries.
-func retryTransaction(trx *transaction, conn *net.UDPConn, addr net.Addr) {
+func retryTransaction(trx *transaction, conn *net.UDPConn, addr net.Addr, retryBackoff udpBackOff, expiresAt time.Time, expiredC chan<- expiredTransaction) udpBackOff {
 	var b bytes.Buffer
 	_, _ = trx.request.WriteTo(&b)
 	data := b.Bytes()
 
-	ticker := backoff.NewTicker(new(udpBackOff))
-	defer ticker.Stop()
+	timer := time.NewTimer(0)
+	defer timer.Stop()
+	lastBackoff := retryBackoff
 	for {
 		select {
-		case <-ticker.C:
+		case <-timer.C:
+			if trx.ctx.Err() != nil {
+				return lastBackoff
+			}
+			if !expiresAt.IsZero() && !time.Now().Before(expiresAt) {
+				// BEP 15 requires a new connection ID before retrying an expired announce.
+				select {
+				case expiredC <- expiredTransaction{trx: trx, backoff: retryBackoff}:
+				case <-trx.ctx.Done():
+				}
+				return retryBackoff
+			}
 			_, _ = conn.WriteTo(data, addr)
+			timer.Reset(retryBackoff.NextBackOff())
+			// NextBackOff advances to the next attempt before its timer fires.
+			lastBackoff = retryBackoff - 1
 		case <-trx.ctx.Done():
-			return
+			return lastBackoff
 		}
 	}
 }

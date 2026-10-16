@@ -10,6 +10,7 @@ import (
 type transportRequest struct {
 	*requestBase
 	transferAnnounceRequest
+	retryBackoff udpBackOff
 }
 
 var _ udpRequest = (*transportRequest)(nil)
