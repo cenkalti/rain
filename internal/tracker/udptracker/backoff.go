@@ -5,12 +5,11 @@ import "time"
 type udpBackOff int
 
 func (b *udpBackOff) NextBackOff() time.Duration {
-	*b = min(*b, 8)
-	delay := time.Duration(15*(1<<*b)) * time.Second
-	if *b < 8 {
-		*b++
+	defer func() { *b++ }()
+	if *b > 8 {
+		*b = 8
 	}
-	return delay
+	return time.Duration(15*(1<<*b)) * time.Second
 }
 
 func (b *udpBackOff) Reset() { *b = 0 }

@@ -9,10 +9,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"net"
-	"slices"
 	"strconv"
 	"time"
 
+	"github.com/cenkalti/backoff/v7"
 	"github.com/cenkalti/rain/v2/internal/blocklist"
 	"github.com/cenkalti/rain/v2/internal/logger"
 	"github.com/cenkalti/rain/v2/internal/resolver"
@@ -23,7 +23,7 @@ import (
 const (
 	connectionIDMagic    = 0x41727101980
 	connectionIDInterval = time.Minute
-	// Allow the retries at 15, 45 and 105 seconds, then let the tracker tier advance.
+	// Lets the tracker tier advance when a tracker stops responding.
 	announceTimeout = 2 * time.Minute
 )
 
@@ -35,7 +35,6 @@ type Transport struct {
 
 	// Transport.Do will send messages to this channel.
 	requestC chan *transportRequest
-	cancelC  chan *transportRequest
 
 	// read loop will send data read from UDP connection and send them to this channel.
 	readC chan []byte
@@ -54,7 +53,6 @@ func NewTransport(bl *blocklist.Blocklist, dnsTimeout time.Duration) *Transport 
 		log:        logger.New("udp tracker transport"),
 		dnsTimeout: dnsTimeout,
 		requestC:   make(chan *transportRequest),
-		cancelC:    make(chan *transportRequest),
 		readC:      make(chan []byte),
 		closeC:     make(chan struct{}),
 		doneC:      make(chan struct{}),
@@ -81,12 +79,6 @@ func (t *Transport) Do(req *transportRequest) ([]byte, error) {
 	case <-t.closeC:
 		return nil, errTransportClosed
 	}
-	defer func() {
-		select {
-		case t.cancelC <- req:
-		case <-t.doneC:
-		}
-	}()
 
 	select {
 	case <-req.done:
@@ -111,8 +103,6 @@ func (t *Transport) Run() {
 }
 
 func (t *Transport) run(udpConn net.PacketConn, listenErr error) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	var listening bool
 	if listenErr != nil {
 		t.log.Error(listenErr)
@@ -127,112 +117,56 @@ func (t *Transport) run(udpConn net.PacketConn, listenErr error) {
 	// Connections can be either connecting or connected.
 	connections := make(map[string]*connection)
 	connectDone := make(chan *connectionResult)
-	connectionExpired := make(chan *connection)
-	transactionExpired := make(chan expiredTransaction)
+	connectionExpired := make(chan string)
 
 	// Transaction can be either a connection request or announce request.
 	beginTransaction := func(i udpRequest) (*transaction, error) {
 		trx := newTransaction(i)
 		_, ok := transactions[trx.id]
 		if ok {
-			trx.cancel()
 			return nil, errors.New("transaction id collision")
 		}
 		transactions[trx.id] = trx
 		return trx, nil
 	}
 
-	startRequest := func(req *transportRequest) {
-		if req.ctx.Err() != nil {
-			return
-		}
-		// Requests cannot proceed if the UDP listener failed.
-		if !listening {
-			req.SetResponse(nil, listenErr)
-			return
-		}
-		conn, ok := connections[req.dest]
-		if ok && !conn.connectedAt.IsZero() && time.Since(conn.connectedAt) >= connectionIDInterval {
-			delete(connections, req.dest)
-			ok = false
-		}
-		if !ok {
-			conn = newConnection(ctx, req)
-			connections[req.dest] = conn
-			req.connection = conn
-			trx, err := beginTransaction(conn)
-			if err != nil {
-				delete(connections, req.dest)
-				req.SetResponse(nil, err)
-			} else {
-				conn.transaction = trx
-				go resolveDestinationAndConnect(trx, req.dest, udpConn, t.dnsTimeout, t.blocklist, connectDone, t.closeC)
-			}
-		} else {
-			req.connection = conn
-			if !conn.connectedAt.IsZero() {
-				req.ConnectionID = conn.id
-				trx, err := beginTransaction(req)
-				if err != nil {
-					req.SetResponse(nil, err)
-				} else {
-					req.transaction = trx
-					go retryTransaction(trx, udpConn, conn.addr, req.retryBackoff, conn.connectedAt.Add(connectionIDInterval), transactionExpired)
-				}
-			} else {
-				// Connection is in connecting state.
-				conn.requests = append(conn.requests, req)
-			}
-		}
-	}
-
 	for {
 		select {
 		case req := <-t.requestC:
-			startRequest(req)
-		case req := <-t.cancelC:
-			if trx := req.transaction; trx != nil {
-				delete(transactions, trx.id)
-				trx.cancel()
-				req.transaction = nil
-			}
-			conn := req.connection
-			if conn == nil || !conn.connectedAt.IsZero() || connections[conn.dest] != conn {
+			// Early break if we couldn't listen on the UDP port.
+			if !listening {
+				req.SetResponse(nil, listenErr)
 				break
 			}
-			for i, pending := range conn.requests {
-				if pending == req {
-					conn.requests = slices.Delete(conn.requests, i, i+1)
-					break
+			conn, ok := connections[req.dest]
+			if !ok {
+				conn = newConnection(req)
+				connections[req.dest] = conn
+				trx, err := beginTransaction(conn)
+				if err != nil {
+					conn.SetResponse(nil, err)
+				} else {
+					go resolveDestinationAndConnect(trx, req.dest, udpConn, t.dnsTimeout, t.blocklist, connectDone, t.closeC)
+				}
+			} else {
+				if !conn.connectedAt.IsZero() {
+					req.ConnectionID = conn.id
+					trx, err := beginTransaction(req)
+					if err != nil {
+						req.SetResponse(nil, err)
+					} else {
+						go retryTransaction(trx, udpConn, conn.addr, conn.connectedAt.Add(connectionIDInterval))
+					}
+				} else {
+					// Connection is in connecting state.
+					conn.requests = append(conn.requests, req)
 				}
 			}
-			if len(conn.requests) == 0 {
-				delete(connections, conn.dest)
-				delete(transactions, conn.transaction.id)
-				conn.transaction.cancel()
-			}
-		case expired := <-transactionExpired:
-			trx := expired.trx
-			if transactions[trx.id] != trx {
-				break
-			}
-			delete(transactions, trx.id)
-			trx.cancel()
-			req := trx.request.(*transportRequest)
-			req.transaction = nil
-			req.retryBackoff = expired.backoff
-			startRequest(req)
 		case res := <-connectDone:
 			conn := res.trx.request.(*connection)
 
 			// Transaction must be finished, successful or not.
-			if transactions[res.trx.id] == res.trx {
-				delete(transactions, res.trx.id)
-			}
-			res.trx.cancel()
-			if connections[res.dest] != conn {
-				break
-			}
+			delete(transactions, res.trx.id)
 
 			// Handle connection error.
 			if res.err != nil {
@@ -250,43 +184,33 @@ func (t *Transport) run(udpConn net.PacketConn, listenErr error) {
 			conn.connectedAt = res.connectedAt
 
 			// Expire the connection after defined period.
-			go func(conn *connection) {
+			go func(dest string) {
 				select {
 				case <-time.After(connectionIDInterval):
 				case <-t.closeC:
 					return
 				}
 				select {
-				case connectionExpired <- conn:
+				case connectionExpired <- dest:
 				case <-t.closeC:
 				}
-			}(conn)
+			}(res.dest)
 
 			// Start announce transaction for all waiting requests.
 			for _, req := range conn.requests {
-				if req.ctx.Err() != nil {
-					continue
-				}
 				req.ConnectionID = conn.id
-				if req.retryBackoff > 0 {
-					// Reconnecting must not restart an announce's retry schedule.
-					req.retryBackoff = max(req.retryBackoff, res.retryBackoff)
-				}
 				trx, err := beginTransaction(req)
 				if err != nil {
 					req.SetResponse(nil, err)
 				} else {
-					req.transaction = trx
-					go retryTransaction(trx, udpConn, conn.addr, req.retryBackoff, conn.connectedAt.Add(connectionIDInterval), transactionExpired)
+					go retryTransaction(trx, udpConn, conn.addr, conn.connectedAt.Add(connectionIDInterval))
 				}
 			}
 
 			// All requests are sent, clear waiting request list.
 			conn.requests = nil
-		case conn := <-connectionExpired:
-			if connections[conn.dest] == conn {
-				delete(connections, conn.dest)
-			}
+		case dest := <-connectionExpired:
+			delete(connections, dest)
 		case buf := <-t.readC:
 			var header udpMessageHeader
 			err := binary.Read(bytes.NewReader(buf), binary.BigEndian, &header)
@@ -301,9 +225,6 @@ func (t *Transport) run(udpConn net.PacketConn, listenErr error) {
 				continue
 			}
 			delete(transactions, header.TransactionID)
-			if req, ok := trx.request.(*transportRequest); ok {
-				req.transaction = nil
-			}
 
 			t.log.Debugln("Received response for transaction ID:", header.TransactionID)
 
@@ -374,13 +295,12 @@ func (t *Transport) readLoop(conn net.PacketConn) {
 }
 
 type connectionResult struct {
-	trx          *transaction
-	dest         string
-	addr         *net.UDPAddr
-	id           int64
-	err          error
-	connectedAt  time.Time
-	retryBackoff udpBackOff
+	trx         *transaction
+	dest        string
+	addr        *net.UDPAddr
+	id          int64
+	err         error
+	connectedAt time.Time
 }
 
 func resolveDestinationAndConnect(trx *transaction, dest string, udpConn net.PacketConn, dnsTimeout time.Duration, blocklist *blocklist.Blocklist, resultC chan *connectionResult, stopC chan struct{}) {
@@ -401,7 +321,7 @@ func resolveDestinationAndConnect(trx *transaction, dest string, udpConn net.Pac
 
 	res.addr = &net.UDPAddr{IP: ip, Port: port}
 
-	res.id, res.retryBackoff, res.err = sendAndReceiveConnect(trx, udpConn, res.addr)
+	res.id, res.err = sendAndReceiveConnect(trx, udpConn, res.addr)
 	if res.err == nil {
 		res.connectedAt = time.Now()
 	}
@@ -412,79 +332,55 @@ func resolveDestinationAndConnect(trx *transaction, dest string, udpConn net.Pac
 	}
 }
 
-func sendAndReceiveConnect(trx *transaction, conn net.PacketConn, addr net.Addr) (int64, udpBackOff, error) {
+func sendAndReceiveConnect(trx *transaction, conn net.PacketConn, addr net.Addr) (connectionID int64, err error) {
 	// Send request until the transaction is canceled.
-	retryDone := make(chan udpBackOff, 1)
-	go func() {
-		retryDone <- retryTransaction(trx, conn, addr, trx.request.(*connection).retryBackoff, time.Time{}, nil)
-	}()
+	go retryTransaction(trx, conn, addr, time.Time{})
+
 	// Wait until transaction is finished.
 	select {
 	case <-trx.request.(*connection).done:
 	case <-trx.ctx.Done():
-	}
-	trx.cancel()
-	retryBackoff := <-retryDone
-	// Receiving a response also cancels the transaction.
-	select {
-	case <-trx.request.(*connection).done:
-	default:
-		return 0, retryBackoff, trx.ctx.Err()
+		return 0, trx.ctx.Err()
 	}
 
 	data, err := trx.request.GetResponse()
 	if err != nil {
-		return 0, retryBackoff, err
+		return 0, err
 	}
 
 	var response connectResponse
 	err = binary.Read(bytes.NewReader(data), binary.BigEndian, &response)
 	if err != nil {
-		return 0, retryBackoff, err
+		return 0, err
 	}
 
 	if response.Action != actionConnect {
-		return 0, retryBackoff, errors.New("invalid action in connect response")
+		return 0, errors.New("invalid action in connect response")
 	}
 
-	return response.ConnectionID, retryBackoff, nil
-}
-
-type expiredTransaction struct {
-	trx     *transaction
-	backoff udpBackOff
+	return response.ConnectionID, nil
 }
 
 // Send the request until the transaction is canceled.
 // Transaction canceled by either via outer context or when response is received from the tracker.
 // It backs off with the algorithm described in BEP15 and retries.
-func retryTransaction(trx *transaction, conn net.PacketConn, addr net.Addr, retryBackoff udpBackOff, expiresAt time.Time, expiredC chan<- expiredTransaction) udpBackOff {
+// Retries stop at expiresAt because BEP15 does not allow sending an expired connection ID.
+func retryTransaction(trx *transaction, conn net.PacketConn, addr net.Addr, expiresAt time.Time) {
 	var b bytes.Buffer
 	_, _ = trx.request.WriteTo(&b)
 	data := b.Bytes()
 
-	timer := time.NewTimer(0)
-	defer timer.Stop()
-	nextBackoff := retryBackoff
+	ticker := backoff.NewTicker(new(udpBackOff))
+	defer ticker.Stop()
 	for {
 		select {
-		case <-timer.C:
-			if trx.ctx.Err() != nil {
-				return retryBackoff
-			}
-			retryBackoff = nextBackoff
+		case <-ticker.C:
 			if !expiresAt.IsZero() && !time.Now().Before(expiresAt) {
-				// BEP 15 requires a new connection ID before retrying an expired announce.
-				select {
-				case expiredC <- expiredTransaction{trx: trx, backoff: retryBackoff}:
-				case <-trx.ctx.Done():
-				}
-				return retryBackoff
+				return
 			}
 			_, _ = conn.WriteTo(data, addr)
-			timer.Reset(nextBackoff.NextBackOff())
 		case <-trx.ctx.Done():
-			return retryBackoff
+			return
 		}
 	}
 }
