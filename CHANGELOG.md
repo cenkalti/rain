@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.4] - 2026-10-19
+
+### Fixed
+
+- Announces to a UDP tracker that stops responding now give up after two
+  minutes, so the next tracker in the tier is tried, instead of retrying
+  forever. Retries also stop sending an expired connection ID.
+
 ## [2.4.3] - 2026-10-10
 
 ### Added
