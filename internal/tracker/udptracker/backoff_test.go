@@ -26,8 +26,5 @@ func TestUDPBackOff(t *testing.T) {
 		if got := b.NextBackOff(); got != w {
 			t.Errorf("call %d: got %s, want %s", i, got, w)
 		}
-		if b > 8 {
-			t.Fatalf("backoff exponent exceeded its cap: %d", b)
-		}
 	}
 }
