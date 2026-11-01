@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.5] - 2026-11-01
+
 ### Fixed
 
 - `rain server` and `rain client` no longer crash with a stack overflow when
