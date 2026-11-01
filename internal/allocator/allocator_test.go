@@ -1,6 +1,8 @@
 package allocator_test
 
 import (
+	"context"
+	"errors"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -13,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func runAllocator(t *testing.T, info *metainfo.Info, sto *filestorage.FileStorage) *allocator.Allocator {
+func runAllocator(t *testing.T, info *metainfo.Info, sto storage.Storage) *allocator.Allocator {
 	t.Helper()
 	a := allocator.New()
 	progressC := make(chan allocator.Progress, len(info.Files))
@@ -122,6 +124,74 @@ func TestAllocatorCloseDuringAllocation(t *testing.T) {
 
 	assert.Equal(t, 2, sto.opened)
 	assert.Equal(t, sto.opened, sto.closed)
+}
+
+type preparingStorage struct {
+	countingStorage
+	prepare func(context.Context, storage.Manifest) error
+}
+
+func (s *preparingStorage) Prepare(ctx context.Context, m storage.Manifest) error {
+	return s.prepare(ctx, m)
+}
+
+func TestAllocatorPrepare(t *testing.T) {
+	info := &metainfo.Info{
+		Name:        "t",
+		Hash:        [20]byte{1},
+		PieceLength: 16,
+		Files: []metainfo.File{
+			{Path: "a", Length: 10},
+			{Path: "pad", Length: 6, Padding: true},
+		},
+	}
+	var got storage.Manifest
+	var openedBefore int
+	sto := &preparingStorage{}
+	sto.prepare = func(ctx context.Context, m storage.Manifest) error {
+		got = m
+		openedBefore = sto.opened
+		return nil
+	}
+
+	res := runAllocator(t, info, sto)
+	require.NoError(t, res.Error)
+	assert.Equal(t, 0, openedBefore)
+	assert.Equal(t, storage.Manifest{
+		InfoHash:    [20]byte{1},
+		Name:        "t",
+		PieceLength: 16,
+		Files: []storage.ManifestFile{
+			{Path: "a", Size: 10},
+			{Path: "pad", Size: 6, Padding: true},
+		},
+	}, got)
+}
+
+func TestAllocatorPrepareError(t *testing.T) {
+	errPrepare := errors.New("prepare failed")
+	sto := &preparingStorage{prepare: func(context.Context, storage.Manifest) error { return errPrepare }}
+	info := &metainfo.Info{Files: []metainfo.File{{Path: "a", Length: 1}}}
+
+	res := runAllocator(t, info, sto)
+	require.ErrorIs(t, res.Error, errPrepare)
+	assert.Equal(t, 0, sto.opened)
+}
+
+func TestAllocatorCloseDuringPrepare(t *testing.T) {
+	started := make(chan struct{})
+	sto := &preparingStorage{prepare: func(ctx context.Context, _ storage.Manifest) error {
+		close(started)
+		<-ctx.Done()
+		return ctx.Err()
+	}}
+	info := &metainfo.Info{Files: []metainfo.File{{Path: "a", Length: 1}}}
+	a := allocator.New()
+	go a.Run(info, sto, make(chan allocator.Progress), make(chan *allocator.Allocator))
+	<-started
+	a.Close()
+
+	assert.Equal(t, 0, sto.opened)
 }
 
 func TestAllocatorCloseBeforeResult(t *testing.T) {

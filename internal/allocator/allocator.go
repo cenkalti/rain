@@ -1,6 +1,9 @@
 package allocator
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/cenkalti/rain/v2/internal/metainfo"
 	"github.com/cenkalti/rain/v2/storage"
 )
@@ -60,6 +63,13 @@ func (a *Allocator) Run(info *metainfo.Info, sto storage.Storage, progressC chan
 		}
 	}()
 
+	if p, ok := sto.(storage.Preparer); ok {
+		a.Error = a.prepare(p, info)
+		if a.Error != nil {
+			return
+		}
+	}
+
 	var allocatedSize int64
 	a.Files = make([]File, len(info.Files))
 	for i, f := range info.Files {
@@ -84,6 +94,31 @@ func (a *Allocator) Run(info *metainfo.Info, sto storage.Storage, progressC chan
 			return
 		}
 	}
+}
+
+func (a *Allocator) prepare(p storage.Preparer, info *metainfo.Info) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		select {
+		case <-a.closeC:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+	m := storage.Manifest{
+		InfoHash:    info.Hash,
+		Name:        info.Name,
+		PieceLength: info.PieceLength,
+		Files:       make([]storage.ManifestFile, len(info.Files)),
+	}
+	for i, f := range info.Files {
+		m.Files[i] = storage.ManifestFile{Path: f.Path, Size: f.Length, Padding: f.Padding}
+	}
+	if err := p.Prepare(ctx, m); err != nil {
+		return fmt.Errorf("preparing storage: %w", err)
+	}
+	return nil
 }
 
 func (a *Allocator) sendProgress(progressC chan Progress, size int64) bool {
