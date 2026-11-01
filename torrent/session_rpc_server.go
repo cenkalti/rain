@@ -5,32 +5,30 @@ import (
 	"expvar"
 	"net"
 	"net/http"
-	"net/rpc"
 	"strconv"
 	"time"
 
 	"github.com/cenkalti/rain/v2/internal/logger"
-	"github.com/powerman/rpc-codec/jsonrpc2"
+	"github.com/creachadair/jrpc2/jhttp"
 )
 
 type rpcServer struct {
-	rpcServer  *rpc.Server
+	bridge     jhttp.Bridge
 	httpServer http.Server
 	log        logger.Logger
 }
 
 func newRPCServer(ses *Session) *rpcServer {
 	h := &rpcHandler{session: ses}
-	srv := rpc.NewServer()
-	_ = srv.RegisterName("Session", h)
+	bridge := jhttp.NewBridge(h.methods(), nil)
 
 	mux := http.NewServeMux()
 	mux.Handle("/debug/vars", expvar.Handler())
 	mux.HandleFunc("/move-torrent", h.handleMoveTorrent)
-	mux.Handle("/", jsonrpc2.HTTPHandler(srv))
+	mux.Handle("/", bridge)
 
 	return &rpcServer{
-		rpcServer: srv,
+		bridge: bridge,
 		httpServer: http.Server{
 			Handler: mux,
 		},
@@ -64,5 +62,7 @@ func (s *rpcServer) Start(host string, port int) error {
 func (s *rpcServer) Stop(timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	return s.httpServer.Shutdown(ctx)
+	err := s.httpServer.Shutdown(ctx)
+	_ = s.bridge.Close()
+	return err
 }

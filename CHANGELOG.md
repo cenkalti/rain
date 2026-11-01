@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `rain server` and `rain client` no longer crash with a stack overflow when
+  built with `GOEXPERIMENT=jsonv2`. The JSON-RPC library is replaced with
+  `github.com/creachadair/jrpc2`; clients and servers of earlier versions
+  remain compatible. (#256)
+
 ## [2.4.4] - 2026-10-19
 
 ### Fixed

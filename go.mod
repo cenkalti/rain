@@ -6,6 +6,7 @@ require (
 	github.com/br0xen/boltbrowser v0.0.0-20260327130740-898a1e52a566
 	github.com/cenkalti/backoff/v7 v7.0.1
 	github.com/cenkalti/log v1.0.0
+	github.com/creachadair/jrpc2 v1.3.6
 	github.com/fatih/structs v1.1.0
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/google/btree v1.1.3
@@ -14,7 +15,6 @@ require (
 	github.com/juju/ratelimit v1.0.2
 	github.com/nictuku/dht v0.0.0-20201226073453-fd1c1dd3d66a
 	github.com/otiai10/copy v1.14.1
-	github.com/powerman/rpc-codec v1.2.2
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475
 	github.com/stretchr/testify v1.12.1
 	github.com/urfave/cli v1.22.17
@@ -31,6 +31,7 @@ require (
 	github.com/clipperhouse/stringish v0.1.1 // indirect
 	github.com/clipperhouse/uax29/v2 v2.3.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect
+	github.com/creachadair/mds v0.31.0 // indirect
 	github.com/fatih/color v1.10.0 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect

@@ -1,6 +1,7 @@
 package torrent
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
@@ -8,16 +9,61 @@ import (
 	"time"
 
 	"github.com/cenkalti/rain/v2/internal/rpctypes"
-	"github.com/powerman/rpc-codec/jsonrpc2"
+	"github.com/creachadair/jrpc2"
+	"github.com/creachadair/jrpc2/handler"
 )
 
-var errTorrentNotFound = jsonrpc2.NewError(1, "torrent not found")
+var errTorrentNotFound = jrpc2.Errorf(1, "torrent not found")
 
 type rpcHandler struct {
 	session *Session
 }
 
-func (h *rpcHandler) Version(args struct{}, reply *string) error {
+// methods exposes the handler under the "Session." prefix so method names stay
+// compatible with clients built on the previous net/rpc-based server.
+func (h *rpcHandler) methods() handler.ServiceMap {
+	return handler.ServiceMap{"Session": handler.Map{
+		"Version":             method(h.Version),
+		"ListTorrents":        method(h.ListTorrents),
+		"AddTorrent":          method(h.AddTorrent),
+		"AddURI":              method(h.AddURI),
+		"RemoveTorrent":       method(h.RemoveTorrent),
+		"GetMagnet":           method(h.GetMagnet),
+		"GetTorrent":          method(h.GetTorrent),
+		"CleanDatabase":       method(h.CleanDatabase),
+		"GetSessionStats":     method(h.GetSessionStats),
+		"GetTorrentStats":     method(h.GetTorrentStats),
+		"GetTorrentTrackers":  method(h.GetTorrentTrackers),
+		"GetTorrentPeers":     method(h.GetTorrentPeers),
+		"GetTorrentWebseeds":  method(h.GetTorrentWebseeds),
+		"GetTorrentFiles":     method(h.GetTorrentFiles),
+		"GetTorrentFileStats": method(h.GetTorrentFileStats),
+		"StartTorrent":        method(h.StartTorrent),
+		"StopTorrent":         method(h.StopTorrent),
+		"AnnounceTorrent":     method(h.AnnounceTorrent),
+		"VerifyTorrent":       method(h.VerifyTorrent),
+		"StartAllTorrents":    method(h.StartAllTorrents),
+		"StopAllTorrents":     method(h.StopAllTorrents),
+		"AddPeer":             method(h.AddPeer),
+		"AddTracker":          method(h.AddTracker),
+		"MoveTorrent":         method(h.MoveTorrent),
+	}}
+}
+
+func method[A, R any](fn func(*A, *R) error) jrpc2.Handler {
+	return handler.New(func(_ context.Context, args *A) (*R, error) {
+		if args == nil {
+			args = new(A)
+		}
+		var reply R
+		if err := fn(args, &reply); err != nil {
+			return nil, err
+		}
+		return &reply, nil
+	})
+}
+
+func (h *rpcHandler) Version(args *struct{}, reply *string) error {
 	*reply = Version
 	return nil
 }
@@ -42,7 +88,7 @@ func (h *rpcHandler) AddTorrent(args *rpctypes.AddTorrentRequest, reply *rpctype
 	}
 	t, err := h.session.AddTorrent(r, opt)
 	if e, ok := errors.AsType[*InputError](err); ok {
-		return jsonrpc2.NewError(2, e.Error())
+		return jrpc2.Errorf(2, "%s", e.Error())
 	}
 	if err != nil {
 		return err
@@ -61,7 +107,7 @@ func (h *rpcHandler) AddURI(args *rpctypes.AddURIRequest, reply *rpctypes.AddURI
 	}
 	t, err := h.session.AddURI(args.URI, opt)
 	if e, ok := errors.AsType[*InputError](err); ok {
-		return jsonrpc2.NewError(2, e.Error())
+		return jrpc2.Errorf(2, "%s", e.Error())
 	}
 	if err != nil {
 		return err
