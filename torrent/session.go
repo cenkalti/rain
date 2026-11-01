@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -16,6 +17,7 @@ import (
 	"github.com/cenkalti/rain/v2/internal/bitfield"
 	"github.com/cenkalti/rain/v2/internal/blocklist"
 	"github.com/cenkalti/rain/v2/internal/logger"
+	"github.com/cenkalti/rain/v2/internal/metainfo"
 	"github.com/cenkalti/rain/v2/internal/peer"
 	"github.com/cenkalti/rain/v2/internal/piececache"
 	"github.com/cenkalti/rain/v2/internal/resolver"
@@ -346,20 +348,42 @@ func (s *Session) GetTorrent(id string) *Torrent {
 
 // RemoveTorrent removes the torrent from the session and delete its files.
 // A "stopped" event is announced to the trackers in the background; RemoveTorrent does not wait for it.
+// If the storage fails to delete the files, the torrent stays in the session in stopped state.
 func (s *Session) RemoveTorrent(id string, keepData bool) error {
-	t, err := s.removeTorrentFromClient(id)
-	if t != nil {
-		err = s.stopAndRemoveData(t, keepData)
+	t := s.GetTorrent(id)
+	if t == nil {
+		return nil
+	}
+	info := query(t.torrent, func() *metainfo.Info {
+		t.torrent.stop(nil)
+		return t.torrent.info
+	})
+	if r, ok := t.torrent.storage.(storage.Remover); ok {
+		var m *storage.Manifest
+		if info != nil {
+			mf := info.Manifest()
+			m = &mf
+		}
+		if err := r.Remove(m, keepData); err != nil {
+			err = fmt.Errorf("cannot remove torrent data: %w", err)
+			return errors.Join(err, s.resumer.WriteStarted(id, false))
+		}
+	}
+	removed, err := s.removeTorrentFromClient(t)
+	if removed {
+		t.torrent.Close()
+		s.releasePort(t.torrent.port)
 	}
 	return err
 }
 
-func (s *Session) removeTorrentFromClient(id string) (*Torrent, error) {
+// removeTorrentFromClient returns false if t is already removed by a concurrent call.
+func (s *Session) removeTorrentFromClient(t *Torrent) (bool, error) {
+	id := t.torrent.id
 	s.mTorrents.Lock()
-	t, ok := s.torrents[id]
-	if !ok {
+	if s.torrents[id] != t {
 		s.mTorrents.Unlock()
-		return nil, nil
+		return false, nil
 	}
 	t.torrent.log.Info("removing torrent")
 	delete(s.torrents, id)
@@ -387,31 +411,9 @@ func (s *Session) removeTorrentFromClient(id string) (*Torrent, error) {
 	if s.config.DHTEnabled && lastWithInfoHash {
 		s.dht.RemoveInfoHash(string(ih))
 	}
-	return t, s.db.Update(func(tx *bbolt.Tx) error {
+	return true, s.db.Update(func(tx *bbolt.Tx) error {
 		return tx.Bucket(torrentsBucket).DeleteBucket([]byte(id))
 	})
-}
-
-func (s *Session) stopAndRemoveData(t *Torrent, keepData bool) error {
-	t.torrent.Close()
-	s.releasePort(t.torrent.port)
-	if keepData {
-		return nil
-	}
-	var err error
-	var dest string
-	if s.config.DataDirIncludesTorrentID {
-		dest = filepath.Join(s.config.DataDir, t.torrent.id)
-	} else if t.torrent.info != nil {
-		dest = filepath.Join(s.config.DataDir, t.torrent.info.Name)
-	}
-	if dest != "" {
-		err = os.RemoveAll(dest)
-		if err != nil {
-			s.log.Errorf("cannot remove torrent data. err: %s dest: %s", err, dest)
-		}
-	}
-	return err
 }
 
 // StartAll starts all torrents in session.

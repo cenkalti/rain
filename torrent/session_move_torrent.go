@@ -67,15 +67,9 @@ func (h *rpcHandler) handleMoveTorrent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "id required", http.StatusBadRequest)
 		return
 	}
-	if _, ok := h.session.torrents[id]; ok {
+	if h.session.GetTorrent(id) != nil {
 		h.session.log.Warningln("duplicate torrent id, removing existing one:", id)
-		t, err := h.session.removeTorrentFromClient(id)
-		if err != nil {
-			h.session.log.Error(err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		err = h.session.stopAndRemoveData(t, false)
+		err = h.session.RemoveTorrent(id, false)
 		if err != nil {
 			h.session.log.Error(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)

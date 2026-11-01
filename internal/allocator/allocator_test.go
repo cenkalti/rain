@@ -34,7 +34,7 @@ func runAllocator(t *testing.T, info *metainfo.Info, sto storage.Storage) *alloc
 
 func TestAllocatorCreatesThenFindsFiles(t *testing.T) {
 	dir := t.TempDir()
-	sto, err := filestorage.New(dir, 0o750)
+	sto, err := filestorage.New(dir, 0o750, true)
 	require.NoError(t, err)
 
 	info := &metainfo.Info{
@@ -60,7 +60,7 @@ func TestAllocatorCreatesThenFindsFiles(t *testing.T) {
 
 func TestAllocatorPaddingFile(t *testing.T) {
 	dir := t.TempDir()
-	sto, err := filestorage.New(dir, 0o750)
+	sto, err := filestorage.New(dir, 0o750, true)
 	require.NoError(t, err)
 
 	info := &metainfo.Info{

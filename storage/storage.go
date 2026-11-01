@@ -37,6 +37,15 @@ type Preparer interface {
 	Prepare(ctx context.Context, m Manifest) error
 }
 
+// Remover is implemented by storage that deletes its own data when the torrent
+// is removed from the session. Storage that does not implement it keeps its data.
+// m is nil if the metadata of the torrent is not downloaded yet.
+// The torrent stays in the session if Remove returns an error, so Remove may be
+// called again for the same torrent, possibly concurrently.
+type Remover interface {
+	Remove(m *Manifest, keepData bool) error
+}
+
 // Manifest describes the files of a torrent, in torrent order.
 type Manifest struct {
 	InfoHash    [20]byte

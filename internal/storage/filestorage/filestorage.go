@@ -2,30 +2,38 @@
 package filestorage
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/cenkalti/rain/v2/storage"
 )
 
 // FileStorage implements Storage interface for saving files on disk.
 type FileStorage struct {
-	dest string
-	perm fs.FileMode
+	dest     string
+	perm     fs.FileMode
+	ownsDest bool
 }
 
 // New returns a new FileStorage at the destination.
-func New(dest string, perm fs.FileMode) (*FileStorage, error) {
+// If ownsDest is true, dest contains only this torrent and Remove deletes it entirely.
+// Otherwise, Remove deletes only the top level entries of the torrent's files.
+func New(dest string, perm fs.FileMode, ownsDest bool) (*FileStorage, error) {
 	var err error
 	dest, err = filepath.Abs(dest)
 	if err != nil {
 		return nil, err
 	}
-	return &FileStorage{dest: dest, perm: perm}, nil
+	return &FileStorage{dest: dest, perm: perm, ownsDest: ownsDest}, nil
 }
 
-var _ storage.Storage = (*FileStorage)(nil)
+var (
+	_ storage.Storage = (*FileStorage)(nil)
+	_ storage.Remover = (*FileStorage)(nil)
+)
 
 // Open a file.
 func (s *FileStorage) Open(name string, size int64) (f storage.File, exists bool, err error) {
@@ -84,4 +92,35 @@ func (s *FileStorage) Open(name string, size int64) (f storage.File, exists bool
 // RootDir is the root of opened storage file.
 func (s *FileStorage) RootDir() string {
 	return s.dest
+}
+
+// Remove deletes the torrent's files from disk.
+func (s *FileStorage) Remove(m *storage.Manifest, keepData bool) error {
+	if keepData {
+		return nil
+	}
+	if s.ownsDest {
+		return os.RemoveAll(s.dest)
+	}
+	if m == nil {
+		return nil
+	}
+	seen := make(map[string]struct{})
+	for _, f := range m.Files {
+		if f.Padding {
+			continue
+		}
+		top, _, _ := strings.Cut(filepath.ToSlash(f.Path), "/")
+		if _, ok := seen[top]; ok {
+			continue
+		}
+		seen[top] = struct{}{}
+		if !filepath.IsLocal(top) {
+			return fmt.Errorf("file path is not local: %q", f.Path)
+		}
+		if err := os.RemoveAll(filepath.Join(s.dest, top)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
