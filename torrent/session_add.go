@@ -14,8 +14,8 @@ import (
 	"github.com/cenkalti/rain/v2/internal/metainfo"
 	"github.com/cenkalti/rain/v2/internal/resumer"
 	"github.com/cenkalti/rain/v2/internal/resumer/boltdbresumer"
-	"github.com/cenkalti/rain/v2/internal/storage"
 	"github.com/cenkalti/rain/v2/internal/webseedsource"
+	"github.com/cenkalti/rain/v2/storage"
 	"github.com/gofrs/uuid"
 	"github.com/nictuku/dht"
 )

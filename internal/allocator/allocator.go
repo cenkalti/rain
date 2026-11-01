@@ -2,7 +2,7 @@ package allocator
 
 import (
 	"github.com/cenkalti/rain/v2/internal/metainfo"
-	"github.com/cenkalti/rain/v2/internal/storage"
+	"github.com/cenkalti/rain/v2/storage"
 )
 
 // Allocator allocates files on the disk.
@@ -66,7 +66,7 @@ func (a *Allocator) Run(info *metainfo.Info, sto storage.Storage, progressC chan
 		var sf storage.File
 		var exists bool
 		if f.Padding {
-			sf = storage.NewPaddingFile(f.Length)
+			sf = newPaddingFile()
 		} else {
 			sf, exists, a.Error = sto.Open(f.Path, f.Length)
 			if a.Error != nil {

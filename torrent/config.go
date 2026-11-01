@@ -6,7 +6,7 @@ import (
 
 	"github.com/cenkalti/log"
 	"github.com/cenkalti/rain/v2/internal/metainfo"
-	"github.com/cenkalti/rain/v2/internal/storage"
+	"github.com/cenkalti/rain/v2/storage"
 )
 
 var (
