@@ -1,7 +1,10 @@
 // Package storage contains an interface for reading and writing files in a torrent.
 package storage
 
-import "io"
+import (
+	"context"
+	"io"
+)
 
 // Storage is an interface for reading/writing torrent files.
 type Storage interface {
@@ -24,4 +27,27 @@ type File interface {
 type Provider interface {
 	// GetStorage returns a storage for a torrent.
 	GetStorage(torrentID string) (Storage, error)
+}
+
+// Preparer is implemented by storage that needs the layout of the whole torrent
+// before any of its files are opened.
+// Prepare is called before every allocation, so it must be idempotent.
+// ctx is canceled when the torrent is stopped.
+type Preparer interface {
+	Prepare(ctx context.Context, m Manifest) error
+}
+
+// Manifest describes the files of a torrent, in torrent order.
+type Manifest struct {
+	InfoHash    [20]byte
+	Name        string
+	PieceLength uint32
+	Files       []ManifestFile
+}
+
+// ManifestFile is a file in the Manifest.
+type ManifestFile struct {
+	Path    string
+	Size    int64
+	Padding bool
 }
