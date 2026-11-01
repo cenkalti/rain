@@ -23,7 +23,7 @@ func newFileStorageProvider(cfg *Config) *fileStorageProvider {
 }
 
 func (p *fileStorageProvider) GetStorage(torrentID string) (storage.Storage, error) {
-	return filestorage.New(p.getDataDir(torrentID), p.FilePermissions)
+	return filestorage.New(p.getDataDir(torrentID), p.FilePermissions, p.DataDirIncludesTorrentID)
 }
 
 func (p *fileStorageProvider) getDataDir(torrentID string) string {

@@ -106,16 +106,7 @@ func (a *Allocator) prepare(p storage.Preparer, info *metainfo.Info) error {
 		case <-ctx.Done():
 		}
 	}()
-	m := storage.Manifest{
-		InfoHash:    info.Hash,
-		Name:        info.Name,
-		PieceLength: info.PieceLength,
-		Files:       make([]storage.ManifestFile, len(info.Files)),
-	}
-	for i, f := range info.Files {
-		m.Files[i] = storage.ManifestFile{Path: f.Path, Size: f.Length, Padding: f.Padding}
-	}
-	if err := p.Prepare(ctx, m); err != nil {
+	if err := p.Prepare(ctx, info.Manifest()); err != nil {
 		return fmt.Errorf("preparing storage: %w", err)
 	}
 	return nil

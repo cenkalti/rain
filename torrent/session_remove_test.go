@@ -1,13 +1,16 @@
 package torrent
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/cenkalti/rain/v2/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -102,4 +105,90 @@ func recvAnnounce(t *testing.T, announces <-chan url.Values) url.Values {
 		t.Fatal("tracker was not contacted")
 		return nil
 	}
+}
+
+func TestRemoveTorrentDeletesData(t *testing.T) {
+	s := newTestSession(t)
+	tor := addStoppedTorrent(t, s)
+	name := filepath.Join(tor.Dir(), "a")
+	require.NoError(t, os.MkdirAll(tor.Dir(), 0o750))
+	require.NoError(t, os.WriteFile(name, nil, 0o600))
+
+	require.NoError(t, s.RemoveTorrent(tor.ID(), false))
+	assert.NoDirExists(t, tor.Dir())
+}
+
+func TestRemoveTorrentKeepsData(t *testing.T) {
+	s := newTestSession(t)
+	tor := addStoppedTorrent(t, s)
+	name := filepath.Join(tor.Dir(), "a")
+	require.NoError(t, os.MkdirAll(tor.Dir(), 0o750))
+	require.NoError(t, os.WriteFile(name, nil, 0o600))
+
+	require.NoError(t, s.RemoveTorrent(tor.ID(), true))
+	assert.FileExists(t, name)
+}
+
+func TestRemoveTorrentDeletesDataInSharedDir(t *testing.T) {
+	cfg := newTestConfig(t)
+	cfg.DataDirIncludesTorrentID = false
+	s, err := NewSession(cfg)
+	require.NoError(t, err)
+	defer s.Close()
+	tor := addStoppedTorrent(t, s)
+	torrentData := filepath.Join(cfg.DataDir, torrentName)
+	other := filepath.Join(cfg.DataDir, "other")
+	require.NoError(t, os.MkdirAll(torrentData, 0o750))
+	require.NoError(t, os.WriteFile(other, nil, 0o600))
+
+	require.NoError(t, s.RemoveTorrent(tor.ID(), false))
+	assert.NoDirExists(t, torrentData)
+	assert.FileExists(t, other)
+}
+
+type failingRemoveProvider struct {
+	err error
+}
+
+func (p *failingRemoveProvider) GetStorage(string) (storage.Storage, error) {
+	return failingRemoveStorage{p}, nil
+}
+
+type failingRemoveStorage struct {
+	p *failingRemoveProvider
+}
+
+func (s failingRemoveStorage) Open(string, int64) (storage.File, bool, error) {
+	return memFile{}, false, nil
+}
+
+func (s failingRemoveStorage) RootDir() string { return "" }
+
+func (s failingRemoveStorage) Remove(*storage.Manifest, bool) error { return s.p.err }
+
+type memFile struct{}
+
+func (memFile) ReadAt(p []byte, off int64) (int, error)  { return len(p), nil }
+func (memFile) WriteAt(p []byte, off int64) (int, error) { return len(p), nil }
+func (memFile) Close() error                             { return nil }
+
+func TestRemoveTorrentKeepsTorrentWhenStorageFails(t *testing.T) {
+	announces, srv := newTestTracker(t)
+	provider := &failingRemoveProvider{err: errors.New("remove failed")}
+	cfg := newTestConfig(t)
+	cfg.CustomStorage = provider
+	s, err := NewSession(cfg)
+	require.NoError(t, err)
+	defer s.Close()
+	tor := addTorrentWithTracker(t, s, srv.URL)
+	assert.Equal(t, "started", recvAnnounce(t, announces).Get("event"))
+
+	require.ErrorIs(t, s.RemoveTorrent(tor.ID(), false), provider.err)
+	assert.Same(t, tor, s.GetTorrent(tor.ID()))
+	assert.Contains(t, []Status{Stopping, Stopped}, tor.Stats().Status)
+	assert.Equal(t, "stopped", recvAnnounce(t, announces).Get("event"))
+
+	provider.err = nil
+	require.NoError(t, s.RemoveTorrent(tor.ID(), false))
+	assert.Nil(t, s.GetTorrent(tor.ID()))
 }
