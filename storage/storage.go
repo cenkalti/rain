@@ -7,7 +7,9 @@ import "io"
 type Storage interface {
 	// Open a file. If the file does not exist, it will be created.
 	Open(name string, size int64) (f File, exists bool, err error)
-	// RootDir is the absolute path of the storage root.
+	// RootDir returns the location of the torrent's files.
+	// File storage returns an absolute directory path. Other storage may return
+	// any identifier of its own, such as a URL.
 	RootDir() string
 }
 

@@ -29,13 +29,13 @@ import (
 	"github.com/cenkalti/rain/v2/internal/piecepicker"
 	"github.com/cenkalti/rain/v2/internal/piecewriter"
 	"github.com/cenkalti/rain/v2/internal/resumer"
-	"github.com/cenkalti/rain/v2/internal/storage"
 	"github.com/cenkalti/rain/v2/internal/suspendchan"
 	"github.com/cenkalti/rain/v2/internal/tracker"
 	"github.com/cenkalti/rain/v2/internal/unchoker"
 	"github.com/cenkalti/rain/v2/internal/urldownloader"
 	"github.com/cenkalti/rain/v2/internal/verifier"
 	"github.com/cenkalti/rain/v2/internal/webseedsource"
+	"github.com/cenkalti/rain/v2/storage"
 	"github.com/rcrowley/go-metrics"
 )
 

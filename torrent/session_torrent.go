@@ -43,7 +43,8 @@ func (t *Torrent) Name() string {
 	return t.torrent.Name()
 }
 
-// Dir returns the directory that contains the files in the torrent.
+// Dir returns the location of the files in the torrent, as reported by its storage.
+// It is a directory path for file storage.
 func (t *Torrent) Dir() string {
 	return t.torrent.Dir()
 }
