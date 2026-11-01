@@ -3,8 +3,14 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"io"
 )
+
+// ErrNotWritten is returned by File.ReadAt when the range contains bytes that
+// were never written. While verifying existing data, a piece that cannot be read
+// for this reason is treated as missing and downloaded, instead of failing the torrent.
+var ErrNotWritten = errors.New("storage: range not written")
 
 // Storage is an interface for reading/writing torrent files.
 type Storage interface {

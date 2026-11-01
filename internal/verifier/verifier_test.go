@@ -2,12 +2,15 @@ package verifier_test
 
 import (
 	"crypto/sha1"
+	"errors"
+	"fmt"
 	"io"
 	"testing"
 
 	"github.com/cenkalti/rain/v2/internal/filesection"
 	"github.com/cenkalti/rain/v2/internal/piece"
 	"github.com/cenkalti/rain/v2/internal/verifier"
+	"github.com/cenkalti/rain/v2/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -68,4 +71,46 @@ func TestVerifierMarksMatchingPieces(t *testing.T) {
 
 	// Progress was reported once per piece.
 	assert.Equal(t, len(pieces), len(progressC))
+}
+
+// errFile fails every read with err.
+type errFile struct {
+	memFile
+	err error
+}
+
+func (f *errFile) ReadAt([]byte, int64) (int, error) { return 0, f.err }
+
+func newErrPiece(index uint32, data []byte, err error) piece.Piece {
+	return piece.Piece{
+		Index:  index,
+		Length: uint32(len(data)),
+		Data:   filesection.Piece{{File: &errFile{err: err}, Offset: 0, Length: int64(len(data))}},
+		Hash:   sha1Sum(data),
+	}
+}
+
+func runVerifier(pieces []piece.Piece) *verifier.Verifier {
+	resultC := make(chan *verifier.Verifier, 1)
+	go verifier.New().Run(pieces, make(chan verifier.Progress, len(pieces)), resultC)
+	return <-resultC
+}
+
+func TestVerifierTreatsNotWrittenAsMissing(t *testing.T) {
+	good := []byte("good piece data!")
+	pieces := []piece.Piece{
+		newErrPiece(0, good, fmt.Errorf("reading: %w", storage.ErrNotWritten)),
+		newPiece(1, good, sha1Sum(good)),
+	}
+
+	res := runVerifier(pieces)
+	require.NoError(t, res.Error)
+	assert.False(t, res.Bitfield.Test(0))
+	assert.True(t, res.Bitfield.Test(1))
+}
+
+func TestVerifierFailsOnReadError(t *testing.T) {
+	errRead := errors.New("read failed")
+	res := runVerifier([]piece.Piece{newErrPiece(0, []byte("good piece data!"), errRead)})
+	require.ErrorIs(t, res.Error, errRead)
 }

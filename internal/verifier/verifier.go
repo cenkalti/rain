@@ -2,9 +2,11 @@ package verifier
 
 import (
 	"crypto/sha1"
+	"errors"
 
 	"github.com/cenkalti/rain/v2/internal/bitfield"
 	"github.com/cenkalti/rain/v2/internal/piece"
+	"github.com/cenkalti/rain/v2/storage"
 )
 
 // Verifier verifies the pieces on disk.
@@ -52,12 +54,12 @@ func (v *Verifier) Run(pieces []piece.Piece, progressC chan Progress, resultC ch
 	var numOK uint32
 	for _, p := range pieces {
 		buf = buf[:p.Length]
-		_, v.Error = p.Data.ReadAt(buf, 0)
-		if v.Error != nil {
+		_, err := p.Data.ReadAt(buf, 0)
+		if err != nil && !errors.Is(err, storage.ErrNotWritten) {
+			v.Error = err
 			return
 		}
-		ok := p.VerifyHash(buf, hash)
-		if ok {
+		if err == nil && p.VerifyHash(buf, hash) {
 			v.Bitfield.Set(p.Index)
 			numOK++
 		}
