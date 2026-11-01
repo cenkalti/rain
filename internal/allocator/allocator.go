@@ -48,15 +48,15 @@ func (a *Allocator) Run(info *metainfo.Info, sto storage.Storage, progressC chan
 
 	defer func() {
 		if a.Error != nil {
-			for _, f := range a.Files {
-				if f.Storage != nil {
-					f.Storage.Close()
-				}
-			}
+			a.closeFiles()
 		}
 		select {
 		case resultC <- a:
 		case <-a.closeC:
+			// Result is not delivered, nobody else will close the files.
+			if a.Error == nil {
+				a.closeFiles()
+			}
 		}
 	}()
 
@@ -80,14 +80,25 @@ func (a *Allocator) Run(info *metainfo.Info, sto storage.Storage, progressC chan
 		}
 		a.Files[i] = File{Storage: sf, Name: f.Path, Padding: f.Padding}
 		allocatedSize += f.Length
-		a.sendProgress(progressC, allocatedSize)
+		if !a.sendProgress(progressC, allocatedSize) {
+			return
+		}
 	}
 }
 
-func (a *Allocator) sendProgress(progressC chan Progress, size int64) {
+func (a *Allocator) sendProgress(progressC chan Progress, size int64) bool {
 	select {
 	case progressC <- Progress{AllocatedSize: size}:
+		return true
 	case <-a.closeC:
-		return
+		return false
+	}
+}
+
+func (a *Allocator) closeFiles() {
+	for _, f := range a.Files {
+		if f.Storage != nil {
+			f.Storage.Close()
+		}
 	}
 }
