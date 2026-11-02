@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/br0xen/boltbrowser v0.0.0-20260327130740-898a1e52a566
-	github.com/cenkalti/backoff/v7 v7.0.1
+	github.com/cenkalti/backoff/v7 v7.0.2
 	github.com/cenkalti/log v1.0.0
 	github.com/creachadair/jrpc2 v1.3.6
 	github.com/fatih/structs v1.1.0
