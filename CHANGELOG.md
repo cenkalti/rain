@@ -30,11 +30,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Stopping a torrent during allocation no longer leaks open files or keeps
   creating the remaining files.
 
-### Security
-
-- With `data-dir-includes-torrent-id` disabled, removing a torrent could delete
-  files outside of `data-dir` if the torrent had a crafted name.
-
 ## [2.4.5] - 2026-11-01
 
 ### Fixed
