@@ -222,7 +222,13 @@ Rain is primarily developed to serve the specific requirements of [put.io][putio
 Star History
 ------------
 
-[![Star History Chart](https://star-history.dera.page/svg?repos=cenkalti/rain&type=Date)](https://star-history.dera.page/#cenkalti/rain&Date)
+<a href="https://star-history.dera.page/cenkalti/rain">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=cenkalti/rain&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=cenkalti/rain" />
+   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=cenkalti/rain" />
+ </picture>
+</a>
 
 [putio-link]: https://put.io
 [docs-link]: https://pkg.go.dev/github.com/cenkalti/rain/v2/torrent
