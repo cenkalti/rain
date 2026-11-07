@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.1] - 2026-11-07
+
+### Fixed
+
+- Torrents named `.` or `..` are rejected, and file storage refuses paths outside
+  of its root directory. Such a torrent that is already in the session database
+  is dropped at startup; its data stays on disk.
+
 ## [2.5.0] - 2026-11-07
 
 ### Added
