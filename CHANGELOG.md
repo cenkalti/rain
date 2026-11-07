@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-11-07
+
+### Added
+
+- Public `storage` package, so `Config.CustomStorage` can be implemented outside
+  of Rain. Storage may also implement `storage.Preparer` to receive the torrent's
+  file layout before files are opened, and `storage.Remover` to delete its own
+  data. `File.ReadAt` may return `storage.ErrNotWritten` so verification treats
+  the piece as missing.
+
+### Changed
+
+- If deleting a torrent's data fails, `RemoveTorrent` returns the error and the
+  torrent stays in the session in stopped state, so the removal can be retried.
+  Previously the torrent was removed anyway.
+- `RemoveTorrent` no longer deletes anything under `data-dir` for torrents using
+  custom storage.
+
+### Fixed
+
+- Stopping a torrent during allocation no longer leaks open files or keeps
+  creating the remaining files.
+
+### Security
+
+- With `data-dir-includes-torrent-id` disabled, removing a torrent could delete
+  files outside of `data-dir` if the torrent had a crafted name.
+
 ## [2.4.5] - 2026-11-01
 
 ### Fixed
