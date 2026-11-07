@@ -121,3 +121,28 @@ func TestFileStorageRemoveRejectsNonLocalPath(t *testing.T) {
 	require.Error(t, s.Remove(m, false))
 	assert.FileExists(t, filepath.Join(parent, "outside"))
 }
+
+func TestFileStorageRemoveRejectsRoot(t *testing.T) {
+	dest := t.TempDir()
+	s, err := New(dest, 0o750, false)
+	require.NoError(t, err)
+	writeFile(t, filepath.Join(dest, "other"))
+	m := &storage.Manifest{Files: []storage.ManifestFile{{Path: "."}}}
+
+	require.Error(t, s.Remove(m, false))
+	assert.FileExists(t, filepath.Join(dest, "other"))
+}
+
+func TestFileStorageOpenRejectsPathsOutsideRoot(t *testing.T) {
+	parent := t.TempDir()
+	dest := filepath.Join(parent, "data")
+	s, err := New(dest, 0o750, false)
+	require.NoError(t, err)
+
+	for _, name := range []string{".", "..", filepath.Join("..", "a"), filepath.Join("b", "..", "..", "a")} {
+		_, _, err := s.Open(name, 1)
+		require.Error(t, err, name)
+	}
+	assert.NoFileExists(t, filepath.Join(parent, "a"))
+	assert.NoDirExists(t, dest)
+}

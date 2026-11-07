@@ -104,6 +104,9 @@ func NewInfo(b []byte, utf8 bool, pad bool) (*Info, error) {
 	if utf8 {
 		ib.overrideUTF8Keys()
 	}
+	if name := strings.TrimSpace(ib.Name); name == "." || name == ".." {
+		return nil, fmt.Errorf("invalid torrent name: %q", ib.Name)
+	}
 	// ".." is not allowed in file names
 	for _, file := range ib.Files {
 		for _, path := range file.Path {

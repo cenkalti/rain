@@ -38,6 +38,10 @@ var (
 // Open a file.
 func (s *FileStorage) Open(name string, size int64) (f storage.File, exists bool, err error) {
 	name = filepath.Clean(name)
+	if !isInsideDest(name) {
+		err = fmt.Errorf("file path is not inside the storage root: %q", name)
+		return
+	}
 
 	// All files are saved under dest.
 	name = filepath.Join(s.dest, name)
@@ -89,6 +93,11 @@ func (s *FileStorage) Open(name string, size int64) (f storage.File, exists bool
 	return
 }
 
+// isInsideDest reports whether the relative path names something strictly under dest.
+func isInsideDest(path string) bool {
+	return filepath.IsLocal(path) && filepath.Clean(path) != "."
+}
+
 // RootDir is the root of opened storage file.
 func (s *FileStorage) RootDir() string {
 	return s.dest
@@ -115,8 +124,8 @@ func (s *FileStorage) Remove(m *storage.Manifest, keepData bool) error {
 			continue
 		}
 		seen[top] = struct{}{}
-		if !filepath.IsLocal(top) {
-			return fmt.Errorf("file path is not local: %q", f.Path)
+		if !isInsideDest(top) {
+			return fmt.Errorf("file path is not inside the storage root: %q", f.Path)
 		}
 		if err := os.RemoveAll(filepath.Join(s.dest, top)); err != nil {
 			return err

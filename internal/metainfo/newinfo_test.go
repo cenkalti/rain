@@ -175,6 +175,23 @@ func TestNewInfoRejectsDotDotPathElement(t *testing.T) {
 	}
 }
 
+// A name that resolves to the data directory or its parent is rejected.
+func TestNewInfoRejectsDotNames(t *testing.T) {
+	for _, name := range []string{".", "..", " . ", " .. ", "\t..", ".. "} {
+		for _, m := range []map[string]any{singleFileInfo(), multiFileInfo()} {
+			m["name"] = name
+			_, err := NewInfo(encodeInfo(t, m), true, true)
+			require.Error(t, err, "name %q must be rejected", name)
+			assert.Contains(t, err.Error(), "invalid torrent name")
+		}
+	}
+
+	m := singleFileInfo()
+	m["name.utf-8"] = ".."
+	_, err := NewInfo(encodeInfo(t, m), true, true)
+	require.Error(t, err)
+}
+
 // A separator embedded in a single element is not a traversal: cleanName turns
 // it into an underscore, so the element collapses to one harmless file name.
 // This is the real defense, and it is worth pinning because the ".." check
@@ -218,8 +235,7 @@ func assertNoTraversal(t *testing.T, p string) {
 // Files[].Path, or sanitize Name themselves.
 //
 // This boundary is load-bearing: filestorage joins Files[].Path under its own
-// root, so writing data is safe, but Session.stopAndRemoveData joins
-// Info.Name instead when data-dir-includes-torrent-id is off.
+// root, both when writing data and when removing it.
 func TestInfoNameIsNotSanitizedButFilePathsAre(t *testing.T) {
 	m := multiFileInfo()
 	m["name"] = "../escape"
