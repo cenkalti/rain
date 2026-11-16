@@ -68,6 +68,10 @@ func (t *torrent) stop(err error) {
 	announcers := t.announcers // keep a reference to the list before nilling in order to start StopAnnouncer
 	t.stopPeriodicalAnnouncers()
 
+	// Take the announce fields before closing data. Closing data clears t.pieces, which makes the bytes left equal
+	// to the torrent length even if the download is complete.
+	stoppedEventFields := t.announcerFields()
+
 	// Closing data is necessary to cancel ongoing IO operations on files.
 	t.closeData()
 	// Data must be closed before closing Allocator.
@@ -92,7 +96,7 @@ func (t *torrent) stop(err error) {
 	if t.stoppedEventAnnouncer != nil {
 		t.crash("stopped event announcer exists")
 	}
-	t.stoppedEventAnnouncer = announcer.NewStopAnnouncer(trackers, t.announcerFields(), t.session.config.TrackerStopTimeout, t.announcersStoppedC, t.log)
+	t.stoppedEventAnnouncer = announcer.NewStopAnnouncer(trackers, stoppedEventFields, t.session.config.TrackerStopTimeout, t.announcersStoppedC, t.log)
 
 	go t.stoppedEventAnnouncer.Run()
 
