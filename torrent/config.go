@@ -41,7 +41,7 @@ type Config struct {
 	PEXEnabled bool `yaml:"pex-enabled"`
 	// Resume data (bitfield & stats) are saved to disk at interval to keep IO lower.
 	ResumeWriteInterval time.Duration `yaml:"resume-write-interval"`
-	// Peer id is prefixed with this string. See BEP 20. Remaining bytes of peer id will be randomized with [0-9a-z].
+	// Peer id is prefixed with this string. See BEP 20. Remaining bytes of peer id will be randomized.
 	// Only applies to private torrents.
 	PrivatePeerIDPrefix string `yaml:"private-peer-id-prefix"`
 	// Client version that is sent in BEP 10 handshake message.

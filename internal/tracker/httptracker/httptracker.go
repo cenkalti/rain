@@ -64,7 +64,7 @@ func (t *HTTPTracker) Announce(ctx context.Context, req tracker.AnnounceRequest)
 	}
 	sb.WriteString(percentEscape(req.Torrent.InfoHash))
 	sb.WriteString("&peer_id=")
-	sb.WriteString(percentEscape(req.Torrent.PeerID))
+	sb.WriteString(peerIDEscape(req.Torrent.PeerID))
 	sb.WriteString("&port=")
 	sb.WriteString(strconv.Itoa(req.Torrent.Port))
 	sb.WriteString("&uploaded=")
@@ -209,6 +209,29 @@ func percentEscape(b [20]byte) string {
 		sb.WriteByte(s[i*2+1])
 	}
 	return sb.String()
+}
+
+// peerIDEscape percent-encodes the peer id but writes the unreserved characters of RFC 3986 as is, like common
+// clients do. Some private trackers identify the client from the literal peer id prefix in the query string and
+// reject the announce when the prefix is encoded.
+func peerIDEscape(b [20]byte) string {
+	const hexDigits = "0123456789abcdef"
+	var sb strings.Builder
+	sb.Grow(60)
+	for _, c := range b {
+		if isUnreserved(c) {
+			sb.WriteByte(c)
+			continue
+		}
+		sb.WriteByte('%')
+		sb.WriteByte(hexDigits[c>>4])
+		sb.WriteByte(hexDigits[c&0x0f])
+	}
+	return sb.String()
+}
+
+func isUnreserved(c byte) bool {
+	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9' || c == '-' || c == '.' || c == '_' || c == '~'
 }
 
 func parsePeersDictionary(b bencode.RawMessage) ([]*net.TCPAddr, error) {
