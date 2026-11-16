@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- HTTP tracker announces no longer percent-encode the unreserved characters
+  (`A-Z a-z 0-9 - . _ ~`) of `peer_id`, like common clients. Some private
+  trackers rejected announces whose peer id client prefix was encoded with
+  HTTP 403. `info_hash` is still encoded byte by byte.
+
 ## [2.5.1] - 2026-11-07
 
 ### Fixed
