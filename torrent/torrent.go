@@ -369,10 +369,19 @@ func newTorrent(
 	if err != nil {
 		return nil, err
 	}
+	if t.info != nil && t.info.Private {
+		// Clients such as Transmission use only [0-9a-z] after the prefix. Some private trackers, or Cloudflare in
+		// front of them, reject announces whose peer id has binary bytes there.
+		for i := n; i < len(t.peerID); i++ {
+			t.peerID[i] = privatePeerIDAlphabet[int(t.peerID[i])%len(privatePeerIDAlphabet)]
+		}
+	}
 	t.unchoker = unchoker.New(cfg.UnchokedPeers, cfg.OptimisticUnchokedPeers)
 	go t.run()
 	return t, nil
 }
+
+const privatePeerIDAlphabet = "0123456789abcdefghijklmnopqrstuvwxyz"
 
 func (t *torrent) copyPeerIDPrefix() int {
 	if t.info != nil && t.info.Private {

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The random part of a private torrent's peer id uses only `[0-9a-z]`, like
+  Transmission. Binary bytes there made some private trackers, behind
+  Cloudflare, reject announces with HTTP 403.
+
 ## [2.5.1] - 2026-11-07
 
 ### Fixed
